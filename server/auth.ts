@@ -82,6 +82,66 @@ declare global {
   }
 }
 
+/**
+ * Chuỗi vai trò trong database → vai trò dùng được, luôn về phía ít quyền.
+ *
+ * Vai trò lạ rơi về 'shop'. Đoán sai phải đoán về phía ít quyền, không phải
+ * phía cấp thêm quyền.
+ */
+function chuanHoaVaiTro(role: string): VaiTro {
+  return role === "admin" ? "admin" : role === "admin_con" ? "admin_con" : "shop";
+}
+
+/**
+ * Hồ sơ người dùng gửi cho giao diện — ĐÚNG MỘT hình dạng cho mọi đường.
+ *
+ * Lỗi đã xảy ra thật: /auth/login chỉ trả { id, email, name }, không có role.
+ * Giao diện lấy thẳng phản hồi đó làm người dùng hiện tại, nên NGAY SAU KHI
+ * ĐĂNG NHẬP vai trò là undefined — mục Quản Trị Hệ Thống biến mất, và chủ
+ * chuỗi thì nhìn thấy bộ màn hình bán hàng không phải của mình. Tải lại trang
+ * là đúng trở lại, vì lúc đó /auth/me mới chạy. Kiểu lỗi chập chờn khó ngờ
+ * nhất.
+ *
+ * TypeScript không bắt được: lớp gọi API khai kiểu trả về là User, nhưng máy
+ * chủ gửi ít trường hơn — kiểu khai ở client không ràng buộc được máy chủ.
+ *
+ * Nay đăng nhập, đăng ký và /auth/me đều đi qua đây, nên không còn chỗ nào
+ * lệch được nữa.
+ */
+export async function hoSoNguoiDung(
+  userId: number,
+  moBoi: number | null
+): Promise<(SessionUser & { nguoiMo: { id: number; name: string } | null }) | null> {
+  const row = await queryOne<{
+    id: number;
+    email: string;
+    name: string;
+    plan: string;
+    role: string;
+    profile_ref: string | null;
+  }>("SELECT id, email, name, plan, role, profile_ref FROM users WHERE id = $1", [userId]);
+  if (!row) return null;
+
+  const nguoiMo =
+    moBoi === null
+      ? null
+      : await queryOne<{ id: number; name: string }>(
+          "SELECT id, name FROM users WHERE id = $1",
+          [moBoi]
+        );
+
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    plan: row.plan,
+    role: chuanHoaVaiTro(row.role),
+    profileRef: row.profile_ref,
+    moBoi,
+    nguoiMo,
+  };
+}
+
 function signSessionId(id: string): string {
   const mac = crypto
     .createHmac("sha256", env.sessionSecret)
@@ -174,7 +234,7 @@ async function loadSession(req: Request): Promise<SessionRow | null> {
      * Vai trò lấy từ DATABASE mỗi request, không lấy từ phía trình duyệt.
      * Ai sửa được vai trò trong cookie là chiếm được quyền quản trị cả hệ thống.
      */
-    role: row.role === "admin" ? "admin" : row.role === "admin_con" ? "admin_con" : "shop",
+    role: chuanHoaVaiTro(row.role),
     profileRef: row.profile_ref,
     moBoi: row.mo_boi,
   };

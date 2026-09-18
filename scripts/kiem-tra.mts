@@ -1414,10 +1414,16 @@ kiem("quản trị", "chặn mọi người không phải quản trị ngay ở 
 const nguonPhien = fs.readFileSync(path.join(GOC, "server/auth.ts"), "utf8");
 // Ba tầng vai trò nên câu này dài thêm, nhưng tinh thần không đổi: đọc từ
 // database, và vai trò lạ rơi về 'shop' chứ không rơi về quyền cao hơn.
+/*
+ * Đếm, không hỏi "có hay không".
+ *
+ * Có HAI chỗ quy vai trò từ dòng dữ liệu: đọc phiên, và dựng hồ sơ gửi cho
+ * giao diện. Chỉ hỏi "tệp này có câu đó không" thì đục thủng một chỗ mà phép
+ * kiểm vẫn thấy chỗ kia và báo đạt — đã đúng như vậy.
+ */
+const soQuyVaiTro = (nguonPhien.match(/role: chuanHoaVaiTro\(row\.role\)/g) ?? []).length;
 kiem("quản trị", "vai trò lấy từ database, không lấy từ trình duyệt",
-  /u\.role/.test(nguonPhien) &&
-    /row\.role === "admin" \? "admin" : row\.role === "admin_con" \? "admin_con" : "shop"/
-      .test(nguonPhien), true);
+  /u\.role/.test(nguonPhien) && soQuyVaiTro === 2, true);
 
 /*
  * Kiểm ĐIỀU KIỆN, không kiểm câu thông báo.
@@ -2576,8 +2582,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonAuth = fs.readFileSync(path.join(GOC, "server/auth.ts"), "utf8");
   // Vai trò lạ phải rơi về 'shop' — quyền thấp nhất. Đoán sai phải đoán về
   // phía an toàn, không phải phía cấp thêm quyền.
+  // Quy vai trò nằm trong chuanHoaVaiTro, dùng chung cho cả phiên lẫn phản hồi
+  // đăng nhập — hai đường không còn chỗ lệch nhau.
   kiem("phân tầng", "vai trò lạ rơi về quyền thấp nhất",
-    /row\.role === "admin" \? "admin" : row\.role === "admin_con" \? "admin_con" : "shop"/
+    /return role === "admin" \? "admin" : role === "admin_con" \? "admin_con" : "shop";/
       .test(nguonAuth), true);
 
   const nguonGH = fs.readFileSync(path.join(GOC, "server/services/gioi-han.ts"), "utf8");
@@ -2662,13 +2670,40 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
       /sticky top-0 z-50/.test(nguonBangXem), true);
 
   /*
+   * Đăng nhập, đăng ký và /auth/me phải trả CÙNG MỘT hình dạng người dùng.
+   *
+   * Lỗi đã xảy ra thật, chủ sản phẩm bắt được: /auth/login chỉ trả
+   * { id, email, name } — KHÔNG có role. Giao diện lấy thẳng phản hồi đó làm
+   * người dùng hiện tại, nên ngay sau khi đăng nhập vai trò là undefined:
+   * mục Quản Trị Hệ Thống biến mất, và chủ chuỗi thì nhìn thấy bộ màn hình bán
+   * hàng không phải của mình. Tải lại trang là đúng trở lại vì lúc đó /auth/me
+   * mới chạy — nên lỗi chập chờn, rất khó ngờ.
+   *
+   * TypeScript không bắt được: lớp gọi API khai kiểu trả về là User nhưng máy
+   * chủ gửi ít trường hơn. Kiểu khai ở client không ràng buộc được máy chủ.
+   *
+   * Đã đo sau khi sửa, đăng nhập trên giao diện thật và KHÔNG tải lại trang:
+   * mục Quản Trị Hệ Thống hiện ngay trong thanh menu.
+   */
+  const nguonAuthRoute = fs.readFileSync(path.join(GOC, "server/routes/auth.ts"), "utf8");
+  const soDungChung = (nguonAuthRoute.match(/await hoSoNguoiDung\(/g) ?? []).length;
+  kiem("phân tầng", "đăng nhập, đăng ký và /me trả cùng một hình dạng người dùng",
+    soDungChung, 3);
+  kiem("phân tầng", "không đường nào tự bịa hình dạng người dùng riêng",
+    /user: \{ id: [a-zA-Z.]+, email: [a-zA-Z.]+, name: [a-zA-Z.]+ \}/.test(nguonAuthRoute), false);
+
+  // Một chỗ duy nhất quy vai trò, dùng chung cho cả phiên lẫn phản hồi đăng nhập.
+  kiem("phân tầng", "quy vai trò ở đúng một chỗ, hai đường không lệch nhau",
+    /function chuanHoaVaiTro\(role: string\): VaiTro \{/.test(nguonAuth) &&
+      /role: chuanHoaVaiTro\(row\.role\)/.test(nguonAuth), true);
+
+  /*
    * Người TỰ ĐĂNG KÝ ra chủ chuỗi, không ra một trang bán hàng.
    *
    * Đăng ký ra thẳng một trang thì người đó vĩnh viễn không thêm được trang
    * thứ hai — muốn thêm phải đi chuyển đổi tài khoản về sau. Ra chủ chuỗi thì
    * trang đầu tiên và trang thứ mười lập bằng cùng một cách.
    */
-  const nguonAuthRoute = fs.readFileSync(path.join(GOC, "server/routes/auth.ts"), "utf8");
   kiem("phân tầng", "người tự đăng ký ra chủ chuỗi, không ra một trang bán hàng",
     /taoTaiKhoan\(\{[\s\S]{0,300}?role: "admin_con",/.test(nguonAuthRoute), true);
 

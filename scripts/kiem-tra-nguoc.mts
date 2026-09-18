@@ -604,7 +604,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "tin vai trò do trình duyệt gửi lên thay vì đọc từ database",
     tep: "server/auth.ts",
-    tim: '    role: row.role === "admin" ? "admin" : row.role === "admin_con" ? "admin_con" : "shop",',
+    tim: "    role: chuanHoaVaiTro(row.role),",
     thay: '    role: "admin",',
   },
   {
@@ -1241,8 +1241,30 @@ const DUC: PhepDuc[] = [
   {
     ten: "vai trò lạ được nâng lên quyền quản lý",
     tep: "server/auth.ts",
-    tim: '    role: row.role === "admin" ? "admin" : row.role === "admin_con" ? "admin_con" : "shop",',
-    thay: '    role: row.role === "shop" ? "shop" : "admin_con",',
+    tim: '  return role === "admin" ? "admin" : role === "admin_con" ? "admin_con" : "shop";',
+    thay: '  return role === "shop" ? "shop" : "admin_con";',
+  },
+  {
+    /*
+     * Đúng lỗi chủ sản phẩm bắt được: đăng nhập trả thiếu role, nên ngay sau
+     * khi đăng nhập giao diện vẽ sai menu cho tới khi người dùng tự tải lại.
+     */
+    ten: "đăng nhập trả thiếu vai trò, menu vẽ sai tới khi tải lại trang",
+    tep: "server/routes/auth.ts",
+    tim: "    res.json({ success: true, user: await hoSoNguoiDung(user.id, null) });",
+    thay: "    res.json({\n      success: true,\n      user: { id: user.id, email: user.email, name: user.name },\n    });",
+  },
+  {
+    ten: "đăng ký trả thiếu vai trò",
+    tep: "server/routes/auth.ts",
+    tim: "    res.status(201).json({ success: true, user: await hoSoNguoiDung(taiKhoan.id, null) });",
+    thay: "    res.status(201).json({\n      success: true,\n      user: { id: taiKhoan.id, email: taiKhoan.email, name: taiKhoan.name },\n    });",
+  },
+  {
+    ten: "mỗi đường tự quy vai trò một kiểu",
+    tep: "server/auth.ts",
+    tim: "function chuanHoaVaiTro(role: string): VaiTro {",
+    thay: "function chuanHoaVaiTroKhongDung(role: string): VaiTro {",
   },
   {
     ten: "gói lạ được cho mức cao nhất",

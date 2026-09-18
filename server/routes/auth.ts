@@ -4,6 +4,7 @@ import {
   createSession,
   destroySession,
   hashPassword,
+  hoSoNguoiDung,
   requireAuth,
   verifyPassword,
 } from "../auth.js";
@@ -45,10 +46,7 @@ authRouter.post(
     });
 
     await createSession(res, taiKhoan.id);
-    res.status(201).json({
-      success: true,
-      user: { id: taiKhoan.id, email: taiKhoan.email, name: taiKhoan.name },
-    });
+    res.status(201).json({ success: true, user: await hoSoNguoiDung(taiKhoan.id, null) });
   })
 );
 
@@ -147,10 +145,9 @@ authRouter.post(
     await query("DELETE FROM login_attempts WHERE lower(email) = $1", [email]).catch(() => {});
 
     await createSession(res, user.id);
-    res.json({
-      success: true,
-      user: { id: user.id, email: user.email, name: user.name },
-    });
+    // Cùng một hình dạng với /auth/me. Thiếu role ở đây là giao diện vẽ sai
+    // menu cho tới khi người dùng tự tải lại trang.
+    res.json({ success: true, user: await hoSoNguoiDung(user.id, null) });
   })
 );
 
@@ -233,13 +230,6 @@ authRouter.get(
      * vai trò AI hay trả lời khách trên tài khoản không phải của mình mà
      * không hề biết. Mà mọi màn hình đều trông y hệt nhau.
      */
-    let nguoiMo: { id: number; name: string } | null = null;
-    if (req.user!.moBoi !== null) {
-      nguoiMo = await queryOne<{ id: number; name: string }>(
-        "SELECT id, name FROM users WHERE id = $1",
-        [req.user!.moBoi]
-      );
-    }
-    res.json({ success: true, user: { ...req.user, nguoiMo } });
+    res.json({ success: true, user: await hoSoNguoiDung(req.user!.id, req.user!.moBoi) });
   })
 );
