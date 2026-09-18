@@ -2430,6 +2430,19 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("đổi Trang đổi não", "đồng bộ không ghi đè tên Trang chủ shop đã đặt",
     /WHEN trang\.ten IN \('Trang đầu tiên', 'Trang chưa đặt tên'\)/.test(nguonTrangSv), true);
   // Dữ liệu bên Zernio bất thường cũng không được nối kênh vào Trang người khác.
+  /*
+   * Đổi Fanpage thì Trang của Fanpage cũ ở lại, không còn kênh nào — cố ý giữ
+   * để đổi về là bộ não còn nguyên. Nhưng nếu Trang mồ côi ấy có id nhỏ hơn
+   * thì cách chọn "Trang cũ nhất" sẽ trả về đúng nó: chủ shop ngồi dạy một
+   * Trang đã chết còn Trang đang bán hàng thì không ai dạy.
+   *
+   * Đã dựng lại đúng trường hợp xấu nhất trên dữ liệu thật: Trang mồ côi id 0,
+   * Trang đang sống id 2 — cách chọn mới trả về 2.
+   */
+  kiem("đổi Trang đổi não", "Trang mặc định bỏ qua Trang mồ côi, chọn Trang còn kênh",
+    /LEFT JOIN social_accounts s ON s\.trang_id = t\.id AND s\.connected[\s\S]{0,200}?ORDER BY \(count\(s\.id\) = 0\), t\.id/
+      .test(nguonTrangSv), true);
+
   kiem("đổi Trang đổi não", "không nối kênh vào Trang của tài khoản khác",
     /return r\.user_id === userId \? r\.id : null;/.test(nguonTrangSv) &&
       /WHERE id = \$2 AND user_id = \$3/.test(nguonTrangSv), true);
@@ -2647,6 +2660,67 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("phân tầng", "dải băng cảnh báo nằm ngoài vùng cuộn, không trôi mất",
     /<DangXemThay user=\{user\} onQuayLai=/.test(nguonApp) &&
       /sticky top-0 z-50/.test(nguonBangXem), true);
+
+  /*
+   * Người TỰ ĐĂNG KÝ ra chủ chuỗi, không ra một trang bán hàng.
+   *
+   * Đăng ký ra thẳng một trang thì người đó vĩnh viễn không thêm được trang
+   * thứ hai — muốn thêm phải đi chuyển đổi tài khoản về sau. Ra chủ chuỗi thì
+   * trang đầu tiên và trang thứ mười lập bằng cùng một cách.
+   */
+  const nguonAuthRoute = fs.readFileSync(path.join(GOC, "server/routes/auth.ts"), "utf8");
+  kiem("phân tầng", "người tự đăng ký ra chủ chuỗi, không ra một trang bán hàng",
+    /taoTaiKhoan\(\{[\s\S]{0,300}?role: "admin_con",/.test(nguonAuthRoute), true);
+
+  /*
+   * Chủ chuỗi KHÔNG phải một chỗ bán hàng: không hồ sơ nhà cung cấp, không
+   * Trang, không bộ não. Cấp cho họ một bộ đồ không ai dùng nghĩa là để lại
+   * một hồ sơ rác bên nhà cung cấp và một bộ não trống làm họ tưởng phải đi
+   * huấn luyện.
+   */
+  kiem("phân tầng", "chủ chuỗi không được cấp Trang và bộ não",
+    /const laChuChuoi = params\.role === "admin_con";/.test(nguonTk3) &&
+      /if \(!laChuChuoi\) \{\s*\n\s*const trangMoi = await client\.query/.test(nguonTk3), true);
+  kiem("phân tầng", "chủ chuỗi không được cấp hồ sơ nhà cung cấp",
+    /if \(!laChuChuoi\) await ensureProfile\(/.test(nguonTk3), true);
+
+  /*
+   * Chặn ngay trong ensureProfile, không chặn ở từng route gọi tới. Có ba
+   * đường gọi hàm này; chặn ở từng đường thì chỉ cần thêm đường thứ tư mà quên
+   * chặn là chủ chuỗi lại có hồ sơ.
+   */
+  const nguonTkSv = fs.readFileSync(path.join(GOC, "server/services/accounts.ts"), "utf8");
+  kiem("phân tầng", "chặn cấp hồ sơ cho chủ chuỗi ở đúng một chỗ, không đường vòng",
+    /export async function ensureProfile[\s\S]{0,900}?if \(vaiTro\?\.role === "admin_con"\) \{\s*\n\s*throw new AppError/
+      .test(nguonTkSv), true);
+
+  // Giá trị lạ rơi về 'shop'. Đoán sai phải đoán về phía ít quyền.
+  kiem("phân tầng", "quản trị cấp được chủ chuỗi, vai trò lạ rơi về quyền thấp",
+    /const role = req\.body\?\.role === "admin_con" \? "admin_con" : "shop";/.test(nguonAd), true);
+
+  /*
+   * Hai bộ tuyến đường tách hẳn theo vai trò.
+   *
+   * Trộn chung rồi chặn từng đường thì phải có HAI tuyến "*" cùng lúc trong
+   * một <Routes>, mà như vậy là mơ hồ — không có gì bảo đảm tuyến nào thắng.
+   */
+  const soBatTatCa = (nguonApp.match(/<Route path="\*"/g) ?? []).length;
+  kiem("phân tầng", "chủ chuỗi có bộ tuyến đường riêng, không hai tuyến bắt-tất-cả chung",
+    /user\?\.role === 'admin_con' \? \(\s*\n\s*<Routes>/.test(nguonApp) && soBatTatCa === 2,
+    true);
+
+  /*
+   * Chủ chuỗi không có Fanpage, hộp thư hay đơn hàng của riêng mình. Bày ra
+   * cho họ một Hộp Thư luôn rỗng chỉ làm họ tưởng hệ thống hỏng. Không xoá màn
+   * hình nào — tài khoản trang vẫn thấy đủ, và chủ chuỗi thấy lại ngay khi mở
+   * một trang.
+   */
+  const nguonMenu = fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8");
+  kiem("phân tầng", "chủ chuỗi không thấy màn hình bán hàng trống rỗng",
+    /const group1 = laChuChuoi\s*\n\s*\? \[\]/.test(nguonMenu) &&
+      /const group2 = laChuChuoi\s*\n\s*\? \[\]/.test(nguonMenu), true);
+  kiem("phân tầng", "chủ chuỗi không thấy bộ chọn Fanpage luôn rỗng",
+    /\{!laChuChuoi && \(\s*\n\s*<div className="shrink-0 relative"/.test(nguonMenu), true);
 }
 
 // ---------------------------------------------------------------------------

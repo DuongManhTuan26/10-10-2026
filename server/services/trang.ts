@@ -26,8 +26,26 @@ export async function layTrangTuKenh(accountId: string): Promise<number | null> 
  * Trang nào, hoặc tài khoản mới chỉ có đúng một Trang.
  */
 export async function layTrangMacDinh(userId: number): Promise<number | null> {
+  /*
+   * Ưu tiên Trang CÒN KÊNH ĐANG NỐI, rồi mới tới Trang cũ nhất.
+   *
+   * Đổi Fanpage thì Trang của Fanpage cũ ở lại, không còn kênh nào — cố ý giữ
+   * để đổi về là bộ não còn nguyên. Nhưng Trang mồ côi ấy vẫn nằm trong bảng,
+   * và nếu nó tình cờ có id nhỏ hơn thì cách chọn "cũ nhất" sẽ trả về đúng nó:
+   * chủ shop mở màn hình huấn luyện khi chưa chọn kênh nào sẽ ngồi dạy một
+   * Trang đã chết, còn Trang đang bán hàng thì không ai dạy. Không một dòng
+   * báo lỗi nào.
+   *
+   * Đã thấy Trang mồ côi thật trong dữ liệu sau các lần thử đổi Fanpage.
+   */
   const r = await queryOne<{ id: number }>(
-    "SELECT id FROM trang WHERE user_id = $1 ORDER BY id LIMIT 1",
+    `SELECT t.id
+       FROM trang t
+       LEFT JOIN social_accounts s ON s.trang_id = t.id AND s.connected
+      WHERE t.user_id = $1
+      GROUP BY t.id
+      ORDER BY (count(s.id) = 0), t.id
+      LIMIT 1`,
     [userId]
   );
   return r?.id ?? null;

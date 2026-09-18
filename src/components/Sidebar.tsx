@@ -64,22 +64,41 @@ export default function Sidebar({
   useEffect(() => { onDong?.(); }, [viTri.pathname]);
   const [pageMenuOpen, setPageMenuOpen] = useState(false);
 
-  const group1 = [
-    { name: 'Bảng Điều Khiển', icon: 'dashboard', path: '/' },
-    { name: 'Kết Nối Đa Nền Tảng', icon: 'cable', path: '/connections' },
-  ];
+  /*
+   * Chủ chuỗi chỉ thấy phần quản lý.
+   *
+   * Họ không gắn Fanpage, không có hộp thư, không có đơn hàng — những thứ đó
+   * thuộc về từng tài khoản trang bên dưới. Bày ra cho họ một Hộp Thư luôn
+   * rỗng và một AI Bán Hàng không có Trang nào để huấn luyện thì chỉ làm họ
+   * tưởng hệ thống hỏng.
+   *
+   * Không xoá màn hình nào: các mục này vẫn nguyên vẹn cho tài khoản trang, và
+   * chủ chuỗi thấy lại đầy đủ ngay khi bấm "Mở trang" bước vào một trang.
+   */
+  const group1 = laChuChuoi
+    ? []
+    : [
+        { name: 'Bảng Điều Khiển', icon: 'dashboard', path: '/' },
+        { name: 'Kết Nối Đa Nền Tảng', icon: 'cable', path: '/connections' },
+      ];
   
-  const group2 = [
-    { name: 'AI Viết - Đăng Bài', icon: 'post_add', path: '/content' },
-    { name: 'AI Quảng Cáo', icon: 'campaign', path: '/ads' },
-    { name: 'AI Bán Hàng', icon: 'smart_toy', path: '/auto-scripts' },
-    { name: 'AI Thống Kê - Phân Tích', icon: 'insights', path: '/analytics' },
-  ];
+  const group2 = laChuChuoi
+    ? []
+    : [
+        { name: 'AI Viết - Đăng Bài', icon: 'post_add', path: '/content' },
+        { name: 'AI Quảng Cáo', icon: 'campaign', path: '/ads' },
+        { name: 'AI Bán Hàng', icon: 'smart_toy', path: '/auto-scripts' },
+        { name: 'AI Thống Kê - Phân Tích', icon: 'insights', path: '/analytics' },
+      ];
   
   const group3 = [
-    { name: 'Hộp Thư', icon: 'forum', path: '/inbox' },
-    { name: 'Đơn Hàng', icon: 'receipt_long', path: '/orders' },
-    { name: 'Báo Cáo Telegram', icon: 'notifications_active', path: '/telegram' },
+    ...(laChuChuoi
+      ? []
+      : [
+          { name: 'Hộp Thư', icon: 'forum', path: '/inbox' },
+          { name: 'Đơn Hàng', icon: 'receipt_long', path: '/orders' },
+          { name: 'Báo Cáo Telegram', icon: 'notifications_active', path: '/telegram' },
+        ]),
     { name: 'Gói Dịch Vụ', icon: 'workspace_premium', path: '/pricing' },
     ...(laChuChuoi
       ? [{ name: 'Quản Lý Trang', icon: 'store', path: '/quan-ly-trang' }]
@@ -199,7 +218,15 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Fanpage Switcher */}
+        {/*
+          Bộ chọn Fanpage.
+
+          Chủ chuỗi không có Fanpage nào của riêng mình — Fanpage thuộc về từng
+          tài khoản trang. Với họ, bộ chọn này luôn hiện "Chưa có trang nào",
+          trái ngược hẳn với bảng Quản lý trang đang liệt kê đủ trang của họ,
+          nên phải ẩn đi để không mâu thuẫn trên cùng một màn hình.
+        */}
+        {!laChuChuoi && (
         <div className="shrink-0 relative" style={{ marginBottom: '24px' }}>
           <button
             onClick={() => setPageMenuOpen((open) => !open)}
@@ -268,6 +295,7 @@ export default function Sidebar({
             </div>
           )}
         </div>
+        )}
 
         {/* Main Nav */}
         <nav className="flex flex-col shrink-0">

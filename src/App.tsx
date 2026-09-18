@@ -123,7 +123,15 @@ export default function App() {
         }}
         onRegister={(registered) => {
           setUser(registered);
-          setAppState('onboarding');
+          /*
+           * Người mới đăng ký là CHỦ CHUỖI, chưa có trang nào.
+           *
+           * Màn hình hướng dẫn ban đầu là dành cho một trang bán hàng: nối
+           * Fanpage, huấn luyện AI, chạy thử kịch bản. Chủ chuỗi chưa có trang
+           * thì không làm được bước nào trong đó. Việc đầu tiên của họ là lập
+           * trang, nên đưa thẳng tới đó.
+           */
+          setAppState('main');
         }}
       />
     );
@@ -167,6 +175,25 @@ export default function App() {
             chủ shop luôn thoát ra được.
           */}
           <ErrorBoundary>
+          {/*
+            Hai bộ tuyến đường tách hẳn nhau theo vai trò.
+
+            Chủ chuỗi không có Fanpage, hộp thư hay đơn hàng của riêng mình —
+            những thứ đó thuộc về từng tài khoản trang bên dưới. Trộn chung rồi
+            chặn từng đường thì phải có HAI tuyến bắt-tất-cả cùng lúc, mà hai
+            tuyến "*" trong một <Routes> là mơ hồ, không có gì bảo đảm tuyến nào
+            thắng.
+
+            Không màn hình nào bị xoá: chủ chuỗi thấy lại đầy đủ ngay khi bấm
+            "Mở trang" bước vào một trang.
+          */}
+          {user?.role === 'admin_con' ? (
+            <Routes>
+              <Route path="/quan-ly-trang" element={<QuanLyTrang />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="*" element={<Navigate to="/quan-ly-trang" replace />} />
+            </Routes>
+          ) : (
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/inbox" element={<Inbox />} />
@@ -182,13 +209,10 @@ export default function App() {
               vẫn kiểm lại vai trò từ database ở mọi lời gọi.
             */}
             {user?.role === 'admin' && <Route path="/admin" element={<Admin />} />}
-            {/* Chủ chuỗi mới thấy. Máy chủ vẫn kiểm lại vai trò ở mọi lời gọi. */}
-            {user?.role === 'admin_con' && (
-              <Route path="/quan-ly-trang" element={<QuanLyTrang />} />
-            )}
             <Route path="/analytics" element={<Analytics />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          )}
           </ErrorBoundary>
         </main>
       </div>

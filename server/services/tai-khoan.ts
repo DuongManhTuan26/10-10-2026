@@ -140,6 +140,17 @@ export async function taoTaiKhoan(params: {
 
   const passwordHash = await hashPassword(params.password);
 
+  /*
+   * Chủ chuỗi KHÔNG phải một chỗ bán hàng.
+   *
+   * Họ không gắn Fanpage, không nhắn tin với khách, không chốt đơn — việc đó
+   * là của các tài khoản trang bên dưới. Cấp cho họ một hồ sơ Zernio, một
+   * Trang và một bộ não là tạo ra một bộ đồ không ai dùng: hồ sơ rác đọng lại
+   * bên nhà cung cấp, và một bộ não trống nằm trong danh sách làm chủ chuỗi
+   * tưởng mình phải đi huấn luyện nó.
+   */
+  const laChuChuoi = params.role === "admin_con";
+
   const id = await transaction(async (client) => {
     const inserted = await client.query<{ id: number }>(
       `INSERT INTO users (email, password_hash, name, parent_id, role)
@@ -156,19 +167,21 @@ export async function taoTaiKhoan(params: {
      * ghi đè vào đây; chỗ này đặt tạm một mã riêng để bảng không trống, vì
      * profile_ref là khoá duy nhất và không được để null.
      */
-    const trangMoi = await client.query<{ id: number }>(
-      `INSERT INTO trang (user_id, profile_ref, ten)
-       VALUES ($1, $2, $3) RETURNING id`,
-      [userId, `cho-cap-${userId}`, "Trang đầu tiên"]
-    );
-    const trangId = trangMoi.rows[0].id;
-
-    for (const config of DEFAULT_AI_CONFIGS) {
-      await client.query(
-        `INSERT INTO ai_configs (user_id, trang_id, kind, system_prompt)
-         VALUES ($1, $2, $3, $4)`,
-        [userId, trangId, config.kind, config.prompt]
+    if (!laChuChuoi) {
+      const trangMoi = await client.query<{ id: number }>(
+        `INSERT INTO trang (user_id, profile_ref, ten)
+         VALUES ($1, $2, $3) RETURNING id`,
+        [userId, `cho-cap-${userId}`, "Trang đầu tiên"]
       );
+      const trangId = trangMoi.rows[0].id;
+
+      for (const config of DEFAULT_AI_CONFIGS) {
+        await client.query(
+          `INSERT INTO ai_configs (user_id, trang_id, kind, system_prompt)
+           VALUES ($1, $2, $3, $4)`,
+          [userId, trangId, config.kind, config.prompt]
+        );
+      }
     }
 
     for (const rule of DEFAULT_HANDOFF_RULES) {
@@ -189,7 +202,7 @@ export async function taoTaiKhoan(params: {
    * Nền tảng lỗi thì vẫn cho tạo tài khoản — nối lại được sau.
    */
   try {
-    await ensureProfile({ id, name, email, profileRef: null });
+    if (!laChuChuoi) await ensureProfile({ id, name, email, profileRef: null });
   } catch (error) {
     console.error(
       "[tài khoản] Chưa tạo được hồ sơ nền tảng cho tài khoản mới:",

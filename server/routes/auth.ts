@@ -25,10 +25,23 @@ authRouter.post(
      * Hai đường tạo riêng là sớm muộn cũng lệch, rồi tài khoản đường này thiếu
      * thứ mà đường kia có.
      */
+    /*
+     * Người tự đăng ký thành CHỦ CHUỖI, không thành một trang bán hàng.
+     *
+     * Mô hình là mỗi tài khoản một Fanpage. Nếu đăng ký ra thẳng một trang thì
+     * người đó vĩnh viễn không thêm được trang thứ hai — muốn thêm phải đi
+     * chuyển đổi tài khoản, đúng kiểu sửa vá về sau mà chủ sản phẩm không
+     * muốn. Ra chủ chuỗi thì trang đầu tiên và trang thứ mười đều lập bằng
+     * cùng một cách.
+     *
+     * Chủ chuỗi không được cấp hồ sơ nền tảng, không có Trang, không có bộ não
+     * — họ quản lý chứ không bán.
+     */
     const taiKhoan = await taoTaiKhoan({
       email: requireString(req.body, "email", "email"),
       password: requireString(req.body, "password", "mật khẩu"),
       name: typeof req.body?.name === "string" ? req.body.name : "",
+      role: "admin_con",
     });
 
     await createSession(res, taiKhoan.id);

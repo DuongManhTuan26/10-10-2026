@@ -145,14 +145,24 @@ adminRouter.post(
       throw new AppError("Địa chỉ email không hợp lệ");
     }
 
+    /*
+     * Quản trị tổng cấp được cả hai loại:
+     *   'admin_con' — chủ chuỗi, tự lập các trang của mình về sau
+     *   'shop'      — một tài khoản một trang, đứng riêng không thuộc chuỗi nào
+     * Giá trị lạ rơi về 'shop', quyền thấp hơn. Đoán sai phải đoán về phía
+     * ít quyền, không phải phía nhiều quyền.
+     */
+    const role = req.body?.role === "admin_con" ? "admin_con" : "shop";
+
     const matKhauTam = sinhMatKhauTam();
-    const taiKhoan = await taoTaiKhoan({ email, password: matKhauTam, name });
+    const taiKhoan = await taoTaiKhoan({ email, password: matKhauTam, name, role });
 
     await ghiNhatKyQuanTri({
       adminId: req.user!.id,
       targetId: taiKhoan.id,
       targetEmail: taiKhoan.email,
       action: "tao_tai_khoan",
+      detail: { role },
     });
 
     res.status(201).json({

@@ -1054,8 +1054,9 @@ const DUC: PhepDuc[] = [
     // Nay xoá hẳn câu lệnh: tài khoản mới không còn Trang nào.
     ten: "tài khoản mới không sinh kèm Trang đầu tiên",
     tep: "server/services/tai-khoan.ts",
-    tim: "      `INSERT INTO trang (user_id, profile_ref, ten)\n       VALUES ($1, $2, $3) RETURNING id`,",
-    thay: "      `SELECT 0 AS id`,",
+    // Thụt lề đổi khi câu lệnh chuyển vào trong nhánh "không phải chủ chuỗi".
+    tim: "        `INSERT INTO trang (user_id, profile_ref, ten)\n         VALUES ($1, $2, $3) RETURNING id`,",
+    thay: "        `SELECT 0 AS id`,",
   },
   // --- Đổi Trang trên thanh menu là đổi luôn bộ não ---
   {
@@ -1145,6 +1146,12 @@ const DUC: PhepDuc[] = [
     tep: "server/services/trang.ts",
     tim: "               WHEN trang.ten IN ('Trang đầu tiên', 'Trang chưa đặt tên')",
     thay: "               WHEN TRUE",
+  },
+  {
+    ten: "Trang mặc định vớ phải Trang mồ côi đã chết",
+    tep: "server/services/trang.ts",
+    tim: "      ORDER BY (count(s.id) = 0), t.id",
+    thay: "      ORDER BY t.id",
   },
   {
     ten: "nối kênh vào Trang của tài khoản khác",
@@ -1304,6 +1311,54 @@ const DUC: PhepDuc[] = [
     tep: "src/components/DangXemThay.tsx",
     tim: '    <div className="sticky top-0 z-50 bg-amber-500',
     thay: '    <div className="bg-amber-500',
+  },
+  {
+    ten: "tự đăng ký ra thẳng một trang, không thêm được trang thứ hai",
+    tep: "server/routes/auth.ts",
+    tim: '      role: "admin_con",\n    });\n\n    await createSession(res, taiKhoan.id);',
+    thay: "    });\n\n    await createSession(res, taiKhoan.id);",
+  },
+  {
+    ten: "chủ chuỗi bị cấp Trang và bộ não không ai dùng",
+    tep: "server/services/tai-khoan.ts",
+    tim: '  const laChuChuoi = params.role === "admin_con";',
+    thay: "  const laChuChuoi = false;",
+  },
+  {
+    ten: "chủ chuỗi bị cấp hồ sơ nhà cung cấp, để lại rác",
+    tep: "server/services/tai-khoan.ts",
+    tim: "    if (!laChuChuoi) await ensureProfile({ id, name, email, profileRef: null });",
+    thay: "    await ensureProfile({ id, name, email, profileRef: null });",
+  },
+  {
+    ten: "bỏ chốt chặn cấp hồ sơ cho chủ chuỗi",
+    tep: "server/services/accounts.ts",
+    tim: '  if (vaiTro?.role === "admin_con") {',
+    thay: "  if (false) {",
+  },
+  {
+    ten: "quản trị cấp tài khoản: vai trò lạ được nâng lên quản lý chuỗi",
+    tep: "server/routes/admin.ts",
+    tim: '    const role = req.body?.role === "admin_con" ? "admin_con" : "shop";',
+    thay: '    const role = req.body?.role === "shop" ? "shop" : "admin_con";',
+  },
+  {
+    ten: "trộn tuyến đường, hai tuyến bắt-tất-cả tranh nhau trong một <Routes>",
+    tep: "src/App.tsx",
+    tim: "          {user?.role === 'admin_con' ? (\n            <Routes>",
+    thay: "          {false ? (\n            <Routes>",
+  },
+  {
+    ten: "chủ chuỗi phải nhìn màn hình bán hàng rỗng không của mình",
+    tep: "src/components/Sidebar.tsx",
+    tim: "  const group2 = laChuChuoi\n    ? []",
+    thay: "  const group2 = false\n    ? []",
+  },
+  {
+    ten: "chủ chuỗi thấy bộ chọn Fanpage luôn báo chưa có trang nào",
+    tep: "src/components/Sidebar.tsx",
+    tim: '        {!laChuChuoi && (\n        <div className="shrink-0 relative"',
+    thay: '        {true && (\n        <div className="shrink-0 relative"',
   },
   {
     ten: "hồ sơ thật không thay mã tạm của Trang",
