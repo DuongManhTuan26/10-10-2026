@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { clsx } from 'clsx';
 import { api, ApiError, type AiDocument, type SalesStage, type TuChuConfig } from '../lib/api';
 import { useActivePage } from '../lib/ActivePage';
+import TrangDangHuanLuyen from '../components/TrangDangHuanLuyen';
 import {
   toFileArray, doiCoTep, napTepChu, napTepAnh, NHAN_VAN_BAN, NHAN_ANH,
 } from '../lib/aiDocuments';
@@ -209,7 +210,14 @@ export default function AutoScripts() {
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'Không tải được cấu hình AI');
     }
-  }, []);
+  /*
+   * Phụ thuộc activeAccountId dù thân hàm không nhắc tới nó: bộ não AI gắn
+   * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
+   * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
+   * tiếp lên đó là ghi nhầm sang Trang khác.
+   */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccountId]);
 
   useEffect(() => { loadScripts(); loadTraining(); }, [loadScripts, loadTraining]);
 
@@ -1224,7 +1232,13 @@ export default function AutoScripts() {
 
   return (
     <main className="flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative    bg-background">
-      
+
+      {/*
+        Kịch bản bình luận và bộ não bán hàng đều thuộc về một Trang cụ thể.
+        Nói rõ ngay đầu màn hình đang làm việc với Trang nào.
+      */}
+      <TrangDangHuanLuyen />
+
       {/* Tabs */}
       <div className="flex border-b border-outline-variant mb-6">
         {/*

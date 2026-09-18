@@ -71,6 +71,43 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Khoá localStorage giữ Trang đang chọn trên thanh menu.
+ *
+ * ActivePage.tsx ghi, chỗ này đọc. Để đúng một chỗ khai báo chuỗi này, vì hai
+ * nơi mà lệch nhau một chữ thì bộ não lặng lẽ đọc nhầm Trang.
+ */
+export const KHOA_TRANG_DANG_CHON = "zn_active_account";
+
+/**
+ * Đính Trang đang chọn vào mọi lệnh về bộ não AI.
+ *
+ * Vai trò, kịch bản và tài liệu gắn theo Trang chứ không theo tài khoản, nên
+ * mỗi lệnh đọc/ghi cấu hình AI phải nói rõ đang làm việc với Trang nào. Làm ở
+ * đây thay vì bắt từng màn hình tự nhớ kèm vào: chỉ cần một màn hình quên là
+ * chủ shop sửa vai trò của Trang này nhưng ghi sang Trang khác — sai hoàn
+ * toàn lặng lẽ, không có thông báo lỗi nào để mà biết.
+ *
+ * Đọc thẳng localStorage chứ không giữ một bản sao trong bộ nhớ, vì effect của
+ * màn hình con chạy TRƯỚC effect của provider: một bản sao cập nhật muộn sẽ
+ * khiến lần gọi đầu tiên sau khi đổi Trang vẫn mang mã Trang cũ.
+ *
+ * Máy chủ không tin con số này: nó suy ra Trang từ kênh rồi mới kiểm chủ sở
+ * hữu. Sửa tay trong trình duyệt cũng không chạm được sang tài khoản khác.
+ */
+function duongCoTrang(path: string): string {
+  if (!path.startsWith("/ai/")) return path;
+  if (/[?&]accountId=/.test(path)) return path;
+  let kenh: string | null = null;
+  try {
+    kenh = localStorage.getItem(KHOA_TRANG_DANG_CHON);
+  } catch {
+    // Trình duyệt chặn localStorage — coi như chưa chọn Trang nào.
+  }
+  if (!kenh) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}accountId=${encodeURIComponent(kenh)}`;
+}
+
 async function request<T>(
   path: string,
   options: { method?: string; body?: unknown; signal?: AbortSignal } = {}
@@ -90,7 +127,7 @@ async function request<T>(
    */
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, {
+    response = await fetch(`/api${duongCoTrang(path)}`, {
       method,
       headers: body === undefined ? {} : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -247,6 +284,15 @@ export interface SocialAccount {
   needs_reconnection: boolean;
   token_expires_at: string | null;
   last_synced_at: string | null;
+  /**
+   * Trang (bộ não) mà kênh này thuộc về.
+   *
+   * Nhiều kênh chung một Trang là chuyện bình thường: Fanpage, Instagram và
+   * TikTok của cùng một shop đứng chung một hồ sơ Zernio nên dùng chung vai
+   * trò, kịch bản và tài liệu. Vì vậy muốn biết "có bao nhiêu bộ não" thì
+   * phải đếm trang_id khác nhau, không được đếm số kênh.
+   */
+  trang_id: number | null;
 }
 
 export type ConversationStatus = "ai" | "waiting_human" | "human" | "done";

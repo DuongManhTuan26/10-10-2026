@@ -2305,6 +2305,122 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 }
 
 // ---------------------------------------------------------------------------
+// 49. Đổi Trang trên thanh menu là đổi luôn bộ não
+// ---------------------------------------------------------------------------
+// Máy chủ đã tra bộ não theo Trang (mục 48), nhưng giao diện không nói Trang
+// nào thì máy chủ phải chọn đại Trang đầu tiên. Chủ shop mười Trang sẽ sửa vai
+// trò của Trang này mà ghi sang Trang khác — sai hoàn toàn lặng lẽ.
+{
+  const nguonApi = fs.readFileSync(path.join(GOC, "src/lib/api.ts"), "utf8");
+
+  kiem("đổi Trang đổi não", "mọi lệnh về bộ não tự mang mã Trang đang chọn",
+    /function duongCoTrang\(path: string\): string/.test(nguonApi) &&
+      /await fetch\(`\/api\$\{duongCoTrang\(path\)\}`/.test(nguonApi), true);
+
+  // Đính vào MỌI đường dẫn thì các màn hình khác lãnh đủ tham số thừa; đính
+  // bằng tay ở từng màn hình thì sớm muộn có chỗ quên. Chỉ /ai/ và làm một chỗ.
+  kiem("đổi Trang đổi não", "chỉ đính vào lệnh AI, không rải khắp nơi",
+    /if \(!path\.startsWith\("\/ai\/"\)\) return path;/.test(nguonApi), true);
+
+  kiem("đổi Trang đổi não", "không đè mã Trang mà lệnh đã tự ghi",
+    /if \(\/\[\?&\]accountId=\/\.test\(path\)\) return path;/.test(nguonApi), true);
+
+  // Giữ một bản sao trong bộ nhớ thì effect của màn hình con chạy trước effect
+  // của provider, lần gọi đầu sau khi đổi Trang vẫn mang mã cũ. Đọc thẳng kho.
+  kiem("đổi Trang đổi não", "đọc thẳng kho, không giữ bản sao cập nhật muộn",
+    /localStorage\.getItem\(KHOA_TRANG_DANG_CHON\)/.test(nguonApi), true);
+
+  const nguonTrangCtx = fs.readFileSync(path.join(GOC, "src/lib/ActivePage.tsx"), "utf8");
+  kiem("đổi Trang đổi não", "hai bên dùng chung một khoá, không ai tự chế chuỗi",
+    /export const KHOA_TRANG_DANG_CHON = "zn_active_account";/.test(nguonApi) &&
+      /const STORAGE_KEY = KHOA_TRANG_DANG_CHON;/.test(nguonTrangCtx) &&
+      !/STORAGE_KEY = ['"]zn_active_account['"]/.test(nguonTrangCtx), true);
+
+  /*
+   * Đổi Trang mà màn hình không nạp lại thì nó vẫn vẽ não của Trang cũ, chủ
+   * shop gõ tiếp lên đó là ghi nhầm. Thân hàm không nhắc tới activeAccountId
+   * nên không công cụ nào nhắc được — phải chốt ở đây.
+   */
+  const napLaiTheoTrang: Array<[string, RegExp]> = [
+    ["src/pages/AutoScripts.tsx", /Không tải được cấu hình AI[\s\S]{0,600}?\}, \[activeAccountId\]\);/],
+    ["src/pages/Content.tsx", /phong cách mặc định[\s\S]{0,600}?\}, \[activeAccountId\]\);/],
+    ["src/pages/Content.tsx", /dùng mặc định an toàn[\s\S]{0,600}?\}, \[activeAccountId\]\);/],
+    ["src/components/AutoPilotPanel.tsx", /Không tải được lịch tự động[\s\S]{0,600}?\}, \[activeAccountId\]\);/],
+    ["src/components/AITrainingModal.tsx", /Không tải được cấu hình AI[\s\S]{0,600}?\}, \[kind, activeAccountId\]\);/],
+  ];
+  const quenNapLai: string[] = [];
+  for (const [tep, mau] of napLaiTheoTrang) {
+    const ma = fs.readFileSync(path.join(GOC, tep), "utf8");
+    if (!mau.test(ma)) quenNapLai.push(tep);
+  }
+  kiem("đổi Trang đổi não", "đổi Trang thì màn hình huấn luyện nạp lại", quenNapLai, []);
+
+  // "Tất cả trang" không phải một Trang. Có nhiều Trang mà để nguyên thì máy
+  // chủ chọn đại Trang đầu tiên — phải cảnh báo chứ không ghi lặng lẽ.
+  const nguonBang = fs.readFileSync(
+    path.join(GOC, "src/components/TrangDangHuanLuyen.tsx"), "utf8"
+  );
+  kiem("đổi Trang đổi não", "chưa chọn Trang mà có nhiều Trang thì bắt chọn",
+    /if \(soTrang === 1\)/.test(nguonBang) &&
+      /Vui lòng chọn đúng trang muốn huấn luyện/.test(nguonBang) &&
+      /setActiveAccountId\(dsKenh\[0\]\.id\)/.test(nguonBang), true);
+
+  /*
+   * Đếm TRANG, không đếm KÊNH.
+   *
+   * Đã thấy trên dữ liệu thật: tài khoản hoangtuan3310tn có ba kênh (Fanpage,
+   * Instagram, TikTok) nhưng cùng một hồ sơ Zernio nên chung đúng một Trang,
+   * một bộ não. Bản đầu của dải băng đếm kênh, nên nó hỏi "muốn dạy trang
+   * nào" và bày ra ba nút — trong khi bấm nút nào cũng ra cùng một bộ não.
+   * Hỏi một câu vô nghĩa cũng là một lỗi: chủ shop tưởng mình đang chọn sai.
+   */
+  kiem("đổi Trang đổi não", "đếm Trang chứ không đếm kênh",
+    /const soTrang = theoTrang\.size \+ chuaCoTrang\.length;/.test(nguonBang) &&
+      /theoTrang\.set\(kenh\.trang_id,/.test(nguonBang), true);
+
+  // Hai lệnh cùng nuôi một bộ chọn: lệnh liệt kê và lệnh đồng bộ. Thiếu
+  // trang_id ở một trong hai thì bộ chọn lúc đúng lúc sai tuỳ đường vào.
+  const nguonNoi = fs.readFileSync(path.join(GOC, "server/routes/connections.ts"), "utf8");
+  kiem("đổi Trang đổi não", "danh sách kênh gửi kèm trang_id cho giao diện",
+    /last_synced_at, created_at, trang_id/.test(nguonNoi) &&
+      /token_expires_at,\s*\n\s*trang_id\s*\n\s*FROM social_accounts WHERE user_id = \$1/.test(nguonNoi), true);
+
+  /*
+   * Kênh nối về SAU khi mở tài khoản cũng phải có Trang.
+   *
+   * Đã đo trên dữ liệu thật: syncAccountsForUser không hề đụng tới trang_id,
+   * nên kênh mới có trang_id rỗng. Chỗ đọc bộ não lại rơi về Trang đầu tiên —
+   * nên nhìn màn hình thấy vẫn có vai trò, vẫn có tài liệu, không có dấu hiệu
+   * nào của sự cố, trong khi AI đang bán bằng bảng giá của Fanpage khác.
+   * Chính cái rơi-về-Trang-đầu-tiên đó che mất lỗi, nên phải chốt ở đây.
+   */
+  const nguonTk2 = fs.readFileSync(path.join(GOC, "server/services/accounts.ts"), "utf8");
+  kiem("đổi Trang đổi não", "kênh nối về sau cũng được nối vào Trang của nó",
+    /const trangId = await baoDamTrangChoHoSo\(/.test(nguonTk2) &&
+      /if \(trangId\) await ganKenhVaoTrang\(account\._id, userId, trangId\);/.test(nguonTk2), true);
+
+  const nguonTrangSv = fs.readFileSync(path.join(GOC, "server/services/trang.ts"), "utf8");
+  // Hồ sơ Zernio là khoá duy nhất của Trang, nên hai lần gọi phải ra cùng một
+  // Trang. Không thì mỗi lần đồng bộ lại đẻ thêm một Trang rỗng.
+  kiem("đổi Trang đổi não", "gọi lại không đẻ thêm Trang rỗng",
+    /ON CONFLICT \(profile_ref\) DO UPDATE SET/.test(nguonTrangSv), true);
+  // Tên chủ shop tự đặt là của họ, đồng bộ không được đổi.
+  kiem("đổi Trang đổi não", "đồng bộ không ghi đè tên Trang chủ shop đã đặt",
+    /WHEN trang\.ten IN \('Trang đầu tiên', 'Trang chưa đặt tên'\)/.test(nguonTrangSv), true);
+  // Dữ liệu bên Zernio bất thường cũng không được nối kênh vào Trang người khác.
+  kiem("đổi Trang đổi não", "không nối kênh vào Trang của tài khoản khác",
+    /return r\.user_id === userId \? r\.id : null;/.test(nguonTrangSv) &&
+      /WHERE id = \$2 AND user_id = \$3/.test(nguonTrangSv), true);
+
+  const dungBang = ["src/pages/AutoScripts.tsx", "src/components/AITrainingModal.tsx"];
+  const thieuBang = dungBang.filter(
+    (t) => !/<TrangDangHuanLuyen \/>/.test(fs.readFileSync(path.join(GOC, t), "utf8"))
+  );
+  kiem("đổi Trang đổi não", "màn hình huấn luyện nói rõ đang dạy cho Trang nào",
+    thieuBang, []);
+}
+
+// ---------------------------------------------------------------------------
 console.log(`\nĐã kiểm ${tong} điểm.`);
 if (hong === 0) {
   console.log("Tất cả đều đạt.\n");

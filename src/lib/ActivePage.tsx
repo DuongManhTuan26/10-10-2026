@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { api, type SocialAccount } from './api';
+import { api, KHOA_TRANG_DANG_CHON, type SocialAccount } from './api';
 
 /**
  * Trang đang được chọn.
@@ -23,7 +23,12 @@ interface ActivePageValue {
 
 const ActivePageContext = createContext<ActivePageValue | null>(null);
 
-const STORAGE_KEY = 'zn_active_account';
+/*
+ * Dùng chung khoá với api.ts. Lớp gọi API đọc thẳng chỗ này để đính Trang
+ * đang chọn vào mọi lệnh về bộ não AI, nên hai bên bắt buộc phải cùng một
+ * khoá — khai báo riêng mỗi nơi một chuỗi là mầm mống đọc nhầm Trang.
+ */
+const STORAGE_KEY = KHOA_TRANG_DANG_CHON;
 
 export function ActivePageProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);

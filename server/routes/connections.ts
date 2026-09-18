@@ -94,9 +94,17 @@ connectionsRouter.get(
   "/accounts",
   route(async (req, res) => {
     const result = await query(
+      /*
+       * trang_id đi kèm để giao diện biết kênh nào chung một bộ não.
+       *
+       * Một hồ sơ Zernio gom Fanpage, Instagram, TikTok của cùng một shop —
+       * ba kênh nhưng chỉ một Trang, một bộ não. Đếm kênh thay vì đếm Trang
+       * thì màn hình huấn luyện sẽ hỏi "bạn muốn dạy trang nào" trong khi
+       * chỉ có đúng một trang để dạy.
+       */
       `SELECT id, platform, username, display_name, profile_picture, profile_url,
               followers_count, connected, needs_reconnection, token_expires_at,
-              last_synced_at, created_at
+              last_synced_at, created_at, trang_id
          FROM social_accounts
         WHERE user_id = $1
         ORDER BY platform, display_name`,
@@ -393,8 +401,10 @@ connectionsRouter.post(
     const soKenh = await syncAccountsForUser(user.id, profileId);
 
     const stored = await query(
+      // Kèm trang_id y như lệnh liệt kê ở trên — hai nơi cùng nuôi một bộ chọn.
       `SELECT id, platform, username, display_name, profile_picture, profile_url,
-              followers_count, connected, needs_reconnection, token_expires_at
+              followers_count, connected, needs_reconnection, token_expires_at,
+              trang_id
          FROM social_accounts WHERE user_id = $1 ORDER BY platform, display_name`,
       [user.id]
     );

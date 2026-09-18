@@ -1,5 +1,15 @@
 import { query } from "../db.js";
 import * as zernio from "./zernio.js";
+import { baoDamTrangChoHoSo, ganKenhVaoTrang } from "./trang.js";
+
+/*
+ * Thứ tự ưu tiên khi đặt tên Trang.
+ *
+ * Một hồ sơ Zernio gom nhiều nền tảng của cùng một shop, mà Trang chỉ có một
+ * tên. Lấy tên Fanpage thì chủ shop nhận ra ngay Trang nào là Trang nào; lấy
+ * nhầm tên tài khoản TikTok thì trên thanh menu hiện ra một cái tên lạ hoắc.
+ */
+const UU_TIEN_TEN_TRANG = ["facebook", "instagram", "threads", "youtube", "tiktok"];
 
 /**
  * Bảo đảm gian hàng có ĐÚNG MỘT hồ sơ trên Zernio.
@@ -68,7 +78,18 @@ export async function syncAccountsForUser(
 ): Promise<number> {
   const accounts = await zernio.listAccounts(profileId);
 
-  for (const account of accounts) {
+  /*
+   * Đặt tên Trang theo Fanpage trước, nên duyệt Fanpage trước. Tài khoản
+   * quảng cáo xuống cuối: nó không phải chỗ bán hàng, tên của nó không nên
+   * trở thành tên Trang.
+   */
+  const theoThuTu = [...accounts].sort((a, b) => {
+    const xa = UU_TIEN_TEN_TRANG.indexOf(a.platform);
+    const xb = UU_TIEN_TEN_TRANG.indexOf(b.platform);
+    return (xa < 0 ? 99 : xa) - (xb < 0 ? 99 : xb);
+  });
+
+  for (const account of theoThuTu) {
     const disconnected =
       account.needsReconnection === true ||
       account.isActive === false ||
@@ -109,6 +130,21 @@ export async function syncAccountsForUser(
         JSON.stringify(account),
       ]
     );
+
+    /*
+     * Nối kênh vào Trang của hồ sơ nó thuộc về, chưa có Trang thì tạo.
+     *
+     * Bắt buộc làm ở đây chứ không chỉ lúc mở tài khoản: kênh nối về sau mà
+     * trang_id rỗng thì chỗ đọc bộ não rơi về Trang đầu tiên, và shop thêm
+     * Fanpage thứ hai sẽ thấy AI đem bảng giá của Fanpage thứ nhất đi bán.
+     */
+    const hoSoCuaKenh = zernio.accountProfileId(account) ?? profileId;
+    const trangId = await baoDamTrangChoHoSo(
+      userId,
+      hoSoCuaKenh,
+      account.displayName ?? account.username ?? "Trang chưa đặt tên"
+    );
+    if (trangId) await ganKenhVaoTrang(account._id, userId, trangId);
   }
 
   // Kênh đã bị gỡ bên Zernio thì đánh dấu mất kết nối, KHÔNG xoá — hội thoại

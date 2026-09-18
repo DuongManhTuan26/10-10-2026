@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { api, ApiError, type AiDocument } from '../lib/api';
+import { useActivePage } from '../lib/ActivePage';
+import TrangDangHuanLuyen from './TrangDangHuanLuyen';
 import {
   toFileArray, doiCoTep, napTepChu, napTepAnh,
   NHAN_VAN_BAN, NHAN_ANH,
@@ -28,6 +30,7 @@ interface AITrainingModalProps {
 export default function AITrainingModal({
   isOpen, onClose, aiName, kind, onSaved,
 }: AITrainingModalProps) {
+  const { activeAccountId } = useActivePage();
   const [role, setRole] = useState('');
   const [files, setFiles] = useState<AiDocument[]>([]);
   const [dangTai, setDangTai] = useState(true);
@@ -58,7 +61,13 @@ export default function AITrainingModal({
     } finally {
       setDangTai(false);
     }
-  }, [kind]);
+  /*
+   * Phụ thuộc activeAccountId dù thân hàm không nhắc tới nó: bộ não AI gắn
+   * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
+   * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
+   * tiếp lên đó là ghi nhầm sang Trang khác.
+   */
+  }, [kind, activeAccountId]);
 
   useEffect(() => { if (isOpen) nap(); }, [isOpen, nap]);
 
@@ -170,6 +179,8 @@ export default function AITrainingModal({
 
         {/* Body */}
         <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
+          {/* Vai trò và tài liệu của AI này thuộc về Trang đang chọn, không dùng chung. */}
+          <TrangDangHuanLuyen />
           {loi && (
             <div className="flex items-start gap-3 text-sm text-error bg-error/10 border border-error/30 rounded-xl px-4 py-3">
               <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">error</span>

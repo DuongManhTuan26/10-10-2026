@@ -127,7 +127,13 @@ export default function Content() {
       .catch(() => {
         /* Không nạp được thì để trống, máy chủ vẫn có phong cách mặc định. */
       });
-  }, []);
+  /*
+   * Phụ thuộc activeAccountId dù thân hàm không nhắc tới nó: bộ não AI gắn
+   * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
+   * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
+   * tiếp lên đó là ghi nhầm sang Trang khác.
+   */
+  }, [activeAccountId]);
 
   /**
    * Chế độ đăng bài được lưu vào cấu hình AI, không giữ trong bộ nhớ trang.
@@ -140,7 +146,13 @@ export default function Content() {
         if (data.config.settings?.autoPublish === true) setPostMode('auto');
       })
       .catch(() => { /* chưa có cấu hình thì dùng mặc định an toàn */ });
-  }, []);
+  /*
+   * Phụ thuộc activeAccountId dù thân hàm không nhắc tới nó: bộ não AI gắn
+   * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
+   * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
+   * tiếp lên đó là ghi nhầm sang Trang khác.
+   */
+  }, [activeAccountId]);
 
   const savePostMode = async (mode: 'manual' | 'auto') => {
     const truoc = postMode;

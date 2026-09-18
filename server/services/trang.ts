@@ -68,3 +68,55 @@ export async function layDanhSachTrang(
   );
   return r.rows;
 }
+
+/**
+ * Tìm Trang theo hồ sơ Zernio, chưa có thì tạo.
+ *
+ * Một hồ sơ Zernio gom toàn bộ kênh của cùng một shop: Fanpage, Instagram,
+ * TikTok đứng chung một hồ sơ và dùng chung một bộ não — đó là cùng một cửa
+ * hàng bán cùng một mặt hàng. Thêm một Fanpage khác thì bên Zernio là một hồ
+ * sơ khác, nên phải là một Trang khác với bộ não trống của riêng nó.
+ *
+ * Vì sao phải có hàm này: trước đây chỉ lúc mở tài khoản mới sinh Trang. Kênh
+ * nối về sau có trang_id rỗng, và chỗ đọc bộ não sẽ rơi về Trang đầu tiên —
+ * shop thêm Fanpage thứ hai là AI đem bảng giá của Fanpage thứ nhất đi bán,
+ * không một dòng báo lỗi nào.
+ *
+ * Trả null nếu hồ sơ đó đã thuộc tài khoản khác. Không bao giờ nối kênh vào
+ * Trang của người khác, kể cả khi dữ liệu bên Zernio có gì đó bất thường.
+ */
+export async function baoDamTrangChoHoSo(
+  userId: number,
+  profileRef: string,
+  tenGoiY: string
+): Promise<number | null> {
+  if (!profileRef) return null;
+  const r = await queryOne<{ id: number; user_id: number }>(
+    `INSERT INTO trang (user_id, profile_ref, ten)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (profile_ref) DO UPDATE SET
+       -- Tên chủ shop tự đặt thì giữ nguyên; chỉ điền đè lên tên tạm.
+       ten = CASE
+               WHEN trang.ten IN ('Trang đầu tiên', 'Trang chưa đặt tên')
+                 THEN EXCLUDED.ten
+               ELSE trang.ten
+             END,
+       updated_at = now()
+     RETURNING id, user_id`,
+    [userId, profileRef, tenGoiY || "Trang chưa đặt tên"]
+  );
+  if (!r) return null;
+  return r.user_id === userId ? r.id : null;
+}
+
+/** Nối một kênh vào Trang của nó. Không đụng tới kênh của tài khoản khác. */
+export async function ganKenhVaoTrang(
+  accountId: string,
+  userId: number,
+  trangId: number
+): Promise<void> {
+  await query(
+    "UPDATE social_accounts SET trang_id = $1, updated_at = now() WHERE id = $2 AND user_id = $3",
+    [trangId, accountId, userId]
+  );
+}

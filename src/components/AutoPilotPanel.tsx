@@ -76,7 +76,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
    * Chỉ cần một kênh khó tính như TikTok là cả lệnh đăng hỏng, mà chủ shop
    * không có cách nào bỏ nó ra.
    */
-  const { accounts } = useActivePage();
+  const { accounts, activeAccountId } = useActivePage();
   const kenhKetNoi = accounts.filter((a) => a.connected);
 
   const nap = useCallback(async () => {
@@ -89,7 +89,13 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
     } catch (error) {
       setLoi(error instanceof ApiError ? error.message : 'Không tải được lịch tự động');
     }
-  }, []);
+  /*
+   * Phụ thuộc activeAccountId dù thân hàm không nhắc tới nó: bộ não AI gắn
+   * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
+   * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
+   * tiếp lên đó là ghi nhầm sang Trang khác.
+   */
+  }, [activeAccountId]);
 
   useEffect(() => { nap(); }, [nap]);
 
