@@ -212,6 +212,21 @@ authRouter.get(
   "/me",
   requireAuth,
   route(async (req, res) => {
-    res.json({ success: true, user: req.user });
+    /*
+     * Kèm tên người đang xem thay, để giao diện hiện được dải băng "bạn đang
+     * xem thay trang X — quay lại".
+     *
+     * Không có dải băng đó thì chủ chuỗi mở một trang ra xem rồi quên mất, gõ
+     * vai trò AI hay trả lời khách trên tài khoản không phải của mình mà
+     * không hề biết. Mà mọi màn hình đều trông y hệt nhau.
+     */
+    let nguoiMo: { id: number; name: string } | null = null;
+    if (req.user!.moBoi !== null) {
+      nguoiMo = await queryOne<{ id: number; name: string }>(
+        "SELECT id, name FROM users WHERE id = $1",
+        [req.user!.moBoi]
+      );
+    }
+    res.json({ success: true, user: { ...req.user, nguoiMo } });
   })
 );

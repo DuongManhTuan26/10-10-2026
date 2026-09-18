@@ -305,6 +305,23 @@ export async function createProfile(name: string): Promise<ZernioProfile> {
   return data.profile ?? (data as ZernioProfile);
 }
 
+/**
+ * Xoá một hồ sơ bên Zernio.
+ *
+ * Xoá tài khoản mà không xoá hồ sơ thì hồ sơ nằm lại vĩnh viễn: đã đếm được 5
+ * hồ sơ rác đọng lại vì đúng lý do này, trong đó hai hồ sơ trùng tên gian hàng
+ * mà không có kênh nào. Với mô hình mỗi trang một tài khoản thì chủ chuỗi lập
+ * rồi bỏ trang là chuyện thường ngày, rác sẽ sinh nhanh hơn nhiều.
+ */
+export async function xoaHoSo(profileId: string): Promise<void> {
+  await request(`/profiles/${encodeURIComponent(profileId)}`, {
+    method: "DELETE",
+    // Không thử lại: xoá xong mà mạng lỗi thì lần thử sau nhận 404 và ném lỗi
+    // giả, làm chỗ gọi tưởng chưa xoá được.
+    retries: 0,
+  });
+}
+
 export async function listAccounts(profileId?: string): Promise<ZernioAccount[]> {
   const data = await request<{ accounts?: ZernioAccount[] }>("/accounts", {
     query: { profileId },

@@ -46,7 +46,12 @@ export async function verifyPassword(
 // Phiên đăng nhập
 // ---------------------------------------------------------------------------
 
-export type VaiTro = "admin" | "shop";
+/**
+ * 'admin'     — quản trị tổng, thấy mọi tài khoản trong hệ thống.
+ * 'admin_con' — chủ chuỗi, chỉ thấy các tài khoản trang do mình lập ra.
+ * 'shop'      — một tài khoản một trang, không thấy tài khoản nào khác.
+ */
+export type VaiTro = "admin" | "admin_con" | "shop";
 
 export interface SessionUser {
   id: number;
@@ -56,6 +61,15 @@ export interface SessionUser {
   /** Luôn đọc từ database mỗi request, không bao giờ tin phía trình duyệt. */
   role: VaiTro;
   profileRef: string | null;
+  /**
+   * Ai đã mở phiên này thay cho chủ tài khoản.
+   *
+   * null là người dùng tự đăng nhập. Có số là admin con đang xem thay một
+   * trang của mình — giao diện PHẢI hiện rõ điều đó, vì người đang ngồi trước
+   * màn hình rất dễ tưởng mình vẫn ở tài khoản của mình rồi gõ nhầm vai trò AI
+   * hay trả lời khách của trang khác.
+   */
+  moBoi: number | null;
 }
 
 declare global {
@@ -90,15 +104,19 @@ function unsignSessionId(signed: string): string | null {
   return crypto.timingSafeEqual(a, b) ? id : null;
 }
 
-export async function createSession(res: Response, userId: number): Promise<void> {
+export async function createSession(
+  res: Response,
+  userId: number,
+  /** Admin con mở phiên thay cho tài khoản trang của mình. */
+  moBoi: number | null = null
+): Promise<void> {
   const id = crypto.randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 86_400_000);
 
-  await query("INSERT INTO sessions (id, user_id, expires_at) VALUES ($1, $2, $3)", [
-    id,
-    userId,
-    expiresAt,
-  ]);
+  await query(
+    "INSERT INTO sessions (id, user_id, expires_at, mo_boi) VALUES ($1, $2, $3, $4)",
+    [id, userId, expiresAt, moBoi]
+  );
 
   res.cookie(SESSION_COOKIE, signSessionId(id), {
     httpOnly: true,
@@ -135,8 +153,9 @@ async function loadSession(req: Request): Promise<SessionRow | null> {
     plan: string;
     role: string;
     profile_ref: string | null;
+    mo_boi: number | null;
   }>(
-    `SELECT s.id AS session_id, u.id, u.email, u.name, u.plan, u.role, u.profile_ref
+    `SELECT s.id AS session_id, s.mo_boi, u.id, u.email, u.name, u.plan, u.role, u.profile_ref
        FROM sessions s
        JOIN users u ON u.id = s.user_id
       WHERE s.id = $1 AND s.expires_at > now() AND u.is_active = TRUE`,
@@ -155,8 +174,9 @@ async function loadSession(req: Request): Promise<SessionRow | null> {
      * Vai trò lấy từ DATABASE mỗi request, không lấy từ phía trình duyệt.
      * Ai sửa được vai trò trong cookie là chiếm được quyền quản trị cả hệ thống.
      */
-    role: row.role === "admin" ? "admin" : "shop",
+    role: row.role === "admin" ? "admin" : row.role === "admin_con" ? "admin_con" : "shop",
     profileRef: row.profile_ref,
+    moBoi: row.mo_boi,
   };
 }
 

@@ -20,6 +20,8 @@ import { requireAuth } from "../auth.js";
 import { query, queryOne } from "../db.js";
 import { AppError, route } from "../http.js";
 import { sinhMatKhauTam, taoTaiKhoan, EMAIL_PATTERN } from "../services/tai-khoan.js";
+import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
+import * as zernio from "../services/zernio.js";
 import { hashPassword } from "../auth.js";
 
 export const adminRouter = Router();
@@ -35,28 +37,6 @@ adminRouter.use((req, _res, next) => {
   next();
 });
 
-async function ghiNhatKy(params: {
-  adminId: number;
-  targetId: number | null;
-  targetEmail: string;
-  action: string;
-  detail?: Record<string, unknown>;
-}): Promise<void> {
-  await query(
-    `INSERT INTO admin_audit (admin_id, target_id, target_email, action, detail)
-     VALUES ($1, $2, $3, $4, $5::jsonb)`,
-    [
-      params.adminId,
-      params.targetId,
-      params.targetEmail,
-      params.action,
-      JSON.stringify(params.detail ?? {}),
-    ]
-  ).catch((error) => {
-    // Nhật ký hỏng thì không được làm hỏng việc chính.
-    console.error("[quản trị] Không ghi được nhật ký:", error);
-  });
-}
 
 /** Lấy tài khoản đích và chặn sẵn các thao tác không được phép. */
 async function layTaiKhoanDich(
@@ -168,7 +148,7 @@ adminRouter.post(
     const matKhauTam = sinhMatKhauTam();
     const taiKhoan = await taoTaiKhoan({ email, password: matKhauTam, name });
 
-    await ghiNhatKy({
+    await ghiNhatKyQuanTri({
       adminId: req.user!.id,
       targetId: taiKhoan.id,
       targetEmail: taiKhoan.email,
@@ -223,7 +203,7 @@ adminRouter.patch(
       bien
     );
 
-    await ghiNhatKy({
+    await ghiNhatKyQuanTri({
       adminId: req.user!.id,
       targetId: dich.id,
       targetEmail: dich.email,
@@ -258,7 +238,7 @@ adminRouter.post(
       await query("DELETE FROM sessions WHERE user_id = $1", [dich.id]);
     }
 
-    await ghiNhatKy({
+    await ghiNhatKyQuanTri({
       adminId: req.user!.id,
       targetId: dich.id,
       targetEmail: dich.email,
@@ -283,7 +263,7 @@ adminRouter.post(
     // Mật khẩu đã đổi thì mọi phiên cũ phải chết.
     await query("DELETE FROM sessions WHERE user_id = $1", [dich.id]);
 
-    await ghiNhatKy({
+    await ghiNhatKyQuanTri({
       adminId: req.user!.id,
       targetId: dich.id,
       targetEmail: dich.email,
@@ -316,14 +296,47 @@ adminRouter.delete(
       );
     }
 
+    /*
+     * Lấy mã hồ sơ TRƯỚC khi xoá dòng tài khoản, vì xoá xong là mất đường tìm
+     * lại. Xoá hồ sơ SAU khi xoá tài khoản: xoá hồ sơ trước mà lệnh xoá tài
+     * khoản hỏng thì còn lại một tài khoản sống với hồ sơ đã chết.
+     */
+    const hoSo = await queryOne<{ profile_ref: string | null }>(
+      "SELECT profile_ref FROM users WHERE id = $1",
+      [dich.id]
+    );
+
     await query("DELETE FROM users WHERE id = $1", [dich.id]);
 
-    await ghiNhatKy({
+    let loiXoaHoSo: string | null = null;
+    if (hoSo?.profile_ref) {
+      try {
+        await zernio.xoaHoSo(hoSo.profile_ref);
+      } catch (error) {
+        /*
+         * Không ném lỗi: tài khoản đã xoá xong rồi, ném ra đây chỉ làm người
+         * dùng tưởng việc xoá thất bại. Nhưng phải GHI LẠI mã hồ sơ, không thì
+         * nó nằm lại bên nhà cung cấp mà không ai biết để dọn — đúng cách đống
+         * hồ sơ rác cũ đã hình thành.
+         */
+        loiXoaHoSo = error instanceof Error ? error.message : String(error);
+        console.error(
+          `[quản trị] Chưa xoá được hồ sơ ${hoSo.profile_ref} bên nhà cung cấp:`,
+          loiXoaHoSo
+        );
+      }
+    }
+
+    await ghiNhatKyQuanTri({
       adminId: req.user!.id,
       targetId: null,
       targetEmail: dich.email,
       action: "xoa_tai_khoan",
-      detail: { name: dich.name },
+      detail: {
+        name: dich.name,
+        hoSo: hoSo?.profile_ref ?? null,
+        loiXoaHoSo,
+      },
     });
 
     res.json({ success: true });

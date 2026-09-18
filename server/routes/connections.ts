@@ -6,6 +6,7 @@ import { AppError, requireString, route } from "../http.js";
 import * as zernio from "../services/zernio.js";
 import { env } from "../env.js";
 import { syncAccountsForUser, ensureProfile } from "../services/accounts.js";
+import { chanNeuThemFanpage } from "../services/gioi-han.js";
 import {
   socialChannels,
   adChannels,
@@ -349,6 +350,13 @@ connectionsRouter.post(
     if (pending.profile_id !== req.user!.profileRef) {
       throw new AppError("Phiên cấp quyền không thuộc về tài khoản này", 403);
     }
+
+    /*
+     * Một tài khoản một Fanpage. Chặn TRƯỚC khi gọi Zernio: gọi rồi mới chặn
+     * thì kênh đã được tạo bên họ, mình từ chối ở đây nhưng vẫn bị tính tiền
+     * và vẫn phải đi dọn.
+     */
+    await chanNeuThemFanpage(req.user!.id, pageIds);
 
     const connected: string[] = [];
     const failed: Array<{ pageId: string; error: string }> = [];

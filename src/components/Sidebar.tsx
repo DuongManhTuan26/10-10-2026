@@ -21,6 +21,7 @@ const IS_EXTERNAL_SUPPORT = /^https?:|^mailto:/.test(SUPPORT_URL);
 export default function Sidebar({
   onLogout,
   laQuanTri = false,
+  laChuChuoi = false,
   moKhung = false,
   onDong,
 }: {
@@ -44,6 +45,11 @@ export default function Sidebar({
    * họ không bấm được.
    */
   laQuanTri?: boolean;
+  /*
+   * Chủ chuỗi thấy thêm mục Quản Lý Trang. Cũng chỉ là lớp che mắt như trên —
+   * máy chủ kiểm lại vai trò từ database ở mọi lời gọi.
+   */
+  laChuChuoi?: boolean;
 }) {
   const navigate = useNavigate();
   const viTri = useLocation();
@@ -75,6 +81,9 @@ export default function Sidebar({
     { name: 'Đơn Hàng', icon: 'receipt_long', path: '/orders' },
     { name: 'Báo Cáo Telegram', icon: 'notifications_active', path: '/telegram' },
     { name: 'Gói Dịch Vụ', icon: 'workspace_premium', path: '/pricing' },
+    ...(laChuChuoi
+      ? [{ name: 'Quản Lý Trang', icon: 'store', path: '/quan-ly-trang' }]
+      : []),
     ...(laQuanTri
       ? [{ name: 'Quản Trị Hệ Thống', icon: 'admin_panel_settings', path: '/admin' }]
       : []),

@@ -17,6 +17,7 @@ import { adsRouter } from "./routes/ads.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { hoanDiaChiKho, laDiaChiKho } from "./services/media-proxy.js";
 import { adminRouter } from "./routes/admin.js";
+import { quanLyRouter } from "./routes/quan-ly.js";
 
 export async function createApp() {
   const app = express();
@@ -93,6 +94,7 @@ export async function createApp() {
   app.use("/api/analytics", analyticsRouter);
   // Quản trị hệ thống. Tự chặn người không phải quản trị ngay trong router.
   app.use("/api/admin", adminRouter);
+  app.use("/api/quan-ly", quanLyRouter);
 
   // Bất kỳ đường dẫn /api nào không khớp đều trả JSON, không trả trang HTML.
   app.use("/api", (_req, res) => {

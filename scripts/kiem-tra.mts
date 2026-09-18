@@ -552,8 +552,16 @@ kiem("gói dịch vụ", "không thẻ nào cứng nhãn Gói hiện tại",
 kiem("gói dịch vụ", "có gói dùng thử riêng, không lẫn vào danh sách bán",
   /GOI_DUNG_THU[\s\S]{0,200}?id:\s*'trial'/.test(nguonBangGia) &&
     !/PRICING_PLANS[\s\S]{0,1200}?id:\s*'trial'/.test(nguonBangGia), true);
-kiem("gói dịch vụ", "gói dùng thử không bịa hạn mức kênh",
-  /GOI_DUNG_THU[\s\S]{0,300}?maxChannels:\s*0/.test(nguonBangGia), true);
+/*
+ * Phép kiểm này trước đây đòi gói dùng thử để maxChannels = 0 với nghĩa "chưa
+ * đặt hạn mức". Với mô hình mỗi trang một tài khoản thì 0 nghĩa là KHÔNG GIỚI
+ * HẠN, và admin con lại tự đăng ký được — thành lỗ tự đúc tài khoản bằng tiền
+ * của mình, vì mỗi trang lập ra là một kênh nối mà mình trả tiền.
+ *
+ * Nay đòi một con số thật, và con số ấy phải khớp bảng bên máy chủ.
+ */
+kiem("gói dịch vụ", "gói dùng thử có hạn mức thật, không để ngỏ",
+  /GOI_DUNG_THU[\s\S]{0,300}?maxChannels:\s*([1-9]\d*)/.test(nguonBangGia), true);
 kiem("gói dịch vụ", "có hàm tra gói theo mã lưu trong database",
   /export function goiHienTai\(/.test(nguonBangGia), true);
 
@@ -1404,8 +1412,12 @@ kiem("quản trị", "chặn mọi người không phải quản trị ngay ở 
     /adminRouter\.use\(requireAuth\)/.test(nguonQuanTri), true);
 
 const nguonPhien = fs.readFileSync(path.join(GOC, "server/auth.ts"), "utf8");
+// Ba tầng vai trò nên câu này dài thêm, nhưng tinh thần không đổi: đọc từ
+// database, và vai trò lạ rơi về 'shop' chứ không rơi về quyền cao hơn.
 kiem("quản trị", "vai trò lấy từ database, không lấy từ trình duyệt",
-  /u\.role/.test(nguonPhien) && /row\.role === "admin" \? "admin" : "shop"/.test(nguonPhien), true);
+  /u\.role/.test(nguonPhien) &&
+    /row\.role === "admin" \? "admin" : row\.role === "admin_con" \? "admin_con" : "shop"/
+      .test(nguonPhien), true);
 
 /*
  * Kiểm ĐIỀU KIỆN, không kiểm câu thông báo.
@@ -2470,6 +2482,171 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   );
   kiem("đổi Trang đổi não", "màn hình huấn luyện nói rõ đang dạy cho Trang nào",
     thieuBang, []);
+}
+
+// ---------------------------------------------------------------------------
+// 50. Phân tầng tài khoản: quản trị tổng → admin con → tài khoản trang
+// ---------------------------------------------------------------------------
+// Mô hình: MỖI TÀI KHOẢN MỘT FANPAGE, độc lập hoàn toàn. Chủ chuỗi đứng trên
+// nhóm tài khoản trang của mình, xem tổng quan và mở thẳng vào từng trang.
+//
+// Đây là chỗ nguy hiểm nhất trong cả hệ thống: sai một điều kiện lọc là chủ
+// chuỗi này với tay sang được toàn bộ khách hàng và doanh thu của chủ chuỗi
+// khác. Vì vậy mỗi chốt chặn ở đây đều phải có phép kiểm riêng.
+{
+  const nguonQL = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
+
+  /*
+   * Chặn theo ĐƯỜNG DẪN chứ không chặn cả router.
+   *
+   * Lúc đang xem thay một trang thì vai trò của phiên là 'shop'. Chặn cả router
+   * theo vai trò thì chính người đang xem thay không gọi được /quay-lai và mắc
+   * kẹt trong tài khoản trang, phải xoá cookie tay mới ra được.
+   */
+  kiem("phân tầng", "chặn theo đường dẫn, người đang xem thay vẫn quay ra được",
+    /quanLyRouter\.use\("\/trang", \(req, _res, next\) => \{/.test(nguonQL), true);
+
+  // Điều kiện parent_id phải nằm TRONG câu lệnh. Lấy về rồi mới kiểm thì sớm
+  // muộn có đường nào đó quên kiểm.
+  kiem("phân tầng", "chỉ lấy được tài khoản trang CỦA MÌNH",
+    /FROM users WHERE id = \$1 AND parent_id = \$2/.test(nguonQL), true);
+
+  // Trả 403 là xác nhận "tài khoản này có thật, chỉ không phải của anh" — đủ
+  // để dò ra ai đang dùng hệ thống.
+  kiem("phân tầng", "không lộ sự tồn tại của trang người khác",
+    /throw new AppError\("Không tìm thấy trang này", 404\)/.test(nguonQL) &&
+      !/Không tìm thấy trang này", 403/.test(nguonQL), true);
+
+  /*
+   * MỌI đường nhắm vào một tài khoản khác đều phải đi qua trangCuaToi. Đếm
+   * chứ không nhìn bằng mắt: thêm route mới mà quên gọi thì phép kiểm này
+   * phải kêu lên, không phụ thuộc vào việc ai đó nhớ ra.
+   */
+  const soRouteTheoId = (nguonQL.match(/"\/trang\/:id[^"]*"/g) ?? []).length;
+  const soLanKiemChu = (nguonQL.match(/await trangCuaToi\(req\.user!\.id, req\.params\.id\)/g) ?? []).length;
+  kiem("phân tầng", "mọi đường nhắm vào trang khác đều kiểm chủ sở hữu",
+    soLanKiemChu, soRouteTheoId);
+
+  // Khoá mà không xoá phiên thì người đang đăng nhập dùng tiếp như thường cho
+  // tới khi phiên hết hạn — khoá như không khoá.
+  kiem("phân tầng", "khoá trang thì giết luôn phiên đang mở",
+    /if \(khoa\) await query\("DELETE FROM sessions WHERE user_id = \$1", \[trang\.id\]\)/.test(nguonQL), true);
+  kiem("phân tầng", "đổi mật khẩu thì giết luôn phiên cũ",
+    /UPDATE users SET password_hash[\s\S]{0,400}?DELETE FROM sessions WHERE user_id = \$1/.test(nguonQL), true);
+
+  /*
+   * Lúc quay ra phải kiểm LẠI quan hệ cha con, không chỉ tin vào mo_boi đã ghi
+   * lúc mở: giữa hai thời điểm đó tài khoản quản lý có thể đã bị khoá, bị hạ
+   * vai trò, hoặc trang này đã chuyển sang người khác.
+   */
+  kiem("phân tầng", "quay ra kiểm lại quan hệ cha con, không tin mã đã ghi",
+    /JOIN users t ON t\.parent_id = c\.id[\s\S]{0,200}?c\.is_active = TRUE AND c\.role IN \('admin', 'admin_con'\)/
+      .test(nguonQL), true);
+
+  const nguonTk3 = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
+
+  // Tài khoản trang KHÔNG được thừa kế quyền quản lý, nếu không chủ chuỗi lập
+  // ra một tài khoản rồi tài khoản đó lại lập tiếp, thành cây không đáy.
+  kiem("phân tầng", "tài khoản trang luôn là 'shop', không thừa kế quyền quản lý",
+    /parentId: params\.parentId,\s*\n\s*role: "shop",/.test(nguonTk3), true);
+
+  /*
+   * Đuôi .local được RFC 6762 giữ riêng cho mạng nội bộ nên không ai đăng ký
+   * được làm tên miền thật. Nhưng vẫn phải chặn ở đây: không chặn thì người
+   * ngoài tự đăng ký "abc@noi-bo.local" và tài khoản đó trông y hệt một tài
+   * khoản trang do hệ thống sinh.
+   */
+  kiem("phân tầng", "người ngoài không đăng ký lấn vào vùng tên nội bộ",
+    /if \(!params\.noiBo && laTenDangNhapNoiBo\(email\)\) \{\s*\n\s*throw new AppError/.test(nguonTk3),
+    true);
+
+  const nguonAuth = fs.readFileSync(path.join(GOC, "server/auth.ts"), "utf8");
+  // Vai trò lạ phải rơi về 'shop' — quyền thấp nhất. Đoán sai phải đoán về
+  // phía an toàn, không phải phía cấp thêm quyền.
+  kiem("phân tầng", "vai trò lạ rơi về quyền thấp nhất",
+    /row\.role === "admin" \? "admin" : row\.role === "admin_con" \? "admin_con" : "shop"/
+      .test(nguonAuth), true);
+
+  const nguonGH = fs.readFileSync(path.join(GOC, "server/services/gioi-han.ts"), "utf8");
+  kiem("phân tầng", "gói lạ cho mức thấp nhất, không cho mức cao nhất",
+    /return SO_TRANG_MOI_GOI\[plan\] \?\? 1;/.test(nguonGH), true);
+
+  // Khoá rồi vẫn giữ chỗ, vẫn giữ hồ sơ và kênh bên nhà cung cấp. Cho lập
+  // thêm chỉ vì vừa khoá một trang là mở đường lách hạn mức.
+  kiem("phân tầng", "đếm cả trang đang khoá khi tính hạn mức",
+    /count\(\*\)::int AS so FROM users WHERE parent_id = \$1"/.test(nguonGH) &&
+      !/parent_id = \$1 AND is_active/.test(nguonGH), true);
+
+  /*
+   * Số trang bán cho khách phải KHỚP số trang thực thi. Lệch nhau thì hoặc
+   * mình hứa thừa, hoặc khách trả tiền rồi vẫn bị chặn.
+   */
+  const nguonGia = fs.readFileSync(path.join(GOC, "src/lib/pricing.ts"), "utf8");
+  const soMayChu: Record<string, number> = {};
+  for (const [, goi, so] of nguonGH.matchAll(/^\s*(trial|starter|pro|enterprise):\s*(\d+),/gm)) {
+    soMayChu[goi] = Number(so);
+  }
+  const soGiaoDien: Record<string, number> = {};
+  for (const [, goi, so] of nguonGia.matchAll(/id: '(starter|pro|enterprise)', maxChannels: (\d+)/g)) {
+    soGiaoDien[goi] = Number(so);
+  }
+  const trialGiaoDien = /id: 'trial',[\s\S]{0,200}?maxChannels: (\d+)/.exec(nguonGia);
+  if (trialGiaoDien) soGiaoDien.trial = Number(trialGiaoDien[1]);
+  // Sắp xếp khoá trước khi so: hai bên khai báo theo thứ tự khác nhau là
+  // chuyện bình thường, so thẳng chuỗi JSON thì báo hỏng oan.
+  const xepKhoa = (o: Record<string, number>) =>
+    Object.keys(o).sort().map((k) => `${k}=${o[k]}`).join(",");
+  kiem("phân tầng", "số trang trên bảng giá khớp số trang máy chủ thực thi",
+    xepKhoa(soGiaoDien), xepKhoa(soMayChu));
+
+  const nguonNoi2 = fs.readFileSync(path.join(GOC, "server/routes/connections.ts"), "utf8");
+  /*
+   * Chặn TRƯỚC khi gọi nhà cung cấp. Gọi rồi mới chặn thì kênh đã được tạo bên
+   * họ, mình từ chối ở đây nhưng vẫn bị tính tiền và vẫn phải đi dọn.
+   */
+  kiem("phân tầng", "chặn Fanpage thứ hai TRƯỚC khi gọi nhà cung cấp",
+    /await chanNeuThemFanpage\(req\.user!\.id, pageIds\);[\s\S]{0,400}?selectFacebookPage\(/
+      .test(nguonNoi2), true);
+
+  kiem("phân tầng", "chặn hết suất trang TRƯỚC khi lập tài khoản",
+    /await chanNeuHetSuatTrang\(req\.user!\.id, req\.user!\.plan\);\s*\n\s*const taiKhoan = await taoTaiKhoanTrang/
+      .test(nguonQL), true);
+
+  /*
+   * Xoá tài khoản mà để lại hồ sơ bên nhà cung cấp thì hồ sơ nằm lại vĩnh
+   * viễn — đã đếm được 5 hồ sơ rác đọng lại đúng vì lý do này. Chủ chuỗi lập
+   * rồi bỏ trang là chuyện thường ngày, rác sẽ sinh nhanh hơn nhiều.
+   */
+  const nguonAd = fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8");
+  kiem("phân tầng", "xoá tài khoản thì dọn luôn hồ sơ bên nhà cung cấp",
+    /await zernio\.xoaHoSo\(hoSo\.profile_ref\);/.test(nguonAd) &&
+      /loiXoaHoSo = error instanceof Error/.test(nguonAd), true);
+
+  const nguonMig022 = fs.readFileSync(
+    path.join(GOC, "server/migrations/022_phan_tang_tai_khoan.sql"), "utf8"
+  );
+  /*
+   * RESTRICT chứ không CASCADE: xoá tài khoản admin con mà kéo theo mọi tài
+   * khoản trang của họ là xoá sạch hộp thư, đơn hàng và tài liệu của từng
+   * trang chỉ bằng một cú bấm.
+   */
+  kiem("phân tầng", "xoá chủ chuỗi KHÔNG kéo theo dữ liệu các trang",
+    /parent_id BIGINT REFERENCES users\(id\) ON DELETE RESTRICT/.test(nguonMig022), true);
+
+  // Giao diện phải nói rõ đang xem thay trang nào, không thì thao tác nhầm mà
+  // không có dấu hiệu nào cả.
+  const nguonBangXem = fs.readFileSync(
+    path.join(GOC, "src/components/DangXemThay.tsx"), "utf8"
+  );
+  kiem("phân tầng", "giao diện cảnh báo rõ khi đang xem thay một trang",
+    /if \(!user\?\.nguoiMo\) return null;/.test(nguonBangXem) &&
+      /Bạn đang xem thay trang/.test(nguonBangXem) &&
+      /Quay lại quản lý/.test(nguonBangXem), true);
+
+  const nguonApp = fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8");
+  kiem("phân tầng", "dải băng cảnh báo nằm ngoài vùng cuộn, không trôi mất",
+    /<DangXemThay user=\{user\} onQuayLai=/.test(nguonApp) &&
+      /sticky top-0 z-50/.test(nguonBangXem), true);
 }
 
 // ---------------------------------------------------------------------------

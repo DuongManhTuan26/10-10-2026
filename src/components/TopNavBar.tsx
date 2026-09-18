@@ -139,6 +139,10 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu }: {
       case '/connections': return 'Kết nối';
       case '/pricing': return 'Gói dịch vụ';
       case '/settings': return 'Cài đặt';
+      case '/quan-ly-trang': return 'Quản lý trang';
+      // '/admin' cũng vốn rơi vào nhánh mặc định, nên trang Quản trị hệ thống
+      // lâu nay vẫn đề "Bảng điều khiển" ở thanh trên.
+      case '/admin': return 'Quản trị hệ thống';
       default: return 'Bảng điều khiển';
     }
   };

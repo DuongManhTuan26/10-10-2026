@@ -13,6 +13,8 @@ import TelegramAlerts from './pages/TelegramAlerts';
 import Connections from './pages/Connections';
 import Pricing from './pages/Pricing';
 import Admin from './pages/Admin';
+import QuanLyTrang from './pages/QuanLyTrang';
+import DangXemThay from './components/DangXemThay';
 import Analytics from './pages/Analytics';
 import Auth from './pages/Auth';
 import Onboarding from './pages/Onboarding';
@@ -146,11 +148,18 @@ export default function App() {
       <Sidebar
         onLogout={handleLogout}
         laQuanTri={user?.role === 'admin'}
+        laChuChuoi={user?.role === 'admin_con'}
         moKhung={menuMo}
         onDong={() => setMenuMo(false)}
       />
       <div className="flex-1 lg:ml-72 min-w-0 flex flex-col h-screen relative">
         <TopNavBar user={user} avatarUrl={avatarUrl} onMoMenu={() => setMenuMo(true)} />
+        {/*
+          Đang xem thay một trang thì mọi màn hình trông y hệt tài khoản của
+          chính mình. Dải băng này là thứ duy nhất phân biệt, nên nó nằm trên
+          cùng và không bao giờ cuộn mất.
+        */}
+        <DangXemThay user={user} onQuayLai={() => { window.location.href = '/quan-ly-trang'; }} />
         <main className="flex-1 overflow-y-auto custom-scrollbar pt-16">
           {/*
             Lỗi ở MỘT màn hình không được kéo đổ cả ứng dụng thành màn hình
@@ -173,6 +182,10 @@ export default function App() {
               vẫn kiểm lại vai trò từ database ở mọi lời gọi.
             */}
             {user?.role === 'admin' && <Route path="/admin" element={<Admin />} />}
+            {/* Chủ chuỗi mới thấy. Máy chủ vẫn kiểm lại vai trò ở mọi lời gọi. */}
+            {user?.role === 'admin_con' && (
+              <Route path="/quan-ly-trang" element={<QuanLyTrang />} />
+            )}
             <Route path="/analytics" element={<Analytics />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

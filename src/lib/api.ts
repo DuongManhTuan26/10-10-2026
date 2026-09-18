@@ -195,9 +195,19 @@ export interface User {
   email: string;
   name: string;
   plan: string;
-  /** 'admin' mới thấy được trang quản trị. Máy chủ vẫn tự kiểm lại mỗi request. */
-  role: 'admin' | 'shop';
+  /**
+   * Máy chủ tự kiểm lại vai trò mỗi request; chỗ này chỉ để vẽ giao diện.
+   *
+   * 'admin'     — quản trị tổng.
+   * 'admin_con' — chủ chuỗi, quản lý các tài khoản trang mình lập ra.
+   * 'shop'      — một tài khoản một trang.
+   */
+  role: 'admin' | 'admin_con' | 'shop';
   profileRef: string | null;
+  /** Khác null nghĩa là đang XEM THAY một trang, không phải tài khoản của mình. */
+  moBoi?: number | null;
+  /** Người đang xem thay, để hiện dải băng và nút quay lại. */
+  nguoiMo?: { id: number; name: string } | null;
 }
 
 /** Một tài khoản shop nhìn từ trang quản trị, kèm số liệu vận hành. */
@@ -206,7 +216,7 @@ export interface TaiKhoanQuanTri {
   email: string;
   name: string;
   plan: string;
-  role: 'admin' | 'shop';
+  role: 'admin' | 'admin_con' | 'shop';
   is_active: boolean;
   created_at: string;
   kenh: number;
@@ -270,6 +280,24 @@ export interface PlatformCatalog {
   social: Platform[];
   ads: Platform[];
   communication: Platform[];
+}
+
+/** Một trang trong chuỗi, nhìn từ bảng tổng quan của chủ chuỗi. */
+export interface TrangCon {
+  id: number;
+  /** Tên đăng nhập nội bộ do hệ thống sinh, KHÔNG phải email của ai. */
+  email: string;
+  name: string;
+  is_active: boolean;
+  plan: string;
+  created_at: string;
+  kenh_noi: number;
+  kenh_can_noi_lai: number;
+  don_hom_nay: number;
+  /** Chuỗi vì Postgres trả bigint dưới dạng chuỗi, đừng ép sang number rồi mất số. */
+  doanh_thu_thang: string;
+  cho_nguoi: number;
+  ten_fanpage: string | null;
 }
 
 export interface SocialAccount {
@@ -905,6 +933,31 @@ export const api = {
       get<{ data: Array<{ report_date: string; findings: string; recommendation: string }> }>(
         "/analytics/reports"
       ),
+  },
+
+  /**
+   * Quản lý chuỗi trang — chỉ tài khoản 'admin_con' dùng tới.
+   *
+   * Mỗi trang là một TÀI KHOẢN RIÊNG, độc lập hoàn toàn. Không có lệnh nào ở
+   * đây đọc hay ghi dữ liệu bên trong một trang; muốn làm việc trong trang thì
+   * bấm "mở" để bước hẳn vào tài khoản đó.
+   */
+  quanLy: {
+    trang: () => get<{ data: TrangCon[] }>("/quan-ly/trang"),
+    lapTrang: (ten: string) =>
+      post<{ data: { id: number; tenDangNhap: string; name: string; matKhauTam: string } }>(
+        "/quan-ly/trang",
+        { ten }
+      ),
+    doiTen: (id: number, ten: string) =>
+      patch<{ data: { id: number; name: string } }>(`/quan-ly/trang/${id}`, { ten }),
+    khoa: (id: number, khoa: boolean) =>
+      post<{ data: { id: number; is_active: boolean } }>(`/quan-ly/trang/${id}/khoa`, { khoa }),
+    capLaiMatKhau: (id: number) =>
+      post<{ data: { id: number; matKhauTam: string } }>(`/quan-ly/trang/${id}/mat-khau`),
+    moTrang: (id: number) =>
+      post<{ data: { id: number; name: string } }>(`/quan-ly/trang/${id}/mo`),
+    quayLai: () => post<{ data: { id: number; name: string } }>("/quan-ly/quay-lai"),
   },
 
   ai: {

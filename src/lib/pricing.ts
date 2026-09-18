@@ -74,7 +74,14 @@ export const PRICING_PLANS: PricingPlan[] = [
  * không phải mượn tạm gói "Khởi đầu" mà hiển thị — trước đây shop đang dùng
  * thử bị ghi là đang dùng gói Khởi đầu 390.000 đ/tháng.
  *
- * maxChannels = 0 nghĩa là chưa đặt hạn mức, không phải "được nối 0 kênh".
+ * Số trang phải KHỚP TỪNG SỐ với SO_TRANG_MOI_GOI bên máy chủ — máy chủ mới
+ * là chỗ thực thi, chỗ này chỉ là chỗ hiển thị. Có phép kiểm thường trực đối
+ * chiếu hai bên: lệch nhau thì hoặc mình hứa thừa với khách, hoặc khách trả
+ * tiền rồi vẫn bị chặn.
+ *
+ * Gói dùng thử trước đây để 0 với nghĩa "chưa đặt hạn mức", tức là không giới
+ * hạn. Với mô hình mỗi trang một tài khoản thì đó là lỗ tự đúc tài khoản: mỗi
+ * trang lập ra là một kênh nối mà tiền kênh nối là mình trả. Nay là 1 trang.
  * Hiện máy chủ chưa chặn số kênh theo gói, nên hiển thị số hạn mức nào ở đây
  * cũng là bịa. Khi nào chặn thật thì mới điền số thật vào.
  */
@@ -82,7 +89,7 @@ export const GOI_DUNG_THU: PricingPlan = {
   id: 'trial',
   name: 'Dùng thử',
   price: 'Miễn phí',
-  maxChannels: 0,
+  maxChannels: 1,
   features: [
     { name: 'Nối kênh và chạy thử toàn bộ tính năng', included: true },
     { name: 'AI trả lời tin nhắn và bình luận', included: true },

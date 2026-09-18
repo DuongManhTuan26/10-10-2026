@@ -162,9 +162,11 @@ const DUC: PhepDuc[] = [
     thay: "    buttonText: 'Chọn gói này',\n    isCurrent: true\n  },\n  {\n    id: 'enterprise'",
   },
   {
-    ten: "bịa hạn mức kênh cho gói dùng thử",
+    // Gói dùng thử trước đây để 0 với nghĩa "chưa đặt hạn mức". Nay là 1 và
+    // phải khớp bảng bên máy chủ, nên phép đục là đổi lệch khỏi máy chủ.
+    ten: "bảng giá bịa hạn mức khác với máy chủ thực thi",
     tep: "src/lib/pricing.ts",
-    tim: "  id: 'trial',\n  name: 'Dùng thử',\n  price: 'Miễn phí',\n  maxChannels: 0,",
+    tim: "  id: 'trial',\n  name: 'Dùng thử',\n  price: 'Miễn phí',\n  maxChannels: 1,",
     thay: "  id: 'trial',\n  name: 'Dùng thử',\n  price: 'Miễn phí',\n  maxChannels: 3,",
   },
   {
@@ -602,7 +604,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "tin vai trò do trình duyệt gửi lên thay vì đọc từ database",
     tep: "server/auth.ts",
-    tim: '    role: row.role === "admin" ? "admin" : "shop",',
+    tim: '    role: row.role === "admin" ? "admin" : row.role === "admin_con" ? "admin_con" : "shop",',
     thay: '    role: "admin",',
   },
   {
@@ -1173,6 +1175,135 @@ const DUC: PhepDuc[] = [
     tep: "server/migrations/021_trang_theo_fanpage.sql",
     tim: "ALTER TABLE trang DROP CONSTRAINT IF EXISTS trang_profile_ref_key;",
     thay: "",
+  },
+  // --- Phân tầng tài khoản: chỗ nguy hiểm nhất trong hệ thống ---
+  {
+    ten: "chặn cả router, người đang xem thay mắc kẹt không quay ra được",
+    tep: "server/routes/quan-ly.ts",
+    tim: 'quanLyRouter.use("/trang", (req, _res, next) => {',
+    thay: "quanLyRouter.use((req, _res, next) => {",
+  },
+  {
+    ten: "bỏ điều kiện chủ sở hữu, với sang trang của chuỗi khác",
+    tep: "server/routes/quan-ly.ts",
+    tim: "       FROM users WHERE id = $1 AND parent_id = $2`,\n    [so, chaId]",
+    thay: "       FROM users WHERE id = $1`,\n    [so]",
+  },
+  {
+    ten: "trả 403 thay vì 404, lộ sự tồn tại của trang người khác",
+    tep: "server/routes/quan-ly.ts",
+    tim: '  if (!row) throw new AppError("Không tìm thấy trang này", 404);',
+    thay: '  if (!row) throw new AppError("Không tìm thấy trang này", 403);',
+  },
+  {
+    ten: "một đường nhắm vào trang khác mà quên kiểm chủ sở hữu",
+    tep: "server/routes/quan-ly.ts",
+    tim: "    const trang = await trangCuaToi(req.user!.id, req.params.id);\n    const ten = typeof req.body?.ten === \"string\" ? req.body.ten.trim() : \"\";",
+    thay: "    const trang = { id: Number(req.params.id), email: \"\", name: \"\" };\n    const ten = typeof req.body?.ten === \"string\" ? req.body.ten.trim() : \"\";",
+  },
+  {
+    ten: "khoá trang mà để phiên đang mở sống tiếp",
+    tep: "server/routes/quan-ly.ts",
+    tim: '    if (khoa) await query("DELETE FROM sessions WHERE user_id = $1", [trang.id]);',
+    thay: "",
+  },
+  {
+    ten: "đổi mật khẩu mà để phiên cũ sống tiếp",
+    tep: "server/routes/quan-ly.ts",
+    tim: "    // Đổi mật khẩu thì mọi phiên cũ phải chết, kể cả phiên của người vừa mất quyền.\n    await query(\"DELETE FROM sessions WHERE user_id = $1\", [trang.id]);",
+    thay: "",
+  },
+  {
+    ten: "quay ra chỉ tin mã đã ghi, không kiểm lại quan hệ cha con",
+    tep: "server/routes/quan-ly.ts",
+    tim: "        WHERE c.id = $1 AND t.id = $2\n          AND c.is_active = TRUE AND c.role IN ('admin', 'admin_con')",
+    thay: "        WHERE c.id = $1",
+  },
+  {
+    ten: "tài khoản trang thừa kế luôn quyền quản lý chuỗi",
+    tep: "server/services/tai-khoan.ts",
+    tim: "      parentId: params.parentId,\n      role: \"shop\",",
+    thay: "      parentId: params.parentId,\n      role: \"admin_con\",",
+  },
+  {
+    ten: "người ngoài tự đăng ký lấn vào vùng tên đăng nhập nội bộ",
+    tep: "server/services/tai-khoan.ts",
+    tim: "  if (!params.noiBo && laTenDangNhapNoiBo(email)) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "vai trò lạ được nâng lên quyền quản lý",
+    tep: "server/auth.ts",
+    tim: '    role: row.role === "admin" ? "admin" : row.role === "admin_con" ? "admin_con" : "shop",',
+    thay: '    role: row.role === "shop" ? "shop" : "admin_con",',
+  },
+  {
+    ten: "gói lạ được cho mức cao nhất",
+    tep: "server/services/gioi-han.ts",
+    tim: "  return SO_TRANG_MOI_GOI[plan] ?? 1;",
+    thay: "  return SO_TRANG_MOI_GOI[plan] ?? 10;",
+  },
+  {
+    ten: "khoá một trang là lách được hạn mức lập thêm trang",
+    tep: "server/services/gioi-han.ts",
+    tim: '    "SELECT count(*)::int AS so FROM users WHERE parent_id = $1"',
+    thay: '    "SELECT count(*)::int AS so FROM users WHERE parent_id = $1 AND is_active"',
+  },
+  {
+    ten: "bảng giá hứa nhiều trang hơn máy chủ cho phép",
+    tep: "server/services/gioi-han.ts",
+    tim: "  pro: 3,",
+    thay: "  pro: 2,",
+  },
+  {
+    ten: "gói dùng thử để ngỏ hạn mức, tự đúc tài khoản thoải mái",
+    tep: "src/lib/pricing.ts",
+    tim: "  price: 'Miễn phí',\n  maxChannels: 1,",
+    thay: "  price: 'Miễn phí',\n  maxChannels: 0,",
+  },
+  {
+    ten: "gọi nhà cung cấp xong mới chặn Fanpage thứ hai",
+    tep: "server/routes/connections.ts",
+    tim: "    await chanNeuThemFanpage(req.user!.id, pageIds);\n\n    const connected: string[] = [];",
+    thay: "    const connected: string[] = [];",
+  },
+  {
+    ten: "lập tài khoản xong mới kiểm hạn mức gói",
+    tep: "server/routes/quan-ly.ts",
+    tim: "    await chanNeuHetSuatTrang(req.user!.id, req.user!.plan);\n",
+    thay: "",
+  },
+  {
+    ten: "xoá tài khoản để lại hồ sơ rác bên nhà cung cấp",
+    tep: "server/routes/admin.ts",
+    tim: "        await zernio.xoaHoSo(hoSo.profile_ref);",
+    thay: "",
+  },
+  {
+    ten: "xoá chủ chuỗi kéo theo sạch dữ liệu mọi trang con",
+    tep: "server/migrations/022_phan_tang_tai_khoan.sql",
+    tim: "ADD COLUMN IF NOT EXISTS parent_id BIGINT REFERENCES users(id) ON DELETE RESTRICT;",
+    thay: "ADD COLUMN IF NOT EXISTS parent_id BIGINT REFERENCES users(id) ON DELETE CASCADE;",
+  },
+  {
+    /*
+     * Phép đục cũ chèn "return null" chết phía trước mà vẫn để nguyên dòng
+     * điều kiện, nên phép kiểm bằng regex vẫn thấy đủ chữ — đục mà không
+     * thủng. Nó cũng không phải lỗi người ta hay mắc.
+     *
+     * Lỗi thật hay mắc là lật ngược điều kiện: dải băng hiện khi KHÔNG xem
+     * thay, và im lặng đúng lúc đang xem thay.
+     */
+    ten: "dải băng hiện ngược: im lặng đúng lúc đang xem thay trang khác",
+    tep: "src/components/DangXemThay.tsx",
+    tim: "  if (!user?.nguoiMo) return null;",
+    thay: "  if (user?.nguoiMo) return null;",
+  },
+  {
+    ten: "dải băng cảnh báo cuộn trôi mất khỏi màn hình",
+    tep: "src/components/DangXemThay.tsx",
+    tim: '    <div className="sticky top-0 z-50 bg-amber-500',
+    thay: '    <div className="bg-amber-500',
   },
   {
     ten: "hồ sơ thật không thay mã tạm của Trang",
