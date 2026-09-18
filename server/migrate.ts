@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import pg from "pg";
 import { pool } from "./db.js";
+import { env } from "./env.js";
 
 /**
  * Trình chạy migration.
@@ -62,35 +64,100 @@ function listMigrationFiles(): string[] {
  */
 const KHOA_MIGRATION = 776_155_001;
 
+/**
+ * Chỉ một tiến trình được chạy migration tại một thời điểm.
+ *
+ * VÌ SAO KHÔNG DÙNG KHOÁ CẤP PHIÊN
+ *
+ * Database của dự án nằm sau pgbouncer (DATABASE_URL trỏ vào endpoint có đuôi
+ * "-pooler"). Bộ gom kết nối trộn nhiều "phiên" logic lên chung một kết nối
+ * thật, nên khoá tư vấn CẤP PHIÊN không còn thuộc về ai rõ ràng: đo được nó
+ * hiện ra dưới application_name 'pgbouncer' và bám vào đúng kết nối đang gọi
+ * lệnh khác.
+ *
+ * Bản đầu tôi dùng khoá cấp phiên trên kết nối mượn từ pool. Hậu quả đo được
+ * ngay: một kết nối idle giữ khoá 9 phút 35 giây, migration sau chờ vô hạn.
+ * Đổi sang kết nối riêng cũng không cứu được, vì gốc rễ là pgbouncer chứ
+ * không phải chỗ lấy kết nối.
+ *
+ * KHOÁ CẤP GIAO DỊCH thì an toàn sau pgbouncer: bộ gom bảo đảm một giao dịch
+ * luôn nằm trọn trên một kết nối thật, và khoá tự nhả khi giao dịch kết thúc —
+ * kể cả khi tiến trình chết giữa chừng. Không có đường nào rò.
+ *
+ * Đổi lại, cả lượt migration phải nằm trong MỘT giao dịch. Điều đó còn chặt
+ * hơn bản cũ: một migration hỏng thì cả lượt quay về nguyên trạng, không để
+ * lại lược đồ dở dang.
+ */
 export async function runMigrations(): Promise<void> {
   /*
-   * Chỉ một tiến trình được chạy migration tại một thời điểm.
+   * THỬ khoá rồi nhả kết nối, không bao giờ CHỜ trong lúc đang giữ kết nối.
    *
-   * Đã xảy ra thật: chạy migration bằng tay trong lúc tsx watch khởi động lại,
-   * hai bên cùng tạo một bảng và Postgres báo "duplicate key value violates
-   * unique constraint pg_type_typname_nsp_index". Lần đó kết thúc may mà đúng,
-   * nhưng nó hoàn toàn có thể để lại lược đồ dở dang.
+   * pg_advisory_xact_lock() chặn cho tới khi lấy được, mà trong lúc chặn nó
+   * vẫn giữ một kết nối của pool và một kết nối thật của pgbouncer. Nhiều
+   * tiến trình cùng khởi động là chúng khoá lẫn nhau: đã đo thật với 5 tiến
+   * trình, một cái chết vì "Query read timeout" sau 30 giây.
    *
-   * Khoá tư vấn ở cấp SESSION (không phải giao dịch) vì mỗi migration chạy
-   * trong giao dịch riêng; khoá theo giao dịch sẽ nhả ra giữa chừng.
+   * pg_try_advisory_xact_lock() trả về ngay. Không lấy được thì nhả kết nối,
+   * nghỉ một nhịp rồi thử lại — không giữ gì trong lúc chờ nên không ai chặn
+   * ai. Khoá vẫn ở cấp giao dịch nên tự nhả khi giao dịch kết thúc, kể cả khi
+   * tiến trình chết giữa chừng.
    */
-  const khoa = await pool.connect();
-  await khoa.query("SELECT pg_advisory_lock($1)", [KHOA_MIGRATION]);
-  try {
-    await chayMigrationDaKhoa();
-  } finally {
-    await khoa.query("SELECT pg_advisory_unlock($1)", [KHOA_MIGRATION]).catch(() => {
-      /* Mất kết nối thì Postgres tự nhả khi phiên đóng. */
-    });
-    khoa.release();
+  const SO_LAN_THU = 60;
+  const NGHI_MS = 1_000;
+
+  for (let lan = 1; lan <= SO_LAN_THU; lan++) {
+    const client = await pool.connect();
+    let phaiThuLai = false;
+    try {
+      await client.query("BEGIN");
+      const { rows } = await client.query<{ duoc: boolean }>(
+        "SELECT pg_try_advisory_xact_lock($1) AS duoc",
+        [KHOA_MIGRATION]
+      );
+
+      if (!rows[0]?.duoc) {
+        await client.query("ROLLBACK");
+        phaiThuLai = true;
+      } else {
+        await chayMigrationDaKhoa(client);
+        await client.query("COMMIT");
+        return;
+      }
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {
+        /* Giao dịch đã chết thì Postgres tự dọn. */
+      });
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    // Nhả kết nối XONG mới nghỉ, để tiến trình đang giữ khoá có chỗ mà chạy.
+    if (phaiThuLai && lan < SO_LAN_THU) {
+      await new Promise((r) => setTimeout(r, NGHI_MS));
+    }
   }
+
+  throw new Error(
+    `Không lấy được khoá migration sau ${SO_LAN_THU} lần thử — ` +
+      "có tiến trình khác đang chạy migration quá lâu."
+  );
 }
 
-async function chayMigrationDaKhoa(): Promise<void> {
-  await ensureMigrationsTable();
+async function chayMigrationDaKhoa(client: pg.PoolClient): Promise<void> {
+  /*
+   * Mọi lệnh đi qua ĐÚNG client đang giữ khoá.
+   *
+   * Dùng pool.query() ở đây là lấy một kết nối khác, nằm ngoài giao dịch đang
+   * giữ khoá — tức là chạy không khoá, đúng thứ vừa bỏ công sửa.
+   */
+  await client.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
+      name       TEXT        PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`);
 
   const applied = new Set(
-    (await pool.query<{ name: string }>("SELECT name FROM schema_migrations")).rows.map(
+    (await client.query<{ name: string }>("SELECT name FROM schema_migrations")).rows.map(
       (row) => row.name
     )
   );
@@ -102,23 +169,20 @@ async function chayMigrationDaKhoa(): Promise<void> {
     return;
   }
 
+  /*
+   * Cả lượt nằm trong một giao dịch do runMigrations mở, nên không BEGIN lại
+   * ở đây. Một migration hỏng là cả lượt quay về nguyên trạng — chặt hơn bản
+   * cũ, không để lại lược đồ dở dang.
+   */
   for (const file of pending) {
     const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
-    const client = await pool.connect();
     try {
-      // Mỗi migration chạy trong một giao dịch: hoặc áp dụng trọn vẹn,
-      // hoặc không để lại dấu vết nào.
-      await client.query("BEGIN");
       await client.query(sql);
       await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [file]);
-      await client.query("COMMIT");
       console.log(`[migrate] Đã áp dụng ${file}`);
     } catch (error) {
-      await client.query("ROLLBACK").catch(() => {});
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Migration ${file} thất bại: ${message}`);
-    } finally {
-      client.release();
     }
   }
 }
