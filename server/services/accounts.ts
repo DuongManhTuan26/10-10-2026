@@ -12,6 +12,24 @@ import { baoDamTrangChoHoSo, ganKenhVaoTrang } from "./trang.js";
 const UU_TIEN_TEN_TRANG = ["facebook", "instagram", "threads", "youtube", "tiktok"];
 
 /**
+ * Fanpage mà một kênh đang gắn.
+ *
+ * Đây mới là thứ quyết định "đang bán cho Trang nào", KHÔNG phải profileId.
+ * Đo thật trên API Zernio: hai kênh facebook cùng nhìn thấy cả hai Fanpage
+ * trong metadata.availablePages, còn Fanpage đang phục vụ nằm ở
+ * metadata.selectedPageId — và đổi Fanpage thì profileId giữ nguyên.
+ *
+ * Nền tảng không có khái niệm Fanpage (Instagram, TikTok, tài khoản quảng
+ * cáo) trả null, và những kênh đó nhập vào Trang sẵn có của hồ sơ.
+ */
+function maFanpage(account: zernio.ZernioAccount): string | null {
+  const meta = (account as { metadata?: unknown }).metadata;
+  if (!meta || typeof meta !== "object") return null;
+  const ma = (meta as { selectedPageId?: unknown }).selectedPageId;
+  return typeof ma === "string" && ma ? ma : null;
+}
+
+/**
  * Bảo đảm gian hàng có ĐÚNG MỘT hồ sơ trên Zernio.
  *
  * Trước đây có ba nơi tạo hồ sơ với ba cách khác nhau: lúc đăng ký tạo thẳng,
@@ -99,8 +117,8 @@ export async function syncAccountsForUser(
       `INSERT INTO social_accounts
          (id, user_id, profile_ref, platform, username, display_name,
           profile_picture, profile_url, followers_count, connected,
-          needs_reconnection, token_expires_at, raw, last_synced_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13, now())
+          needs_reconnection, token_expires_at, raw, page_id, last_synced_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, now())
        ON CONFLICT (id) DO UPDATE SET
          platform           = EXCLUDED.platform,
          username           = EXCLUDED.username,
@@ -112,6 +130,7 @@ export async function syncAccountsForUser(
          needs_reconnection = EXCLUDED.needs_reconnection,
          token_expires_at   = EXCLUDED.token_expires_at,
          raw                = EXCLUDED.raw,
+         page_id            = EXCLUDED.page_id,
          last_synced_at     = now(),
          updated_at         = now()`,
       [
@@ -128,6 +147,7 @@ export async function syncAccountsForUser(
         account.needsReconnection === true,
         account.tokenExpiresAt ? new Date(account.tokenExpiresAt) : null,
         JSON.stringify(account),
+        maFanpage(account),
       ]
     );
 
@@ -142,7 +162,8 @@ export async function syncAccountsForUser(
     const trangId = await baoDamTrangChoHoSo(
       userId,
       hoSoCuaKenh,
-      account.displayName ?? account.username ?? "Trang chưa đặt tên"
+      account.displayName ?? account.username ?? "Trang chưa đặt tên",
+      maFanpage(account)
     );
     if (trangId) await ganKenhVaoTrang(account._id, userId, trangId);
   }

@@ -90,7 +90,7 @@ function VariationEditor({
 }
 
 export default function AutoScripts() {
-  const { accounts, activeAccountId } = useActivePage();
+  const { accounts, activeAccountId, activeTrangId } = useActivePage();
 
   /*
    * Hai phần tách hẳn nhau, không phải một hộp thoại có nút chọn.
@@ -215,9 +215,12 @@ export default function AutoScripts() {
    * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
    * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
    * tiếp lên đó là ghi nhầm sang Trang khác.
+   *
+   * Kèm cả activeTrangId vì đổi Fanpage cho một kênh thì mã kênh GIỮ NGUYÊN,
+   * chỉ trang_id đổi — trông mỗi activeAccountId là không thấy gì thay đổi.
    */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAccountId]);
+  }, [activeAccountId, activeTrangId]);
 
   useEffect(() => { loadScripts(); loadTraining(); }, [loadScripts, loadTraining]);
 

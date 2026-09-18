@@ -30,7 +30,7 @@ const FILTER_TO_STATUS: Record<string, PostStatus> = {
 const CAN_XU_LY: PostStatus[] = ['publishing', 'failed'];
 
 export default function Content() {
-  const { accounts, activeAccountId } = useActivePage();
+  const { accounts, activeAccountId, activeTrangId } = useActivePage();
 
   const [activeFilter, setActiveFilter] = useState('Chờ duyệt (0)');
   const [postMode, setPostMode] = useState<'manual' | 'auto'>('manual');
@@ -132,8 +132,11 @@ export default function Content() {
    * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
    * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
    * tiếp lên đó là ghi nhầm sang Trang khác.
+   *
+   * Kèm cả activeTrangId vì đổi Fanpage cho một kênh thì mã kênh GIỮ NGUYÊN,
+   * chỉ trang_id đổi — trông mỗi activeAccountId là không thấy gì thay đổi.
    */
-  }, [activeAccountId]);
+  }, [activeAccountId, activeTrangId]);
 
   /**
    * Chế độ đăng bài được lưu vào cấu hình AI, không giữ trong bộ nhớ trang.
@@ -151,8 +154,11 @@ export default function Content() {
    * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
    * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
    * tiếp lên đó là ghi nhầm sang Trang khác.
+   *
+   * Kèm cả activeTrangId vì đổi Fanpage cho một kênh thì mã kênh GIỮ NGUYÊN,
+   * chỉ trang_id đổi — trông mỗi activeAccountId là không thấy gì thay đổi.
    */
-  }, [activeAccountId]);
+  }, [activeAccountId, activeTrangId]);
 
   const savePostMode = async (mode: 'manual' | 'auto') => {
     const truoc = postMode;

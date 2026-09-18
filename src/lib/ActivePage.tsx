@@ -16,6 +16,15 @@ interface ActivePageValue {
   /** null nghĩa là xem tất cả các trang. */
   activeAccount: SocialAccount | null;
   activeAccountId: string | null;
+  /**
+   * Trang (bộ não) của kênh đang chọn.
+   *
+   * Vì sao cần riêng, không dùng activeAccountId là đủ: đổi Fanpage cho một
+   * kênh thì mã kênh GIỮ NGUYÊN, chỉ trang_id đổi. Màn hình huấn luyện nào
+   * chỉ trông vào activeAccountId sẽ vẫn vẽ bộ não của Fanpage cũ, chủ shop gõ
+   * tiếp lên đó là ghi nhầm.
+   */
+  activeTrangId: number | null;
   setActiveAccountId: (id: string | null) => void;
   loading: boolean;
   reload: () => Promise<void>;
@@ -72,17 +81,24 @@ export function ActivePageProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  const value = useMemo<ActivePageValue>(
-    () => ({
+  const value = useMemo<ActivePageValue>(() => {
+    const dangChon = accounts.find((account) => account.id === activeAccountId) ?? null;
+    // Chưa chọn kênh nào thì máy chủ dùng Trang đầu tiên — lấy đúng cái đó để
+    // màn hình và máy chủ cùng nói về một Trang.
+    const trangDangDung =
+      dangChon?.trang_id ??
+      accounts.find((account) => account.connected && account.trang_id != null)?.trang_id ??
+      null;
+    return {
       accounts,
-      activeAccount: accounts.find((account) => account.id === activeAccountId) ?? null,
+      activeAccount: dangChon,
       activeAccountId,
+      activeTrangId: trangDangDung,
       setActiveAccountId,
       loading,
       reload,
-    }),
-    [accounts, activeAccountId, setActiveAccountId, loading, reload]
-  );
+    };
+  }, [accounts, activeAccountId, setActiveAccountId, loading, reload]);
 
   return <ActivePageContext.Provider value={value}>{children}</ActivePageContext.Provider>;
 }

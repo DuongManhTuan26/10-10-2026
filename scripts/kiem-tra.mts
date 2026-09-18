@@ -2331,6 +2331,14 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /localStorage\.getItem\(KHOA_TRANG_DANG_CHON\)/.test(nguonApi), true);
 
   const nguonTrangCtx = fs.readFileSync(path.join(GOC, "src/lib/ActivePage.tsx"), "utf8");
+  /*
+   * Đổi Fanpage cho một kênh thì MÃ KÊNH GIỮ NGUYÊN, chỉ trang_id đổi. Màn
+   * hình nào chỉ trông vào activeAccountId sẽ không thấy gì thay đổi và vẫn vẽ
+   * bộ não của Fanpage cũ. Vì vậy phải có sẵn activeTrangId để trông vào.
+   */
+  kiem("đổi Trang đổi não", "giao diện trông được cả trang_id, không chỉ mã kênh",
+    /activeTrangId: number \| null;/.test(nguonTrangCtx) &&
+      /activeTrangId: trangDangDung,/.test(nguonTrangCtx), true);
   kiem("đổi Trang đổi não", "hai bên dùng chung một khoá, không ai tự chế chuỗi",
     /export const KHOA_TRANG_DANG_CHON = "zn_active_account";/.test(nguonApi) &&
       /const STORAGE_KEY = KHOA_TRANG_DANG_CHON;/.test(nguonTrangCtx) &&
@@ -2342,11 +2350,11 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * nên không công cụ nào nhắc được — phải chốt ở đây.
    */
   const napLaiTheoTrang: Array<[string, RegExp]> = [
-    ["src/pages/AutoScripts.tsx", /Không tải được cấu hình AI[\s\S]{0,600}?\}, \[activeAccountId\]\);/],
-    ["src/pages/Content.tsx", /phong cách mặc định[\s\S]{0,600}?\}, \[activeAccountId\]\);/],
-    ["src/pages/Content.tsx", /dùng mặc định an toàn[\s\S]{0,600}?\}, \[activeAccountId\]\);/],
-    ["src/components/AutoPilotPanel.tsx", /Không tải được lịch tự động[\s\S]{0,600}?\}, \[activeAccountId\]\);/],
-    ["src/components/AITrainingModal.tsx", /Không tải được cấu hình AI[\s\S]{0,600}?\}, \[kind, activeAccountId\]\);/],
+    ["src/pages/AutoScripts.tsx", /Không tải được cấu hình AI[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
+    ["src/pages/Content.tsx", /phong cách mặc định[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
+    ["src/pages/Content.tsx", /dùng mặc định an toàn[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
+    ["src/components/AutoPilotPanel.tsx", /Không tải được lịch tự động[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
+    ["src/components/AITrainingModal.tsx", /Không tải được cấu hình AI[\s\S]{0,900}?\}, \[kind, activeAccountId, activeTrangId\]\);/],
   ];
   const quenNapLai: string[] = [];
   for (const [tep, mau] of napLaiTheoTrang) {
@@ -2402,8 +2410,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonTrangSv = fs.readFileSync(path.join(GOC, "server/services/trang.ts"), "utf8");
   // Hồ sơ Zernio là khoá duy nhất của Trang, nên hai lần gọi phải ra cùng một
   // Trang. Không thì mỗi lần đồng bộ lại đẻ thêm một Trang rỗng.
+  // DO NOTHING thì câu lệnh không trả về dòng nào, hàm trả null, kênh không
+  // được nối vào Trang nào cả. Phải là DO UPDATE để luôn có id trả về.
   kiem("đổi Trang đổi não", "gọi lại không đẻ thêm Trang rỗng",
-    /ON CONFLICT \(profile_ref\) DO UPDATE SET/.test(nguonTrangSv), true);
+    /DO UPDATE SET[\s\S]{0,400}?RETURNING id, user_id/.test(nguonTrangSv), true);
   // Tên chủ shop tự đặt là của họ, đồng bộ không được đổi.
   kiem("đổi Trang đổi não", "đồng bộ không ghi đè tên Trang chủ shop đã đặt",
     /WHEN trang\.ten IN \('Trang đầu tiên', 'Trang chưa đặt tên'\)/.test(nguonTrangSv), true);
@@ -2411,6 +2421,48 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("đổi Trang đổi não", "không nối kênh vào Trang của tài khoản khác",
     /return r\.user_id === userId \? r\.id : null;/.test(nguonTrangSv) &&
       /WHERE id = \$2 AND user_id = \$3/.test(nguonTrangSv), true);
+
+  /*
+   * Trang khoá theo FANPAGE ĐANG GẮN, không theo hồ sơ Zernio.
+   *
+   * Đo thật trên API Zernio ngày 18/09/2026: hồ sơ "hoangtuan" chứa ba kênh
+   * (facebook, instagram, tiktok); kênh facebook gắn Fanpage 851314991396686
+   * và CHỌN ĐƯỢC cả 686754604528250, đổi bằng PUT /accounts/{id}/facebook-page
+   * — profileId KHÔNG đổi theo.
+   *
+   * Khoá theo hồ sơ như bản trước nghĩa là đổi Fanpage vẫn giữ nguyên
+   * trang_id: Fanpage mới thừa kế cả vai trò, kịch bản và bảng giá của Fanpage
+   * cũ, bán mặt hàng này bằng bảng giá mặt hàng kia.
+   *
+   * Đã đo sau khi sửa, đổi Fanpage thật rồi đổi lại trên tài khoản shop thử:
+   *   trước khi đổi   trang=2  vai trò "…FANPAGE TƯ VẤN TÀI CHÍNH…"
+   *   đổi Fanpage     trang=17 vai trò TRỐNG, tài liệu TRỐNG
+   *   đổi về cũ       trang=2  vai trò cũ trở lại nguyên vẹn
+   */
+  kiem("đổi Trang đổi não", "Trang khoá theo Fanpage đang gắn, không theo hồ sơ",
+    /ON CONFLICT \(profile_ref, COALESCE\(page_id, ''\)\) DO UPDATE SET/.test(nguonTrangSv) &&
+      /maFanpage\(account\)/.test(nguonTk2), true);
+
+  // Mã Fanpage nằm ở metadata.selectedPageId của bản ghi kênh Zernio. Lấy nhầm
+  // availablePages thì ra danh sách chọn được, không phải cái đang phục vụ.
+  kiem("đổi Trang đổi não", "lấy Fanpage từ metadata.selectedPageId",
+    /const ma = \(meta as \{ selectedPageId\?: unknown \}\)\.selectedPageId;/.test(nguonTk2), true);
+
+  // Instagram và TikTok không có khái niệm Fanpage — nhập vào Trang sẵn có của
+  // hồ sơ, không đẻ Trang riêng với bộ não trống.
+  kiem("đổi Trang đổi não", "kênh không có Fanpage nhập vào Trang sẵn có của hồ sơ",
+    /if \(!pageId\) \{[\s\S]{0,400}?WHERE user_id = \$1 AND profile_ref = \$2 ORDER BY id LIMIT 1/
+      .test(nguonTrangSv), true);
+
+  const nguonMig021 = fs.readFileSync(
+    path.join(GOC, "server/migrations/021_trang_theo_fanpage.sql"), "utf8"
+  );
+  // Khoá duy nhất cũ chặn một hồ sơ có nhiều Trang — phải bỏ, không thì thêm
+  // Fanpage thứ hai là lỗi trùng khoá.
+  kiem("đổi Trang đổi não", "bỏ khoá cũ chặn một hồ sơ nhiều Trang",
+    /ALTER TABLE trang DROP CONSTRAINT IF EXISTS trang_profile_ref_key/.test(nguonMig021) &&
+      /CREATE UNIQUE INDEX IF NOT EXISTS trang_ho_so_fanpage_key[\s\S]{0,120}?\(profile_ref, COALESCE\(page_id, ''\)\)/
+        .test(nguonMig021), true);
 
   const dungBang = ["src/pages/AutoScripts.tsx", "src/components/AITrainingModal.tsx"];
   const thieuBang = dungBang.filter(

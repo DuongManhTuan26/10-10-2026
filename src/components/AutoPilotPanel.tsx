@@ -76,7 +76,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
    * Chỉ cần một kênh khó tính như TikTok là cả lệnh đăng hỏng, mà chủ shop
    * không có cách nào bỏ nó ra.
    */
-  const { accounts, activeAccountId } = useActivePage();
+  const { accounts, activeAccountId, activeTrangId } = useActivePage();
   const kenhKetNoi = accounts.filter((a) => a.connected);
 
   const nap = useCallback(async () => {
@@ -94,8 +94,11 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
    * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
    * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
    * tiếp lên đó là ghi nhầm sang Trang khác.
+   *
+   * Kèm cả activeTrangId vì đổi Fanpage cho một kênh thì mã kênh GIỮ NGUYÊN,
+   * chỉ trang_id đổi — trông mỗi activeAccountId là không thấy gì thay đổi.
    */
-  }, [activeAccountId]);
+  }, [activeAccountId, activeTrangId]);
 
   useEffect(() => { nap(); }, [nap]);
 

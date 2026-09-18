@@ -74,8 +74,14 @@ export async function layDanhSachTrang(
  *
  * Một hồ sơ Zernio gom toàn bộ kênh của cùng một shop: Fanpage, Instagram,
  * TikTok đứng chung một hồ sơ và dùng chung một bộ não — đó là cùng một cửa
- * hàng bán cùng một mặt hàng. Thêm một Fanpage khác thì bên Zernio là một hồ
- * sơ khác, nên phải là một Trang khác với bộ não trống của riêng nó.
+ * hàng bán cùng một mặt hàng.
+ *
+ * NHƯNG hồ sơ KHÔNG phải là Fanpage. Đo thật trên API Zernio: một kênh
+ * facebook gắn Fanpage nào nằm ở metadata.selectedPageId, và đổi Fanpage bằng
+ * PUT /accounts/{id}/facebook-page thì profileId KHÔNG đổi theo. Khoá Trang
+ * theo hồ sơ như bản trước nghĩa là đổi sang Fanpage khác vẫn giữ nguyên
+ * trang_id — Fanpage mới thừa kế cả vai trò, kịch bản và bảng giá của Fanpage
+ * cũ. Vì vậy Trang phải khoá theo cặp (hồ sơ, Fanpage đang gắn).
  *
  * Vì sao phải có hàm này: trước đây chỉ lúc mở tài khoản mới sinh Trang. Kênh
  * nối về sau có trang_id rỗng, và chỗ đọc bộ não sẽ rơi về Trang đầu tiên —
@@ -88,13 +94,31 @@ export async function layDanhSachTrang(
 export async function baoDamTrangChoHoSo(
   userId: number,
   profileRef: string,
-  tenGoiY: string
+  tenGoiY: string,
+  pageId: string | null
 ): Promise<number | null> {
   if (!profileRef) return null;
+
+  /*
+   * Kênh không có khái niệm Fanpage (Instagram, TikTok) thì nhập vào Trang
+   * sẵn có đầu tiên của hồ sơ, không đẻ Trang riêng.
+   *
+   * Cùng một shop bán cùng một mặt hàng trên nhiều nền tảng thì dùng chung
+   * một bộ não là đúng — đã thấy trên tài khoản thật: hồ sơ "hoangtuan" gồm
+   * Fanpage, Instagram và TikTok của đúng một cửa hàng.
+   */
+  if (!pageId) {
+    const sanCo = await queryOne<{ id: number }>(
+      "SELECT id FROM trang WHERE user_id = $1 AND profile_ref = $2 ORDER BY id LIMIT 1",
+      [userId, profileRef]
+    );
+    if (sanCo) return sanCo.id;
+  }
+
   const r = await queryOne<{ id: number; user_id: number }>(
-    `INSERT INTO trang (user_id, profile_ref, ten)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (profile_ref) DO UPDATE SET
+    `INSERT INTO trang (user_id, profile_ref, ten, page_id)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (profile_ref, COALESCE(page_id, '')) DO UPDATE SET
        -- Tên chủ shop tự đặt thì giữ nguyên; chỉ điền đè lên tên tạm.
        ten = CASE
                WHEN trang.ten IN ('Trang đầu tiên', 'Trang chưa đặt tên')
@@ -103,7 +127,7 @@ export async function baoDamTrangChoHoSo(
              END,
        updated_at = now()
      RETURNING id, user_id`,
-    [userId, profileRef, tenGoiY || "Trang chưa đặt tên"]
+    [userId, profileRef, tenGoiY || "Trang chưa đặt tên", pageId]
   );
   if (!r) return null;
   return r.user_id === userId ? r.id : null;

@@ -1083,14 +1083,22 @@ const DUC: PhepDuc[] = [
   {
     ten: "đổi Trang mà màn hình bán hàng không nạp lại bộ não",
     tep: "src/pages/AutoScripts.tsx",
-    tim: "    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [activeAccountId]);",
+    tim: "    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [activeAccountId, activeTrangId]);",
     thay: "  }, []);",
   },
   {
     ten: "đổi Trang mà hộp huấn luyện không nạp lại bộ não",
     tep: "src/components/AITrainingModal.tsx",
-    tim: "  }, [kind, activeAccountId]);",
+    tim: "  }, [kind, activeAccountId, activeTrangId]);",
     thay: "  }, [kind]);",
+  },
+  {
+    // Đổi Fanpage giữ nguyên mã kênh — bỏ trang_id đi là màn hình không còn
+    // cách nào biết bộ não vừa đổi.
+    ten: "đổi Fanpage mà màn hình không biết bộ não đã đổi",
+    tep: "src/lib/ActivePage.tsx",
+    tim: "      activeTrangId: trangDangDung,",
+    thay: "      activeTrangId: null,"
   },
   {
     ten: "chưa chọn Trang, có nhiều Trang mà vẫn cho sửa lặng lẽ",
@@ -1123,9 +1131,11 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
+    // DO NOTHING không trả về dòng nào, hàm trả null, kênh không được nối vào
+    // Trang nào — nên đây vừa là "đẻ thêm Trang" vừa là "mất Trang".
     ten: "mỗi lần đồng bộ lại đẻ thêm một Trang rỗng",
     tep: "server/services/trang.ts",
-    tim: "     ON CONFLICT (profile_ref) DO UPDATE SET",
+    tim: "     ON CONFLICT (profile_ref, COALESCE(page_id, '')) DO UPDATE SET",
     thay: "     ON CONFLICT DO NOTHING -- (",
   },
   {
@@ -1139,6 +1149,30 @@ const DUC: PhepDuc[] = [
     tep: "server/services/trang.ts",
     tim: "  return r.user_id === userId ? r.id : null;",
     thay: "  return r.id;",
+  },
+  {
+    ten: "khoá Trang theo hồ sơ — đổi Fanpage vẫn giữ não cũ",
+    tep: "server/services/trang.ts",
+    tim: "     ON CONFLICT (profile_ref, COALESCE(page_id, '')) DO UPDATE SET",
+    thay: "     ON CONFLICT (profile_ref) DO UPDATE SET",
+  },
+  {
+    ten: "lấy nhầm danh sách Fanpage chọn được, không phải cái đang gắn",
+    tep: "server/services/accounts.ts",
+    tim: "  const ma = (meta as { selectedPageId?: unknown }).selectedPageId;",
+    thay: "  const ma = (meta as { availablePages?: unknown }).availablePages;",
+  },
+  {
+    ten: "Instagram, TikTok bị đẻ Trang riêng với bộ não trống",
+    tep: "server/services/trang.ts",
+    tim: "  if (!pageId) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "giữ khoá cũ, một hồ sơ không thêm được Fanpage thứ hai",
+    tep: "server/migrations/021_trang_theo_fanpage.sql",
+    tim: "ALTER TABLE trang DROP CONSTRAINT IF EXISTS trang_profile_ref_key;",
+    thay: "",
   },
   {
     ten: "hồ sơ thật không thay mã tạm của Trang",

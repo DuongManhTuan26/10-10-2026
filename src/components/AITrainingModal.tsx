@@ -30,7 +30,7 @@ interface AITrainingModalProps {
 export default function AITrainingModal({
   isOpen, onClose, aiName, kind, onSaved,
 }: AITrainingModalProps) {
-  const { activeAccountId } = useActivePage();
+  const { activeAccountId, activeTrangId } = useActivePage();
   const [role, setRole] = useState('');
   const [files, setFiles] = useState<AiDocument[]>([]);
   const [dangTai, setDangTai] = useState(true);
@@ -66,8 +66,11 @@ export default function AITrainingModal({
    * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
    * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
    * tiếp lên đó là ghi nhầm sang Trang khác.
+   *
+   * Kèm cả activeTrangId vì đổi Fanpage cho một kênh thì mã kênh GIỮ NGUYÊN,
+   * chỉ trang_id đổi — trông mỗi activeAccountId là không thấy gì thay đổi.
    */
-  }, [kind, activeAccountId]);
+  }, [kind, activeAccountId, activeTrangId]);
 
   useEffect(() => { if (isOpen) nap(); }, [isOpen, nap]);
 
