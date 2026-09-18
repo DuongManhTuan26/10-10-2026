@@ -91,10 +91,26 @@ export async function taoTaiKhoan(params: {
     );
     const userId = inserted.rows[0].id;
 
+    /*
+     * Mỗi tài khoản mới sinh ra kèm TRANG ĐẦU TIÊN.
+     *
+     * Bộ não gắn theo Trang, nên không có Trang thì không có chỗ ghi vai trò
+     * và tài liệu. Hồ sơ Zernio thật được tạo ở bước sau (ensureProfile) và
+     * ghi đè vào đây; chỗ này đặt tạm một mã riêng để bảng không trống, vì
+     * profile_ref là khoá duy nhất và không được để null.
+     */
+    const trangMoi = await client.query<{ id: number }>(
+      `INSERT INTO trang (user_id, profile_ref, ten)
+       VALUES ($1, $2, $3) RETURNING id`,
+      [userId, `cho-cap-${userId}`, "Trang đầu tiên"]
+    );
+    const trangId = trangMoi.rows[0].id;
+
     for (const config of DEFAULT_AI_CONFIGS) {
       await client.query(
-        `INSERT INTO ai_configs (user_id, kind, system_prompt) VALUES ($1, $2, $3)`,
-        [userId, config.kind, config.prompt]
+        `INSERT INTO ai_configs (user_id, trang_id, kind, system_prompt)
+         VALUES ($1, $2, $3, $4)`,
+        [userId, trangId, config.kind, config.prompt]
       );
     }
 

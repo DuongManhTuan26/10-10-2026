@@ -10,12 +10,23 @@ import { query } from "../db.js";
  * Cắt mỗi tài liệu ở 4.000 ký tự: lời nhắc quá dài vừa tốn tiền vừa làm AI
  * loãng trọng tâm, mà phần đầu tài liệu thường đã chứa thông tin chính.
  */
-export async function loadKnowledge(userId: number, kind: string): Promise<string> {
+export async function loadKnowledge(
+  trangId: number | null,
+  kind: string
+): Promise<string> {
+  /*
+   * Tài liệu gắn theo TRANG, không theo tài khoản.
+   *
+   * Không biết Trang thì trả rỗng, KHÔNG lấy đại tài liệu nào — lấy nhầm
+   * nghĩa là AI dùng kiến thức của shop khác để nói với khách.
+   */
+  if (!trangId) return "";
+
   const docs = await query<{ filename: string; extracted_text: string | null }>(
     `SELECT filename, extracted_text FROM ai_documents
-      WHERE user_id = $1 AND kind = $2 AND extracted_text IS NOT NULL
+      WHERE trang_id = $1 AND kind = $2 AND extracted_text IS NOT NULL
       ORDER BY created_at DESC LIMIT 5`,
-    [userId, kind]
+    [trangId, kind]
   );
 
   if (docs.rows.length === 0) return "";

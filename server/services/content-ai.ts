@@ -35,6 +35,12 @@ export interface GeneratedContent {
  */
 export async function generatePostContent(params: {
   userId: number;
+  /*
+   * Trang viết bài cho. Vai trò và tài liệu viết nội dung gắn theo TRANG:
+   * Trang bán quần lót và Trang bán bột sắn dây phải viết khác nhau, và Meta
+   * còn phạt nội dung trùng lặp giữa các Trang.
+   */
+  trangId: number | null;
   topic: string;
   goal?: string;
   count?: number;
@@ -51,15 +57,15 @@ export async function generatePostContent(params: {
   const goal = params.goal ?? "sales";
 
   const config = await queryOne<{ system_prompt: string; tone: string }>(
-    "SELECT system_prompt, tone FROM ai_configs WHERE user_id = $1 AND kind = 'content'",
-    [params.userId]
+    "SELECT system_prompt, tone FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
+    [params.trangId]
   );
 
   const documents = await query<{ filename: string; extracted_text: string | null }>(
     `SELECT filename, extracted_text FROM ai_documents
-      WHERE user_id = $1 AND kind = 'content' AND extracted_text IS NOT NULL
+      WHERE trang_id = $1 AND kind = 'content' AND extracted_text IS NOT NULL
       ORDER BY created_at DESC LIMIT 5`,
-    [params.userId]
+    [params.trangId]
   );
 
   const knowledge = documents.rows.length

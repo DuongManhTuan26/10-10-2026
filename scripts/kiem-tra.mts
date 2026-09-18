@@ -1512,9 +1512,20 @@ if (fs.existsSync(thuMucCss)) {
 kiem("giá đơn", "có phép đối chiếu giá với tài liệu shop",
   /export async function giaCoTrongTaiLieu\(/.test(nguonSales), true);
 kiem("giá đơn", "giá không có trong tài liệu thì KHÔNG làm giá đơn",
-  /donGia = giaAiBoc > 0 && \(await giaCoTrongTaiLieu\(conversation\.user_id, giaAiBoc\)\)\s*\n?\s*\? giaAiBoc\s*\n?\s*: 0/.test(
+  /donGia = giaAiBoc > 0 && \(await giaCoTrongTaiLieu\(conversation\.trang_id, giaAiBoc\)\)\s*\n?\s*\? giaAiBoc\s*\n?\s*: 0/.test(
     nguonSales
   ), true);
+/*
+ * Đối chiếu giá theo TRANG, không theo tài khoản.
+ *
+ * Tài khoản nhiều Trang mà đối chiếu theo tài khoản thì AI lấy bảng giá của
+ * Trang bán bột sắn dây ra xác nhận cho khách của Trang bán quần áo. Đã đo:
+ * giá 180.000đ có thật ở Trang 1 nhưng phải bị từ chối ở Trang 2.
+ */
+kiem("giá đơn", "đối chiếu giá theo Trang",
+  /WHERE trang_id = \$1 AND kind = 'sales' AND extracted_text IS NOT NULL/.test(nguonSales), true);
+kiem("giá đơn", "không biết Trang thì KHÔNG xác nhận giá nào",
+  /if \(!trangId\) return false;/.test(nguonSales), true);
 kiem("giá đơn", "chặn giá lạ thì báo chủ shop, không im lặng",
   /không có \n?\s*`\s*\+\s*`trong tài liệu của shop/.test(nguonSales) ||
     /không có/.test(nguonSales) && /baoChuShop\([\s\S]{0,200}?giaAiBoc/.test(nguonSales), true);
@@ -2073,12 +2084,51 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 // --- Migration không được đâm nhau -------------------------------------------
 {
   const nguonMig = fs.readFileSync(path.join(GOC, "server/migrate.ts"), "utf8");
-  kiem("migration", "có khoá tư vấn quanh việc chạy migration",
-    /pg_advisory_lock\(\$1\)/.test(nguonMig) && /pg_advisory_unlock\(\$1\)/.test(nguonMig), true);
-  kiem("migration", "khoá ở cấp phiên, không phải cấp giao dịch",
-    /pg_advisory_xact_lock/.test(nguonMig), false);
-  kiem("migration", "nhả khoá kể cả khi giữa chừng lỗi",
-    /\} finally \{[\s\S]{0,200}?pg_advisory_unlock/.test(nguonMig), true);
+  /*
+   * Ba phép kiểm ở đây từng khẳng định ĐÚNG thiết kế đã bị chứng minh là sai.
+   * Giữ lại bài học, đảo chiều khẳng định.
+   *
+   * 1. Khoá cấp PHIÊN trên kết nối mượn từ pool: release() chỉ trả kết nối về
+   *    pool chứ không đóng phiên, khoá kẹt trên kết nối idle. Đo được: giữ 9
+   *    phút 35 giây, migration sau chờ vô hạn.
+   * 2. Kết nối riêng vẫn không cứu được: database nằm sau pgbouncer
+   *    (DATABASE_URL có đuôi "-pooler"), bộ gom trộn nhiều phiên logic lên
+   *    chung một kết nối thật nên khoá cấp phiên không thuộc về ai rõ ràng.
+   * 3. pg_advisory_xact_lock() an toàn sau pgbouncer nhưng CHẶN trong lúc vẫn
+   *    giữ kết nối, nên nhiều tiến trình khoá lẫn nhau. Đo với 5 tiến trình:
+   *    một cái chết vì "Query read timeout".
+   */
+  kiem("migration", "TUYỆT ĐỐI không dùng khoá cấp phiên (rò sau pgbouncer)",
+    /pg_advisory_lock\(|pg_advisory_unlock\(/.test(boChuThich(nguonMig)), false);
+  kiem("migration", "dùng THỬ khoá cấp giao dịch, không chặn",
+    /pg_try_advisory_xact_lock\(\$1\)/.test(nguonMig), true);
+  kiem("migration", "không lấy được khoá thì NHẢ kết nối rồi mới nghỉ",
+    /client\.release\(\);[\s\S]{0,260}?if \(phaiThuLai && lan < SO_LAN_THU\)[\s\S]{0,80}?setTimeout/.test(
+      nguonMig
+    ), true);
+  /*
+   * Chỉ soi THÂN hàm chạy migration.
+   *
+   * dropLegacyTables() là lệnh CLI riêng, không nằm trong lượt migration, nên
+   * nó dùng pool là đúng. Cấm pool.query trên cả tệp là cấm nhầm.
+   */
+  {
+    const than = nguonMig.slice(
+      nguonMig.indexOf("async function chayMigrationDaKhoa"),
+      nguonMig.indexOf("export async function dropLegacyTables")
+    );
+    kiem("migration", "mọi lệnh trong lượt migration đi qua đúng client giữ khoá",
+      /async function chayMigrationDaKhoa\(client: pg\.PoolClient\)/.test(nguonMig) &&
+        /*
+         * Phải khớp cả pool.query<{...}>( — có tham số kiểu chen giữa.
+         * Mẫu cũ chỉ tìm "pool.query(" nên đục thủng bằng pool.query<T>( là lọt.
+         */
+        than.length > 300 && !/pool\.query\s*[<(]/.test(boChuThich(than)), true);
+  }
+  kiem("migration", "hỏng giữa chừng thì cả lượt quay về nguyên trạng",
+    /catch \(error\) \{[\s\S]{0,120}?ROLLBACK/.test(nguonMig), true);
+  kiem("migration", "thử hết số lần vẫn không được thì báo lỗi rõ ràng",
+    /Không lấy được khoá migration sau \$\{SO_LAN_THU\} lần thử/.test(nguonMig), true);
   const nguonVao = fs.readFileSync(path.join(GOC, "server.ts"), "utf8");
   kiem("migration", "tự chạy khi khởi động máy chủ",
     /await runMigrations\(\);/.test(nguonVao), true);
@@ -2147,6 +2197,111 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /for \(const word of excludeKeywords\)[\s\S]{0,140}?if \(matchType === "all"\) return true;/.test(
       nguonCmt
     ), true);
+}
+
+// ---------------------------------------------------------------------------
+// 48. Bộ não gắn theo TRANG, không theo tài khoản
+//
+// Đã thấy tận mắt trên dữ liệu thật: tài khoản gắn Trang "Chạm Tay Vạn Điều
+// Hay" mà vai trò AI vẫn là "chuyên viên tư vấn tài chính" — vì vai trò gắn
+// với tài khoản, đổi Trang thì cái đầu không đổi theo.
+//
+// Với hai Trang bán hai thứ khác nhau, dùng chung bộ não là chắc chắn nói sai
+// sản phẩm và sai GIÁ với khách thật.
+//
+// Đã đo sau khi sửa: giá 180.000đ có thật ở Trang 1 (bột sắn dây) nhưng bị
+// TỪ CHỐI ở Trang 2 (chưa có tài liệu) — hai Trang không còn dùng chung bảng
+// giá. Không biết Trang thì chặn, không đoán sang Trang khác.
+// ---------------------------------------------------------------------------
+{
+  const BANG_BO_NAO = ["ai_configs", "ai_documents"];
+  const TEP_DUNG_BO_NAO = [
+    "server/services/sales-ai.ts",
+    "server/services/content-ai.ts",
+    "server/services/image-ai.ts",
+    "server/services/knowledge.ts",
+    "server/services/autopilot.ts",
+    "server/services/events.ts",
+    "server/routes/ai.ts",
+    "server/routes/ads.ts",
+    "server/routes/analytics.ts",
+  ];
+
+  const conDungTaiKhoan: string[] = [];
+  for (const t of TEP_DUNG_BO_NAO) {
+    const ma = boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+    for (const bang of BANG_BO_NAO) {
+      /*
+       * Bắt cả hai kiểu viết: lọc thẳng trong WHERE, và nối bảng bằng user_id.
+       * Nối bằng user_id nguy hiểm y hệt lọc bằng user_id — tài khoản nhiều
+       * Trang thì nó lấy cấu hình của Trang nào cũng được.
+       */
+      /*
+       * Chỉ quét TRONG một câu lệnh, dừng ở dấu nháy hoặc backtick đóng.
+       * Quét tràn 200 ký tự thì nó vắt sang câu lệnh kế bên và báo oan — đã
+       * báo oan đúng như vậy với auto_pilot_runs nằm ngay sau.
+       */
+      const mau = new RegExp(
+        `${bang}[^\`"']{0,200}?(WHERE|AND)\\s+(\\w+\\.)?user_id\\s*=|JOIN[^\\n]*ON[^\\n]*\\.user_id\\s*=\\s*\\w*\\.?user_id`
+      );
+      if (mau.test(ma)) conDungTaiKhoan.push(`${t} :: ${bang}`);
+    }
+  }
+  kiem("bộ não theo Trang", "không chỗ nào đọc bộ não theo tài khoản",
+    conDungTaiKhoan, []);
+
+  const nguonTrang = fs.readFileSync(path.join(GOC, "server/services/trang.ts"), "utf8");
+  kiem("bộ não theo Trang", "có đường suy Trang từ kênh",
+    /export async function layTrangTuKenh/.test(nguonTrang), true);
+  kiem("bộ não theo Trang", "KHÔNG nhận trangId thẳng từ giao diện",
+    /accountId\?: string \| null/.test(nguonTrang) &&
+      /WHERE id = \$1 AND user_id = \$2/.test(nguonTrang), true);
+
+  const nguonBan2 = fs.readFileSync(path.join(GOC, "server/services/sales-ai.ts"), "utf8");
+  // Phép kiểm cũ chỉ hỏi "tệp này có câu LEFT JOIN nào không" — mà tệp có HAI
+  // câu truy vấn hội thoại. Bỏ câu này thì câu kia vẫn làm phép kiểm xanh.
+  // Nay soi từng câu một, buộc cả hai đều phải tự lấy trang_id.
+  kiem("bộ não theo Trang", "hội thoại mang sẵn trang_id, suy một lần",
+    /s\.trang_id\s*\n\s*FROM conversations c\s*\n\s*LEFT JOIN social_accounts s ON s\.id = c\.social_account_id/
+      .test(nguonBan2) &&
+      /trang_id: number \| null;/.test(nguonBan2), true);
+  kiem("bộ não theo Trang", "gợi ý trả lời cũng lấy trang_id từ kênh",
+    /SELECT c\.user_id, s\.trang_id FROM conversations c\s*\n\s*LEFT JOIN social_accounts s ON s\.id = c\.social_account_id/
+      .test(nguonBan2), true);
+
+  const nguonKt = fs.readFileSync(path.join(GOC, "server/services/knowledge.ts"), "utf8");
+  kiem("bộ não theo Trang", "không biết Trang thì trả kiến thức rỗng, không lấy đại",
+    /if \(!trangId\) return "";/.test(nguonKt), true);
+
+  const nguonTaoTk2 = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
+  // Phép kiểm cũ chỉ tìm chữ "INSERT INTO trang", nên một câu lệnh đã bị chú
+  // thích hoá vẫn qua được. Nay đòi đủ cả câu lệnh lẫn chỗ dùng id trả về —
+  // chữ suông không còn đủ.
+  kiem("bộ não theo Trang", "tài khoản mới sinh kèm Trang đầu tiên",
+    /INSERT INTO trang \(user_id, profile_ref, ten\)\s*\n\s*VALUES \(\$1, \$2, \$3\) RETURNING id/
+      .test(nguonTaoTk2) &&
+      /const trangId = trangMoi\.rows\[0\]\.id;/.test(nguonTaoTk2) &&
+      /INSERT INTO ai_configs \(user_id, trang_id, kind, system_prompt\)/.test(nguonTaoTk2) &&
+      /\[userId, trangId, config\.kind, config\.prompt\]/.test(nguonTaoTk2), true);
+
+  const nguonTk = fs.readFileSync(path.join(GOC, "server/services/accounts.ts"), "utf8");
+  kiem("bộ não theo Trang", "hồ sơ thật thay mã tạm của Trang đầu tiên",
+    /UPDATE trang SET profile_ref = \$1[\s\S]{0,120}?profile_ref LIKE 'cho-cap-%'/.test(nguonTk), true);
+
+  const nguonMig020 = fs.readFileSync(
+    path.join(GOC, "server/migrations/020_bang_trang.sql"), "utf8"
+  );
+  kiem("bộ não theo Trang", "một hồ sơ chỉ thuộc đúng một Trang",
+    /CONSTRAINT trang_profile_ref_key UNIQUE \(profile_ref\)/.test(nguonMig020), true);
+  kiem("bộ não theo Trang", "bộ não bắt buộc thuộc một Trang",
+    /ALTER TABLE ai_configs   ALTER COLUMN trang_id SET NOT NULL/.test(nguonMig020) &&
+      /ALTER TABLE ai_documents ALTER COLUMN trang_id SET NOT NULL/.test(nguonMig020), true);
+  kiem("bộ não theo Trang", "mỗi Trang một vai trò cho mỗi loại AI",
+    /CREATE UNIQUE INDEX IF NOT EXISTS ai_configs_trang_kind_key[\s\S]{0,60}?\(trang_id, kind\)/.test(
+      nguonMig020
+    ), true);
+  kiem("bộ não theo Trang", "xoá Trang KHÔNG làm mất kênh",
+    /trang_id BIGINT\s*\n?\s*REFERENCES trang\(id\) ON DELETE SET NULL/.test(nguonMig020), true);
 }
 
 // ---------------------------------------------------------------------------

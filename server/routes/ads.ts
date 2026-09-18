@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query, queryOne } from "../db.js";
 import { requireAuth } from "../auth.js";
+import { layTrangDangChon } from "../services/trang.js";
 import { AppError, requireString, route } from "../http.js";
 import * as ads from "../services/ads.js";
 import { chatJson, asRecord, optionalString } from "../services/ai.js";
@@ -441,12 +442,15 @@ adsRouter.post(
     }
 
     const config = await queryOne<{ system_prompt: string }>(
-      "SELECT system_prompt FROM ai_configs WHERE user_id = $1 AND kind = 'ads'",
-      [req.user!.id]
+      "SELECT system_prompt FROM ai_configs WHERE trang_id = $1 AND kind = 'ads'",
+      [await layTrangDangChon(req.user!.id, resolved.accountId)]
     );
 
     // Tài liệu chủ shop đã dạy riêng cho AI quảng cáo.
-    const knowledge = await loadKnowledge(req.user!.id, "ads");
+    const knowledge = await loadKnowledge(
+      await layTrangDangChon(req.user!.id, resolved.accountId),
+      "ads"
+    );
 
     const result = await chatJson({
       task: "ads",

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query, queryOne } from "../db.js";
 import { requireAuth } from "../auth.js";
+import { layTrangMacDinh } from "../services/trang.js";
 import { AppError, route } from "../http.js";
 import { chatJson, asRecord, optionalString } from "../services/ai.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "../services/text.js";
@@ -254,12 +255,12 @@ analyticsRouter.post(
     );
 
     const config = await queryOne<{ system_prompt: string }>(
-      "SELECT system_prompt FROM ai_configs WHERE user_id = $1 AND kind = 'analytics'",
-      [userId]
+      "SELECT system_prompt FROM ai_configs WHERE trang_id = $1 AND kind = 'analytics'",
+      [await layTrangMacDinh(userId)]
     );
 
     // Tài liệu chủ shop đã dạy riêng cho AI thống kê.
-    const knowledge = await loadKnowledge(userId, "analytics");
+    const knowledge = await loadKnowledge(await layTrangMacDinh(userId), "analytics");
 
     const result = await chatJson({
       task: "analytics",

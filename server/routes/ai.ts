@@ -5,6 +5,25 @@ import { AppError, requireString, route } from "../http.js";
 import { chat, chatJson, asRecord, stringArray, DEFAULT_MODELS } from "../services/ai.js";
 import { extractOrderInfo, suggestReply } from "../services/sales-ai.js";
 import { generatePostContent } from "../services/content-ai.js";
+import { layTrangDangChon } from "../services/trang.js";
+
+/**
+ * Trang mà màn hình đang làm việc, suy từ kênh giao diện gửi lên.
+ *
+ * Bộ não — vai trò, tài liệu — gắn theo TRANG. Giao diện đã có sẵn bộ chọn
+ * kênh nên chỉ cần gửi kèm accountId; không gửi thì lấy Trang đầu tiên, đúng
+ * cho tài khoản một Trang.
+ *
+ * KHÔNG nhận trangId thẳng từ giao diện: làm vậy là để người ngoài tự khai
+ * mình thuộc Trang nào. Suy từ kênh thì còn kiểm được kênh có thuộc tài khoản
+ * đang đăng nhập hay không.
+ */
+async function trangCuaReq(req: { user?: { id: number }; query: Record<string, unknown>; body?: Record<string, unknown> }) {
+  const kenh =
+    (typeof req.query?.accountId === "string" ? req.query.accountId : undefined) ??
+    (typeof req.body?.accountId === "string" ? (req.body.accountId as string) : undefined);
+  return layTrangDangChon(req.user!.id, kenh ?? null);
+}
 import { docCauHinh, MAC_DINH } from "../services/autopilot.js";
 import { docChuTuAnh, ANH_HOP_LE, GIOI_HAN_ANH } from "../services/vision.js";
 import { docCacBuoc } from "../services/sales-stages.js";
@@ -39,16 +58,16 @@ aiRouter.get(
 
     const config = await queryOne(
       `SELECT kind, system_prompt, tone, settings, updated_at
-         FROM ai_configs WHERE user_id = $1 AND kind = $2`,
-      [req.user!.id, kind]
+         FROM ai_configs WHERE trang_id = $1 AND kind = $2`,
+      [await trangCuaReq(req), kind]
     );
 
     const documents = await query(
       `SELECT id, filename, mime_type, size_bytes, created_at,
               extracted_text IS NOT NULL AS has_text
-         FROM ai_documents WHERE user_id = $1 AND kind = $2
+         FROM ai_documents WHERE trang_id = $1 AND kind = $2
          ORDER BY created_at DESC`,
-      [req.user!.id, kind]
+      [await trangCuaReq(req), kind]
     );
 
     res.json({
@@ -85,21 +104,22 @@ aiRouter.put(
      * "màn hình muốn xoá trắng nó".
      */
     const updated = await queryOne(
-      `INSERT INTO ai_configs (user_id, kind, system_prompt, tone, settings)
-       VALUES ($1, $2, COALESCE($3, ''), COALESCE($4, 'friendly'),
+      `INSERT INTO ai_configs (user_id, trang_id, kind, system_prompt, tone, settings)
+       VALUES ($6, $1, $2, COALESCE($3, ''), COALESCE($4, 'friendly'),
                COALESCE($5::jsonb, '{}'::jsonb))
-       ON CONFLICT (user_id, kind) DO UPDATE SET
+       ON CONFLICT (trang_id, kind) DO UPDATE SET
          system_prompt = COALESCE($3, ai_configs.system_prompt),
          tone          = COALESCE($4, ai_configs.tone),
          settings      = COALESCE($5::jsonb, ai_configs.settings),
          updated_at    = now()
        RETURNING kind, system_prompt, tone, settings, updated_at`,
       [
-        req.user!.id,
+        await trangCuaReq(req),
         kind,
         typeof body.systemPrompt === "string" ? body.systemPrompt : null,
         typeof body.tone === "string" ? body.tone : null,
         body.settings === undefined ? null : JSON.stringify(body.settings),
+        req.user!.id,
       ]
     );
 
@@ -117,8 +137,8 @@ aiRouter.get(
   "/sales-autonomy",
   route(async (req, res) => {
     const row = await queryOne<{ settings: Record<string, unknown> }>(
-      "SELECT settings FROM ai_configs WHERE user_id = $1 AND kind = 'sales'",
-      [req.user!.id]
+      "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'sales'",
+      [await trangCuaReq(req)]
     );
     res.json({ success: true, data: { config: docTuChu(row?.settings?.tuChu) } });
   })
@@ -130,13 +150,13 @@ aiRouter.put(
     const sach = docTuChu(req.body?.config);
 
     const updated = await queryOne<{ settings: Record<string, unknown> }>(
-      `INSERT INTO ai_configs (user_id, kind, settings)
-       VALUES ($1, 'sales', $2::jsonb)
-       ON CONFLICT (user_id, kind) DO UPDATE SET
+      `INSERT INTO ai_configs (user_id, trang_id, kind, settings)
+       VALUES ($3, $1, 'sales', $2::jsonb)
+       ON CONFLICT (trang_id, kind) DO UPDATE SET
          settings   = ai_configs.settings || EXCLUDED.settings,
          updated_at = now()
        RETURNING settings`,
-      [req.user!.id, JSON.stringify({ tuChu: sach })]
+      [await trangCuaReq(req), JSON.stringify({ tuChu: sach }), req.user!.id]
     );
 
     /*
@@ -185,8 +205,8 @@ aiRouter.get(
   "/sales-stages",
   route(async (req, res) => {
     const row = await queryOne<{ settings: Record<string, unknown> }>(
-      "SELECT settings FROM ai_configs WHERE user_id = $1 AND kind = 'sales'",
-      [req.user!.id]
+      "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'sales'",
+      [await trangCuaReq(req)]
     );
     res.json({ success: true, data: { stages: docCacBuoc(row?.settings?.stages) } });
   })
@@ -219,17 +239,18 @@ aiRouter.put(
     }
 
     const updated = await queryOne<{ settings: Record<string, unknown> }>(
-      `INSERT INTO ai_configs (user_id, kind, settings)
-       VALUES ($1, 'sales', $2::jsonb)
-       ON CONFLICT (user_id, kind) DO UPDATE SET
+      `INSERT INTO ai_configs (user_id, trang_id, kind, settings)
+       VALUES ($3, $1, 'sales', $2::jsonb)
+       ON CONFLICT (trang_id, kind) DO UPDATE SET
          settings   = ai_configs.settings || EXCLUDED.settings,
          updated_at = now()
        RETURNING settings`,
       [
-        req.user!.id,
+        await trangCuaReq(req),
         JSON.stringify({
           stages: sach.map((b) => ({ id: b.id, ten: b.ten, mucTieu: b.mucTieu, enabled: b.enabled })),
         }),
+        req.user!.id,
       ]
     );
 
@@ -248,8 +269,8 @@ aiRouter.get(
   "/auto-pilot",
   route(async (req, res) => {
     const row = await queryOne<{ settings: Record<string, unknown> }>(
-      "SELECT settings FROM ai_configs WHERE user_id = $1 AND kind = 'content'",
-      [req.user!.id]
+      "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
+      [await trangCuaReq(req)]
     );
 
     const runs = await query(
@@ -291,13 +312,13 @@ aiRouter.put(
     }
 
     const updated = await queryOne(
-      `INSERT INTO ai_configs (user_id, kind, settings)
-       VALUES ($1, 'content', $2::jsonb)
-       ON CONFLICT (user_id, kind) DO UPDATE SET
+      `INSERT INTO ai_configs (user_id, trang_id, kind, settings)
+       VALUES ($3, $1, 'content', $2::jsonb)
+       ON CONFLICT (trang_id, kind) DO UPDATE SET
          settings   = ai_configs.settings || EXCLUDED.settings,
          updated_at = now()
        RETURNING settings`,
-      [req.user!.id, JSON.stringify({ autoPilot: sach })]
+      [await trangCuaReq(req), JSON.stringify({ autoPilot: sach }), req.user!.id]
     );
 
     res.json({ success: true, data: { config: sach, saved: !!updated } });
@@ -323,13 +344,13 @@ aiRouter.patch(
     }
 
     const updated = await queryOne(
-      `INSERT INTO ai_configs (user_id, kind, settings)
-       VALUES ($1, $2, $3::jsonb)
-       ON CONFLICT (user_id, kind) DO UPDATE SET
+      `INSERT INTO ai_configs (user_id, trang_id, kind, settings)
+       VALUES ($4, $1, $2, $3::jsonb)
+       ON CONFLICT (trang_id, kind) DO UPDATE SET
          settings   = ai_configs.settings || EXCLUDED.settings,
          updated_at = now()
        RETURNING kind, system_prompt, tone, settings, updated_at`,
-      [req.user!.id, kind, JSON.stringify(patch)]
+      [await trangCuaReq(req), kind, JSON.stringify(patch), req.user!.id]
     );
 
     res.json({ success: true, data: updated });
@@ -390,11 +411,11 @@ aiRouter.post(
 
     const inserted = await queryOne(
       `INSERT INTO ai_documents
-         (user_id, kind, filename, mime_type, size_bytes, storage_path, extracted_text)
-       VALUES ($1, $2, $3, $4, $5, '', $6)
+         (user_id, trang_id, kind, filename, mime_type, size_bytes, storage_path, extracted_text)
+       VALUES ($1, $2, $3, $4, $5, $6, '', $7)
        RETURNING id, filename, mime_type, size_bytes, created_at,
                  extracted_text IS NOT NULL AS has_text`,
-      [req.user!.id, kind, filename, mimeType, sizeBytes || (text?.length ?? 0), text]
+      [req.user!.id, await trangCuaReq(req), kind, filename, mimeType, sizeBytes || (text?.length ?? 0), text]
     );
 
     res.status(201).json({ success: true, data: inserted });
@@ -406,8 +427,8 @@ aiRouter.delete(
   route(async (req, res) => {
     const kind = assertKind(req.params.kind);
     const result = await query(
-      "DELETE FROM ai_documents WHERE id = $1 AND user_id = $2 AND kind = $3",
-      [req.params.id, req.user!.id, kind]
+      "DELETE FROM ai_documents WHERE id = $1 AND trang_id = $2 AND kind = $3",
+      [req.params.id, await trangCuaReq(req), kind]
     );
     if (!result.rowCount) throw new AppError("Không tìm thấy tài liệu", 404);
     res.json({ success: true });
@@ -425,7 +446,7 @@ aiRouter.get(
     res.json({
       success: true,
       data: {
-        phongCach: await docPhongCachDaLuu(req.user!.id),
+        phongCach: await docPhongCachDaLuu(await trangCuaReq(req)),
         macDinh: PHONG_CACH_MAC_DINH,
       },
     });
@@ -448,6 +469,7 @@ aiRouter.post(
 
     const anh = await taoAnhChoBai({
       userId: req.user!.id,
+      trangId: await trangCuaReq(req),
       noiDung,
       yeuCau,
       phongCach,
@@ -467,6 +489,7 @@ aiRouter.post(
     // được cùng một hàm — worker không có req/res để mượn.
     const result = await generatePostContent({
       userId: req.user!.id,
+      trangId: await trangCuaReq(req),
       topic,
       goal: typeof req.body?.goal === "string" ? req.body.goal : "sales",
       count: Number(req.body?.count ?? 3),
@@ -555,15 +578,15 @@ aiRouter.post(
     const message = requireString(req.body, "message", "câu hỏi thử");
 
     const config = await queryOne<{ system_prompt: string }>(
-      "SELECT system_prompt FROM ai_configs WHERE user_id = $1 AND kind = $2",
-      [req.user!.id, kind]
+      "SELECT system_prompt FROM ai_configs WHERE trang_id = $1 AND kind = $2",
+      [await trangCuaReq(req), kind]
     );
 
     const documents = await query<{ filename: string; extracted_text: string | null }>(
       `SELECT filename, extracted_text FROM ai_documents
-        WHERE user_id = $1 AND kind = $2 AND extracted_text IS NOT NULL
+        WHERE trang_id = $1 AND kind = $2 AND extracted_text IS NOT NULL
         ORDER BY created_at DESC LIMIT 5`,
-      [req.user!.id, kind]
+      [await trangCuaReq(req), kind]
     );
 
     const knowledge = documents.rows.length

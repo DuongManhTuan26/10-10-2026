@@ -92,10 +92,11 @@ export interface AnhDaTao {
  * biết chủ đề, đưa cả bài dài chỉ làm nhiễu và tốn thêm tiền.
  */
 /** Phong cách chủ shop đã lưu làm mặc định. */
-export async function docPhongCachDaLuu(userId: number): Promise<string> {
+export async function docPhongCachDaLuu(trangId: number | null): Promise<string> {
+  if (!trangId) return PHONG_CACH_MAC_DINH;
   const row = await queryOne<{ settings: Record<string, unknown> | null }>(
-    "SELECT settings FROM ai_configs WHERE user_id = $1 AND kind = 'content'",
-    [userId]
+    "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
+    [trangId]
   );
   const luu = row?.settings?.anhPhongCach;
   return typeof luu === "string" && luu.trim() !== "" ? luu.trim() : PHONG_CACH_MAC_DINH;
@@ -103,6 +104,8 @@ export async function docPhongCachDaLuu(userId: number): Promise<string> {
 
 export async function taoAnhChoBai(params: {
   userId: number;
+  /** Trang để lấy phong cách ảnh đã lưu. */
+  trangId: number | null;
   noiDung: string;
   /** Mô tả riêng của chủ shop, nếu có thì ưu tiên hơn nội dung bài. */
   yeuCau?: string;
@@ -130,7 +133,7 @@ export async function taoAnhChoBai(params: {
   }
 
   const phongCach =
-    params.phongCach?.trim() || (await docPhongCachDaLuu(params.userId));
+    params.phongCach?.trim() || (await docPhongCachDaLuu(params.trangId));
 
   /*
    * Thứ tự có chủ đích: phong cách đứng TRƯỚC để định hướng toàn bộ ảnh, nội

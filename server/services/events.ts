@@ -343,8 +343,16 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
      * bình thường.
      */
     const cauHinh = await queryOne<{ settings: Record<string, unknown> }>(
+      /*
+       * Nối qua KÊNH để ra đúng Trang.
+       *
+       * Bản cũ nối ai_configs với conversations bằng user_id, tức là lấy cấu
+       * hình của tài khoản. Tài khoản nhiều Trang thì đó là cấu hình của Trang
+       * nào cũng được — sai ngay khi có Trang thứ hai.
+       */
       `SELECT a.settings FROM ai_configs a
-         JOIN conversations c ON c.user_id = a.user_id
+         JOIN social_accounts s ON s.trang_id = a.trang_id
+         JOIN conversations c ON c.social_account_id = s.id
         WHERE c.id = $1 AND a.kind = 'sales'`,
       [message.conversationId]
     ).catch(() => null);

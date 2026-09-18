@@ -114,8 +114,15 @@ adminRouter.get(
               (SELECT COUNT(*) FROM posts p WHERE p.user_id = u.id)::int    AS bai,
               (SELECT COUNT(*) FROM ai_documents d WHERE d.user_id = u.id)::int AS tai_lieu,
               (SELECT MAX(m.sent_at) FROM messages m WHERE m.user_id = u.id) AS hoat_dong_cuoi,
+              /*
+               * Một tài khoản có thể có nhiều Trang, mỗi Trang một cấu hình.
+               * Bảng quản trị chỉ liệt kê tổng quan nên lấy Trang đầu tiên;
+               * không LIMIT thì truy vấn con trả nhiều dòng và lỗi ngay.
+               */
               (SELECT a.settings->'tuChu'->>'bat' FROM ai_configs a
-                WHERE a.user_id = u.id AND a.kind = 'sales')           AS tu_chu,
+                 JOIN trang tr ON tr.id = a.trang_id
+                WHERE tr.user_id = u.id AND a.kind = 'sales'
+                ORDER BY tr.id LIMIT 1)                                AS tu_chu,
               (SELECT t.enabled FROM telegram_configs t WHERE t.user_id = u.id) AS telegram
          FROM users u
         ORDER BY u.created_at`

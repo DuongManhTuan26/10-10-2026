@@ -440,7 +440,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "ép sẵn phong cách trong mã, không cho chủ shop điều khiển",
     tep: "server/services/image-ai.ts",
-    tim: "    params.phongCach?.trim() || (await docPhongCachDaLuu(params.userId));",
+    tim: "    params.phongCach?.trim() || (await docPhongCachDaLuu(params.trangId));",
     thay: "    \"ảnh chụp đời thường, bối cảnh Việt Nam\";",
   },
   {
@@ -653,7 +653,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "cho AI tự đặt giá đơn, không đối chiếu tài liệu",
     tep: "server/services/sales-ai.ts",
-    tim: "  const donGia = giaAiBoc > 0 && (await giaCoTrongTaiLieu(conversation.user_id, giaAiBoc))\n    ? giaAiBoc\n    : 0;",
+    tim: "  const donGia = giaAiBoc > 0 && (await giaCoTrongTaiLieu(conversation.trang_id, giaAiBoc))\n    ? giaAiBoc\n    : 0;",
     thay: "  const donGia = giaAiBoc;",
   },
   {
@@ -947,8 +947,32 @@ const DUC: PhepDuc[] = [
   {
     ten: "bỏ khoá migration, để hai tiến trình đâm nhau",
     tep: "server/migrate.ts",
-    tim: '  await khoa.query("SELECT pg_advisory_lock($1)", [KHOA_MIGRATION]);',
-    thay: "",
+    tim: '        "SELECT pg_try_advisory_xact_lock($1) AS duoc",',
+    thay: '        "SELECT true AS duoc",',
+  },
+  {
+    ten: "quay lại khoá cấp phiên — rò vĩnh viễn sau pgbouncer",
+    tep: "server/migrate.ts",
+    tim: '        "SELECT pg_try_advisory_xact_lock($1) AS duoc",',
+    thay: '        "SELECT pg_advisory_lock($1) IS NOT NULL AS duoc",',
+  },
+  {
+    ten: "nghỉ TRƯỚC khi nhả kết nối — nhiều tiến trình khoá lẫn nhau",
+    tep: "server/migrate.ts",
+    tim: "    if (phaiThuLai && lan < SO_LAN_THU) {",
+    thay: "    if (false) {",
+  },
+  {
+    ten: "lượt migration dùng pool thay vì client đang giữ khoá",
+    tep: "server/migrate.ts",
+    tim: "  const applied = new Set(\n    (await client.query<{ name: string }>",
+    thay: "  const applied = new Set(\n    (await pool.query<{ name: string }>",
+  },
+  {
+    ten: "migration hỏng không quay lại nguyên trạng",
+    tep: "server/migrate.ts",
+    tim: '      await client.query("ROLLBACK").catch(() => {',
+    thay: '      await client.query("SELECT 1").catch(() => {',
   },
   {
     ten: "trả lại chữ bịa 'Trang Fanpage B'",
@@ -985,6 +1009,57 @@ const DUC: PhepDuc[] = [
     tep: "server/services/comment-ai.ts",
     tim: '  if (content.trim() === "" && !coBatTatCa) {',
     thay: "  if (false) {",
+  },
+  /*
+   * Bộ não gắn theo Trang. Đục đúng chỗ khiến AI lấy bảng giá của Trang khác.
+   */
+  {
+    ten: "đối chiếu giá theo tài khoản thay vì theo Trang",
+    tep: "server/services/sales-ai.ts",
+    tim: "      WHERE trang_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL`,\n    [trangId]",
+    thay: "      WHERE user_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL`,\n    [trangId]",
+  },
+  {
+    ten: "không biết Trang vẫn đi tìm bảng giá",
+    tep: "server/services/sales-ai.ts",
+    tim: "  if (!trangId) return false;",
+    thay: "",
+  },
+  {
+    // .replace() voi chuoi chi thay lan xuat hien dau tien, nen phep duc nay
+    // chi tru cau truy van trong handleIncomingMessage. Cau ben suggestReply co
+    // phep duc rieng ngay duoi.
+    ten: "hội thoại thôi không mang trang_id",
+    tep: "server/services/sales-ai.ts",
+    tim: "            s.trang_id\n       FROM conversations c\n       LEFT JOIN social_accounts s ON s.id = c.social_account_id",
+    thay: "            NULL::bigint AS trang_id\n       FROM conversations c",
+  },
+  {
+    ten: "gợi ý trả lời không mang trang_id",
+    tep: "server/services/sales-ai.ts",
+    tim: "    `SELECT c.user_id, s.trang_id FROM conversations c\n       LEFT JOIN social_accounts s ON s.id = c.social_account_id",
+    thay: "    `SELECT c.user_id, NULL::bigint AS trang_id FROM conversations c",
+  },
+  {
+    ten: "kiến thức: không biết Trang thì lấy đại tài liệu",
+    tep: "server/services/knowledge.ts",
+    tim: '  if (!trangId) return "";',
+    thay: "",
+  },
+  {
+    // Phép đục cũ chỉ chèn chú thích SQL nên chữ "INSERT INTO trang" vẫn nằm
+    // nguyên trong tệp và phép kiểm bằng regex vẫn thấy — đục mà không thủng.
+    // Nay xoá hẳn câu lệnh: tài khoản mới không còn Trang nào.
+    ten: "tài khoản mới không sinh kèm Trang đầu tiên",
+    tep: "server/services/tai-khoan.ts",
+    tim: "      `INSERT INTO trang (user_id, profile_ref, ten)\n       VALUES ($1, $2, $3) RETURNING id`,",
+    thay: "      `SELECT 0 AS id`,",
+  },
+  {
+    ten: "hồ sơ thật không thay mã tạm của Trang",
+    tep: "server/services/accounts.ts",
+    tim: "      WHERE user_id = $2 AND profile_ref LIKE 'cho-cap-%'`,",
+    thay: "      WHERE user_id = $2 AND FALSE`,",
   },
 ];
 

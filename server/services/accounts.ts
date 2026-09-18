@@ -29,6 +29,23 @@ export async function ensureProfile(user: {
     profile._id,
     user.id,
   ]);
+
+  /*
+   * Gắn hồ sơ thật vào Trang đầu tiên.
+   *
+   * Lúc tạo tài khoản, Trang đầu tiên được dựng với một mã tạm ("cho-cap-<id>")
+   * vì profile_ref là khoá duy nhất và không được để null, mà hồ sơ thật thì
+   * phải gọi nhà cung cấp mới có. Đây là chỗ thay mã tạm bằng mã thật.
+   *
+   * Chỉ thay khi Trang đó vẫn còn mang mã tạm: tài khoản đã có Trang thật rồi
+   * thì không được đụng vào.
+   */
+  await query(
+    `UPDATE trang SET profile_ref = $1, updated_at = now()
+      WHERE user_id = $2 AND profile_ref LIKE 'cho-cap-%'`,
+    [profile._id, user.id]
+  );
+
   return profile._id;
 }
 

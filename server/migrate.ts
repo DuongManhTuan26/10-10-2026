@@ -39,14 +39,6 @@ function resolveMigrationsDir(): string {
 
 const migrationsDir = resolveMigrationsDir();
 
-async function ensureMigrationsTable(): Promise<void> {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      name       TEXT        PRIMARY KEY,
-      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
-  `);
-}
 
 function listMigrationFiles(): string[] {
   if (!fs.existsSync(migrationsDir)) return [];

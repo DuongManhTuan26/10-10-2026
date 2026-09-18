@@ -45,6 +45,14 @@ interface ConversationRow {
   last_customer_message_at: Date | null;
   /** Bước bán hàng của lượt trước, để AI đi tiếp chứ không quay về chào hỏi. */
   sales_stage: string | null;
+  /*
+   * Trang mà hội thoại này thuộc về, suy ra từ kênh.
+   *
+   * Bộ não của AI — vai trò, tài liệu, bảng giá — gắn theo TRANG. Dùng nhầm
+   * Trang nghĩa là AI lấy bảng giá của shop khác ra nói với khách. Suy một
+   * lần lúc đọc hội thoại rồi truyền xuống, không chỗ nào tự đoán lại.
+   */
+  trang_id: number | null;
 }
 
 export interface SalesDecision {
@@ -76,10 +84,13 @@ export interface SalesDecision {
  */
 export async function handleIncomingMessage(conversationId: string): Promise<boolean> {
   const conversation = await queryOne<ConversationRow>(
-    `SELECT id, user_id, social_account_id, customer_id, platform, status,
-            ai_enabled, window_expires_at, last_customer_message_at,
-            handoff_at, holding_sent_at, sales_stage
-       FROM conversations WHERE id = $1`,
+    `SELECT c.id, c.user_id, c.social_account_id, c.customer_id, c.platform, c.status,
+            c.ai_enabled, c.window_expires_at, c.last_customer_message_at,
+            c.handoff_at, c.holding_sent_at, c.sales_stage,
+            s.trang_id
+       FROM conversations c
+       LEFT JOIN social_accounts s ON s.id = c.social_account_id
+      WHERE c.id = $1`,
     [conversationId]
   );
 
@@ -112,8 +123,8 @@ export async function handleIncomingMessage(conversationId: string): Promise<boo
    * sinh hội thoại rồi bán tiếp.
    */
   const cauHinhSom = await queryOne<{ settings: Record<string, unknown> }>(
-    "SELECT settings FROM ai_configs WHERE user_id = $1 AND kind = 'sales'",
-    [conversation.user_id]
+    "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'sales'",
+    [conversation.trang_id]
   );
   const tuChuSom = docTuChu(cauHinhSom?.settings?.tuChu);
 
@@ -423,13 +434,23 @@ export function giaCoTrongChu(chu: string, gia: number): boolean {
   return false;
 }
 
-export async function giaCoTrongTaiLieu(userId: number, gia: number): Promise<boolean> {
+export async function giaCoTrongTaiLieu(
+  trangId: number | null,
+  gia: number
+): Promise<boolean> {
   if (!Number.isFinite(gia) || gia <= 0) return false;
+  /*
+   * Không biết Trang thì KHÔNG xác nhận được giá nào.
+   *
+   * Thà chặn oan còn hơn lấy bảng giá của Trang khác ra xác nhận — đó là sai
+   * tiền thật với khách thật.
+   */
+  if (!trangId) return false;
 
   const tep = await query<{ extracted_text: string | null }>(
     `SELECT extracted_text FROM ai_documents
-      WHERE user_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL`,
-    [userId]
+      WHERE trang_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL`,
+    [trangId]
   );
   if (tep.rows.length === 0) return false;
 
@@ -495,7 +516,7 @@ async function tuLenDon(
    * một con số sai rồi giao hàng theo con số đó.
    */
   const giaAiBoc = laySoDau(e.unitPrice) ?? 0;
-  const donGia = giaAiBoc > 0 && (await giaCoTrongTaiLieu(conversation.user_id, giaAiBoc))
+  const donGia = giaAiBoc > 0 && (await giaCoTrongTaiLieu(conversation.trang_id, giaAiBoc))
     ? giaAiBoc
     : 0;
   if (giaAiBoc > 0 && donGia === 0) {
@@ -660,15 +681,15 @@ async function decide(
   rules: HandoffRule[]
 ): Promise<SalesDecision> {
   const config = await queryOne<{ system_prompt: string; settings: Record<string, unknown> }>(
-    "SELECT system_prompt, settings FROM ai_configs WHERE user_id = $1 AND kind = 'sales'",
-    [conversation.user_id]
+    "SELECT system_prompt, settings FROM ai_configs WHERE trang_id = $1 AND kind = 'sales'",
+    [conversation.trang_id]
   );
 
   const knowledge = await query<{ filename: string; extracted_text: string | null }>(
     `SELECT filename, extracted_text FROM ai_documents
-      WHERE user_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL
+      WHERE trang_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL
       ORDER BY created_at DESC LIMIT 10`,
-    [conversation.user_id]
+    [conversation.trang_id]
   );
 
   const knowledgeBlock = knowledge.rows.length
@@ -954,8 +975,8 @@ async function sendHoldingMessageOnce(conversation: ConversationRow): Promise<vo
   }
 
   const config = await queryOne<{ settings: Record<string, unknown> }>(
-    "SELECT settings FROM ai_configs WHERE user_id = $1 AND kind = 'sales'",
-    [conversation.user_id]
+    "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'sales'",
+    [conversation.trang_id]
   );
 
   // Dùng chung công tắc với câu báo nhường quyền: chủ shop nào muốn tự tay
@@ -1008,8 +1029,8 @@ async function notifyCustomerOfHandoff(conversation: ConversationRow): Promise<v
   }
 
   const config = await queryOne<{ settings: Record<string, unknown> }>(
-    "SELECT settings FROM ai_configs WHERE user_id = $1 AND kind = 'sales'",
-    [conversation.user_id]
+    "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'sales'",
+    [conversation.trang_id]
   );
 
   // Chủ shop tắt được nếu muốn tự nhắn, nhưng mặc định là bật vì im lặng
@@ -1181,15 +1202,17 @@ export async function extractOrderInfo(conversationId: string): Promise<{
 
 /** Soạn gợi ý trả lời cho nhân viên, không tự gửi đi. */
 export async function suggestReply(conversationId: string): Promise<string> {
-  const conversation = await queryOne<{ user_id: number }>(
-    "SELECT user_id FROM conversations WHERE id = $1",
+  const conversation = await queryOne<{ user_id: number; trang_id: number | null }>(
+    `SELECT c.user_id, s.trang_id FROM conversations c
+       LEFT JOIN social_accounts s ON s.id = c.social_account_id
+      WHERE c.id = $1`,
     [conversationId]
   );
   if (!conversation) return "";
 
   const config = await queryOne<{ system_prompt: string }>(
-    "SELECT system_prompt FROM ai_configs WHERE user_id = $1 AND kind = 'sales'",
-    [conversation.user_id]
+    "SELECT system_prompt FROM ai_configs WHERE trang_id = $1 AND kind = 'sales'",
+    [conversation.trang_id]
   );
 
   const messages = await query<{ sender_type: string; content: string }>(

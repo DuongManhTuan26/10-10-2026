@@ -160,6 +160,8 @@ export function oLichToiHan(cau: AutoPilotConfig, bayGio: Date): Array<{ khoa: s
 
 interface DongCauHinh {
   user_id: number;
+  /** Trang mà lịch đăng này thuộc về. Mỗi Trang một lịch, một văn phong. */
+  trang_id: number | null;
   settings: Record<string, unknown>;
 }
 
@@ -169,8 +171,14 @@ interface DongCauHinh {
  * Trả về số bài đã dựng để worker ghi nhật ký.
  */
 export async function runDueAutoPilot(bayGio = new Date()): Promise<number> {
+  /*
+   * Quét theo TRANG, không theo tài khoản.
+   *
+   * Mỗi Trang có lịch đăng và văn phong riêng. Gom theo tài khoản thì tài
+   * khoản nhiều Trang chỉ chạy được lịch của một Trang.
+   */
   const shops = await query<DongCauHinh>(
-    `SELECT user_id, settings FROM ai_configs
+    `SELECT user_id, trang_id, settings FROM ai_configs
       WHERE kind = 'content' AND settings->'autoPilot'->>'enabled' = 'true'`
   );
 
@@ -196,7 +204,7 @@ export async function runDueAutoPilot(bayGio = new Date()): Promise<number> {
       if (!cho) continue;
 
       try {
-        const xong = await lamMotO(shop.user_id, cau, cho.id, o.khoa);
+        const xong = await lamMotO(shop.user_id, shop.trang_id, cau, cho.id, o.khoa);
         if (xong) daLam += 1;
       } catch (error) {
         const loi = error instanceof Error ? error.message : String(error);
@@ -213,6 +221,7 @@ export async function runDueAutoPilot(bayGio = new Date()): Promise<number> {
 
 async function lamMotO(
   userId: number,
+  trangId: number | null,
   cau: AutoPilotConfig,
   runId: number,
   khoa: string
@@ -269,6 +278,7 @@ async function lamMotO(
 
   const viet = await generatePostContent({
     userId,
+    trangId,
     topic: chuDe,
     goal: cau.goal,
     count: 1,
