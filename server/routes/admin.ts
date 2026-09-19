@@ -21,6 +21,7 @@ import { query, queryOne } from "../db.js";
 import { AppError, route } from "../http.js";
 import { sinhMatKhauTam, taoTaiKhoan, EMAIL_PATTERN } from "../services/tai-khoan.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
+import { chuyenThanhChuChuoi } from "../services/chuyen-chu-chuoi.js";
 import * as zernio from "../services/zernio.js";
 import { hashPassword } from "../auth.js";
 
@@ -169,6 +170,32 @@ adminRouter.post(
       success: true,
       data: { ...taiKhoan, matKhauTam },
     });
+  })
+);
+
+/**
+ * Chuyển một tài khoản đứng riêng thành tài khoản quản lý chuỗi.
+ *
+ * Dành cho tài khoản lập trước khi có luật "đăng ký là ra chủ chuỗi", hoặc lập
+ * trúng lúc máy chủ đang chạy bản cũ — đã xảy ra thật. Không có đường này thì
+ * những tài khoản đó vĩnh viễn kẹt ở đúng một Fanpage và không lập được trang
+ * nào.
+ */
+adminRouter.post(
+  "/accounts/:id/thanh-chu-chuoi",
+  route(async (req, res) => {
+    const dich = await layTaiKhoanDich(req.params.id, req.user!.id, "sua");
+    const ketQua = await chuyenThanhChuChuoi(dich.id);
+
+    await ghiNhatKyQuanTri({
+      adminId: req.user!.id,
+      targetId: dich.id,
+      targetEmail: dich.email,
+      action: "chuyen_thanh_chu_chuoi",
+      detail: { hoSoDaDon: ketQua.hoSoDaDon, loiDonHoSo: ketQua.loiDonHoSo },
+    });
+
+    res.json({ success: true, data: ketQua });
   })
 );
 

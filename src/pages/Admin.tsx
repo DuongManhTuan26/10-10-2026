@@ -107,6 +107,42 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Chuyển một tài khoản đứng riêng thành tài khoản quản lý chuỗi.
+   *
+   * Hỏi lại trước khi làm: thao tác này gỡ hồ sơ nền tảng và xoá Trang rỗng
+   * của tài khoản đó, và mọi phiên đang mở của họ sẽ bị đăng xuất.
+   */
+  const thanhChuChuoi = async (tk: TaiKhoanQuanTri) => {
+    const dong = window.confirm(
+      `Chuyển ${tk.email} thành tài khoản quản lý chuỗi?\n\n` +
+        'Sau khi chuyển, tài khoản này không gắn Fanpage trực tiếp nữa mà lập ' +
+        'các tài khoản trang bên dưới, mỗi trang một Fanpage.\n\n' +
+        'Người dùng sẽ bị đăng xuất và cần đăng nhập lại.'
+    );
+    if (!dong) return;
+
+    setDangLam(tk.id);
+    setErrorMessage('');
+    try {
+      const { data } = await api.admin.thanhChuChuoi(tk.id);
+      /*
+       * Dọn hồ sơ hỏng thì việc chuyển vẫn xong — phải nói rõ để quản trị còn
+       * dọn tay, chứ im lặng là hồ sơ nằm lại vĩnh viễn bên nhà cung cấp.
+       */
+      if (data.loiDonHoSo) {
+        setErrorMessage(
+          `Đã chuyển ${data.email}, nhưng chưa dọn được hồ sơ nền tảng. Vui lòng dọn tay.`
+        );
+      }
+      await nap();
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : 'Không chuyển được tài khoản');
+    } finally {
+      setDangLam(null);
+    }
+  };
+
   const xoaTaiKhoan = async (tk: TaiKhoanQuanTri) => {
     const go = prompt(
       `XOÁ HẲN tài khoản ${tk.email}?\n\n` +
@@ -262,6 +298,20 @@ export default function Admin() {
                       >
                         Mật khẩu
                       </button>
+                      {/*
+                        Chỉ hiện với tài khoản đứng riêng chưa phải chủ chuỗi.
+                        Máy chủ vẫn từ chối nếu tài khoản đã có dữ liệu — giấu
+                        nút không phải là chặn.
+                      */}
+                      {t.role === 'shop' && (
+                        <button
+                          onClick={() => thanhChuChuoi(t)}
+                          disabled={dangLam === t.id}
+                          className="px-2.5 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors disabled:opacity-50"
+                        >
+                          Thành chủ chuỗi
+                        </button>
+                      )}
                       {t.role !== 'admin' && (
                         <>
                           <button

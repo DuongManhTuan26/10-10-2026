@@ -1341,6 +1341,36 @@ const DUC: PhepDuc[] = [
     thay: "    });\n\n    await createSession(res, taiKhoan.id);",
   },
   {
+    ten: "chuyển cả tài khoản đã bán hàng thành chủ chuỗi, mất đường vào dữ liệu",
+    tep: "server/services/chuyen-chu-chuoi.ts",
+    tim: "  if (daDung.length > 0) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "vai trò AI đã nhập không chặn được việc chuyển",
+    tep: "server/services/chuyen-chu-chuoi.ts",
+    tim: "      WHERE user_id = $1 AND coalesce(system_prompt, '') <> ''`,",
+    thay: "      WHERE user_id = $1 AND FALSE`,",
+  },
+  {
+    ten: "cho tài khoản trang của chuỗi khác trèo lên làm chủ chuỗi",
+    tep: "server/services/chuyen-chu-chuoi.ts",
+    tim: "  if (nguoi.parent_id !== null) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "chuyển được cả quản trị tổng thành chủ chuỗi",
+    tep: "server/services/chuyen-chu-chuoi.ts",
+    tim: '  if (nguoi.role === "admin") {',
+    thay: "  if (false) {",
+  },
+  {
+    ten: "chuyển xong để lại hồ sơ rác và phiên mang vai trò cũ",
+    tep: "server/services/chuyen-chu-chuoi.ts",
+    tim: '  await query("DELETE FROM sessions WHERE user_id = $1", [userId]);',
+    thay: "",
+  },
+  {
     ten: "chủ chuỗi bị cấp Trang và bộ não không ai dùng",
     tep: "server/services/tai-khoan.ts",
     tim: '  const laChuChuoi = params.role === "admin_con";',

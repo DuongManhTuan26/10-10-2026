@@ -2708,6 +2708,39 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /taoTaiKhoan\(\{[\s\S]{0,300}?role: "admin_con",/.test(nguonAuthRoute), true);
 
   /*
+   * Đường chuyển một tài khoản đứng riêng thành chủ chuỗi.
+   *
+   * Vì sao cần: luật "đăng ký là ra chủ chuỗi" chỉ áp cho tài khoản lập SAU
+   * khi luật có hiệu lực. Đã xảy ra thật — một tài khoản của chủ sản phẩm lập
+   * lúc máy chủ còn chạy bản cũ nên ra 'shop', không có mục Quản lý trang và
+   * vĩnh viễn kẹt ở đúng một Fanpage.
+   *
+   * CHỈ nhận tài khoản còn trắng. Tài khoản đã bán hàng thì hộp thư, đơn hàng,
+   * khách hàng đều khoá theo user_id của nó; biến nó thành chủ chuỗi là đẩy
+   * toàn bộ dữ liệu ấy vào một tài khoản mà giao diện chủ chuỗi không có màn
+   * hình nào để xem.
+   */
+  const nguonChuyen = fs.readFileSync(
+    path.join(GOC, "server/services/chuyen-chu-chuoi.ts"), "utf8"
+  );
+  kiem("phân tầng", "không chuyển tài khoản đã có dữ liệu thành chủ chuỗi",
+    /if \(daDung\.length > 0\) \{\s*\n\s*throw new AppError/.test(nguonChuyen) &&
+      /social_accounts[\s\S]{0,400}?conversations[\s\S]{0,400}?orders/.test(nguonChuyen), true);
+  // Vai trò AI đã nhập là công chủ shop ngồi viết, cũng tính là đã dùng.
+  kiem("phân tầng", "vai trò AI đã nhập cũng chặn chuyển",
+    /WHERE user_id = \$1 AND coalesce\(system_prompt, ''\) <> ''/.test(nguonChuyen), true);
+  // Tài khoản trang của chuỗi khác mà chuyển lên là tạo cây lồng nhau.
+  kiem("phân tầng", "không chuyển tài khoản trang của chuỗi khác lên làm chủ chuỗi",
+    /if \(nguoi\.parent_id !== null\) \{/.test(nguonChuyen), true);
+  kiem("phân tầng", "không chuyển quản trị tổng thành chủ chuỗi",
+    /if \(nguoi\.role === "admin"\) \{/.test(nguonChuyen), true);
+  // Chuyển xong mà giữ hồ sơ là để lại rác; giữ phiên cũ là người dùng vẫn
+  // mang vai trò cũ cho tới khi phiên hết hạn.
+  kiem("phân tầng", "chuyển xong thì dọn hồ sơ và cắt phiên cũ",
+    /await zernio\.xoaHoSo\(nguoi\.profile_ref\);/.test(nguonChuyen) &&
+      /DELETE FROM sessions WHERE user_id = \$1/.test(nguonChuyen), true);
+
+  /*
    * Chủ chuỗi KHÔNG phải một chỗ bán hàng: không hồ sơ nhà cung cấp, không
    * Trang, không bộ não. Cấp cho họ một bộ đồ không ai dùng nghĩa là để lại
    * một hồ sơ rác bên nhà cung cấp và một bộ não trống làm họ tưởng phải đi

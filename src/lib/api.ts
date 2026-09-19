@@ -471,6 +471,17 @@ export const api = {
       post<{ data: { id: number; is_active: boolean } }>(`/admin/accounts/${id}/lock`, { locked }),
     resetPassword: (id: number) =>
       post<{ data: { matKhauTam: string } }>(`/admin/accounts/${id}/reset-password`),
+    /**
+     * Chuyển một tài khoản đứng riêng thành tài khoản quản lý chuỗi.
+     *
+     * Dành cho tài khoản lập trước khi có luật "đăng ký là ra chủ chuỗi", hoặc
+     * lập trúng lúc máy chủ đang chạy bản cũ. Máy chủ từ chối nếu tài khoản đã
+     * có kênh, hội thoại, đơn hàng hay vai trò AI đã nhập.
+     */
+    thanhChuChuoi: (id: number) =>
+      post<{ data: { id: number; email: string; hoSoDaDon: string | null; loiDonHoSo: string | null } }>(
+        `/admin/accounts/${id}/thanh-chu-chuoi`
+      ),
     remove: (id: number, confirmEmail: string) =>
       request<{ success: boolean }>(`/admin/accounts/${id}`, {
         method: 'DELETE',
