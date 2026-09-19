@@ -2767,6 +2767,35 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /const role = req\.body\?\.role === "admin_con" \? "admin_con" : "shop";/.test(nguonAd), true);
 
   /*
+   * Màn hình Quản trị phải CÓ chỗ chọn loại tài khoản, và phải GỬI LÊN.
+   *
+   * Đã xảy ra thật: máy chủ nhận tham số role, nhưng giao diện không có chỗ
+   * chọn nên không bao giờ gửi — mọi tài khoản tạo từ màn hình này đều ra
+   * 'shop' đứng riêng, kẹt ở đúng một Fanpage. Nhìn màn hình không ai đoán ra
+   * được vì sao, vì màn hình không hề nhắc tới vai trò.
+   *
+   * Máy chủ coi giá trị thiếu là 'shop', nên đây không phải lỗi bảo mật mà là
+   * lỗi lặng lẽ tạo sai loại tài khoản — khó thấy hơn nhiều.
+   */
+  const nguonManHinhQT = fs.readFileSync(path.join(GOC, "src/pages/Admin.tsx"), "utf8");
+  kiem("phân tầng", "màn hình Quản trị có chỗ chọn loại tài khoản",
+    /const \[vaiTroMoi, setVaiTroMoi\] = useState<'admin_con' \| 'shop'>\('admin_con'\);/
+      .test(nguonManHinhQT), true);
+  kiem("phân tầng", "tạo tài khoản hộ có gửi kèm vai trò lên máy chủ",
+    /api\.admin\.create\(\{[\s\S]{0,200}?role: vaiTroMoi,/.test(nguonManHinhQT), true);
+
+  // Có nút chuyển cho tài khoản đứng riêng, để không phải vào database sửa tay.
+  kiem("phân tầng", "màn hình Quản trị có nút chuyển thành chủ chuỗi",
+    /t\.role === 'shop' && \(/.test(nguonManHinhQT) &&
+      /onClick=\{\(\) => thanhChuChuoi\(t\)\}/.test(nguonManHinhQT), true);
+
+  // Kiểu khai ở lớp gọi API bắt buộc phải có role, để không đường nào quên gửi.
+  const nguonApiClient = fs.readFileSync(path.join(GOC, "src/lib/api.ts"), "utf8");
+  kiem("phân tầng", "lớp gọi API bắt buộc khai vai trò khi tạo tài khoản hộ",
+    /create: \(payload: \{ email: string; name\?: string; role: 'admin_con' \| 'shop' \}\)/
+      .test(nguonApiClient), true);
+
+  /*
    * Hai bộ tuyến đường tách hẳn theo vai trò.
    *
    * Trộn chung rồi chặn từng đường thì phải có HAI tuyến "*" cùng lúc trong

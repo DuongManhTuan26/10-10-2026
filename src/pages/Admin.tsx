@@ -32,6 +32,15 @@ export default function Admin() {
   const [moTao, setMoTao] = useState(false);
   const [emailMoi, setEmailMoi] = useState('');
   const [tenMoi, setTenMoi] = useState('');
+  /*
+   * Vai trò của tài khoản sắp tạo.
+   *
+   * Mặc định là CHỦ CHUỖI, giống hệt đường tự đăng ký. Trước đây màn hình này
+   * không có chỗ chọn nên luôn tạo ra 'shop' — một tài khoản đứng riêng, kẹt
+   * ở đúng một Fanpage, không lập thêm trang được. Đã xảy ra thật với một tài
+   * khoản của chủ sản phẩm, và không ai nhìn màn hình mà đoán ra được vì sao.
+   */
+  const [vaiTroMoi, setVaiTroMoi] = useState<'admin_con' | 'shop'>('admin_con');
   const [dangTao, setDangTao] = useState(false);
   /* Mật khẩu tạm chỉ hiện ĐÚNG MỘT LẦN, không lưu lại ở đâu cả. */
   const [matKhauTam, setMatKhauTam] = useState<{ email: string; mk: string } | null>(null);
@@ -57,7 +66,11 @@ export default function Admin() {
     setErrorMessage('');
     setDangTao(true);
     try {
-      const { data } = await api.admin.create({ email: emailMoi.trim(), name: tenMoi.trim() });
+      const { data } = await api.admin.create({
+        email: emailMoi.trim(),
+        name: tenMoi.trim(),
+        role: vaiTroMoi,
+      });
       setMatKhauTam({ email: data.email, mk: data.matKhauTam });
       setMoTao(false);
       setEmailMoi('');
@@ -372,6 +385,36 @@ export default function Admin() {
               Tài khoản tạo ra hoàn toàn độc lập, ở trạng thái mặc định để chủ shop tự cài theo
               mục đích của họ. Hệ thống sinh một mật khẩu tạm, hiện đúng một lần cho bạn chép lại.
             </p>
+            <div>
+              <label className="block text-xs font-bold text-on-surface mb-1.5">Loại tài khoản</label>
+              <div className="grid gap-2">
+                {[
+                  {
+                    id: 'admin_con' as const,
+                    ten: 'Chủ chuỗi',
+                    mo: 'Tự lập các tài khoản trang của mình, mỗi trang một Fanpage. Đây là loại thường dùng.',
+                  },
+                  {
+                    id: 'shop' as const,
+                    ten: 'Một trang đứng riêng',
+                    mo: 'Gắn được đúng một Fanpage và không lập thêm trang nào. Chỉ dùng cho trường hợp đặc biệt.',
+                  },
+                ].map((o) => (
+                  <button
+                    key={o.id}
+                    onClick={() => setVaiTroMoi(o.id)}
+                    className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                      vaiTroMoi === o.id
+                        ? 'border-primary bg-primary/10'
+                        : 'border-outline-variant hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="text-sm font-bold text-on-surface">{o.ten}</div>
+                    <div className="text-xs text-on-surface-variant mt-0.5">{o.mo}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <label className="block text-xs font-bold text-on-surface mb-1.5">Email đăng nhập</label>
               <input

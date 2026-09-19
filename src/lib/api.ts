@@ -460,7 +460,11 @@ export const api = {
   admin: {
     accounts: () => get<{ data: TaiKhoanQuanTri[] }>('/admin/accounts'),
     audit: () => get<{ data: NhatKyQuanTri[] }>('/admin/audit'),
-    create: (payload: { email: string; name?: string }) =>
+    /**
+     * Tạo tài khoản hộ. Vai trò phải gửi lên rõ ràng — máy chủ coi giá trị lạ
+     * là 'shop', nên thiếu trường này là lặng lẽ tạo ra tài khoản đứng riêng.
+     */
+    create: (payload: { email: string; name?: string; role: 'admin_con' | 'shop' }) =>
       post<{ data: { id: number; email: string; name: string; matKhauTam: string } }>(
         '/admin/accounts',
         payload

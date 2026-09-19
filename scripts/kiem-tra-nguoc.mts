@@ -1341,6 +1341,31 @@ const DUC: PhepDuc[] = [
     thay: "    });\n\n    await createSession(res, taiKhoan.id);",
   },
   {
+    // Đúng lỗi đã xảy ra: máy chủ nhận role nhưng giao diện không gửi.
+    ten: "tạo tài khoản hộ mà quên gửi vai trò, lặng lẽ ra tài khoản đứng riêng",
+    tep: "src/pages/Admin.tsx",
+    tim: "        role: vaiTroMoi,\n      });",
+    thay: "      });",
+  },
+  {
+    ten: "màn hình Quản trị bỏ chỗ chọn loại tài khoản",
+    tep: "src/pages/Admin.tsx",
+    tim: "  const [vaiTroMoi, setVaiTroMoi] = useState<'admin_con' | 'shop'>('admin_con');",
+    thay: "  const vaiTroMoi: 'admin_con' | 'shop' = 'admin_con';",
+  },
+  {
+    ten: "bỏ nút chuyển thành chủ chuỗi, lại phải sửa tay trong database",
+    tep: "src/pages/Admin.tsx",
+    tim: "                      {t.role === 'shop' && (",
+    thay: "                      {false && (",
+  },
+  {
+    ten: "lớp gọi API cho phép tạo tài khoản hộ mà không khai vai trò",
+    tep: "src/lib/api.ts",
+    tim: "    create: (payload: { email: string; name?: string; role: 'admin_con' | 'shop' }) =>",
+    thay: "    create: (payload: { email: string; name?: string; role?: 'admin_con' | 'shop' }) =>",
+  },
+  {
     ten: "chuyển cả tài khoản đã bán hàng thành chủ chuỗi, mất đường vào dữ liệu",
     tep: "server/services/chuyen-chu-chuoi.ts",
     tim: "  if (daDung.length > 0) {",
