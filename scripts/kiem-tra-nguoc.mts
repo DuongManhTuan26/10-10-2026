@@ -1341,6 +1341,14 @@ const DUC: PhepDuc[] = [
     thay: "    });\n\n    await createSession(res, taiKhoan.id);",
   },
   {
+    // Đúng lỗi chủ sản phẩm bắt được: đổi tên trang làm xong ở máy chủ và ở
+    // lớp gọi API, nhưng không nút nào trên màn hình gọi tới.
+    ten: "làm hàm đổi tên trang rồi bỏ đó, không nút nào gọi",
+    tep: "src/pages/QuanLyTrang.tsx",
+    tim: "      await api.quanLy.doiTen(trang.id, ten);",
+    thay: "      await Promise.resolve(trang.id + ten.length);",
+  },
+  {
     // Đúng lỗi đã xảy ra: máy chủ nhận role nhưng giao diện không gửi.
     ten: "tạo tài khoản hộ mà quên gửi vai trò, lặng lẽ ra tài khoản đứng riêng",
     tep: "src/pages/Admin.tsx",

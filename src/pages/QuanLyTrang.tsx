@@ -33,6 +33,17 @@ export default function QuanLyTrang() {
     { name: string; tenDangNhap: string; matKhauTam: string } | null
   >(null);
 
+  /*
+   * Đổi tên trang, sửa ngay tại chỗ.
+   *
+   * Tên trang là thứ chủ chuỗi nhìn vào để biết trang nào là trang nào. Đặt
+   * sai lúc lập mà không sửa được thì danh sách mười trang thành mười cái tên
+   * vô nghĩa — mà trang thì chưa nối Fanpage nên cũng không có gì khác để
+   * phân biệt.
+   */
+  const [dangSuaTen, setDangSuaTen] = useState<number | null>(null);
+  const [tenSua, setTenSua] = useState('');
+
   const nap = useCallback(async () => {
     setDangTai(true);
     try {
@@ -60,6 +71,23 @@ export default function QuanLyTrang() {
       await nap();
     } catch (error) {
       setLoi(error instanceof ApiError ? error.message : 'Không lập được trang');
+    } finally {
+      setBan(false);
+    }
+  };
+
+  const luuTen = async (trang: TrangCon) => {
+    const ten = tenSua.trim();
+    if (ten.length < 2) { setLoi('Tên trang phải có ít nhất 2 ký tự'); return; }
+    if (ten === trang.name) { setDangSuaTen(null); return; }
+    setBan(true);
+    try {
+      await api.quanLy.doiTen(trang.id, ten);
+      setDangSuaTen(null);
+      setLoi('');
+      await nap();
+    } catch (error) {
+      setLoi(error instanceof ApiError ? error.message : 'Không đổi được tên trang');
     } finally {
       setBan(false);
     }
@@ -188,14 +216,58 @@ export default function QuanLyTrang() {
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[200px]">
+                  {dangSuaTen === t.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        /*
+                         * Bôi sẵn chữ cũ. autoFocus chỉ đặt con trỏ chứ không
+                         * chọn chữ, nên người dùng gõ tên mới là nó NỐI THÊM
+                         * vào tên cũ — đã thử và ra "botsandayBột Sắn Dây Quê".
+                         * Đổi tên thì gần như luôn là thay cả tên, không phải
+                         * sửa vài chữ.
+                         */
+                        onFocus={(e) => e.currentTarget.select()}
+                        value={tenSua}
+                        onChange={(e) => setTenSua(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') luuTen(t);
+                          if (e.key === 'Escape') setDangSuaTen(null);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-surface-variant/40 border border-primary text-sm font-bold text-on-surface focus:outline-none"
+                      />
+                      <button
+                        onClick={() => luuTen(t)}
+                        disabled={ban}
+                        className="text-sm font-bold text-primary hover:underline disabled:opacity-50"
+                      >
+                        Lưu
+                      </button>
+                      <button
+                        onClick={() => setDangSuaTen(null)}
+                        className="text-sm text-on-surface-variant hover:underline"
+                      >
+                        Huỷ
+                      </button>
+                    </div>
+                  ) : (
                   <div className="font-bold text-on-surface flex items-center gap-2">
                     {t.name}
+                    {/* Bấm thẳng vào tên để sửa — chỗ ai cũng thử bấm đầu tiên. */}
+                    <button
+                      onClick={() => { setDangSuaTen(t.id); setTenSua(t.name); }}
+                      title="Đổi tên trang"
+                      className="text-on-surface-variant hover:text-primary transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">edit</span>
+                    </button>
                     {!t.is_active && (
                       <span className="text-xs font-medium text-error bg-error/10 px-2 py-0.5 rounded">
                         Đang khoá
                       </span>
                     )}
                   </div>
+                  )}
                   <div className="text-xs text-on-surface-variant mt-0.5">
                     {t.ten_fanpage
                       ? `Fanpage: ${t.ten_fanpage}`

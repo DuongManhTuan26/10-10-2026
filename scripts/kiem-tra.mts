@@ -2821,6 +2821,52 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 }
 
 // ---------------------------------------------------------------------------
+// 51. Hàm API làm ra rồi bỏ đó, không màn hình nào gọi
+// ---------------------------------------------------------------------------
+// Đã mắc BA LẦN trong cùng một đợt làm việc:
+//   - máy chủ nhận tham số role khi tạo tài khoản hộ, giao diện không có chỗ
+//     chọn nên không bao giờ gửi → mọi tài khoản lặng lẽ ra 'shop' đứng riêng
+//   - api.quanLy.doiTen làm xong cả máy chủ lẫn lớp gọi API, không nút nào gọi
+//     → chủ chuỗi đặt sai tên trang là chịu, không sửa được
+//
+// Kiểu hỏng này KHÔNG có thông báo lỗi, KHÔNG làm tsc kêu, và nhìn mã máy chủ
+// thì thấy đầy đủ chức năng. Chỉ người dùng ngồi trước màn hình mới biết là
+// thiếu. Nên phải có chỗ đếm tự động.
+{
+  const tepGiaoDien: string[] = [];
+  const quetThuMuc = (d: string): void => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) quetThuMuc(p);
+      else if (/\.(ts|tsx)$/.test(e.name) && !p.endsWith(path.join("src", "lib", "api.ts"))) {
+        tepGiaoDien.push(p);
+      }
+    }
+  };
+  quetThuMuc(path.join(GOC, "src"));
+  const maGiaoDien = tepGiaoDien.map((t) => fs.readFileSync(t, "utf8")).join("\n");
+  const nguonApiTS = fs.readFileSync(path.join(GOC, "src/lib/api.ts"), "utf8");
+
+  const hamBoQuen: string[] = [];
+  let nhomHienTai = "";
+  for (const dong of nguonApiTS.split("\n")) {
+    const laNhom = /^  (\w+): \{$/.exec(dong);
+    if (laNhom) { nhomHienTai = laNhom[1]; continue; }
+    const laHam = /^    (\w+): (\(|<)/.exec(dong);
+    if (!laHam || !nhomHienTai) continue;
+    /*
+     * Cho phép xuống dòng giữa các dấu chấm: nhiều chỗ viết
+     *   api.ai
+     *     .imageStyle()
+     * Tìm chuỗi liền mạch thì báo oan ba hàm đang được dùng thật.
+     */
+    const mau = new RegExp(`api\\s*\\.\\s*${nhomHienTai}\\s*\\.\\s*${laHam[1]}\\b`);
+    if (!mau.test(maGiaoDien)) hamBoQuen.push(`api.${nhomHienTai}.${laHam[1]}`);
+  }
+  kiem("hàm bỏ quên", "mọi hàm API đều có màn hình gọi tới", hamBoQuen, []);
+}
+
+// ---------------------------------------------------------------------------
 console.log(`\nĐã kiểm ${tong} điểm.`);
 if (hong === 0) {
   console.log("Tất cả đều đạt.\n");
