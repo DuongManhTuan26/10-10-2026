@@ -162,11 +162,9 @@ const DUC: PhepDuc[] = [
     thay: "    buttonText: 'Chọn gói này',\n    isCurrent: true\n  },\n  {\n    id: 'enterprise'",
   },
   {
-    // Gói dùng thử trước đây để 0 với nghĩa "chưa đặt hạn mức". Nay là 1 và
-    // phải khớp bảng bên máy chủ, nên phép đục là đổi lệch khỏi máy chủ.
-    ten: "bảng giá bịa hạn mức khác với máy chủ thực thi",
+    ten: "bịa hạn mức kênh cho gói dùng thử",
     tep: "src/lib/pricing.ts",
-    tim: "  id: 'trial',\n  name: 'Dùng thử',\n  price: 'Miễn phí',\n  maxChannels: 1,",
+    tim: "  id: 'trial',\n  name: 'Dùng thử',\n  price: 'Miễn phí',\n  maxChannels: 0,",
     thay: "  id: 'trial',\n  name: 'Dùng thử',\n  price: 'Miễn phí',\n  maxChannels: 3,",
   },
   {
@@ -1267,40 +1265,17 @@ const DUC: PhepDuc[] = [
     thay: "function chuanHoaVaiTroKhongDung(role: string): VaiTro {",
   },
   {
-    ten: "gói lạ được cho mức cao nhất",
+    // Chính việc tôi đã làm sai: tự đặt hạn mức thương mại mà không ai cho phép.
+    ten: "tự đặt lại hạn mức số trang cho mỗi gói",
     tep: "server/services/gioi-han.ts",
-    tim: "  return SO_TRANG_MOI_GOI[plan] ?? 1;",
-    thay: "  return SO_TRANG_MOI_GOI[plan] ?? 10;",
-  },
-  {
-    ten: "khoá một trang là lách được hạn mức lập thêm trang",
-    tep: "server/services/gioi-han.ts",
-    tim: '    "SELECT count(*)::int AS so FROM users WHERE parent_id = $1"',
-    thay: '    "SELECT count(*)::int AS so FROM users WHERE parent_id = $1 AND is_active"',
-  },
-  {
-    ten: "bảng giá hứa nhiều trang hơn máy chủ cho phép",
-    tep: "server/services/gioi-han.ts",
-    tim: "  pro: 3,",
-    thay: "  pro: 2,",
-  },
-  {
-    ten: "gói dùng thử để ngỏ hạn mức, tự đúc tài khoản thoải mái",
-    tep: "src/lib/pricing.ts",
-    tim: "  price: 'Miễn phí',\n  maxChannels: 1,",
-    thay: "  price: 'Miễn phí',\n  maxChannels: 0,",
+    tim: "export async function chanNeuThemFanpage(",
+    thay: "export const SO_TRANG_MOI_GOI = { trial: 1 };\nexport async function chanNeuThemFanpage(",
   },
   {
     ten: "gọi nhà cung cấp xong mới chặn Fanpage thứ hai",
     tep: "server/routes/connections.ts",
     tim: "    await chanNeuThemFanpage(req.user!.id, pageIds);\n\n    const connected: string[] = [];",
     thay: "    const connected: string[] = [];",
-  },
-  {
-    ten: "lập tài khoản xong mới kiểm hạn mức gói",
-    tep: "server/routes/quan-ly.ts",
-    tim: "    await chanNeuHetSuatTrang(req.user!.id, req.user!.plan);\n",
-    thay: "",
   },
   {
     ten: "xoá tài khoản để lại hồ sơ rác bên nhà cung cấp",

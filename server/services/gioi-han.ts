@@ -1,61 +1,22 @@
 /**
- * Hạn mức theo gói, thực thi ở MÁY CHỦ.
+ * Chốt chặn về hình dạng tài khoản. KHÔNG đặt hạn mức thương mại ở đây.
  *
- * Trước đây con số hạn mức chỉ nằm trong trang bảng giá để đọc cho vui: không
- * một câu lệnh nào kiểm, nên gói Khởi đầu nối bao nhiêu kênh cũng được.
+ * Luật của chủ sản phẩm: KHÔNG tự đặt giới hạn của mình, cứ theo nhà cung cấp
+ * — khi nào họ báo hết hạn mức thì mình báo hết hạn mức. Đo ngày 19/09/2026:
+ * /usage trả limits.profiles = -1, tức là họ không giới hạn số hồ sơ, nên mình
+ * cũng không giới hạn số trang.
  *
- * Với mô hình mỗi trang một tài khoản thì lỗ này thành nguy hiểm thật: admin
- * con tự đăng ký được, và mỗi tài khoản trang họ lập ra là một hồ sơ Zernio
- * cùng một kênh nối — mà tiền kênh nối là MÌNH trả. Không chặn ở máy chủ thì
- * một người đăng ký miễn phí có thể đúc ra bao nhiêu trang tuỳ thích.
+ * Tôi đã từng tự đặt số trang cho mỗi gói ở đây và tự đổi gói dùng thử từ
+ * không giới hạn thành 1 trang. Đó là quyết định thương mại, không phải quyết
+ * định kỹ thuật, và không ai cho phép tôi làm. Đã gỡ.
  *
- * Đã đo phía Zernio ngày 19/09/2026: /usage trả limits.profiles = -1, tức là
- * họ KHÔNG chặn giúp mình. Chặn hay không hoàn toàn là việc của mình.
+ * Việc còn lại là có thật và chưa làm: nếu sau này nhà cung cấp bắt đầu chặn,
+ * phải chuyển nguyên lời từ chối của họ ra cho chủ shop thấy, chứ không nuốt
+ * lỗi rồi im lặng.
  */
 
 import { query, queryOne } from "../db.js";
 import { AppError } from "../http.js";
-
-/**
- * Số TRANG mỗi gói được chạy. Một trang là một tài khoản, một Fanpage.
- *
- * Đây là bản gốc. Trang bảng giá ở giao diện phải khớp từng số với bảng này —
- * có phép kiểm thường trực đối chiếu hai bên, vì số liệu bán hàng mà lệch số
- * liệu thực thi thì hoặc mình hứa thừa, hoặc khách trả tiền rồi bị chặn.
- */
-export const SO_TRANG_MOI_GOI: Record<string, number> = {
-  trial: 1,
-  starter: 1,
-  pro: 3,
-  enterprise: 10,
-};
-
-/** Gói lạ thì cho mức thấp nhất, không cho mức cao nhất. Đoán sai phải đoán về phía an toàn. */
-export function soTrangChoPhep(plan: string): number {
-  return SO_TRANG_MOI_GOI[plan] ?? 1;
-}
-
-/**
- * Chặn lập thêm trang khi đã chạm hạn mức gói.
- *
- * Đếm cả trang đang khoá: khoá rồi vẫn giữ chỗ, vẫn giữ hồ sơ và kênh bên
- * Zernio. Cho lập thêm chỉ vì vừa khoá một trang là mở đường lách hạn mức.
- */
-export async function chanNeuHetSuatTrang(chaId: number, plan: string): Promise<void> {
-  const toiDa = soTrangChoPhep(plan);
-  const dem = await queryOne<{ so: number }>(
-    "SELECT count(*)::int AS so FROM users WHERE parent_id = $1",
-    [chaId]
-  );
-  const dangCo = dem?.so ?? 0;
-  if (dangCo >= toiDa) {
-    throw new AppError(
-      `Gói hiện tại chạy được ${toiDa} trang, bạn đã dùng hết ${dangCo}. ` +
-        `Vui lòng nâng gói để thêm trang.`,
-      409
-    );
-  }
-}
 
 /**
  * Chặn nối Fanpage thứ hai vào cùng một tài khoản.

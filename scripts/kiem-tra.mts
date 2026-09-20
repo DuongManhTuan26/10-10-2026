@@ -552,16 +552,8 @@ kiem("gói dịch vụ", "không thẻ nào cứng nhãn Gói hiện tại",
 kiem("gói dịch vụ", "có gói dùng thử riêng, không lẫn vào danh sách bán",
   /GOI_DUNG_THU[\s\S]{0,200}?id:\s*'trial'/.test(nguonBangGia) &&
     !/PRICING_PLANS[\s\S]{0,1200}?id:\s*'trial'/.test(nguonBangGia), true);
-/*
- * Phép kiểm này trước đây đòi gói dùng thử để maxChannels = 0 với nghĩa "chưa
- * đặt hạn mức". Với mô hình mỗi trang một tài khoản thì 0 nghĩa là KHÔNG GIỚI
- * HẠN, và admin con lại tự đăng ký được — thành lỗ tự đúc tài khoản bằng tiền
- * của mình, vì mỗi trang lập ra là một kênh nối mà mình trả tiền.
- *
- * Nay đòi một con số thật, và con số ấy phải khớp bảng bên máy chủ.
- */
-kiem("gói dịch vụ", "gói dùng thử có hạn mức thật, không để ngỏ",
-  /GOI_DUNG_THU[\s\S]{0,300}?maxChannels:\s*([1-9]\d*)/.test(nguonBangGia), true);
+kiem("gói dịch vụ", "gói dùng thử không bịa hạn mức kênh",
+  /GOI_DUNG_THU[\s\S]{0,300}?maxChannels:\s*0/.test(nguonBangGia), true);
 kiem("gói dịch vụ", "có hàm tra gói theo mã lưu trong database",
   /export function goiHienTai\(/.test(nguonBangGia), true);
 
@@ -2588,37 +2580,24 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /return role === "admin" \? "admin" : role === "admin_con" \? "admin_con" : "shop";/
       .test(nguonAuth), true);
 
-  const nguonGH = fs.readFileSync(path.join(GOC, "server/services/gioi-han.ts"), "utf8");
-  kiem("phân tầng", "gói lạ cho mức thấp nhất, không cho mức cao nhất",
-    /return SO_TRANG_MOI_GOI\[plan\] \?\? 1;/.test(nguonGH), true);
-
-  // Khoá rồi vẫn giữ chỗ, vẫn giữ hồ sơ và kênh bên nhà cung cấp. Cho lập
-  // thêm chỉ vì vừa khoá một trang là mở đường lách hạn mức.
-  kiem("phân tầng", "đếm cả trang đang khoá khi tính hạn mức",
-    /count\(\*\)::int AS so FROM users WHERE parent_id = \$1"/.test(nguonGH) &&
-      !/parent_id = \$1 AND is_active/.test(nguonGH), true);
-
   /*
-   * Số trang bán cho khách phải KHỚP số trang thực thi. Lệch nhau thì hoặc
-   * mình hứa thừa, hoặc khách trả tiền rồi vẫn bị chặn.
+   * KHÔNG tự đặt hạn mức số trang.
+   *
+   * Luật của chủ sản phẩm, nói rõ từ trước: không tự đặt giới hạn của mình, cứ
+   * theo nhà cung cấp — khi nào họ báo hết hạn mức thì mình báo hết hạn mức.
+   * Đo ngày 19/09/2026: /usage trả limits.profiles = -1, tức họ không giới hạn.
+   *
+   * Tôi đã vi phạm đúng điều này: tự đặt số trang cho từng gói, tự đổi gói
+   * dùng thử từ không giới hạn thành 1 trang, rồi chặn ở máy chủ. Đó là quyết
+   * định thương mại chứ không phải quyết định kỹ thuật, và tôi không được phép
+   * tự làm. Phép kiểm này đứng đây để tôi không lặp lại.
    */
-  const nguonGia = fs.readFileSync(path.join(GOC, "src/lib/pricing.ts"), "utf8");
-  const soMayChu: Record<string, number> = {};
-  for (const [, goi, so] of nguonGH.matchAll(/^\s*(trial|starter|pro|enterprise):\s*(\d+),/gm)) {
-    soMayChu[goi] = Number(so);
-  }
-  const soGiaoDien: Record<string, number> = {};
-  for (const [, goi, so] of nguonGia.matchAll(/id: '(starter|pro|enterprise)', maxChannels: (\d+)/g)) {
-    soGiaoDien[goi] = Number(so);
-  }
-  const trialGiaoDien = /id: 'trial',[\s\S]{0,200}?maxChannels: (\d+)/.exec(nguonGia);
-  if (trialGiaoDien) soGiaoDien.trial = Number(trialGiaoDien[1]);
-  // Sắp xếp khoá trước khi so: hai bên khai báo theo thứ tự khác nhau là
-  // chuyện bình thường, so thẳng chuỗi JSON thì báo hỏng oan.
-  const xepKhoa = (o: Record<string, number>) =>
-    Object.keys(o).sort().map((k) => `${k}=${o[k]}`).join(",");
-  kiem("phân tầng", "số trang trên bảng giá khớp số trang máy chủ thực thi",
-    xepKhoa(soGiaoDien), xepKhoa(soMayChu));
+  const nguonGH = fs.readFileSync(path.join(GOC, "server/services/gioi-han.ts"), "utf8");
+  const nguonQL2 = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
+  kiem("phân tầng", "KHÔNG tự đặt hạn mức số trang cho mỗi gói",
+    /SO_TRANG_MOI_GOI|soTrangChoPhep|chanNeuHetSuatTrang/.test(nguonGH), false);
+  kiem("phân tầng", "lập trang không bị chặn bởi hạn mức mình tự nghĩ ra",
+    /chanNeuHetSuatTrang/.test(nguonQL2), false);
 
   const nguonNoi2 = fs.readFileSync(path.join(GOC, "server/routes/connections.ts"), "utf8");
   /*
@@ -2628,10 +2607,6 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("phân tầng", "chặn Fanpage thứ hai TRƯỚC khi gọi nhà cung cấp",
     /await chanNeuThemFanpage\(req\.user!\.id, pageIds\);[\s\S]{0,400}?selectFacebookPage\(/
       .test(nguonNoi2), true);
-
-  kiem("phân tầng", "chặn hết suất trang TRƯỚC khi lập tài khoản",
-    /await chanNeuHetSuatTrang\(req\.user!\.id, req\.user!\.plan\);\s*\n\s*const taiKhoan = await taoTaiKhoanTrang/
-      .test(nguonQL), true);
 
   /*
    * Xoá tài khoản mà để lại hồ sơ bên nhà cung cấp thì hồ sơ nằm lại vĩnh

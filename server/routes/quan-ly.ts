@@ -28,7 +28,6 @@ import { query, queryOne } from "../db.js";
 import { AppError, route } from "../http.js";
 import { DAU_NGAY_VN, DAU_THANG_VN } from "../moc-thoi-gian.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
-import { chanNeuHetSuatTrang } from "../services/gioi-han.js";
 import { sinhMatKhauTam, taoTaiKhoanTrang } from "../services/tai-khoan.js";
 import { hashPassword } from "../auth.js";
 
@@ -120,7 +119,6 @@ quanLyRouter.post(
   "/trang",
   route(async (req, res) => {
     const ten = typeof req.body?.ten === "string" ? req.body.ten : "";
-    await chanNeuHetSuatTrang(req.user!.id, req.user!.plan);
     const taiKhoan = await taoTaiKhoanTrang({ parentId: req.user!.id, tenTrang: ten });
 
     await ghiNhatKyQuanTri({
