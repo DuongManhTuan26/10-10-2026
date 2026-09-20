@@ -152,6 +152,82 @@ quanLyRouter.get(
   })
 );
 
+/**
+ * Bảng điều hành cả chuỗi: mọi trang, mọi số liệu, trên MỘT màn hình.
+ *
+ * Đây mới là việc chính của tài khoản quản lý. Bản đầu tôi làm nó thành một
+ * danh sách tài khoản kèm ba con số — chủ sản phẩm chỉ ra ngay là thiếu: chủ
+ * chuỗi cần nhìn một màn hình biết cả năm trang đang chạy ra sao, chỗ nào
+ * đang hỏng, chỗ nào có khách chờ, chứ không phải bấm vào từng trang mới biết.
+ *
+ * Ba tầng, đúng thứ tự người điều hành cần:
+ *   1. Tổng cả chuỗi  — hôm nay bán được bao nhiêu, bao nhiêu khách đang chờ
+ *   2. Việc phải xử lý — trang nào mất kết nối, chưa dạy AI, đang im lặng
+ *   3. Từng trang     — tình trạng vận hành chi tiết để so sánh giữa các trang
+ *
+ * Gộp trong MỘT câu lệnh thay vì hỏi vòng từng trang: chuỗi mười trang mà hỏi
+ * vòng là mười lượt đi về database cho mỗi lần mở màn hình.
+ */
+quanLyRouter.get(
+  "/tong-quan",
+  route(async (req, res) => {
+    const chaId = nguoiQuanLy(req);
+
+    const rows = await query(
+      `SELECT u.id, u.email, u.name, u.is_active, u.plan, u.created_at,
+
+              /* --- Kênh: trang có đang nối được với Facebook không --- */
+              (SELECT count(*)::int FROM social_accounts s
+                WHERE s.user_id = u.id AND s.connected) AS kenh_noi,
+              (SELECT count(*)::int FROM social_accounts s
+                WHERE s.user_id = u.id AND s.needs_reconnection) AS kenh_can_noi_lai,
+              (SELECT s.display_name FROM social_accounts s
+                WHERE s.user_id = u.id AND s.platform = 'facebook'
+                ORDER BY s.created_at LIMIT 1) AS ten_fanpage,
+
+              /* --- Bộ não: AI đã được dạy chưa, hay vẫn trống --- */
+              (SELECT count(*)::int FROM ai_configs c
+                WHERE c.user_id = u.id AND c.kind = 'sales'
+                  AND coalesce(c.system_prompt, '') <> '') AS da_day_vai_tro,
+              (SELECT count(*)::int FROM ai_documents d
+                WHERE d.user_id = u.id AND d.kind = 'sales') AS so_tai_lieu,
+              (SELECT coalesce((c.settings -> 'tuChu' ->> 'bat')::boolean, FALSE)
+                 FROM ai_configs c
+                WHERE c.user_id = u.id AND c.kind = 'sales' LIMIT 1) AS ai_tu_chu,
+              (SELECT count(*)::int FROM auto_scripts a
+                WHERE a.user_id = u.id AND a.is_active) AS kich_ban_bat,
+
+              /* --- Vận hành 7 ngày: trang này còn sống hay đã im --- */
+              (SELECT count(*)::int FROM messages m
+                WHERE m.user_id = u.id AND m.created_at >= now() - interval '7 days') AS tin_7_ngay,
+              (SELECT count(*)::int FROM messages m
+                WHERE m.user_id = u.id AND m.sender_type = 'ai'
+                  AND m.created_at >= now() - interval '7 days') AS ai_tra_loi_7_ngay,
+              (SELECT max(m.created_at) FROM messages m WHERE m.user_id = u.id) AS hoat_dong_cuoi,
+
+              /* --- Cần người: khách đang đợi chủ shop trả lời --- */
+              (SELECT count(*)::int FROM conversations c
+                WHERE c.user_id = u.id AND c.status = 'waiting_human') AS cho_nguoi,
+
+              /* --- Kết quả --- */
+              (SELECT count(*)::int FROM orders o
+                WHERE o.user_id = u.id AND o.created_at >= ${DAU_NGAY_VN}) AS don_hom_nay,
+              (SELECT count(*)::int FROM orders o
+                WHERE o.user_id = u.id AND o.created_at >= ${DAU_THANG_VN}
+                  AND o.status <> 'cancelled') AS don_thang,
+              (SELECT COALESCE(SUM(o.total), 0)::bigint FROM orders o
+                WHERE o.user_id = u.id AND o.created_at >= ${DAU_THANG_VN}
+                  AND o.status <> 'cancelled') AS doanh_thu_thang
+         FROM users u
+        WHERE u.parent_id = $1
+        ORDER BY u.created_at`,
+      [chaId]
+    );
+
+    res.json({ success: true, data: rows.rows });
+  })
+);
+
 /** Lập thêm một trang. Mật khẩu tạm trả về ĐÚNG MỘT LẦN, sau đó không đọc lại được. */
 quanLyRouter.post(
   "/trang",

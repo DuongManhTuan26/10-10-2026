@@ -2684,6 +2684,57 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonBangXem = fs.readFileSync(
     path.join(GOC, "src/components/DangXemThay.tsx"), "utf8"
   );
+  /*
+   * Màn hình quản lý phải là chỗ ĐIỀU HÀNH, không phải danh sách tài khoản.
+   *
+   * Bản đầu tôi làm nó thành một danh sách kèm ba con số. Chủ sản phẩm chỉ ra
+   * ngay là thiếu: chủ chuỗi năm trang cần nhìn MỘT màn hình biết cả năm trang
+   * đang chạy ra sao, chỗ nào hỏng, chỗ nào có khách chờ — chứ không phải bấm
+   * vào từng trang mới biết.
+   *
+   * Ba tầng, đúng thứ tự người điều hành cần: tổng cả chuỗi → việc phải xử lý
+   * → tình trạng từng trang.
+   */
+  const nguonManHinhQL = fs.readFileSync(path.join(GOC, "src/pages/QuanLyTrang.tsx"), "utf8");
+  kiem("phân tầng", "màn hình quản lý là bảng điều hành, không phải danh sách suông",
+    /api\.quanLy\.tongQuan\(\)/.test(nguonManHinhQL) &&
+      /Cần xử lý \(\{cangDau\.length\} trang\)/.test(nguonManHinhQL), true);
+
+  /*
+   * Số liệu vận hành phải là số THẬT lấy từ database, không phải số dựng sẵn.
+   * Đủ để trả lời: kênh còn nối không, AI dạy chưa, tuần qua có chạy không, có
+   * ai đang chờ không, bán được bao nhiêu.
+   */
+  const canCoTrongTongQuan = [
+    "kenh_can_noi_lai", "da_day_vai_tro", "so_tai_lieu", "ai_tu_chu",
+    "kich_ban_bat", "tin_7_ngay", "ai_tra_loi_7_ngay", "hoat_dong_cuoi",
+    "cho_nguoi", "don_hom_nay", "don_thang", "doanh_thu_thang",
+  ];
+  const khuTongQuan = /"\/tong-quan"[\s\S]*?res\.json/.exec(nguonQL)?.[0] ?? "";
+  kiem("phân tầng", "bảng điều hành lấy đủ số liệu vận hành thật",
+    canCoTrongTongQuan.filter((c) => !khuTongQuan.includes(c)), []);
+
+  // Mốc ngày/tháng theo giờ Việt Nam, không truncate thẳng giờ GMT.
+  kiem("phân tầng", "đơn và doanh thu tính theo mốc giờ Việt Nam",
+    khuTongQuan.includes("${DAU_NGAY_VN}") && khuTongQuan.includes("${DAU_THANG_VN}"), true);
+
+  /*
+   * Người điều hành cần câu chữ, không cần con số thô: "trang này im cả tuần"
+   * chứ không phải "tin_7_ngay = 0". Và chỗ dịch số thành câu phải dùng CHUNG
+   * cho cả dải cảnh báo lẫn thẻ từng trang, không thì hai nơi nói khác nhau.
+   */
+  const nguonTinhTrang = fs.readFileSync(
+    path.join(GOC, "src/components/TinhTrangTrang.tsx"), "utf8"
+  );
+  kiem("phân tầng", "đã nối kênh mà chưa dạy AI phải bị nêu là hỏng",
+    /t\.kenh_noi > 0 && t\.da_day_vai_tro === 0/.test(nguonTinhTrang) &&
+      /Đã nối kênh nhưng chưa dạy AI bán hàng/.test(nguonTinhTrang), true);
+  kiem("phân tầng", "trang im lặng cả tuần phải bị nêu ra",
+    /t\.kenh_noi > 0 && t\.tin_7_ngay === 0/.test(nguonTinhTrang), true);
+  const soLanDoc = (nguonManHinhQL.match(/docTinhTrang\(/g) ?? []).length;
+  kiem("phân tầng", "dải cảnh báo và thẻ từng trang đọc cùng một chỗ",
+    soLanDoc, 2);
+
   // Dải băng cũng là chỗ nối hai phần lại: danh sách trang anh em nằm ngay đó.
   kiem("phân tầng", "đang xem thay vẫn nhảy thẳng sang trang khác được",
     /Sang trang khác \(\{trangKhac\.length\}\)/.test(nguonBangXem) &&

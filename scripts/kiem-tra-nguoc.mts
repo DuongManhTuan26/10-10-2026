@@ -1195,6 +1195,49 @@ const DUC: PhepDuc[] = [
     thay: "       FROM users WHERE id = $1`,\n    [so]",
   },
   {
+    // Chính điều chủ sản phẩm chỉ ra: màn hình quản lý chỉ là danh sách tài
+    // khoản chứ không phải chỗ điều hành cả chuỗi.
+    ten: "màn hình quản lý tụt lại thành danh sách tài khoản suông",
+    tep: "src/pages/QuanLyTrang.tsx",
+    tim: "      const { data } = await api.quanLy.tongQuan();",
+    thay: "      const { data } = await api.quanLy.trang() as never;",
+  },
+  {
+    ten: "bỏ dải việc phải xử lý, chủ chuỗi tự đi dò từng trang",
+    tep: "src/pages/QuanLyTrang.tsx",
+    tim: "                Cần xử lý ({cangDau.length} trang)",
+    thay: "                Can xu ly",
+  },
+  {
+    ten: "bảng điều hành bỏ số liệu bộ não, không biết trang nào chưa dạy AI",
+    tep: "server/routes/quan-ly.ts",
+    tim: "                  AND coalesce(c.system_prompt, '') <> '') AS da_day_vai_tro,",
+    thay: "                  AND FALSE) AS khong_dung,",
+  },
+  {
+    /*
+     * Neo vào dòng NGAY SAU, vì câu đếm đơn hôm nay giống hệt nhau ở cả hai
+     * đầu đo và .replace() chỉ thay chỗ đầu tiên — phép đục cũ trúng nhầm
+     * route /trang nên đục mà không thủng đúng chỗ định thử.
+     */
+    ten: "đơn hôm nay của bảng điều hành tính theo giờ GMT",
+    tep: "server/routes/quan-ly.ts",
+    tim: "                WHERE o.user_id = u.id AND o.created_at >= ${DAU_NGAY_VN}) AS don_hom_nay,\n              (SELECT count(*)::int FROM orders o",
+    thay: "                WHERE o.user_id = u.id) AS don_hom_nay,\n              (SELECT count(*)::int FROM orders o",
+  },
+  {
+    ten: "đã nối kênh mà chưa dạy AI không bị nêu là hỏng",
+    tep: "src/components/TinhTrangTrang.tsx",
+    tim: "  if (t.kenh_noi > 0 && t.da_day_vai_tro === 0) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "trang im lặng cả tuần không bị nêu ra",
+    tep: "src/components/TinhTrangTrang.tsx",
+    tim: "  if (t.kenh_noi > 0 && t.tin_7_ngay === 0) {",
+    thay: "  if (false) {",
+  },
+  {
     // Chính điều chủ sản phẩm chỉ ra: vào trong một trang là mất đường sang
     // trang khác, hai phần rời hẳn nhau.
     ten: "vào trong một trang là mất đường sang trang khác",

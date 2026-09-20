@@ -282,6 +282,27 @@ export interface PlatformCatalog {
   communication: Platform[];
 }
 
+/**
+ * Tình trạng vận hành của một trang, nhìn từ bảng điều hành của chủ chuỗi.
+ *
+ * Đủ để trả lời trên MỘT màn hình: trang này có đang nối được không, AI đã
+ * được dạy chưa, tuần qua có chạy không, có khách nào đang chờ người, bán được
+ * bao nhiêu. Không phải bấm vào từng trang mới biết.
+ */
+export interface TrangVanHanh extends TrangCon {
+  /** 1 nếu vai trò AI bán hàng đã có chữ, 0 nếu vẫn để trống. */
+  da_day_vai_tro: number;
+  so_tai_lieu: number;
+  /** AI tự chốt đơn, không chờ chủ shop duyệt. */
+  ai_tu_chu: boolean;
+  kich_ban_bat: number;
+  tin_7_ngay: number;
+  ai_tra_loi_7_ngay: number;
+  /** null nghĩa là trang này chưa từng có tin nhắn nào. */
+  hoat_dong_cuoi: string | null;
+  don_thang: number;
+}
+
 /** Một trang trong chuỗi, nhìn từ bảng tổng quan của chủ chuỗi. */
 export interface TrangCon {
   id: number;
@@ -959,6 +980,8 @@ export const api = {
    */
   quanLy: {
     trang: () => get<{ data: TrangCon[] }>("/quan-ly/trang"),
+    /** Bảng điều hành cả chuỗi: mọi trang, mọi số liệu, một lượt gọi. */
+    tongQuan: () => get<{ data: TrangVanHanh[] }>("/quan-ly/tong-quan"),
     lapTrang: (ten: string) =>
       post<{ data: { id: number; tenDangNhap: string; name: string; matKhauTam: string } }>(
         "/quan-ly/trang",
