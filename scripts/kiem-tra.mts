@@ -2517,6 +2517,50 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("phân tầng", "chặn theo đường dẫn, người đang xem thay vẫn quay ra được",
     /quanLyRouter\.use\("\/trang", \(req, _res, next\) => \{/.test(nguonQL), true);
 
+  /*
+   * Đang XEM THAY một trang thì người thật vẫn là chủ chuỗi đã mở nó.
+   *
+   * Không suy ra được điều đó thì vào trong một trang là mất hẳn đường sang
+   * trang khác: phải quay ra rồi mới mở được trang kế. Chủ chuỗi mười trang đi
+   * một vòng kiểm hàng phải qua màn hình trung gian chín lần — hai phần rời
+   * hẳn nhau, đúng điều chủ sản phẩm chỉ ra.
+   */
+  kiem("phân tầng", "đang trong một trang vẫn suy ra được người quản lý thật",
+    /if \(req\.user\?\.moBoi != null\) return req\.user\.moBoi;/.test(nguonQL) &&
+      /const chaId = nguoiQuanLy\(req\)!;/.test(nguonQL), true);
+
+  /*
+   * Nhưng CHỈ được đi lại, không được cầm quyền trên tài khoản khác. Lập
+   * trang, đổi tên, khoá, cấp lại mật khẩu đều phải đang đứng ở tài khoản quản
+   * lý thật — bốn đường, bốn chốt.
+   */
+  const soChotXemThay = (nguonQL.match(/chanNeuDangXemThay\(req\);/g) ?? []).length;
+  kiem("phân tầng", "đang xem thay thì chỉ đi lại được, không cầm quyền",
+    soChotXemThay, 4);
+  /*
+   * Đếm chỗ GỌI thôi thì chưa đủ: đục rỗng ruột chốt chặn mà vẫn để nguyên bốn
+   * lời gọi là phép kiểm trên vẫn báo đạt — đã đúng như vậy. Phải soi cả điều
+   * kiện bên trong.
+   */
+  kiem("phân tầng", "ruột chốt chặn xem thay có thật, không rỗng",
+    /if \(req\.user\?\.moBoi != null\) \{\s*\n\s*throw new AppError\(/.test(nguonQL), true);
+
+  /*
+   * Nhảy sang trang anh em KHÔNG được lồng nhau: mo_boi vẫn phải là chủ chuỗi
+   * chứ không phải trang vừa rời. Lồng một bậc là đường quay ra đứt.
+   */
+  kiem("phân tầng", "nhảy sang trang khác không làm lồng phiên",
+    /await createSession\(res, trang\.id, chaId\);/.test(nguonQL), true);
+
+  /*
+   * Tài khoản trang TỰ đăng nhập bằng mật khẩu của nó có mo_boi rỗng và vai
+   * trò 'shop', nên nguoiQuanLy trả null và nó không thấy trang anh em nào.
+   * Cách ly giữa các trang là điểm chính của cả mô hình này.
+   */
+  kiem("phân tầng", "trang tự đăng nhập không thấy trang anh em",
+    /if \(req\.user\?\.role === "admin_con" \|\| req\.user\?\.role === "admin"\) return req\.user\.id;\s*\n\s*return null;/
+      .test(nguonQL), true);
+
   // Điều kiện parent_id phải nằm TRONG câu lệnh. Lấy về rồi mới kiểm thì sớm
   // muộn có đường nào đó quên kiểm.
   kiem("phân tầng", "chỉ lấy được tài khoản trang CỦA MÌNH",
@@ -2534,7 +2578,13 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * phải kêu lên, không phụ thuộc vào việc ai đó nhớ ra.
    */
   const soRouteTheoId = (nguonQL.match(/"\/trang\/:id[^"]*"/g) ?? []).length;
-  const soLanKiemChu = (nguonQL.match(/await trangCuaToi\(req\.user!\.id, req\.params\.id\)/g) ?? []).length;
+  /*
+   * Đếm lời gọi trangCuaToi, không bắt buộc tham số đầu phải là req.user.id.
+   * Đường "mở trang" truyền người quản lý thật (nguoiQuanLy) để lúc đang xem
+   * thay vẫn nhảy được sang trang anh em. Quyền sở hữu vẫn do chính
+   * trangCuaToi kiểm bằng parent_id, nên cái phải đếm là CÓ GỌI hay không.
+   */
+  const soLanKiemChu = (nguonQL.match(/await trangCuaToi\(/g) ?? []).length;
   kiem("phân tầng", "mọi đường nhắm vào trang khác đều kiểm chủ sở hữu",
     soLanKiemChu, soRouteTheoId);
 
@@ -2634,6 +2684,11 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonBangXem = fs.readFileSync(
     path.join(GOC, "src/components/DangXemThay.tsx"), "utf8"
   );
+  // Dải băng cũng là chỗ nối hai phần lại: danh sách trang anh em nằm ngay đó.
+  kiem("phân tầng", "đang xem thay vẫn nhảy thẳng sang trang khác được",
+    /Sang trang khác \(\{trangKhac\.length\}\)/.test(nguonBangXem) &&
+      /await api\.quanLy\.moTrang\(trang\.id\);/.test(nguonBangXem), true);
+
   kiem("phân tầng", "giao diện cảnh báo rõ khi đang xem thay một trang",
     /if \(!user\?\.nguoiMo\) return null;/.test(nguonBangXem) &&
       /Bạn đang xem thay trang/.test(nguonBangXem) &&

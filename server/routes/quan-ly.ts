@@ -44,12 +44,50 @@ quanLyRouter.use(requireAuth);
  * cookie tay mới ra được. Đã suýt làm đúng như vậy.
  */
 quanLyRouter.use("/trang", (req, _res, next) => {
-  if (req.user?.role !== "admin_con" && req.user?.role !== "admin") {
+  if (nguoiQuanLy(req) === null) {
     next(new AppError("Phần này dành cho tài khoản quản lý chuỗi trang", 403));
     return;
   }
   next();
 });
+
+/**
+ * Ai là người quản lý đứng sau yêu cầu này.
+ *
+ * Đang XEM THAY một trang thì vai trò của phiên là 'shop', nhưng người thật
+ * ngồi trước màn hình vẫn là chủ chuỗi đã mở trang đó — mã của họ nằm ở
+ * mo_boi. Không nhìn tới mo_boi thì vào trong một trang là mất hẳn đường sang
+ * trang khác: phải quay ra rồi mới mở được trang kế, hai bước qua một màn hình
+ * trung gian cho mỗi lần đổi trang.
+ *
+ * Chỉ phiên do chủ chuỗi MỞ mới mang mo_boi. Tài khoản trang tự đăng nhập bằng
+ * mật khẩu của nó có mo_boi rỗng, nên không nhìn thấy trang anh em nào — cách
+ * ly giữa các trang vẫn nguyên vẹn.
+ */
+function nguoiQuanLy(req: { user?: { id: number; role: string; moBoi: number | null } }):
+  | number
+  | null {
+  if (req.user?.moBoi != null) return req.user.moBoi;
+  if (req.user?.role === "admin_con" || req.user?.role === "admin") return req.user.id;
+  return null;
+}
+
+/**
+ * Chặn các việc CHỈ chủ chuỗi thật mới được làm.
+ *
+ * Xem danh sách và nhảy sang trang khác thì phiên xem thay làm được — đó là
+ * đi lại trong chính chuỗi của mình. Nhưng lập trang, đổi tên, khoá, cấp lại
+ * mật khẩu thì phải đang đứng ở tài khoản quản lý: đó là quyền trên tài khoản
+ * khác, không phải quyền đi lại.
+ */
+function chanNeuDangXemThay(req: { user?: { moBoi: number | null } }): void {
+  if (req.user?.moBoi != null) {
+    throw new AppError(
+      "Vui lòng quay lại tài khoản quản lý để làm việc này",
+      409
+    );
+  }
+}
 
 interface TrangCon {
   id: number;
@@ -108,7 +146,7 @@ quanLyRouter.get(
          FROM users u
         WHERE u.parent_id = $1
         ORDER BY u.created_at`,
-      [req.user!.id]
+      [nguoiQuanLy(req)]
     );
     res.json({ success: true, data: rows.rows });
   })
@@ -118,6 +156,7 @@ quanLyRouter.get(
 quanLyRouter.post(
   "/trang",
   route(async (req, res) => {
+    chanNeuDangXemThay(req);
     const ten = typeof req.body?.ten === "string" ? req.body.ten : "";
     const taiKhoan = await taoTaiKhoanTrang({ parentId: req.user!.id, tenTrang: ten });
 
@@ -145,6 +184,7 @@ quanLyRouter.post(
 quanLyRouter.patch(
   "/trang/:id",
   route(async (req, res) => {
+    chanNeuDangXemThay(req);
     const trang = await trangCuaToi(req.user!.id, req.params.id);
     const ten = typeof req.body?.ten === "string" ? req.body.ten.trim() : "";
     if (ten.length < 2) throw new AppError("Tên trang phải có ít nhất 2 ký tự");
@@ -165,6 +205,7 @@ quanLyRouter.patch(
 quanLyRouter.post(
   "/trang/:id/khoa",
   route(async (req, res) => {
+    chanNeuDangXemThay(req);
     const trang = await trangCuaToi(req.user!.id, req.params.id);
     const khoa = req.body?.khoa === true;
 
@@ -192,6 +233,7 @@ quanLyRouter.post(
 quanLyRouter.post(
   "/trang/:id/mat-khau",
   route(async (req, res) => {
+    chanNeuDangXemThay(req);
     const trang = await trangCuaToi(req.user!.id, req.params.id);
     const matKhauTam = sinhMatKhauTam();
 
@@ -222,36 +264,33 @@ quanLyRouter.post(
  *
  * Phiên cũ của chính người mở bị xoá chứ không giữ song song: giữ hai phiên
  * sống cùng lúc là để lại một mã phiên còn hiệu lực mà không ai cầm.
+ *
+ * ĐANG Ở TRONG MỘT TRANG cũng mở thẳng sang trang khác được.
+ *
+ * Trước đây chặn: đang xem thay thì phải quay ra tài khoản quản lý rồi mới mở
+ * được trang kế. Chủ chuỗi mười trang đi một vòng kiểm hàng phải qua màn hình
+ * trung gian chín lần — hai phần rời hẳn nhau. Nay nhảy thẳng, và mo_boi giữ
+ * nguyên là chủ chuỗi nên không có chuyện lồng nhau: đường quay ra vẫn chỉ
+ * đúng một bậc.
  */
 quanLyRouter.post(
   "/trang/:id/mo",
   route(async (req, res) => {
-    const trang = await trangCuaToi(req.user!.id, req.params.id);
+    const chaId = nguoiQuanLy(req)!;
+    const trang = await trangCuaToi(chaId, req.params.id);
     if (!trang.is_active) {
       throw new AppError("Trang này đang bị khoá, vui lòng mở khoá trước", 409);
     }
-
-    /*
-     * Không cho mở lồng nhau: đang xem thay một trang rồi mở tiếp sang trang
-     * khác thì đường quay lại đứt, người dùng mắc kẹt trong một tài khoản
-     * không phải của mình.
-     *
-     * Đã đo qua HTTP thật: hiện chốt này KHÔNG bao giờ chạy tới, vì lúc đang
-     * xem thay thì vai trò của phiên là 'shop' nên chặn theo vai trò ở trên đã
-     * trả 403 trước. Giữ lại làm lớp thứ hai, phòng khi sau này có vai trò nào
-     * vừa mở được trang vừa giữ nguyên quyền quản lý. Ai đọc tới đây đừng
-     * tưởng đây là chốt duy nhất — chốt thật là chặn theo vai trò.
-     */
-    if (req.user!.moBoi !== null) {
-      throw new AppError("Vui lòng quay lại tài khoản quản lý trước khi mở trang khác", 409);
+    if (trang.id === req.user!.id) {
+      throw new AppError("Bạn đang ở trong trang này rồi", 409);
     }
 
     const phienCu = req.sessionId;
-    await createSession(res, trang.id, req.user!.id);
+    await createSession(res, trang.id, chaId);
     if (phienCu) await query("DELETE FROM sessions WHERE id = $1", [phienCu]);
 
     await ghiNhatKyQuanTri({
-      adminId: req.user!.id,
+      adminId: chaId,
       targetId: trang.id,
       targetEmail: trang.email,
       action: "mo_trang",

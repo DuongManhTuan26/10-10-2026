@@ -1195,6 +1195,38 @@ const DUC: PhepDuc[] = [
     thay: "       FROM users WHERE id = $1`,\n    [so]",
   },
   {
+    // Chính điều chủ sản phẩm chỉ ra: vào trong một trang là mất đường sang
+    // trang khác, hai phần rời hẳn nhau.
+    ten: "vào trong một trang là mất đường sang trang khác",
+    tep: "server/routes/quan-ly.ts",
+    tim: "  if (req.user?.moBoi != null) return req.user.moBoi;",
+    thay: "",
+  },
+  {
+    ten: "đang xem thay vẫn cầm được quyền trên tài khoản khác",
+    tep: "server/routes/quan-ly.ts",
+    tim: "  if (req.user?.moBoi != null) {\n    throw new AppError(",
+    thay: "  if (false) {\n    throw new AppError(",
+  },
+  {
+    ten: "nhảy sang trang anh em làm lồng phiên, đứt đường quay ra",
+    tep: "server/routes/quan-ly.ts",
+    tim: "    await createSession(res, trang.id, chaId);",
+    thay: "    await createSession(res, trang.id, req.user!.id);",
+  },
+  {
+    ten: "trang tự đăng nhập cũng nhìn thấy trang anh em",
+    tep: "server/routes/quan-ly.ts",
+    tim: '  if (req.user?.role === "admin_con" || req.user?.role === "admin") return req.user.id;\n  return null;',
+    thay: "  return req.user?.id ?? null;",
+  },
+  {
+    ten: "bỏ đường nhảy thẳng sang trang khác trên dải băng",
+    tep: "src/components/DangXemThay.tsx",
+    tim: "              Sang trang khác ({trangKhac.length})",
+    thay: "              Sang trang khac",
+  },
+  {
     ten: "trả 403 thay vì 404, lộ sự tồn tại của trang người khác",
     tep: "server/routes/quan-ly.ts",
     tim: '  if (!row) throw new AppError("Không tìm thấy trang này", 404);',
