@@ -21,6 +21,13 @@ import BaoCaoTrangCon from '../components/BaoCaoTrangCon';
 const tienVN = (so: string | number): string =>
   `${Number(so || 0).toLocaleString('vi-VN')} đ`;
 
+/*
+ * Tiền AI tính bằng đô và thường rất nhỏ — một lượt trả lời tốn vài phần nghìn.
+ * Làm tròn về 0 thì mọi trang đều hiện "0", nhìn như chưa tiêu gì.
+ */
+const tienAiVN = (usd: number): string =>
+  usd === 0 ? '0 $' : usd < 0.01 ? '<0,01 $' : `${usd.toFixed(2)} $`;
+
 const khiNao = (moc: string | null): string => {
   if (!moc) return 'chưa có hoạt động nào';
   const phut = Math.floor((Date.now() - new Date(moc).getTime()) / 60000);
@@ -233,11 +240,12 @@ export default function QuanLyTrang() {
       donThang: a.donThang + t.don_thang,
       doanhThu: a.doanhThu + Number(t.doanh_thu_thang || 0),
       choNguoi: a.choNguoi + t.cho_nguoi,
+      tienAi: a.tienAi + Number(t.tien_ai_thang || 0),
       aiTraLoi: a.aiTraLoi + t.ai_tra_loi_7_ngay,
       kenhNoi: a.kenhNoi + t.kenh_noi,
       canNoiLai: a.canNoiLai + t.kenh_can_noi_lai,
     }),
-    { donHomNay: 0, donThang: 0, doanhThu: 0, choNguoi: 0, aiTraLoi: 0, kenhNoi: 0, canNoiLai: 0 }
+    { donHomNay: 0, donThang: 0, doanhThu: 0, choNguoi: 0, aiTraLoi: 0, kenhNoi: 0, canNoiLai: 0, tienAi: 0 }
   );
 
   // --- Việc phải xử lý, gom từ mọi trang, nặng trước. ---
@@ -307,7 +315,11 @@ export default function QuanLyTrang() {
                 phu="cần bạn trả lời"
                 nhanManh={tong.choNguoi > 0}
               />
-              <O nhan="AI trả lời 7 ngày" so={tong.aiTraLoi} phu="tin nhắn AI đã xử lý" />
+              <O
+                nhan="Tiền AI tháng này"
+                so={tienAiVN(tong.tienAi)}
+                phu={`${tong.aiTraLoi} tin AI đã trả lời`}
+              />
               <O
                 nhan="Kênh đang nối"
                 so={tong.kenhNoi}
@@ -442,6 +454,12 @@ export default function QuanLyTrang() {
                         <div>
                           <div className="text-xs text-on-surface-variant">Doanh thu tháng</div>
                           <div className="font-bold text-on-surface">{tienVN(t.doanh_thu_thang)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-on-surface-variant">Tiền AI tháng</div>
+                          <div className="font-bold text-on-surface">
+                            {tienAiVN(Number(t.tien_ai_thang || 0))}
+                          </div>
                         </div>
                         <div>
                           <div className="text-xs text-on-surface-variant">Tin nhắn 7 ngày</div>

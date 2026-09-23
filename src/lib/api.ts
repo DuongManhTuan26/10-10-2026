@@ -301,6 +301,13 @@ export interface TrangVanHanh extends TrangCon {
   /** null nghĩa là trang này chưa từng có tin nhắn nào. */
   hoat_dong_cuoi: string | null;
   don_thang: number;
+  /**
+   * Tiền AI trang này tiêu trong tháng, đơn vị USD.
+   *
+   * Chuỗi vì Postgres trả NUMERIC dưới dạng chuỗi — ép sang number ở tầng này
+   * là chỗ dễ mất số lẻ nhất, mà một lượt trả lời chỉ tốn vài phần nghìn đô.
+   */
+  tien_ai_thang: string;
 }
 
 /**
@@ -613,13 +620,28 @@ export const api = {
   },
 
   inbox: {
-    conversations: (params: { accountId?: string; status?: string; search?: string } = {}) => {
+    /**
+     * Danh sách hội thoại, có phân trang.
+     *
+     * phanTrang.conNua cho biết còn hội thoại cũ hơn nữa hay đã hết — trước
+     * đây câu lệnh cắt cứng ở 100 và không có đường xem tiếp, shop quá 100
+     * hội thoại là mất phần cũ mà không dấu hiệu nào báo.
+     */
+    conversations: (
+      params: {
+        accountId?: string; status?: string; search?: string;
+        boQua?: number; soDong?: number;
+      } = {}
+    ) => {
       const query = new URLSearchParams();
       for (const [key, value] of Object.entries(params)) {
-        if (value) query.set(key, value);
+        if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
       }
       const suffix = query.toString() ? `?${query}` : "";
-      return get<{ data: Conversation[] }>(`/inbox/conversations${suffix}`);
+      return get<{
+        data: Conversation[];
+        phanTrang: { boQua: number; soDong: number; conNua: boolean };
+      }>(`/inbox/conversations${suffix}`);
     },
     counts: () => get<{ data: Record<string, number> }>("/inbox/counts"),
     detail: (id: string) =>
@@ -921,9 +943,23 @@ export const api = {
           campaigns: Array<Record<string, unknown>>;
           insights: Record<string, unknown> | null;
           audiences: Array<Record<string, unknown>>;
+          /** Mọi tài khoản quảng cáo kênh này vào được, để chủ shop chọn. */
+          tatCaTaiKhoan?: Array<{
+            id: string; name: string; currency: string; accountStatus: number;
+          }>;
+          /** Đang dùng tài khoản chủ shop chọn, hay hệ thống tự đoán. */
+          doChuShopChon?: boolean;
         };
         message?: string;
       }>(`/ads/overview?range=${range}`),
+    /**
+     * Chọn tài khoản quảng cáo để chạy.
+     *
+     * Một kênh Meta Ads vào được nhiều tài khoản. Không chọn thì hệ thống tự
+     * đoán, và đoán sai là trang quảng cáo trống trơn không rõ lý do.
+     */
+    chonTaiKhoanQuangCao: (adAccountId: string) =>
+      put<{ data: { adAccountId: string } }>("/ads/tai-khoan-quang-cao", { adAccountId }),
     boostablePosts: () =>
       get<{ data: Post[] }>("/ads/boostable-posts"),
     setCampaignStatus: (campaignIds: string[], status: "ACTIVE" | "PAUSED" | "ARCHIVED") =>

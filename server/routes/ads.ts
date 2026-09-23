@@ -22,9 +22,13 @@ async function resolveAdAccount(userId: number): Promise<{
   accountId: string;
   adAccountId: string;
   account: ads.AdAccount;
+  /** Mọi tài khoản quảng cáo kênh này vào được, để chủ shop chọn. */
+  tatCa: ads.AdAccount[];
+  /** Đang dùng tài khoản chủ shop chọn, hay hệ thống tự đoán. */
+  doChuShopChon: boolean;
 } | null> {
-  const row = await queryOne<{ id: string }>(
-    `SELECT id FROM social_accounts
+  const row = await queryOne<{ id: string; ad_account_ref: string | null }>(
+    `SELECT id, ad_account_ref FROM social_accounts
       WHERE user_id = $1 AND platform = 'metaads' AND connected = TRUE
       ORDER BY created_at LIMIT 1`,
     [userId]
@@ -32,10 +36,31 @@ async function resolveAdAccount(userId: number): Promise<{
   if (!row) return null;
 
   const accounts = await ads.listAdAccounts(row.id);
-  const active = accounts.find((a) => a.accountStatus === 1) ?? accounts[0];
+
+  /*
+   * Tôn trọng lựa chọn của chủ shop trước, tự đoán chỉ là phương án cuối.
+   *
+   * Đo thật: một kênh Meta Ads trả về HAI tài khoản quảng cáo. Mã cũ lặng lẽ
+   * lấy cái đầu đang hoạt động, nên chiến dịch nằm ở tài khoản kia là trang
+   * quảng cáo trống trơn — mà không một dòng nào nói đang xem tài khoản nào,
+   * chủ shop không có cách nào đoán ra.
+   *
+   * Tài khoản đã chọn biến mất (bị gỡ quyền) thì rơi về tự đoán chứ không
+   * chết, nhưng giao diện vẫn liệt kê đủ để chọn lại.
+   */
+  const daChon = row.ad_account_ref
+    ? accounts.find((a) => a.id === row.ad_account_ref)
+    : undefined;
+  const active = daChon ?? accounts.find((a) => a.accountStatus === 1) ?? accounts[0];
   if (!active) return null;
 
-  return { accountId: row.id, adAccountId: active.id, account: active };
+  return {
+    accountId: row.id,
+    adAccountId: active.id,
+    account: active,
+    tatCa: accounts,
+    doChuShopChon: !!daChon,
+  };
 }
 
 /** Tổng quan: tài khoản quảng cáo, chiến dịch và số liệu. */
@@ -107,11 +132,60 @@ adsRouter.get(
           minDailyBudget: resolved.account.minDailyBudget,
           amountSpent: resolved.account.amountSpent,
         },
+        /*
+         * Danh sách mọi tài khoản quảng cáo, kèm việc đang dùng cái nào và có
+         * phải do chủ shop chọn hay không. Không gửi ra thì giao diện không có
+         * cách nào cho chọn lại.
+         */
+        tatCaTaiKhoan: resolved.tatCa.map((a) => ({
+          id: a.id,
+          name: a.name,
+          currency: a.currency,
+          accountStatus: a.accountStatus,
+        })),
+        doChuShopChon: resolved.doChuShopChon,
         campaigns: campaigns.campaigns,
         insights,
         audiences,
       },
     });
+  })
+);
+
+/**
+ * Chọn tài khoản quảng cáo để chạy.
+ *
+ * Một kênh Meta Ads vào được nhiều tài khoản quảng cáo. Không cho chọn thì hệ
+ * thống tự đoán, và đoán sai là trang quảng cáo trống trơn không rõ lý do.
+ */
+adsRouter.put(
+  "/tai-khoan-quang-cao",
+  route(async (req, res) => {
+    const ma = typeof req.body?.adAccountId === "string" ? req.body.adAccountId.trim() : "";
+    if (!ma) throw new AppError("Chưa chọn tài khoản quảng cáo");
+
+    const kenh = await queryOne<{ id: string }>(
+      `SELECT id FROM social_accounts
+        WHERE user_id = $1 AND platform = 'metaads' AND connected = TRUE
+        ORDER BY created_at LIMIT 1`,
+      [req.user!.id]
+    );
+    if (!kenh) throw new AppError("Chưa kết nối tài khoản quảng cáo nào", 404);
+
+    /*
+     * Chỉ nhận tài khoản mà kênh này THẬT SỰ vào được. Không kiểm thì người ta
+     * gửi lên mã bất kỳ, và mọi lời gọi sau đó đều lỗi mà không rõ vì sao.
+     */
+    const vaoDuoc = await ads.listAdAccounts(kenh.id);
+    if (!vaoDuoc.some((a) => a.id === ma)) {
+      throw new AppError("Tài khoản quảng cáo này không thuộc kênh đang kết nối", 400);
+    }
+
+    await query(
+      "UPDATE social_accounts SET ad_account_ref = $1, updated_at = now() WHERE id = $2",
+      [ma, kenh.id]
+    );
+    res.json({ success: true, data: { adAccountId: ma } });
   })
 );
 
@@ -454,6 +528,7 @@ adsRouter.post(
 
     const result = await chatJson({
       task: "ads",
+      userId: req.user!.id,
       messages: [
         {
           role: "system",

@@ -39,9 +39,12 @@ const LOI_NHAC = [
 export async function docChuTuAnh(params: {
   dataUrl: string;
   filename: string;
+  /** Shop chịu tiền lượt đọc ảnh này. */
+  userId: number;
 }): Promise<{ text: string; costUsd: number }> {
   const result = await chat({
     task: "extract",
+    userId: params.userId,
     temperature: 0,
     maxTokens: 4_000,
     messages: [
@@ -102,6 +105,8 @@ export function laNguonAnhCuaNenTang(url: string): boolean {
 export async function docTepKhachGui(params: {
   url: string;
   type: string;
+  /** Shop chịu tiền lượt đọc ảnh này. */
+  userId: number | null;
 }): Promise<string> {
   if (!laNguonAnhCuaNenTang(params.url)) {
     console.warn(
@@ -118,6 +123,7 @@ export async function docTepKhachGui(params: {
 
   const result = await chat({
     task: "extract",
+    userId: params.userId,
     temperature: 0,
     maxTokens: 600,
     messages: [

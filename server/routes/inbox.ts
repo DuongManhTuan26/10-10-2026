@@ -31,6 +31,24 @@ inboxRouter.get(
     const conditions: string[] = ["c.user_id = $1"];
     const params: unknown[] = [req.user!.id];
 
+    /*
+     * Phân trang, thay cho LIMIT 100 cắt cụt.
+     *
+     * Trước đây câu lệnh để cứng LIMIT 100 và giao diện không có đường xem
+     * tiếp: shop nào quá 100 hội thoại là phần cũ biến mất khỏi hộp thư, không
+     * một dấu hiệu nào báo là đang bị cắt. Khách nhắn tháng trước coi như mất.
+     *
+     * Lấy dư MỘT dòng để biết còn nữa hay hết, khỏi phải chạy thêm một câu
+     * COUNT trên cùng bộ lọc.
+     */
+    const MOI_LAN = 50;
+    const TOI_DA = 200;
+    const soDong = Math.min(
+      Math.max(Number(req.query.soDong) || MOI_LAN, 1),
+      TOI_DA
+    );
+    const boQua = Math.max(Number(req.query.boQua) || 0, 0);
+
     if (typeof accountId === "string" && accountId !== "" && accountId !== "all") {
       params.push(accountId);
       conditions.push(`c.social_account_id = $${params.length}`);
@@ -69,16 +87,21 @@ inboxRouter.get(
          LEFT JOIN social_accounts sa ON sa.id = c.social_account_id
         WHERE ${conditions.join(" AND ")}
         ORDER BY c.last_message_at DESC
-        LIMIT 100`,
-      params
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, soDong + 1, boQua]
     );
+
+    // Dòng dư chỉ để biết còn nữa hay hết, không gửi ra ngoài.
+    const conNua = rows.rows.length > soDong;
+    const danhSach = conNua ? rows.rows.slice(0, soDong) : rows.rows;
 
     res.json({
       success: true,
-      data: rows.rows.map((row) => ({
+      data: danhSach.map((row) => ({
         ...row,
         window_state: windowState(row.window_expires_at as Date | null),
       })),
+      phanTrang: { boQua, soDong, conNua },
     });
   })
 );

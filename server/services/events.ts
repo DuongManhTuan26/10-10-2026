@@ -269,7 +269,7 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
       const o = (t ?? {}) as Record<string, unknown>;
       if (typeof o.url !== "string" || typeof o.type !== "string") continue;
       try {
-        const doc = await docTepKhachGui({ url: o.url, type: o.type });
+        const doc = await docTepKhachGui({ url: o.url, type: o.type, userId: account.user_id });
         if (doc) moTa.push(doc);
       } catch (error) {
         console.error(

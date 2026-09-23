@@ -1200,6 +1200,91 @@ const DUC: PhepDuc[] = [
     tim: "                WHERE s.user_id = u.id AND s.platform = 'facebook' AND s.connected\n                ORDER BY s.created_at LIMIT 1) AS ten_fanpage,",
     thay: "                WHERE s.user_id = u.id AND s.platform = 'facebook'\n                ORDER BY s.created_at LIMIT 1) AS ten_fanpage,",
   },
+  // --- Tiền AI theo từng shop ---
+  {
+    ten: "gọi AI mà không ghi tiền, không biết shop nào tiêu bao nhiêu",
+    tep: "server/services/ai.ts",
+    tim: "    void query(\n      `INSERT INTO ai_usage",
+    thay: "    void Promise.resolve(\n      `INSERT INTO ai_usage",
+  },
+  {
+    ten: "cho phép gọi AI mà không khai shop chịu tiền",
+    tep: "server/services/ai.ts",
+    tim: "  userId: number | null;",
+    thay: "  userId?: number | null;",
+  },
+  {
+    ten: "ghi tiền hỏng là hỏng luôn câu trả lời cho khách",
+    tep: "server/services/ai.ts",
+    tim: "    void query(",
+    thay: "    await query(",
+  },
+  {
+    ten: "làm tròn tiền AI, mất sạch số lẻ",
+    tep: "server/migrations/023_tien_ai_theo_shop.sql",
+    tim: "  cost_usd      NUMERIC(14,6) NOT NULL DEFAULT 0,",
+    thay: "  cost_usd      NUMERIC(14,0) NOT NULL DEFAULT 0,",
+  },
+  {
+    ten: "bảng điều hành bỏ tiền AI, chỉ nhìn doanh thu",
+    tep: "server/routes/quan-ly.ts",
+    tim: "              (SELECT COALESCE(SUM(a.cost_usd), 0)::text FROM ai_usage a",
+    thay: "              (SELECT 0::text FROM ai_usage a",
+  },
+
+  // --- Hộp thư cắt cụt ---
+  {
+    ten: "hộp thư quay lại cắt cứng, không đường xem tiếp",
+    tep: "server/routes/inbox.ts",
+    tim: "        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,",
+    thay: "        LIMIT 100`,",
+  },
+  {
+    ten: "bỏ chặn trên, cho hỏi bao nhiêu dòng cũng được",
+    tep: "server/routes/inbox.ts",
+    tim: "    const TOI_DA = 200;",
+    thay: "    const TOI_DA = 999999;",
+  },
+  {
+    ten: "không biết còn hội thoại cũ hơn hay đã hết",
+    tep: "server/routes/inbox.ts",
+    tim: "    const conNua = rows.rows.length > soDong;",
+    thay: "    const conNua = false;",
+  },
+  {
+    ten: "nạp thêm làm nhân đôi hội thoại trong danh sách",
+    tep: "src/pages/Inbox.tsx",
+    tim: "        const daCo = new Set(cu.map((c) => c.id));",
+    thay: "        const daCo = new Set<string>();",
+  },
+
+  // --- Chọn tài khoản quảng cáo ---
+  {
+    ten: "lờ lựa chọn của chủ shop, cứ tự đoán tài khoản quảng cáo",
+    tep: "server/routes/ads.ts",
+    tim: "  const daChon = row.ad_account_ref",
+    thay: "  const daChon = false && row.ad_account_ref",
+  },
+  {
+    ten: "nhận mã tài khoản quảng cáo bất kỳ, không kiểm có vào được không",
+    tep: "server/routes/ads.ts",
+    tim: "    if (!vaoDuoc.some((a) => a.id === ma)) {",
+    thay: "    if (false) {",
+  },
+  {
+    ten: "không nói đang xem tài khoản quảng cáo nào",
+    tep: "src/pages/Ads.tsx",
+    tim: "              <span className=\"text-xs text-on-surface-variant\">Tài khoản quảng cáo:</span>",
+    thay: "",
+  },
+
+  // --- Khoá migration: chữa gốc ---
+  {
+    ten: "giao dịch migration mồ côi không tự chết, khoá kẹt mãi",
+    tep: "server/migrate.ts",
+    tim: "      await client.query(`SET LOCAL idle_in_transaction_session_timeout = '${CHET_NEU_NAM_KHONG_MS}ms'`);",
+    thay: "",
+  },
   {
     // Chính điều chủ sản phẩm hỏi: không vào trang con vẫn xem được báo cáo chứ?
     ten: "phải vào trong trang con mới xem được báo cáo",

@@ -84,6 +84,15 @@ export default function Ads() {
 
   // Dữ liệu thật từ Meta qua Zernio
   const [connected, setConnected] = useState(false);
+  /*
+   * Một kênh Meta Ads vào được NHIỀU tài khoản quảng cáo — đo thật thấy hai
+   * cái. Mã cũ tự chọn cái đầu đang hoạt động và không hiện ra, nên chiến dịch
+   * nằm ở tài khoản kia là trang này trống trơn mà chủ shop không hiểu vì sao.
+   */
+  const [tatCaTaiKhoan, setTatCaTaiKhoan] = useState<
+    Array<{ id: string; name: string; currency: string; accountStatus: number }>
+  >([]);
+  const [doChuShopChon, setDoChuShopChon] = useState(false);
   const [adAccount, setAdAccount] = useState<{
     name: string; currency: string; status: number; minDailyBudget?: number;
   } | null>(null);
@@ -121,6 +130,8 @@ export default function Ads() {
       ]);
       setConnected(overview.data.connected);
       setAdAccount(overview.data.account);
+      setTatCaTaiKhoan(overview.data.tatCaTaiKhoan ?? []);
+      setDoChuShopChon(overview.data.doChuShopChon ?? false);
       setCampaigns(overview.data.campaigns);
       setAudiences(overview.data.audiences);
       setInsights(overview.data.insights);
@@ -134,6 +145,22 @@ export default function Ads() {
   }, [ky]);
 
   useEffect(() => { load(); }, [load]);
+
+  /** Đổi tài khoản quảng cáo đang xem, rồi nạp lại toàn bộ số liệu. */
+  const doiTaiKhoanQuangCao = async (id: string) => {
+    if (!id) return;
+    setBusy(true);
+    setErrorMessage('');
+    try {
+      await api.ads.chonTaiKhoanQuangCao(id);
+      await load();
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : 'Không đổi được tài khoản quảng cáo');
+    } finally {
+      setBusy(false);
+    }
+  };
+
 
   // Trạng thái biểu mẫu quảng cáo bài viết
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -550,6 +577,36 @@ export default function Ads() {
             </span>
           </div>
           <p className="text-on-surface-variant text-sm">Chạy quảng cáo để kéo thêm khách vào bình luận và nhắn tin</p>
+
+          {/*
+            Nói rõ đang xem tài khoản quảng cáo NÀO, và cho đổi.
+
+            Không nói thì chủ shop nhìn trang trống mà tưởng chưa chạy quảng
+            cáo bao giờ, trong khi chiến dịch nằm ở tài khoản còn lại.
+          */}
+          {connected && tatCaTaiKhoan.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <span className="text-xs text-on-surface-variant">Tài khoản quảng cáo:</span>
+              <select
+                value={adAccount?.adAccountId ?? ''}
+                onChange={(e) => doiTaiKhoanQuangCao(e.target.value)}
+                disabled={busy}
+                className="px-3 py-1.5 rounded-lg bg-surface border border-outline-variant text-sm text-on-surface focus:outline-none focus:border-primary disabled:opacity-50"
+              >
+                {tatCaTaiKhoan.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.currency}){t.accountStatus === 1 ? '' : ' — đang tạm dừng'}
+                  </option>
+                ))}
+              </select>
+              {!doChuShopChon && tatCaTaiKhoan.length > 1 && (
+                <span className="text-xs text-amber-500">
+                  Hệ thống đang tự chọn. Có {tatCaTaiKhoan.length} tài khoản — chọn đúng cái
+                  đang chạy quảng cáo.
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button 

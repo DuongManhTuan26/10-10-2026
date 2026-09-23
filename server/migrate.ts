@@ -57,6 +57,15 @@ function listMigrationFiles(): string[] {
 const KHOA_MIGRATION = 776_155_001;
 
 /**
+ * Giao dịch migration nằm không quá lâu thì Postgres tự huỷ.
+ *
+ * Chỉ giao dịch MỒ CÔI mới nằm không — tiến trình chết, không ai gửi lệnh
+ * nữa. Migration đang chạy thì liên tục có lệnh nên không bao giờ chạm ngưỡng
+ * này, dù lượt migration có lâu bao nhiêu.
+ */
+const CHET_NEU_NAM_KHONG_MS = 15_000;
+
+/**
  * Chỉ một tiến trình được chạy migration tại một thời điểm.
  *
  * VÌ SAO KHÔNG DÙNG KHOÁ CẤP PHIÊN
@@ -112,6 +121,25 @@ export async function runMigrations(): Promise<void> {
     let phaiThuLai = false;
     try {
       await client.query("BEGIN");
+
+      /*
+       * Tự huỷ giao dịch nếu nó nằm không quá lâu — ĐÂY LÀ CHỖ CHỮA GỐC.
+       *
+       * Tiến trình bị giết cứng để lại một kết nối mồ côi bên pgbouncer, giao
+       * dịch còn mở và khoá còn giữ. Đã đo thật: pid=1093,
+       * application_name=pgbouncer, granted=true — mọi lần khởi động sau đó
+       * chờ đủ 60 lần rồi chết, phải vào tận database ngắt kết nối mới chạy lại.
+       *
+       * idle_in_transaction_session_timeout chỉ đếm lúc giao dịch NẰM KHÔNG.
+       * Migration đang chạy lệnh thì không bị đụng tới dù lâu bao nhiêu; chỉ
+       * giao dịch mồ côi — không ai gửi lệnh nữa — mới bị Postgres huỷ, và
+       * khoá nhả theo. Sau đó tiến trình mới lấy được khoá trong nhịp thử kế.
+       *
+       * SET LOCAL nên chỉ áp cho giao dịch này, không dính sang những phiên
+       * khác dùng chung kết nối thật của bộ gom.
+       */
+      await client.query(`SET LOCAL idle_in_transaction_session_timeout = '${CHET_NEU_NAM_KHONG_MS}ms'`);
+
       const { rows } = await client.query<{ duoc: boolean }>(
         "SELECT pg_try_advisory_xact_lock($1) AS duoc",
         [KHOA_MIGRATION]

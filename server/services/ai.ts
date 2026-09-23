@@ -1,4 +1,5 @@
 import { env } from "../env.js";
+import { query } from "../db.js";
 import { AppError } from "../http.js";
 
 /**
@@ -89,6 +90,18 @@ function assertConfigured(): void {
 interface CompleteOptions {
   task: AiTask;
   messages: ChatMessage[];
+  /**
+   * Shop nào phải chịu tiền lượt gọi này.
+   *
+   * BẮT BUỘC. Chi phí mỗi lượt gọi vốn đã có sẵn (nhà cung cấp trả về trong
+   * usage.cost) nhưng trước đây không lưu ở đâu, nên không biết shop nào tiêu
+   * bao nhiêu. Shop trả 390.000đ/tháng mà đốt 900.000đ tiền AI thì mình lỗ, và
+   * lỗ âm thầm cho tới khi nhìn hoá đơn tổng cuối tháng — lúc đó không truy
+   * được của ai.
+   *
+   * Để null CHỈ khi lượt gọi thật sự không thuộc shop nào (việc nội bộ).
+   */
+  userId: number | null;
   model?: string;
   temperature?: number;
   maxTokens?: number;
@@ -102,6 +115,7 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
 
   const {
     task,
+    userId,
     messages,
     model = DEFAULT_MODELS[task],
     temperature = 0.7,
@@ -186,16 +200,31 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
       throw lastError;
     }
 
-    return {
-      output: content,
-      model: data.model ?? model,
-      usage: {
-        promptTokens: data.usage?.prompt_tokens ?? 0,
-        completionTokens: data.usage?.completion_tokens ?? 0,
-        totalTokens: data.usage?.total_tokens ?? 0,
-        costUsd: data.usage?.cost ?? 0,
-      },
+    const usage = {
+      promptTokens: data.usage?.prompt_tokens ?? 0,
+      completionTokens: data.usage?.completion_tokens ?? 0,
+      totalTokens: data.usage?.total_tokens ?? 0,
+      costUsd: data.usage?.cost ?? 0,
     };
+
+    /*
+     * Ghi tiền NGAY TẠI ĐÂY, chỗ duy nhất mọi lượt gọi AI đi qua.
+     *
+     * Ghi ở từng nơi gọi thì chỉ cần thêm một tính năng mới mà quên ghi là
+     * shop đó tiêu tiền không ai đếm — và phải mất cả tháng mới phát hiện.
+     *
+     * Ghi hỏng thì KHÔNG được làm hỏng câu trả lời cho khách: khách đang chờ
+     * tin nhắn, không thể vì một dòng thống kê mà để họ chờ tiếp.
+     */
+    void query(
+      `INSERT INTO ai_usage (user_id, task, model, prompt_tokens, completion_tokens, cost_usd)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, task, data.model ?? model, usage.promptTokens, usage.completionTokens, usage.costUsd]
+    ).catch((error) => {
+      console.error("[ai] Không ghi được tiền AI:", error);
+    });
+
+    return { output: content, model: data.model ?? model, usage };
   }
 
   throw lastError ?? new AiError("Lỗi không xác định khi gọi AI", 0, false);

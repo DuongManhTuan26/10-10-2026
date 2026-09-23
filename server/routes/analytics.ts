@@ -264,6 +264,7 @@ analyticsRouter.post(
 
     const result = await chatJson({
       task: "analytics",
+      userId,
       messages: [
         {
           role: "system",

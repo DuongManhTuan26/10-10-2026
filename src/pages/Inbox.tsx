@@ -53,6 +53,9 @@ export default function Inbox() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  /** Còn hội thoại cũ hơn nữa hay đã hết. */
+  const [conNua, setConNua] = useState(false);
+  const [dangNapThem, setDangNapThem] = useState(false);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -78,6 +81,15 @@ export default function Inbox() {
 
   const tabKey = (label: string) => label.replace(/\s*\(\d+\)$/, '');
 
+  /*
+   * Hộp thư nạp theo từng mẻ, có nút xem tiếp.
+   *
+   * Trước đây câu lệnh cắt cứng ở 100 hội thoại và không có đường xem tiếp:
+   * shop nào quá 100 là phần cũ biến mất, không một dấu hiệu nào báo là đang
+   * bị cắt. Khách nhắn tháng trước coi như mất.
+   */
+  const SO_DONG_MOI_LAN = 50;
+
   const loadList = useCallback(async () => {
     setLoadingList(true);
     try {
@@ -87,10 +99,12 @@ export default function Inbox() {
           accountId: activeAccount?.id,
           status,
           search: search.trim() || undefined,
+          soDong: SO_DONG_MOI_LAN,
         }),
         api.inbox.counts(),
       ]);
       setConversations(list.data);
+      setConNua(list.phanTrang?.conNua ?? false);
       setCounts(countData.data);
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'Không tải được hộp thư');
@@ -277,6 +291,35 @@ export default function Inbox() {
       setErrorMessage(error instanceof ApiError ? error.message : 'AI chưa bóc tách được');
     } finally {
       setIsExtracting(false);
+    }
+  };
+
+  /** Nạp thêm một mẻ hội thoại cũ hơn, nối vào cuối danh sách đang có. */
+  const napThem = async () => {
+    if (dangNapThem) return;
+    setDangNapThem(true);
+    try {
+      const status = TAB_STATUS[tabKey(activeTab)] ?? 'all';
+      const them = await api.inbox.conversations({
+        accountId: activeAccount?.id,
+        status,
+        search: search.trim() || undefined,
+        boQua: conversations.length,
+        soDong: SO_DONG_MOI_LAN,
+      });
+      /*
+       * Lọc trùng theo id: giữa hai lần nạp có thể có hội thoại mới đẩy
+       * danh sách xuống, làm một dòng lọt vào cả hai mẻ.
+       */
+      setConversations((cu) => {
+        const daCo = new Set(cu.map((c) => c.id));
+        return [...cu, ...them.data.filter((c) => !daCo.has(c.id))];
+      });
+      setConNua(them.phanTrang?.conNua ?? false);
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : 'Không tải thêm được');
+    } finally {
+      setDangNapThem(false);
     }
   };
 
@@ -560,6 +603,22 @@ export default function Inbox() {
                   <span className="material-symbols-outlined text-4xl opacity-50">forum</span>
                   <p className="text-sm">Chưa có tin nhắn nào</p>
               </div>
+            )}
+
+            {/*
+              Còn hội thoại cũ hơn thì phải có đường xem tiếp.
+
+              Trước đây câu lệnh cắt cứng ở 100 và giao diện im lặng: shop quá
+              100 hội thoại là phần cũ biến mất, không dấu hiệu nào báo.
+            */}
+            {conNua && (
+              <button
+                onClick={napThem}
+                disabled={dangNapThem}
+                className="w-full py-3 text-sm font-bold text-primary hover:bg-surface-container transition-colors disabled:opacity-50"
+              >
+                {dangNapThem ? 'Đang tải…' : 'Xem thêm hội thoại cũ hơn'}
+              </button>
             )}
           </div>
         </aside>

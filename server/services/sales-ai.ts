@@ -856,6 +856,7 @@ const CHUA_CO_TAI_LIEU = [
 
   const result = await chatJson<SalesDecision>({
     task: "sales",
+    userId: conversation.user_id,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: `Lịch sử hội thoại:\n${transcript}\n\nHãy quyết định.` },
@@ -1162,6 +1163,12 @@ export async function extractOrderInfo(conversationId: string): Promise<{
   product: string | null;
   quantity: string | null;
 }> {
+  // Tiền lượt gọi này phải ghi đúng shop, nên phải biết hội thoại của ai.
+  const chuHoiThoai = await queryOne<{ user_id: number }>(
+    "SELECT user_id FROM conversations WHERE id = $1",
+    [conversationId]
+  );
+
   const messages = await query<{ sender_type: string; content: string }>(
     `SELECT sender_type, content FROM messages
       WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 100`,
@@ -1174,6 +1181,7 @@ export async function extractOrderInfo(conversationId: string): Promise<{
 
   const result = await chatJson({
     task: "extract",
+    userId: chuHoiThoai?.user_id ?? null,
     messages: [
       {
         role: "system",
@@ -1228,6 +1236,7 @@ export async function suggestReply(conversationId: string): Promise<string> {
 
   const result = await chat({
     task: "sales",
+    userId: conversation.user_id,
     messages: [
       {
         role: "system",
@@ -1416,6 +1425,7 @@ export async function soanCauNhac(
 
   const result = await chat({
     task: "sales",
+    userId: conversation.user_id,
     temperature: 0.7,
     maxTokens: 300,
     messages: [

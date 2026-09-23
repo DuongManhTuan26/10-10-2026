@@ -391,7 +391,7 @@ aiRouter.post(
         );
       }
 
-      const doc = await docChuTuAnh({ dataUrl: anh, filename });
+      const doc = await docChuTuAnh({ dataUrl: anh, filename, userId: req.user!.id });
       if (!doc.text) {
         throw new AppError(
           "Không đọc được chữ nào trong ảnh này. Vui lòng chụp rõ hơn, hoặc gõ lại " +
@@ -598,6 +598,7 @@ aiRouter.post(
 
     const result = await chat({
       task: kind === "sales" ? "sales" : "content",
+      userId: req.user!.id,
       messages: [
         {
           role: "system",

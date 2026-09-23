@@ -101,6 +101,7 @@ export async function generatePostContent(params: {
 
   const result = await chatJson<string[]>({
     task: "content",
+    userId: params.userId,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: `Chủ đề: "${params.topic}". Viết ${count} phương án.` },

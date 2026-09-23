@@ -3015,6 +3015,118 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 }
 
 // ---------------------------------------------------------------------------
+// 53. Tiền AI phải đếm được theo TỪNG SHOP
+// ---------------------------------------------------------------------------
+// Chi phí mỗi lượt gọi vốn đã có sẵn (nhà cung cấp trả về trong usage.cost)
+// nhưng trước đây không lưu ở đâu cả. Shop trả 390.000đ/tháng mà đốt 900.000đ
+// tiền AI thì mình lỗ, và lỗ ÂM THẦM cho tới khi nhìn hoá đơn tổng cuối tháng
+// — lúc đó không truy được là của shop nào.
+{
+  const nguonAi = fs.readFileSync(path.join(GOC, "server/services/ai.ts"), "utf8");
+
+  /*
+   * Ghi tại complete() — chỗ DUY NHẤT mọi lượt gọi AI đi qua. Ghi ở từng nơi
+   * gọi thì chỉ cần thêm một tính năng mới mà quên ghi là shop đó tiêu tiền
+   * không ai đếm, và phải mất cả tháng mới phát hiện.
+   */
+  kiem("tiền AI", "ghi tiền tại chỗ duy nhất mọi lượt gọi đi qua",
+    /INSERT INTO ai_usage \(user_id, task, model, prompt_tokens, completion_tokens, cost_usd\)/
+      .test(nguonAi), true);
+
+  /*
+   * userId BẮT BUỘC, không để tuỳ chọn: tsc đã chỉ ra đúng 10 chỗ gọi khi đổi
+   * sang bắt buộc. Để tuỳ chọn thì thêm chỗ gọi mới mà quên khai là tiền rơi
+   * vào khoảng không, không ai biết.
+   */
+  kiem("tiền AI", "mọi lượt gọi BẮT BUỘC khai shop chịu tiền",
+    /userId: number \| null;/.test(nguonAi) && !/userId\?: number/.test(nguonAi), true);
+
+  // Ghi hỏng thì không được làm hỏng câu trả lời cho khách — khách đang chờ.
+  kiem("tiền AI", "ghi tiền hỏng không làm hỏng câu trả lời cho khách",
+    /void query\(\s*\n\s*`INSERT INTO ai_usage[\s\S]{0,400}?\.catch\(/.test(nguonAi), true);
+
+  const nguonMig023 = fs.readFileSync(
+    path.join(GOC, "server/migrations/023_tien_ai_theo_shop.sql"), "utf8"
+  );
+  // Một lượt trả lời chỉ tốn vài phần nghìn đô — làm tròn về 0 là mất sạch.
+  kiem("tiền AI", "giữ đủ số lẻ, không làm tròn mất tiền",
+    /cost_usd      NUMERIC\(14,6\)/.test(nguonMig023), true);
+  // Xoá tài khoản rồi thì tiền đã tiêu vẫn phải còn để đối chiếu hoá đơn.
+  kiem("tiền AI", "xoá tài khoản không xoá mất lịch sử tiền đã tiêu",
+    /user_id       BIGINT,/.test(nguonMig023) &&
+      !/user_id.*REFERENCES users/.test(nguonMig023), true);
+
+  const nguonQL3 = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
+  // Trang bán 2 triệu mà đốt 1 triệu tiền AI thì không phải trang tốt — nhìn
+  // mỗi doanh thu là không thấy được điều đó.
+  kiem("tiền AI", "bảng điều hành hiện tiền AI từng trang",
+    /SUM\(a\.cost_usd\), 0\)::text FROM ai_usage a/.test(nguonQL3), true);
+}
+
+// ---------------------------------------------------------------------------
+// 54. Hộp thư không được cắt cụt mà im lặng
+// ---------------------------------------------------------------------------
+{
+  const nguonHop = fs.readFileSync(path.join(GOC, "server/routes/inbox.ts"), "utf8");
+  /*
+   * Trước đây câu lệnh để cứng LIMIT 100 và giao diện không có đường xem tiếp:
+   * shop quá 100 hội thoại là phần cũ biến mất, không một dấu hiệu nào báo là
+   * đang bị cắt. Khách nhắn tháng trước coi như mất.
+   */
+  kiem("hộp thư", "không còn cắt cứng 100 hội thoại", /LIMIT 100`/.test(nguonHop), false);
+  kiem("hộp thư", "phân trang có chặn trên, không cho hỏi vô hạn",
+    /const TOI_DA = 200;/.test(nguonHop) &&
+      /Math\.min\(\s*\n?\s*Math\.max\(Number\(req\.query\.soDong\)/.test(nguonHop), true);
+  /*
+   * Lấy dư MỘT dòng để biết còn nữa hay hết, khỏi phải chạy thêm một câu COUNT
+   * trên cùng bộ lọc.
+   */
+  kiem("hộp thư", "biết được còn hội thoại cũ hơn hay đã hết",
+    /const conNua = rows\.rows\.length > soDong;/.test(nguonHop) &&
+      /phanTrang: \{ boQua, soDong, conNua \}/.test(nguonHop), true);
+
+  const nguonHopUI = fs.readFileSync(path.join(GOC, "src/pages/Inbox.tsx"), "utf8");
+  kiem("hộp thư", "giao diện có đường xem hội thoại cũ hơn",
+    /Xem thêm hội thoại cũ hơn/.test(nguonHopUI) &&
+      /boQua: conversations\.length/.test(nguonHopUI), true);
+  // Giữa hai lần nạp có thể có tin mới đẩy danh sách xuống, làm một dòng lọt
+  // vào cả hai mẻ.
+  kiem("hộp thư", "nạp thêm không nhân đôi hội thoại",
+    /const daCo = new Set\(cu\.map\(\(c\) => c\.id\)\);/.test(nguonHopUI), true);
+}
+
+// ---------------------------------------------------------------------------
+// 55. Chủ shop chọn tài khoản quảng cáo, không để hệ thống đoán ngầm
+// ---------------------------------------------------------------------------
+{
+  const nguonQC = fs.readFileSync(path.join(GOC, "server/routes/ads.ts"), "utf8");
+  /*
+   * Đo thật ngày 24/09/2026: một kênh Meta Ads trả về HAI tài khoản quảng cáo,
+   * cả hai đều đang hoạt động. Mã cũ lặng lẽ lấy cái đầu, nên chiến dịch nằm ở
+   * tài khoản kia là trang quảng cáo trống trơn — mà không một dòng nào nói
+   * đang xem tài khoản nào, chủ shop không có cách nào đoán ra.
+   */
+  kiem("quảng cáo", "tôn trọng lựa chọn của chủ shop trước khi tự đoán",
+    /const daChon = row\.ad_account_ref\s*\n?\s*\? accounts\.find\(\(a\) => a\.id === row\.ad_account_ref\)/
+      .test(nguonQC), true);
+  kiem("quảng cáo", "gửi đủ danh sách tài khoản để giao diện cho chọn",
+    /tatCaTaiKhoan: resolved\.tatCa\.map/.test(nguonQC) &&
+      /doChuShopChon: resolved\.doChuShopChon/.test(nguonQC), true);
+  // Không kiểm thì người ta gửi lên mã bất kỳ, mọi lời gọi sau đó đều lỗi mà
+  // không rõ vì sao.
+  kiem("quảng cáo", "chỉ nhận tài khoản mà kênh này thật sự vào được",
+    /if \(!vaoDuoc\.some\(\(a\) => a\.id === ma\)\) \{/.test(nguonQC), true);
+
+  const nguonQCUI = fs.readFileSync(path.join(GOC, "src/pages/Ads.tsx"), "utf8");
+  kiem("quảng cáo", "giao diện nói rõ đang xem tài khoản nào và cho đổi",
+    /Tài khoản quảng cáo:/.test(nguonQCUI) &&
+      /doiTaiKhoanQuangCao\(e\.target\.value\)/.test(nguonQCUI), true);
+  // Hệ thống tự đoán mà có nhiều hơn một tài khoản thì phải nói ra.
+  kiem("quảng cáo", "cảnh báo khi hệ thống đang tự đoán giữa nhiều tài khoản",
+    /!doChuShopChon && tatCaTaiKhoan\.length > 1/.test(nguonQCUI), true);
+}
+
+// ---------------------------------------------------------------------------
 // 52. Khoá migration kẹt thì KHÔNG được làm app không bật được
 // ---------------------------------------------------------------------------
 {
@@ -3040,6 +3152,22 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /mà còn `\s*\+\s*`\$\{conThieu\.length\} migration chưa chạy \(\$\{conThieu\.join\(", "\)\}\)/.test(nguonMig),
     true);
   // Hỏi danh sách còn thiếu thì KHÔNG được đòi khoá, không thì lại kẹt vòng tròn.
+  /*
+   * Chữa GỐC: giao dịch mồ côi tự chết, khoá nhả theo.
+   *
+   * idle_in_transaction_session_timeout chỉ đếm lúc giao dịch NẰM KHÔNG.
+   * Migration đang chạy lệnh thì không bị đụng tới dù lâu bao nhiêu.
+   * Đã đo: chiếm khoá rồi bỏ đó — khoá tự nhả sau 16 giây, không ai can thiệp.
+   */
+  kiem("khoá migration", "giao dịch mồ côi tự chết, khoá tự nhả",
+    /SET LOCAL idle_in_transaction_session_timeout = '\$\{CHET_NEU_NAM_KHONG_MS\}ms'/.test(nguonMig),
+    true);
+  // SET LOCAL, không phải SET: SET thường sẽ dính sang những phiên khác dùng
+  // chung kết nối thật của bộ gom.
+  kiem("khoá migration", "chỉ đặt cho giao dịch này, không dính sang phiên khác",
+    /SET LOCAL idle_in_transaction/.test(nguonMig) &&
+      !/query\("SET idle_in_transaction/.test(nguonMig), true);
+
   kiem("khoá migration", "hỏi migration còn thiếu không cần khoá",
     /async function migrationConThieu\(\): Promise<string\[\]> \{[\s\S]{0,400}?pool\.query/.test(nguonMig),
     true);
