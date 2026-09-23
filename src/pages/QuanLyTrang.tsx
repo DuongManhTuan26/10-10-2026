@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { clsx } from 'clsx';
 import { api, ApiError, type TrangVanHanh } from '../lib/api';
 import { docTinhTrang, mucDoNang, NhanTinhTrang } from '../components/TinhTrangTrang';
+import MenuQuanLyTrang from '../components/MenuQuanLyTrang';
 
 /**
  * Bảng điều hành cả chuỗi, dành cho chủ chuỗi (tài khoản 'admin_con').
@@ -119,6 +120,38 @@ export default function QuanLyTrang() {
       window.location.href = '/';
     } catch (error) {
       setLoi(error instanceof ApiError ? error.message : 'Không mở được trang');
+      setBan(false);
+    }
+  };
+
+  /*
+   * Xoá trang: bắt gõ đúng tên để xác nhận.
+   *
+   * Nút xoá nằm cùng menu với khoá và đổi tên, bấm nhầm là mất sạch hộp thư,
+   * đơn hàng, khách hàng và bộ não của trang đó — không lấy lại được. Máy chủ
+   * cũng kiểm lại tên một lần nữa, đây không phải chốt chặn duy nhất.
+   */
+  const xoaTrang = async (trang: TrangVanHanh) => {
+    const go = window.prompt(
+      `Xoá hẳn trang "${trang.name}"?\n\n` +
+        'Mất toàn bộ hộp thư, đơn hàng, khách hàng và phần AI đã huấn luyện của ' +
+        'trang này. Không lấy lại được.\n\n' +
+        'Gõ đúng tên trang để xác nhận:'
+    );
+    if (go === null) return;
+
+    setBan(true);
+    try {
+      const { data } = await api.quanLy.xoaTrang(trang.id, go);
+      setLoi(
+        data.loiXoaHoSo
+          ? `Đã xoá trang, nhưng chưa dọn được hồ sơ bên nhà cung cấp. Vui lòng báo quản trị.`
+          : ''
+      );
+      await nap();
+    } catch (error) {
+      setLoi(error instanceof ApiError ? error.message : 'Không xoá được trang');
+    } finally {
       setBan(false);
     }
   };
@@ -339,17 +372,7 @@ export default function QuanLyTrang() {
                             </button>
                           </div>
                         ) : (
-                          <div className="font-bold text-on-surface flex items-center gap-2">
-                            {t.name}
-                            {/* Bấm thẳng vào tên để sửa — chỗ ai cũng thử bấm đầu tiên. */}
-                            <button
-                              onClick={() => { setDangSuaTen(t.id); setTenSua(t.name); }}
-                              title="Đổi tên trang"
-                              className="text-on-surface-variant hover:text-primary transition-colors"
-                            >
-                              <span className="material-symbols-outlined text-[16px]">edit</span>
-                            </button>
-                          </div>
+                          <div className="font-bold text-on-surface">{t.name}</div>
                         )}
 
                         <div className="text-xs text-on-surface-variant mt-1">
@@ -403,7 +426,13 @@ export default function QuanLyTrang() {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
+                      {/*
+                        Chỉ việc làm HÀNG NGÀY đứng ngoài. Bốn việc quản lý tài
+                        khoản — mỗi tháng dùng một lần — nằm sau dấu ba chấm,
+                        để mắt đọc được số liệu vận hành mà không phải lọc qua
+                        một hàng nút.
+                      */}
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => moTrang(t)}
                           disabled={ban || !t.is_active}
@@ -411,20 +440,21 @@ export default function QuanLyTrang() {
                         >
                           Mở trang
                         </button>
-                        <button
-                          onClick={() => capLaiMatKhau(t)}
-                          disabled={ban}
-                          className="px-3 py-2 rounded-lg border border-outline-variant text-sm text-on-surface-variant hover:text-on-surface disabled:opacity-40"
-                        >
-                          Cấp lại mật khẩu
-                        </button>
-                        <button
-                          onClick={() => doiKhoa(t)}
-                          disabled={ban}
-                          className="px-3 py-2 rounded-lg border border-outline-variant text-sm text-on-surface-variant hover:text-on-surface disabled:opacity-40"
-                        >
-                          {t.is_active ? 'Khoá' : 'Mở khoá'}
-                        </button>
+                        <MenuQuanLyTrang
+                          tat={ban}
+                          muc={[
+                            {
+                              ten: 'Đổi tên trang',
+                              onChon: () => { setDangSuaTen(t.id); setTenSua(t.name); },
+                            },
+                            { ten: 'Cấp lại mật khẩu', onChon: () => capLaiMatKhau(t) },
+                            {
+                              ten: t.is_active ? 'Khoá trang' : 'Mở khoá trang',
+                              onChon: () => doiKhoa(t),
+                            },
+                            { ten: 'Xoá trang', onChon: () => xoaTrang(t), nguyHiem: true },
+                          ]}
+                        />
                       </div>
                     </div>
                   </div>

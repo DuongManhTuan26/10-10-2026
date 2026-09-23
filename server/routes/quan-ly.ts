@@ -29,6 +29,7 @@ import { AppError, route } from "../http.js";
 import { DAU_NGAY_VN, DAU_THANG_VN } from "../moc-thoi-gian.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
 import { sinhMatKhauTam, taoTaiKhoanTrang } from "../services/tai-khoan.js";
+import * as zernio from "../services/zernio.js";
 import { hashPassword } from "../auth.js";
 
 export const quanLyRouter = Router();
@@ -327,6 +328,67 @@ quanLyRouter.post(
       action: "cap_lai_mat_khau_trang",
     });
     res.json({ success: true, data: { id: trang.id, matKhauTam } });
+  })
+);
+
+/**
+ * Xoá hẳn một trang.
+ *
+ * Chủ chuỗi lập nhầm một trang thì phải tự dọn được, không thì phải đi nhờ
+ * quản trị tổng — mà trang bỏ đó vẫn giữ một hồ sơ bên nhà cung cấp.
+ *
+ * Bắt gõ đúng TÊN TRANG để xác nhận. Nút xoá nằm cạnh nút khoá trong cùng một
+ * menu, bấm nhầm là mất sạch hộp thư, đơn hàng, khách hàng và bộ não của trang
+ * đó — không lấy lại được.
+ */
+quanLyRouter.delete(
+  "/trang/:id",
+  route(async (req, res) => {
+    chanNeuDangXemThay(req);
+    const trang = await trangCuaToi(req.user!.id, req.params.id);
+
+    const xacNhan = typeof req.body?.xacNhanTen === "string" ? req.body.xacNhanTen : "";
+    if (xacNhan.trim() !== trang.name.trim()) {
+      throw new AppError(
+        "Gõ đúng tên trang để xác nhận xoá. Thao tác này không lấy lại được.",
+        400
+      );
+    }
+
+    /*
+     * Lấy mã hồ sơ TRƯỚC khi xoá dòng tài khoản, vì xoá xong là mất đường tìm
+     * lại. Xoá hồ sơ SAU: xoá hồ sơ trước mà lệnh xoá tài khoản hỏng thì còn
+     * lại một tài khoản sống với hồ sơ đã chết.
+     */
+    const hoSo = await queryOne<{ profile_ref: string | null }>(
+      "SELECT profile_ref FROM users WHERE id = $1",
+      [trang.id]
+    );
+
+    await query("DELETE FROM users WHERE id = $1", [trang.id]);
+
+    let loiXoaHoSo: string | null = null;
+    if (hoSo?.profile_ref) {
+      try {
+        await zernio.xoaHoSo(hoSo.profile_ref);
+      } catch (error) {
+        // Trang đã xoá xong rồi, ném lỗi ra đây chỉ làm người dùng tưởng thất
+        // bại. Nhưng phải GHI LẠI mã hồ sơ, không thì nó nằm lại mà không ai
+        // biết để dọn — đúng cách đống hồ sơ rác cũ đã hình thành.
+        loiXoaHoSo = error instanceof Error ? error.message : String(error);
+        console.error(`[chuỗi] Chưa xoá được hồ sơ ${hoSo.profile_ref}:`, loiXoaHoSo);
+      }
+    }
+
+    await ghiNhatKyQuanTri({
+      adminId: req.user!.id,
+      targetId: null,
+      targetEmail: trang.email,
+      action: "xoa_trang",
+      detail: { ten: trang.name, hoSo: hoSo?.profile_ref ?? null, loiXoaHoSo },
+    });
+
+    res.json({ success: true, data: { loiXoaHoSo } });
   })
 );
 

@@ -1195,6 +1195,38 @@ const DUC: PhepDuc[] = [
     thay: "       FROM users WHERE id = $1`,\n    [so]",
   },
   {
+    // Chính điều chủ sản phẩm chỉ ra: việc quản lý tài khoản bày lẫn vào giữa
+    // số liệu vận hành, nhìn bừa bộn không đọc được gì.
+    ten: "bày lại nút quản lý tài khoản lẫn vào số liệu vận hành",
+    tep: "src/pages/QuanLyTrang.tsx",
+    tim: "                        <MenuQuanLyTrang",
+    thay: "                        <button>Cấp lại mật khẩu\n                        </button>\n                        <MenuQuanLyTrang",
+  },
+  {
+    ten: "menu neo cứng một phía, màn hẹp là bị cắt mất chữ",
+    tep: "src/components/MenuQuanLyTrang.tsx",
+    tim: "          if (o) setThaSangPhai(o.right - RONG_MENU >= 8);",
+    thay: "",
+  },
+  {
+    ten: "menu không đóng khi bấm ra ngoài, hai menu cùng mở",
+    tep: "src/components/MenuQuanLyTrang.tsx",
+    tim: "    document.addEventListener('mousedown', ngoai);",
+    thay: "",
+  },
+  {
+    ten: "xoá trang không cần gõ tên xác nhận",
+    tep: "server/routes/quan-ly.ts",
+    tim: "    if (xacNhan.trim() !== trang.name.trim()) {",
+    thay: "    if (false) {",
+  },
+  {
+    ten: "xoá trang để lại hồ sơ rác bên nhà cung cấp",
+    tep: "server/routes/quan-ly.ts",
+    tim: "        await zernio.xoaHoSo(hoSo.profile_ref);",
+    thay: "",
+  },
+  {
     // Chính điều chủ sản phẩm chỉ ra: màn hình quản lý chỉ là danh sách tài
     // khoản chứ không phải chỗ điều hành cả chuỗi.
     ten: "màn hình quản lý tụt lại thành danh sách tài khoản suông",

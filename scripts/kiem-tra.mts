@@ -2534,9 +2534,14 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * trang, đổi tên, khoá, cấp lại mật khẩu đều phải đang đứng ở tài khoản quản
    * lý thật — bốn đường, bốn chốt.
    */
+  /*
+   * Năm đường đổi dữ liệu: lập trang, đổi tên, khoá, cấp lại mật khẩu, xoá.
+   * Con số để cứng là CỐ Ý — thêm một đường đổi dữ liệu mà quên chốt chặn thì
+   * phép kiểm này hỏng ngay, đúng lúc cần nhắc. Đã hỏng thật khi thêm đường xoá.
+   */
   const soChotXemThay = (nguonQL.match(/chanNeuDangXemThay\(req\);/g) ?? []).length;
   kiem("phân tầng", "đang xem thay thì chỉ đi lại được, không cầm quyền",
-    soChotXemThay, 4);
+    soChotXemThay, 5);
   /*
    * Đếm chỗ GỌI thôi thì chưa đủ: đục rỗng ruột chốt chặn mà vẫn để nguyên bốn
    * lời gọi là phép kiểm trên vẫn báo đạt — đã đúng như vậy. Phải soi cả điều
@@ -2734,6 +2739,50 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const soLanDoc = (nguonManHinhQL.match(/docTinhTrang\(/g) ?? []).length;
   kiem("phân tầng", "dải cảnh báo và thẻ từng trang đọc cùng một chỗ",
     soLanDoc, 2);
+
+  /*
+   * Việc VẬN HÀNH và việc QUẢN LÝ TÀI KHOẢN phải tách ra.
+   *
+   * Chủ sản phẩm chỉ ra: bày đổi tên / mật khẩu / khoá / xoá ngay cạnh số liệu
+   * thì mắt phải lọc qua một hàng nút mới đọc được tình trạng trang — mà bốn
+   * việc ấy mỗi tháng dùng một lần, còn số liệu thì nhìn mỗi ngày.
+   *
+   * Nay chỉ "Mở trang" đứng ngoài, bốn việc kia nằm sau một nút.
+   */
+  const nguonMenuQL = fs.readFileSync(
+    path.join(GOC, "src/components/MenuQuanLyTrang.tsx"), "utf8"
+  );
+  kiem("phân tầng", "việc quản lý tài khoản gom vào một nút, không bày ra cạnh số liệu",
+    /<MenuQuanLyTrang/.test(nguonManHinhQL) &&
+      !/Cấp lại mật khẩu\s*\n\s*<\/button>/.test(nguonManHinhQL), true);
+
+  /*
+   * Chọn phía thả menu bằng cách ĐO lúc mở, không bằng breakpoint.
+   *
+   * Đã thử bằng breakpoint và sai: vấn đề không phải bề rộng màn hình mà là vị
+   * trí của nút trên màn. Cụm nút xuống dòng về sát mép trái thì dù màn rộng
+   * bao nhiêu, menu neo bên phải vẫn tràn ra ngoài và bị cắt mất chữ.
+   * Đã đo lại sau khi sửa, ở 702px và 1600px, cả ba trang: không cái nào bị cắt.
+   */
+  kiem("phân tầng", "menu tự chọn phía để không bị cắt mất chữ",
+    /getBoundingClientRect\(\)/.test(nguonMenuQL) &&
+      /setThaSangPhai\(o\.right - RONG_MENU >= 8\)/.test(nguonMenuQL), true);
+
+  // Mở menu trang này rồi bấm sang trang khác mà hai menu cùng mở thì không
+  // biết đang thao tác lên trang nào — nhầm nguy hiểm nhất ở màn nhiều trang.
+  kiem("phân tầng", "bấm ra ngoài hoặc Escape là đóng menu",
+    /document\.addEventListener\("mousedown", ngoai\)|document\.addEventListener\('mousedown', ngoai\)/.test(nguonMenuQL) &&
+      /e\.key === 'Escape'/.test(nguonMenuQL), true);
+
+  /*
+   * Xoá trang là việc không lấy lại được: mất sạch hộp thư, đơn hàng, khách
+   * hàng và bộ não. Bắt gõ đúng TÊN TRANG, và dọn luôn hồ sơ bên nhà cung cấp
+   * — để lại là rác nằm vĩnh viễn, đúng cách đống hồ sơ rác cũ hình thành.
+   */
+  kiem("phân tầng", "xoá trang bắt gõ đúng tên để xác nhận",
+    /if \(xacNhan\.trim\(\) !== trang\.name\.trim\(\)\) \{/.test(nguonQL), true);
+  kiem("phân tầng", "xoá trang dọn luôn hồ sơ bên nhà cung cấp",
+    /"\/trang\/:id"[\s\S]{0,1600}?await zernio\.xoaHoSo\(hoSo\.profile_ref\);/.test(nguonQL), true);
 
   // Dải băng cũng là chỗ nối hai phần lại: danh sách trang anh em nằm ngay đó.
   kiem("phân tầng", "đang xem thay vẫn nhảy thẳng sang trang khác được",

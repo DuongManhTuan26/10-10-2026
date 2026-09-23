@@ -993,6 +993,12 @@ export const api = {
       post<{ data: { id: number; is_active: boolean } }>(`/quan-ly/trang/${id}/khoa`, { khoa }),
     capLaiMatKhau: (id: number) =>
       post<{ data: { id: number; matKhauTam: string } }>(`/quan-ly/trang/${id}/mat-khau`),
+    /** Xoá hẳn một trang. Phải gõ đúng tên trang để xác nhận. */
+    xoaTrang: (id: number, xacNhanTen: string) =>
+      request<{ data: { loiXoaHoSo: string | null } }>(`/quan-ly/trang/${id}`, {
+        method: 'DELETE',
+        body: { xacNhanTen },
+      }),
     moTrang: (id: number) =>
       post<{ data: { id: number; name: string } }>(`/quan-ly/trang/${id}/mo`),
     quayLai: () => post<{ data: { id: number; name: string } }>("/quan-ly/quay-lai"),
