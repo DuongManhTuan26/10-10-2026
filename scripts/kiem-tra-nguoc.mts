@@ -1195,6 +1195,67 @@ const DUC: PhepDuc[] = [
     thay: "       FROM users WHERE id = $1`,\n    [so]",
   },
   {
+    ten: "hiện tên Fanpage cả khi kênh đã đứt, chọi với chính cảnh báo bên cạnh",
+    tep: "server/routes/quan-ly.ts",
+    tim: "                WHERE s.user_id = u.id AND s.platform = 'facebook' AND s.connected\n                ORDER BY s.created_at LIMIT 1) AS ten_fanpage,",
+    thay: "                WHERE s.user_id = u.id AND s.platform = 'facebook'\n                ORDER BY s.created_at LIMIT 1) AS ten_fanpage,",
+  },
+  {
+    // Chính điều chủ sản phẩm hỏi: không vào trang con vẫn xem được báo cáo chứ?
+    ten: "phải vào trong trang con mới xem được báo cáo",
+    tep: "src/pages/QuanLyTrang.tsx",
+    tim: "                      <BaoCaoTrangCon trangId={t.id} onDong={() => setMoBaoCao(null)} />",
+    thay: "                      <div />",
+  },
+  {
+    ten: "báo cáo bỏ kỳ trước, không biết tăng hay giảm",
+    tep: "server/routes/quan-ly.ts",
+    tim: "    const truoc = await queryOne<Record<string, string>>(",
+    thay: "    const truoc = await Promise.resolve(null as never) ?? await queryOne<Record<string, string>>(",
+  },
+  {
+    ten: "không có kỳ trước vẫn bịa phần trăm tăng giảm",
+    tep: "src/components/BaoCaoTrangCon.tsx",
+    tim: "  if (!b) return null;",
+    thay: "  if (!b) return 100;",
+  },
+  {
+    ten: "đổi tên đăng nhập cho đổi cả đuôi, ra được tên giống email thật",
+    tep: "server/routes/quan-ly.ts",
+    tim: "    const moi = `${goc}@${TEN_MIEN_NOI_BO}`;",
+    thay: "    const moi = String(req.body?.ten ?? '');",
+  },
+  {
+    /*
+     * Neo vào chú thích ngay trên, vì câu xoá phiên giống hệt nhau ở nhiều
+     * route. Phép đục cũ chỉ sửa câu UPDATE mà để nguyên câu xoá phiên — đục
+     * mà không thủng đúng thứ định thử.
+     */
+    ten: "đổi tên đăng nhập mà để phiên cũ sống tiếp",
+    tep: "server/routes/quan-ly.ts",
+    tim: "     * tưởng đã đổi xong.\n     */\n    await query(\"DELETE FROM sessions WHERE user_id = $1\", [trang.id]);",
+    thay: "     * tưởng đã đổi xong.\n     */",
+  },
+  {
+    ten: "chủ chuỗi không tự đặt được mật khẩu, luôn bị ép chuỗi ngẫu nhiên",
+    tep: "server/routes/quan-ly.ts",
+    tim: "    const matKhauTam = tuDat || sinhMatKhauTam();",
+    thay: "    const matKhauTam = sinhMatKhauTam();",
+  },
+  {
+    // Đúng cảnh đã làm chết máy chủ: khoá bị kết nối mồ côi giữ.
+    ten: "khoá migration kẹt là app không bật được nữa",
+    tep: "server/migrate.ts",
+    tim: "  const conThieu = await migrationConThieu();\n  if (conThieu.length === 0) {",
+    thay: "  const conThieu: string[] = [];\n  if (false) {",
+  },
+  {
+    ten: "bỏ qua cả migration còn thiếu, chạy với lược đồ cũ",
+    tep: "server/migrate.ts",
+    tim: "  if (conThieu.length === 0) {",
+    thay: "  if (true) {",
+  },
+  {
     // Chính điều chủ sản phẩm chỉ ra: việc quản lý tài khoản bày lẫn vào giữa
     // số liệu vận hành, nhìn bừa bộn không đọc được gì.
     ten: "bày lại nút quản lý tài khoản lẫn vào số liệu vận hành",

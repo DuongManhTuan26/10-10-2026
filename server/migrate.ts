@@ -72,9 +72,19 @@ const KHOA_MIGRATION = 776_155_001;
  * Đổi sang kết nối riêng cũng không cứu được, vì gốc rễ là pgbouncer chứ
  * không phải chỗ lấy kết nối.
  *
- * KHOÁ CẤP GIAO DỊCH thì an toàn sau pgbouncer: bộ gom bảo đảm một giao dịch
- * luôn nằm trọn trên một kết nối thật, và khoá tự nhả khi giao dịch kết thúc —
- * kể cả khi tiến trình chết giữa chừng. Không có đường nào rò.
+ * KHOÁ CẤP GIAO DỊCH an toàn hơn hẳn sau pgbouncer: bộ gom bảo đảm một giao
+ * dịch luôn nằm trọn trên một kết nối thật, và khoá nhả khi giao dịch kết thúc.
+ *
+ * NHƯNG KHÔNG PHẢI "không có đường nào rò" — chỗ này tôi từng viết như vậy và
+ * đã ĐO ĐƯỢC ĐIỀU NGƯỢC LẠI. Tiến trình bị giết cứng (tsx watch khởi động lại
+ * và phải "Force killing" sau 5 giây) để lại một kết nối mồ côi bên pgbouncer
+ * vẫn giữ khoá:
+ *
+ *   pid=1093  application_name=pgbouncer  state=idle  granted=true
+ *
+ * Mọi lần khởi động sau đó chờ đủ 60 lần rồi CHẾT HẲN, không lên được. Phải
+ * vào tận database ngắt kết nối đó mới chạy lại được. Trên nền tảng hay khởi
+ * động lại container thì đây là lỗi làm app không bật được.
  *
  * Đổi lại, cả lượt migration phải nằm trong MỘT giao dịch. Điều đó còn chặt
  * hơn bản cũ: một migration hỏng thì cả lượt quay về nguyên trạng, không để
@@ -130,10 +140,52 @@ export async function runMigrations(): Promise<void> {
     }
   }
 
+  /*
+   * Hết lượt thử: HỎI XEM CÓ GÌ PHẢI CHẠY KHÔNG rồi mới quyết định chết.
+   *
+   * Không lấy được khoá KHÔNG có nghĩa là lược đồ chưa cập nhật. Hai trường
+   * hợp rất khác nhau bị gộp làm một ở bản trước:
+   *   - tiến trình khác đang chạy migration thật  → chờ là đúng
+   *   - khoá bị một kết nối mồ côi giữ (đo được)  → chờ bao lâu cũng vô ích,
+   *     mà lược đồ thì đã ở bản mới nhất từ lâu
+   *
+   * Bản trước chết cả trong trường hợp thứ hai, nên app không bật được cho tới
+   * khi có người vào database ngắt kết nối mồ côi. Nay chỉ chết khi THẬT SỰ
+   * còn migration chưa chạy — không có đường nào bỏ sót một migration cần
+   * chạy, vì chính danh sách còn thiếu là thứ quyết định.
+   */
+  const conThieu = await migrationConThieu();
+  if (conThieu.length === 0) {
+    console.warn(
+      "[migrate] Không lấy được khoá migration, nhưng lược đồ đã ở bản mới nhất " +
+        "— nhiều khả năng khoá đang bị một kết nối mồ côi giữ. Bỏ qua và chạy tiếp."
+    );
+    return;
+  }
+
   throw new Error(
-    `Không lấy được khoá migration sau ${SO_LAN_THU} lần thử — ` +
-      "có tiến trình khác đang chạy migration quá lâu."
+    `Không lấy được khoá migration sau ${SO_LAN_THU} lần thử, mà còn ` +
+      `${conThieu.length} migration chưa chạy (${conThieu.join(", ")}).`
   );
+}
+
+/**
+ * Những migration chưa chạy. Đọc thôi, KHÔNG cần khoá.
+ *
+ * Dùng để phân biệt "chưa lấy được khoá nhưng chẳng có gì phải chạy" với
+ * "chưa lấy được khoá mà vẫn còn việc" — hai chuyện khác hẳn nhau.
+ */
+async function migrationConThieu(): Promise<string[]> {
+  try {
+    const { rows } = await pool.query<{ name: string }>(
+      "SELECT name FROM schema_migrations"
+    );
+    const daChay = new Set(rows.map((r) => r.name));
+    return listMigrationFiles().filter((f) => !daChay.has(f));
+  } catch {
+    // Chưa có bảng schema_migrations nghĩa là chưa chạy migration nào cả.
+    return listMigrationFiles();
+  }
 }
 
 async function chayMigrationDaKhoa(client: pg.PoolClient): Promise<void> {

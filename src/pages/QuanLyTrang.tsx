@@ -3,6 +3,7 @@ import { clsx } from 'clsx';
 import { api, ApiError, type TrangVanHanh } from '../lib/api';
 import { docTinhTrang, mucDoNang, NhanTinhTrang } from '../components/TinhTrangTrang';
 import MenuQuanLyTrang from '../components/MenuQuanLyTrang';
+import BaoCaoTrangCon from '../components/BaoCaoTrangCon';
 
 /**
  * Bảng điều hành cả chuỗi, dành cho chủ chuỗi (tài khoản 'admin_con').
@@ -62,6 +63,8 @@ export default function QuanLyTrang() {
 
   const [dangSuaTen, setDangSuaTen] = useState<number | null>(null);
   const [tenSua, setTenSua] = useState('');
+  /** Trang đang mở báo cáo chi tiết ngay tại đây, không phải vào trong trang. */
+  const [moBaoCao, setMoBaoCao] = useState<number | null>(null);
 
   const nap = useCallback(async () => {
     setDangTai(true);
@@ -168,10 +171,53 @@ export default function QuanLyTrang() {
     }
   };
 
-  const capLaiMatKhau = async (trang: TrangVanHanh) => {
+  /**
+   * Đổi tên đăng nhập của một trang.
+   *
+   * Tên đăng nhập sinh từ tên trang lúc lập, nên đổi tên trang về sau là hai
+   * cái lệch nhau — trang tên "abc" mà đăng nhập bằng "botsanday-a805". Chỉ
+   * đổi phần trước dấu @, đuôi giữ nguyên vì đó là vùng dành riêng.
+   */
+  const doiTenDangNhap = async (trang: TrangVanHanh) => {
+    const cu = trang.email.split('@')[0];
+    const go = window.prompt(
+      `Đổi tên đăng nhập của trang "${trang.name}".\n\n` +
+        'Chỉ đổi phần trước dấu @. Chữ không dấu, số và dấu gạch ngang.\n' +
+        'Mọi phiên đang đăng nhập của trang này sẽ bị đăng xuất.',
+      cu
+    );
+    if (go === null) return;
+
     setBan(true);
     try {
-      const { data } = await api.quanLy.capLaiMatKhau(trang.id);
+      const { data } = await api.quanLy.doiTenDangNhap(trang.id, go);
+      setLoi('');
+      window.alert(`Tên đăng nhập mới: ${data.tenDangNhap}`);
+      await nap();
+    } catch (error) {
+      setLoi(error instanceof ApiError ? error.message : 'Không đổi được tên đăng nhập');
+    } finally {
+      setBan(false);
+    }
+  };
+
+  /**
+   * Cấp lại mật khẩu. Chủ chuỗi tự đặt được, bỏ trống thì hệ thống sinh ngẫu
+   * nhiên — chuỗi ngẫu nhiên thì người trông trang phải chép tay từng ký tự.
+   */
+  const capLaiMatKhau = async (trang: TrangVanHanh) => {
+    const go = window.prompt(
+      `Đặt mật khẩu mới cho trang "${trang.name}".\n\n` +
+        'Ít nhất 8 ký tự. Để trống rồi bấm OK thì hệ thống tự sinh một mật khẩu.\n' +
+        'Mọi phiên đang đăng nhập của trang này sẽ bị đăng xuất.',
+      ''
+    );
+    if (go === null) return;
+
+    setBan(true);
+    try {
+      const { data } = await api.quanLy.capLaiMatKhau(trang.id, go.trim() || undefined);
+      setLoi('');
       setVuaLap({ name: trang.name, tenDangNhap: trang.email, matKhauTam: data.matKhauTam });
     } catch (error) {
       setLoi(error instanceof ApiError ? error.message : 'Không cấp lại được mật khẩu');
@@ -433,6 +479,18 @@ export default function QuanLyTrang() {
                         một hàng nút.
                       */}
                       <div className="flex items-center gap-2">
+                        {/*
+                          Xem báo cáo mở NGAY TẠI ĐÂY, không phải vào trong
+                          trang. Mở trang chỉ cần khi muốn làm việc thật: trả
+                          lời khách, sửa vai trò AI, nối Fanpage.
+                        */}
+                        <button
+                          onClick={() => setMoBaoCao((m) => (m === t.id ? null : t.id))}
+                          disabled={ban}
+                          className="px-3 py-2 rounded-lg border border-outline-variant text-sm font-bold text-on-surface-variant hover:text-on-surface hover:border-primary disabled:opacity-40"
+                        >
+                          {moBaoCao === t.id ? 'Thu gọn' : 'Xem báo cáo'}
+                        </button>
                         <button
                           onClick={() => moTrang(t)}
                           disabled={ban || !t.is_active}
@@ -447,7 +505,8 @@ export default function QuanLyTrang() {
                               ten: 'Đổi tên trang',
                               onChon: () => { setDangSuaTen(t.id); setTenSua(t.name); },
                             },
-                            { ten: 'Cấp lại mật khẩu', onChon: () => capLaiMatKhau(t) },
+                            { ten: 'Đổi tên đăng nhập', onChon: () => doiTenDangNhap(t) },
+                            { ten: 'Đặt lại mật khẩu', onChon: () => capLaiMatKhau(t) },
                             {
                               ten: t.is_active ? 'Khoá trang' : 'Mở khoá trang',
                               onChon: () => doiKhoa(t),
@@ -457,6 +516,10 @@ export default function QuanLyTrang() {
                         />
                       </div>
                     </div>
+
+                    {moBaoCao === t.id && (
+                      <BaoCaoTrangCon trangId={t.id} onDong={() => setMoBaoCao(null)} />
+                    )}
                   </div>
                 );
               })}

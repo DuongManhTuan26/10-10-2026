@@ -2535,13 +2535,14 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * lý thật — bốn đường, bốn chốt.
    */
   /*
-   * Năm đường đổi dữ liệu: lập trang, đổi tên, khoá, cấp lại mật khẩu, xoá.
+   * Sáu đường đổi dữ liệu: lập trang, đổi tên, đổi tên đăng nhập, khoá, đặt
+   * lại mật khẩu, xoá.
    * Con số để cứng là CỐ Ý — thêm một đường đổi dữ liệu mà quên chốt chặn thì
    * phép kiểm này hỏng ngay, đúng lúc cần nhắc. Đã hỏng thật khi thêm đường xoá.
    */
   const soChotXemThay = (nguonQL.match(/chanNeuDangXemThay\(req\);/g) ?? []).length;
   kiem("phân tầng", "đang xem thay thì chỉ đi lại được, không cầm quyền",
-    soChotXemThay, 5);
+    soChotXemThay, 6);
   /*
    * Đếm chỗ GỌI thôi thì chưa đủ: đục rỗng ruột chốt chặn mà vẫn để nguyên bốn
    * lời gọi là phép kiểm trên vẫn báo đạt — đã đúng như vậy. Phải soi cả điều
@@ -2784,6 +2785,69 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("phân tầng", "xoá trang dọn luôn hồ sơ bên nhà cung cấp",
     /"\/trang\/:id"[\s\S]{0,1600}?await zernio\.xoaHoSo\(hoSo\.profile_ref\);/.test(nguonQL), true);
 
+  /*
+   * Báo cáo chi tiết xem được TỪ tài khoản quản lý, không phải vào trong trang.
+   *
+   * Chủ sản phẩm hỏi thẳng và câu trả lời lúc đó là CHƯA: bảng điều hành mới
+   * có số đếm tổng, muốn xem kỹ phải bấm Mở trang, tức là rời khỏi tài khoản
+   * quản lý rồi lại phải quay ra.
+   */
+  const khuBaoCao = /"\/trang\/:id\/bao-cao"[\s\S]*?res\.json/.exec(nguonQL)?.[0] ?? "";
+  const canCoTrongBaoCao = [
+    "doanh_thu", "don", "don_ai_chot", "hoi_thoai", "nhuong_nguoi",
+    "tin_ai", "khach_moi", "khach_co_sdt",
+  ];
+  kiem("phân tầng", "xem được báo cáo chi tiết từng trang mà không phải vào trong",
+    canCoTrongBaoCao.filter((c) => !khuBaoCao.includes(c)), []);
+  /*
+   * Có đầu đo thôi chưa đủ — màn hình phải THẬT SỰ vẽ bảng báo cáo ra. Phép
+   * kiểm đầu chỉ soi máy chủ, nên gỡ hẳn bảng khỏi màn hình mà nó vẫn báo đạt.
+   */
+  /*
+   * Tên Fanpage chỉ hiện khi kênh CÒN NỐI. Không lọc thì thẻ trang hiện
+   * "Fanpage: X" ngay cạnh cảnh báo "Chưa nối Fanpage nào" — hai câu chọi nhau
+   * trên cùng một thẻ, đã nhìn thấy đúng như vậy trên màn hình thật.
+   */
+  const soLocFanpage = (nguonQL.match(
+    /WHERE s\.user_id = u\.id AND s\.platform = 'facebook' AND s\.connected/g
+  ) ?? []).length;
+  kiem("phân tầng", "chỉ hiện tên Fanpage khi kênh còn nối", soLocFanpage, 2);
+
+  kiem("phân tầng", "màn hình quản lý có vẽ bảng báo cáo chi tiết",
+    /<BaoCaoTrangCon trangId=\{t\.id\}/.test(nguonManHinhQL) &&
+      /Xem báo cáo/.test(nguonManHinhQL), true);
+  // Kỳ trước để biết tăng hay giảm, không gắn cứng phần trăm nào.
+  kiem("phân tầng", "báo cáo có kỳ trước để so tăng giảm",
+    /const truoc = await queryOne/.test(khuBaoCao) &&
+      /interval \* 2/.test(khuBaoCao), true);
+  // Đơn gần đây và khách đang chờ — thứ người điều hành cần nhìn tận mắt.
+  kiem("phân tầng", "báo cáo kèm đơn gần đây và khách đang chờ người",
+    /donGanDay/.test(khuBaoCao) && /canGap/.test(khuBaoCao), true);
+  const nguonBaoCaoUI = fs.readFileSync(
+    path.join(GOC, "src/components/BaoCaoTrangCon.tsx"), "utf8"
+  );
+  // Kỳ trước bằng 0 thì không có gốc để so; hiện +100% là gây hiểu nhầm.
+  kiem("phân tầng", "không có kỳ trước thì ẩn phần trăm, không bịa",
+    /if \(!b\) return null;/.test(nguonBaoCaoUI), true);
+
+  /*
+   * Tên đăng nhập sinh từ tên trang lúc lập, nên đổi tên trang về sau là hai
+   * cái lệch nhau — trang tên "abc" mà đăng nhập bằng "botsanday-a805". Phải
+   * sửa được, nhưng chỉ phần trước dấu @: đuôi là vùng dành riêng cho tài
+   * khoản trang, cho đổi tự do là mở đường tạo tài khoản trông như email thật.
+   */
+  kiem("phân tầng", "đổi được tên đăng nhập, đuôi nội bộ giữ nguyên",
+    /const moi = `\$\{goc\}@\$\{TEN_MIEN_NOI_BO\}`;/.test(nguonQL) &&
+      /Tên đăng nhập này đã có trang khác dùng rồi/.test(nguonQL), true);
+  // Đổi tên đăng nhập mà giữ phiên cũ thì người kia vẫn dùng tiếp như thường.
+  kiem("phân tầng", "đổi tên đăng nhập thì cắt phiên cũ",
+    /UPDATE users SET email = \$1[\s\S]{0,300}?DELETE FROM sessions WHERE user_id = \$1/.test(nguonQL),
+    true);
+  // Chuỗi ngẫu nhiên thì người trông trang phải chép tay từng ký tự.
+  kiem("phân tầng", "chủ chuỗi tự đặt được mật khẩu, không bắt dùng chuỗi ngẫu nhiên",
+    /const matKhauTam = tuDat \|\| sinhMatKhauTam\(\);/.test(nguonQL) &&
+      /Mật khẩu phải có ít nhất 8 ký tự/.test(nguonQL), true);
+
   // Dải băng cũng là chỗ nối hai phần lại: danh sách trang anh em nằm ngay đó.
   kiem("phân tầng", "đang xem thay vẫn nhảy thẳng sang trang khác được",
     /Sang trang khác \(\{trangKhac\.length\}\)/.test(nguonBangXem) &&
@@ -2948,6 +3012,37 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
       /const group2 = laChuChuoi\s*\n\s*\? \[\]/.test(nguonMenu), true);
   kiem("phân tầng", "chủ chuỗi không thấy bộ chọn Fanpage luôn rỗng",
     /\{!laChuChuoi && \(\s*\n\s*<div className="shrink-0 relative"/.test(nguonMenu), true);
+}
+
+// ---------------------------------------------------------------------------
+// 52. Khoá migration kẹt thì KHÔNG được làm app không bật được
+// ---------------------------------------------------------------------------
+{
+  const nguonMig = fs.readFileSync(path.join(GOC, "server/migrate.ts"), "utf8");
+  /*
+   * Đã đo thật: tiến trình bị giết cứng để lại một kết nối mồ côi bên pgbouncer
+   * vẫn giữ khoá —
+   *   pid=1093  application_name=pgbouncer  state=idle  granted=true
+   * Mọi lần khởi động sau đó chờ đủ 60 lần rồi CHẾT HẲN. Phải vào tận database
+   * ngắt kết nối đó mới chạy lại được.
+   *
+   * Không lấy được khoá KHÔNG có nghĩa là lược đồ chưa cập nhật. Phải hỏi xem
+   * có gì thật sự phải chạy không rồi mới quyết định chết.
+   *
+   * Đã đo lại sau khi sửa, chiếm khoá bằng một kết nối riêng:
+   *   lược đồ đã mới nhất  → khởi động được sau 68 giây
+   *   còn 1 migration thiếu → vẫn chết, kèm tên migration còn thiếu
+   */
+  kiem("khoá migration", "khoá kẹt mà không còn gì phải chạy thì vẫn khởi động được",
+    /const conThieu = await migrationConThieu\(\);\s*\n\s*if \(conThieu\.length === 0\) \{/.test(nguonMig),
+    true);
+  kiem("khoá migration", "còn migration chưa chạy thì vẫn phải chết, kèm tên",
+    /mà còn `\s*\+\s*`\$\{conThieu\.length\} migration chưa chạy \(\$\{conThieu\.join\(", "\)\}\)/.test(nguonMig),
+    true);
+  // Hỏi danh sách còn thiếu thì KHÔNG được đòi khoá, không thì lại kẹt vòng tròn.
+  kiem("khoá migration", "hỏi migration còn thiếu không cần khoá",
+    /async function migrationConThieu\(\): Promise<string\[\]> \{[\s\S]{0,400}?pool\.query/.test(nguonMig),
+    true);
 }
 
 // ---------------------------------------------------------------------------

@@ -28,7 +28,12 @@ import { query, queryOne } from "../db.js";
 import { AppError, route } from "../http.js";
 import { DAU_NGAY_VN, DAU_THANG_VN } from "../moc-thoi-gian.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
-import { sinhMatKhauTam, taoTaiKhoanTrang } from "../services/tai-khoan.js";
+import {
+  rutGonTen,
+  sinhMatKhauTam,
+  taoTaiKhoanTrang,
+  TEN_MIEN_NOI_BO,
+} from "../services/tai-khoan.js";
 import * as zernio from "../services/zernio.js";
 import { hashPassword } from "../auth.js";
 
@@ -141,8 +146,15 @@ quanLyRouter.get(
                   AND o.status <> 'cancelled') AS doanh_thu_thang,
               (SELECT count(*)::int FROM conversations c
                 WHERE c.user_id = u.id AND c.status = 'waiting_human') AS cho_nguoi,
+              /*
+               * CHỈ lấy Fanpage đang còn nối.
+               *
+               * Không lọc theo connected thì thẻ trang hiện "Fanpage: X" ngay
+               * cạnh cảnh báo "Chưa nối Fanpage nào" — hai câu chọi nhau trên
+               * cùng một thẻ, đã nhìn thấy đúng như vậy trên màn hình thật.
+               */
               (SELECT s.display_name FROM social_accounts s
-                WHERE s.user_id = u.id AND s.platform = 'facebook'
+                WHERE s.user_id = u.id AND s.platform = 'facebook' AND s.connected
                 ORDER BY s.created_at LIMIT 1) AS ten_fanpage
          FROM users u
         WHERE u.parent_id = $1
@@ -182,8 +194,15 @@ quanLyRouter.get(
                 WHERE s.user_id = u.id AND s.connected) AS kenh_noi,
               (SELECT count(*)::int FROM social_accounts s
                 WHERE s.user_id = u.id AND s.needs_reconnection) AS kenh_can_noi_lai,
+              /*
+               * CHỈ lấy Fanpage đang còn nối.
+               *
+               * Không lọc theo connected thì thẻ trang hiện "Fanpage: X" ngay
+               * cạnh cảnh báo "Chưa nối Fanpage nào" — hai câu chọi nhau trên
+               * cùng một thẻ, đã nhìn thấy đúng như vậy trên màn hình thật.
+               */
               (SELECT s.display_name FROM social_accounts s
-                WHERE s.user_id = u.id AND s.platform = 'facebook'
+                WHERE s.user_id = u.id AND s.platform = 'facebook' AND s.connected
                 ORDER BY s.created_at LIMIT 1) AS ten_fanpage,
 
               /* --- Bộ não: AI đã được dạy chưa, hay vẫn trống --- */
@@ -306,13 +325,78 @@ quanLyRouter.post(
   })
 );
 
+/**
+ * Đổi TÊN ĐĂNG NHẬP của một trang.
+ *
+ * Tên đăng nhập sinh ra từ tên trang lúc lập. Đổi tên trang về sau thì tên
+ * đăng nhập vẫn giữ nguyên chữ cũ — trang tên "abc" mà đăng nhập bằng
+ * "botsanday-a805@noi-bo.local", chủ chuỗi nhìn vào không khớp được cái nào
+ * với cái nào. Vì vậy phải sửa được.
+ *
+ * Chỉ đổi phần trước dấu @, đuôi giữ nguyên .noi-bo.local: đuôi đó là vùng
+ * dành riêng cho tài khoản trang, cho đổi tự do là mở đường tạo một tài khoản
+ * trông như email thật của người khác.
+ */
+quanLyRouter.patch(
+  "/trang/:id/ten-dang-nhap",
+  route(async (req, res) => {
+    chanNeuDangXemThay(req);
+    const trang = await trangCuaToi(req.user!.id, req.params.id);
+
+    const goc = rutGonTen(typeof req.body?.ten === "string" ? req.body.ten : "");
+    if (goc.length < 3) {
+      throw new AppError(
+        "Tên đăng nhập phải có ít nhất 3 ký tự, chỉ gồm chữ không dấu, số và dấu gạch ngang"
+      );
+    }
+    const moi = `${goc}@${TEN_MIEN_NOI_BO}`;
+
+    if (moi === trang.email.toLowerCase()) {
+      res.json({ success: true, data: { id: trang.id, tenDangNhap: moi } });
+      return;
+    }
+
+    const trung = await queryOne("SELECT id FROM users WHERE lower(email) = $1", [moi]);
+    if (trung) throw new AppError("Tên đăng nhập này đã có trang khác dùng rồi", 409);
+
+    await query("UPDATE users SET email = $1, updated_at = now() WHERE id = $2", [moi, trang.id]);
+    /*
+     * Đổi tên đăng nhập thì mọi phiên cũ phải chết: người đang đăng nhập bằng
+     * tên cũ vẫn dùng tiếp được cho tới khi phiên hết hạn, còn chủ chuỗi thì
+     * tưởng đã đổi xong.
+     */
+    await query("DELETE FROM sessions WHERE user_id = $1", [trang.id]);
+
+    await ghiNhatKyQuanTri({
+      adminId: req.user!.id,
+      targetId: trang.id,
+      targetEmail: moi,
+      action: "doi_ten_dang_nhap_trang",
+      detail: { truoc: trang.email, sau: moi },
+    });
+    res.json({ success: true, data: { id: trang.id, tenDangNhap: moi } });
+  })
+);
+
 /** Cấp lại mật khẩu cho một trang. */
 quanLyRouter.post(
   "/trang/:id/mat-khau",
   route(async (req, res) => {
     chanNeuDangXemThay(req);
     const trang = await trangCuaToi(req.user!.id, req.params.id);
-    const matKhauTam = sinhMatKhauTam();
+
+    /*
+     * Chủ chuỗi tự đặt mật khẩu được, không bắt phải dùng chuỗi ngẫu nhiên.
+     *
+     * Chuỗi sinh ra kiểu "UCVhzaLEnybEZ9Pn" thì người trông trang phải chép
+     * tay từng ký tự, và mất là phải xin lại. Không gửi gì lên thì vẫn sinh
+     * ngẫu nhiên như cũ.
+     */
+    const tuDat = typeof req.body?.matKhau === "string" ? req.body.matKhau : "";
+    if (tuDat && tuDat.length < 8) {
+      throw new AppError("Mật khẩu phải có ít nhất 8 ký tự");
+    }
+    const matKhauTam = tuDat || sinhMatKhauTam();
 
     await query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2", [
       await hashPassword(matKhauTam),
@@ -328,6 +412,104 @@ quanLyRouter.post(
       action: "cap_lai_mat_khau_trang",
     });
     res.json({ success: true, data: { id: trang.id, matKhauTam } });
+  })
+);
+
+/**
+ * Báo cáo chi tiết của MỘT trang, xem từ tài khoản quản lý.
+ *
+ * Chủ sản phẩm hỏi thẳng: không truy cập vào trang con vẫn xem được số liệu,
+ * thống kê, báo cáo chứ? Trước đó là CHƯA — bảng điều hành mới có số đếm tổng,
+ * muốn xem kỹ phải bấm Mở trang, tức là rời khỏi tài khoản quản lý.
+ *
+ * Nay xem ngay tại chỗ. Trả về đúng những con số mà chính trang đó nhìn thấy
+ * ở bảng điều khiển và trang thống kê của nó — CÙNG cách tính, chỉ khác là
+ * đọc từ ngoài vào và chỉ đọc, không sửa được gì.
+ *
+ * Kỳ trước tính để biết tăng hay giảm, không gắn cứng phần trăm nào.
+ */
+quanLyRouter.get(
+  "/trang/:id/bao-cao",
+  route(async (req, res) => {
+    const trang = await trangCuaToi(nguoiQuanLy(req)!, req.params.id);
+    const ngay = [7, 30, 90].includes(Number(req.query.ngay)) ? Number(req.query.ngay) : 7;
+
+    const so = await queryOne<Record<string, string>>(
+      `SELECT
+         (SELECT COALESCE(SUM(total), 0) FROM orders
+           WHERE user_id = $1 AND status <> 'cancelled'
+             AND created_at >= now() - ($2 || ' days')::interval)        AS doanh_thu,
+         (SELECT count(*) FROM orders
+           WHERE user_id = $1
+             AND created_at >= now() - ($2 || ' days')::interval)        AS don,
+         (SELECT count(*) FROM orders
+           WHERE user_id = $1 AND closed_by = 'ai'
+             AND created_at >= now() - ($2 || ' days')::interval)        AS don_ai_chot,
+         (SELECT count(*) FROM conversations
+           WHERE user_id = $1
+             AND created_at >= now() - ($2 || ' days')::interval)        AS hoi_thoai,
+         (SELECT count(*) FROM conversations
+           WHERE user_id = $1 AND handoff_at IS NOT NULL
+             AND handoff_at >= now() - ($2 || ' days')::interval)        AS nhuong_nguoi,
+         (SELECT count(*) FROM messages
+           WHERE user_id = $1 AND sender_type = 'ai'
+             AND created_at >= now() - ($2 || ' days')::interval)        AS tin_ai,
+         (SELECT count(*) FROM customers
+           WHERE user_id = $1
+             AND first_seen_at >= now() - ($2 || ' days')::interval)     AS khach_moi,
+         (SELECT count(*) FROM customers
+           WHERE user_id = $1 AND phone IS NOT NULL
+             AND first_seen_at >= now() - ($2 || ' days')::interval)     AS khach_co_sdt`,
+      [trang.id, String(ngay)]
+    );
+
+    const truoc = await queryOne<Record<string, string>>(
+      `SELECT
+         (SELECT COALESCE(SUM(total), 0) FROM orders
+           WHERE user_id = $1 AND status <> 'cancelled'
+             AND created_at >= now() - ($2 || ' days')::interval * 2
+             AND created_at <  now() - ($2 || ' days')::interval)        AS doanh_thu,
+         (SELECT count(*) FROM orders
+           WHERE user_id = $1
+             AND created_at >= now() - ($2 || ' days')::interval * 2
+             AND created_at <  now() - ($2 || ' days')::interval)        AS don,
+         (SELECT count(*) FROM conversations
+           WHERE user_id = $1
+             AND created_at >= now() - ($2 || ' days')::interval * 2
+             AND created_at <  now() - ($2 || ' days')::interval)        AS hoi_thoai`,
+      [trang.id, String(ngay)]
+    );
+
+    const donGanDay = await query(
+      `SELECT o.code, o.customer_name, o.product, o.quantity, o.total,
+              o.status, o.closed_by, o.created_at
+         FROM orders o WHERE o.user_id = $1
+        ORDER BY o.created_at DESC LIMIT 5`,
+      [trang.id]
+    );
+
+    // Khách đã nhường cho người thật, cũ nhất lên trước vì để lâu là mất khách.
+    const canGap = await query(
+      `SELECT c.id, c.handoff_reason, c.last_message_at, c.platform,
+              cu.name AS customer_name
+         FROM conversations c
+         LEFT JOIN customers cu ON cu.id = c.customer_id
+        WHERE c.user_id = $1 AND c.status = 'waiting_human'
+        ORDER BY c.last_message_at ASC LIMIT 5`,
+      [trang.id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        trang: { id: trang.id, name: trang.name },
+        ngay,
+        so: so ?? {},
+        truoc: truoc ?? {},
+        donGanDay: donGanDay.rows,
+        canGap: canGap.rows,
+      },
+    });
   })
 );
 

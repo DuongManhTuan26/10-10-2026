@@ -303,6 +303,30 @@ export interface TrangVanHanh extends TrangCon {
   don_thang: number;
 }
 
+/**
+ * Báo cáo chi tiết của một trang, xem từ tài khoản quản lý mà KHÔNG phải vào
+ * trong trang đó. Cùng cách tính với bảng điều khiển và trang thống kê của
+ * chính trang ấy, chỉ khác là chỉ đọc.
+ *
+ * Số tiền và số đếm để dạng chuỗi vì Postgres trả bigint/numeric dưới dạng
+ * chuỗi — ép sang number ở tầng này là chỗ dễ mất số nhất.
+ */
+export interface BaoCaoTrang {
+  trang: { id: number; name: string };
+  ngay: number;
+  so: Record<string, string>;
+  truoc: Record<string, string>;
+  donGanDay: Array<{
+    code: string; customer_name: string | null; product: string;
+    quantity: number; total: string; status: string; closed_by: string;
+    created_at: string;
+  }>;
+  canGap: Array<{
+    id: string; handoff_reason: string | null; last_message_at: string | null;
+    platform: string; customer_name: string | null;
+  }>;
+}
+
 /** Một trang trong chuỗi, nhìn từ bảng tổng quan của chủ chuỗi. */
 export interface TrangCon {
   id: number;
@@ -982,6 +1006,9 @@ export const api = {
     trang: () => get<{ data: TrangCon[] }>("/quan-ly/trang"),
     /** Bảng điều hành cả chuỗi: mọi trang, mọi số liệu, một lượt gọi. */
     tongQuan: () => get<{ data: TrangVanHanh[] }>("/quan-ly/tong-quan"),
+    /** Báo cáo chi tiết một trang, xem ngay tại tài khoản quản lý. */
+    baoCao: (id: number, ngay: number) =>
+      get<{ data: BaoCaoTrang }>(`/quan-ly/trang/${id}/bao-cao?ngay=${ngay}`),
     lapTrang: (ten: string) =>
       post<{ data: { id: number; tenDangNhap: string; name: string; matKhauTam: string } }>(
         "/quan-ly/trang",
@@ -991,8 +1018,17 @@ export const api = {
       patch<{ data: { id: number; name: string } }>(`/quan-ly/trang/${id}`, { ten }),
     khoa: (id: number, khoa: boolean) =>
       post<{ data: { id: number; is_active: boolean } }>(`/quan-ly/trang/${id}/khoa`, { khoa }),
-    capLaiMatKhau: (id: number) =>
-      post<{ data: { id: number; matKhauTam: string } }>(`/quan-ly/trang/${id}/mat-khau`),
+    /** Bỏ trống matKhau thì hệ thống sinh ngẫu nhiên. */
+    capLaiMatKhau: (id: number, matKhau?: string) =>
+      post<{ data: { id: number; matKhauTam: string } }>(
+        `/quan-ly/trang/${id}/mat-khau`,
+        matKhau ? { matKhau } : {}
+      ),
+    doiTenDangNhap: (id: number, ten: string) =>
+      patch<{ data: { id: number; tenDangNhap: string } }>(
+        `/quan-ly/trang/${id}/ten-dang-nhap`,
+        { ten }
+      ),
     /** Xoá hẳn một trang. Phải gõ đúng tên trang để xác nhận. */
     xoaTrang: (id: number, xacNhanTen: string) =>
       request<{ data: { loiXoaHoSo: string | null } }>(`/quan-ly/trang/${id}`, {
