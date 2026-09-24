@@ -104,6 +104,8 @@ export default function Ads() {
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  /** Chiến dịch đang mở menu thao tác — cần vì điện thoại không có hover. */
+  const [menuChienDich, setMenuChienDich] = useState<string | null>(null);
   const [aiInsight, setAiInsight] = useState<{
     hasData: boolean; findings: string; recommendation: string; actions: string[];
   } | null>(null);
@@ -370,9 +372,67 @@ export default function Ads() {
       await api.ads.updateCampaignBudget(campaignId, { amount, budgetType: 'daily' });
       await load();
     } catch (error) {
+      /*
+       * 409 nghĩa là chiến dịch đặt ngân sách ở tầng NHÓM quảng cáo, không đặt
+       * chung ở cấp chiến dịch. Máy chủ bảo "mở chiến dịch và sửa ngân sách
+       * của nhóm bên trong" — trước đây giao diện không có chỗ nào để mở nhóm
+       * ra cả, nên lời chỉ dẫn đúng lại dẫn chủ shop vào ngõ cụt.
+       *
+       * Nay tự mở luôn danh sách nhóm ngay tại đây, không bắt đi tìm.
+       */
+      if (error instanceof ApiError && error.status === 409) {
+        await moNhomQuangCao(campaignId, amount);
+        return;
+      }
       setErrorMessage(error instanceof ApiError ? error.message : 'Không sửa được ngân sách');
     } finally {
       setBusy(false);
+    }
+  };
+
+  /**
+   * Chiến dịch đặt ngân sách theo nhóm: mở danh sách nhóm ra để sửa từng cái.
+   *
+   * Một nhóm thì sửa thẳng, khỏi bắt chọn. Nhiều nhóm thì hỏi sửa nhóm nào,
+   * kèm tên và ngân sách hiện tại để chọn đúng.
+   */
+  const moNhomQuangCao = async (campaignId: string, soTien: number) => {
+    try {
+      const { data } = await api.ads.adSets(campaignId);
+      if (data.length === 0) {
+        setErrorMessage(
+          'Chiến dịch này đặt ngân sách theo nhóm quảng cáo, nhưng chưa có nhóm nào. ' +
+            'Vui lòng tạo nhóm quảng cáo trước.'
+        );
+        return;
+      }
+
+      const ten = (n: Record<string, unknown>) => String(n.name ?? n.id ?? '?');
+      let nhom = data[0];
+      if (data.length > 1) {
+        const chon = window.prompt(
+          'Chiến dịch này đặt ngân sách theo từng nhóm quảng cáo.\n\n' +
+            data.map((n, i) => `${i + 1}. ${ten(n)}`).join('\n') +
+            '\n\nGõ số thứ tự của nhóm muốn sửa:'
+        );
+        if (chon === null) return;
+        const i = Number(chon) - 1;
+        if (!Number.isInteger(i) || i < 0 || i >= data.length) {
+          setErrorMessage('Số thứ tự không hợp lệ.');
+          return;
+        }
+        nhom = data[i];
+      }
+
+      const ma = String(nhom.id ?? '');
+      if (!ma) { setErrorMessage('Không đọc được mã nhóm quảng cáo.'); return; }
+      await api.ads.updateAdSetBudget(ma, { amount: soTien, budgetType: 'daily' });
+      await load();
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(
+        error instanceof ApiError ? error.message : 'Không sửa được ngân sách nhóm quảng cáo'
+      );
     }
   };
 
@@ -838,10 +898,36 @@ export default function Ads() {
                     </span>
                   </td>
                   <td className="p-4 relative">
-                    <button className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-md transition-colors opacity-0 group-hover:opacity-100 peer">
+                    {/*
+                      Mở bằng BẤM, không chỉ bằng rê chuột.
+
+                      Bản cũ mở menu hoàn toàn bằng CSS hover (peer-hover), và
+                      nút không có onClick. Trên điện thoại không có hover nên
+                      menu KHÔNG BAO GIỜ mở: xem chi tiết, sửa ngân sách, tạm
+                      dừng, nhân bản, kết thúc — cả năm việc không bấm được.
+                      Mà chủ shop xem hàng trên điện thoại là chính.
+
+                      Giữ nguyên hover trên máy tính, chỉ thêm đường bấm.
+                    */}
+                    <button
+                      onClick={() => setMenuChienDich((m) => (m === camp.id ? null : camp.id))}
+                      aria-label="Thao tác với chiến dịch"
+                      className={clsx(
+                        'p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-md transition-colors peer',
+                        menuChienDich === camp.id ? 'opacity-100' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
+                      )}
+                    >
                       <span className="material-symbols-outlined text-[20px]">more_vert</span>
                     </button>
-                    <div className="absolute right-8 top-1/2 -translate-y-1/2 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl py-1 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible hover:opacity-100 hover:visible transition-all z-10">
+                    <div
+                      onClick={() => setMenuChienDich(null)}
+                      className={clsx(
+                        'absolute right-8 top-1/2 -translate-y-1/2 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl py-1 transition-all z-10',
+                        menuChienDich === camp.id
+                          ? 'opacity-100 visible'
+                          : 'opacity-0 invisible peer-hover:opacity-100 peer-hover:visible hover:opacity-100 hover:visible'
+                      )}
+                    >
                       <button onClick={() => handleViewCampaign(camp.id)} className="w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-variant transition-colors">Xem chi tiết</button>
                       <button onClick={() => handleEditBudget(camp.id, camp.dailyRaw)} disabled={busy} className="w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-variant transition-colors disabled:opacity-50">Sửa ngân sách</button>
                       {camp.status === 'Đang chạy' ? (

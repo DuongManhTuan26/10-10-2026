@@ -280,6 +280,29 @@ adsRouter.patch(
   })
 );
 
+/**
+ * Các nhóm quảng cáo bên trong một chiến dịch.
+ *
+ * Chiến dịch đặt ngân sách theo nhóm thì sửa ở cấp chiến dịch bị từ chối, và
+ * máy chủ bảo chủ shop "mở chiến dịch và sửa ngân sách của nhóm bên trong" —
+ * nhưng trước đây KHÔNG có đường nào để mở nhóm ra. Lời chỉ dẫn dẫn vào ngõ cụt.
+ */
+adsRouter.get(
+  "/campaigns/:id/ad-sets",
+  route(async (req, res) => {
+    const resolved = await resolveAdAccount(req.user!.id);
+    if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
+
+    const platform = typeof req.query.platform === "string" ? req.query.platform : "facebook";
+    const adSets = await ads.listAdSets({
+      accountId: resolved.accountId,
+      campaignId: req.params.id,
+      platform,
+    });
+    res.json({ success: true, data: adSets });
+  })
+);
+
 adsRouter.patch(
   "/ad-sets/:id/budget",
   route(async (req, res) => {

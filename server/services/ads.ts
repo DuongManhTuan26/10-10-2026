@@ -214,7 +214,29 @@ export async function updateCampaignBudget(params: {
   });
 }
 
-/** Sửa ngân sách ở tầng nhóm quảng cáo (chiến dịch dùng ABO). */
+/**
+ * Các nhóm quảng cáo của một chiến dịch.
+ *
+ * Cần vì chiến dịch đặt ngân sách theo NHÓM (Meta gọi là ABO) thì lệnh sửa ở
+ * cấp chiến dịch bị từ chối. Trước đây máy chủ trả lời đúng — "vui lòng mở
+ * chiến dịch và sửa ngân sách của nhóm bên trong" — nhưng giao diện không có
+ * chỗ nào để mở nhóm ra cả, nên chủ shop bị dẫn vào ngõ cụt.
+ */
+export async function listAdSets(params: {
+  accountId: string;
+  campaignId: string;
+  platform?: string;
+}): Promise<Record<string, unknown>[]> {
+  const data = await request<{ adSets?: Record<string, unknown>[] }>("/ads/ad-sets", {
+    query: {
+      accountId: params.accountId,
+      campaignId: params.campaignId,
+      ...(params.platform ? { platform: params.platform } : {}),
+    },
+  });
+  return data.adSets ?? [];
+}
+
 /**
  * Đọc một nhóm quảng cáo.
  *
@@ -235,6 +257,7 @@ export async function getAdSet(params: {
   return (data.adSet as Record<string, unknown>) ?? data;
 }
 
+/** Sửa ngân sách ở tầng nhóm quảng cáo (chiến dịch dùng ABO). */
 export async function updateAdSetBudget(params: {
   adSetId: string;
   amount: number;

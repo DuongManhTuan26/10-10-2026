@@ -3015,6 +3015,91 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 }
 
 // ---------------------------------------------------------------------------
+// 57. Nút bấm phải LÀM được việc, kể cả trên điện thoại
+// ---------------------------------------------------------------------------
+// Tìm thấy ba chỗ: menu thao tác chiến dịch mở hoàn toàn bằng CSS hover và nút
+// không có onClick — trên điện thoại không có hover nên năm việc bên trong
+// (xem chi tiết, sửa ngân sách, tạm dừng, nhân bản, kết thúc) KHÔNG BAO GIỜ
+// bấm được. Mà chủ shop xem hàng trên điện thoại là chính.
+// Cùng hai dòng href="#" trong ảnh mẫu Telegram: trông như bấm được, bấm vào
+// chỉ nhảy lên đầu trang.
+{
+  const tepTsx: string[] = [];
+  const quetTsx = (d: string): void => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p2 = path.join(d, e.name);
+      if (e.isDirectory()) quetTsx(p2);
+      else if (/\.tsx$/.test(e.name)) tepTsx.push(p2);
+    }
+  };
+  quetTsx(path.join(GOC, "src"));
+
+  const nutChet: string[] = [];
+  for (const t of tepTsx) {
+    /*
+     * Bỏ chú thích trước khi quét. Chú thích nhắc tới href="#" để giải thích
+     * lỗi cũ thì không phải một liên kết chết — phép quét đầu báo oan đúng vậy.
+     */
+    const ma = fs
+      .readFileSync(t, "utf8")
+      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    const ten = path.relative(GOC, t);
+
+    for (const m of ma.matchAll(/<button\b([^>]*)>/g)) {
+      if (/onClick|type=["']submit["']|onMouseDown|onPointerDown/.test(m[1])) continue;
+      nutChet.push(`${ten}:${ma.slice(0, m.index).split("\n").length} nút không có onClick`);
+    }
+    for (const m of ma.matchAll(/onClick=\{\s*\(\s*\)\s*=>\s*\{\s*\}\s*\}/g)) {
+      nutChet.push(`${ten}:${ma.slice(0, m.index).split("\n").length} onClick rỗng`);
+    }
+    for (const m of ma.matchAll(/href=["']#["']/g)) {
+      nutChet.push(`${ten}:${ma.slice(0, m.index).split("\n").length} href="#"`);
+    }
+  }
+  kiem("nút bấm", "không nút nào bấm mà không làm gì", nutChet, []);
+}
+
+// ---------------------------------------------------------------------------
+// 56. Thư mục giao diện KHÔNG được chứa mã máy chủ
+// ---------------------------------------------------------------------------
+// Tìm thấy src/db/index.ts: một tệp mở kết nối PostgreSQL bằng DATABASE_URL và
+// chạy CREATE TABLE, nằm ngay trong thư mục giao diện — di sản từ bản dựng sẵn
+// ban đầu, không nơi nào import nên chưa lọt vào bản dựng.
+//
+// Chưa nổ không có nghĩa là không nguy hiểm: chỉ cần một lần ai đó import nhầm
+// là chuỗi kết nối database đi thẳng vào tệp JavaScript mà trình duyệt tải về.
+// Lược đồ trong đó cũng đã lạc hậu hẳn — 4 bảng dựng tay, trong khi lược đồ
+// thật có 24 migration.
+{
+  const tepGD: string[] = [];
+  const quetGD = (d: string): void => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) quetGD(p);
+      else if (/\.(ts|tsx)$/.test(e.name)) tepGD.push(p);
+    }
+  };
+  quetGD(path.join(GOC, "src"));
+
+  const CAM = [
+    { mau: /from ["']pg["']|require\(["']pg["']\)/, ten: "thư viện database" },
+    { mau: /process\.env\.DATABASE_URL/, ten: "chuỗi kết nối database" },
+    { mau: /from ["']dotenv["']/, ten: "đọc tệp .env" },
+    { mau: /from ["']node:(fs|crypto|child_process)["']/, ten: "thư viện hệ điều hành" },
+  ];
+  const phamLoi: string[] = [];
+  for (const t of tepGD) {
+    const ma = fs.readFileSync(t, "utf8");
+    for (const { mau, ten } of CAM) {
+      if (mau.test(ma)) phamLoi.push(`${path.relative(GOC, t)} :: ${ten}`);
+    }
+  }
+  kiem("giao diện sạch", "thư mục giao diện không chứa mã máy chủ", phamLoi, []);
+}
+
+// ---------------------------------------------------------------------------
 // 53. Tiền AI phải đếm được theo TỪNG SHOP
 // ---------------------------------------------------------------------------
 // Chi phí mỗi lượt gọi vốn đã có sẵn (nhà cung cấp trả về trong usage.cost)
@@ -3124,6 +3209,23 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   // Hệ thống tự đoán mà có nhiều hơn một tài khoản thì phải nói ra.
   kiem("quảng cáo", "cảnh báo khi hệ thống đang tự đoán giữa nhiều tài khoản",
     /!doChuShopChon && tatCaTaiKhoan\.length > 1/.test(nguonQCUI), true);
+
+  /*
+   * Lời chỉ dẫn KHÔNG được dẫn vào ngõ cụt.
+   *
+   * Chiến dịch đặt ngân sách theo nhóm thì máy chủ trả 409 kèm câu "vui lòng
+   * mở chiến dịch và sửa ngân sách của nhóm bên trong" — đúng, nhưng giao diện
+   * không có chỗ nào để mở nhóm ra, và cũng không có hàm nào gọi tới
+   * PATCH /ads/ad-sets/:id/budget. Chủ shop được bảo làm một việc mà app không
+   * cho làm.
+   */
+  kiem("quảng cáo", "có đường liệt kê nhóm quảng cáo của một chiến dịch",
+    /"\/campaigns\/:id\/ad-sets"/.test(nguonQC) &&
+      /await ads\.listAdSets\(/.test(nguonQC), true);
+  kiem("quảng cáo", "ngân sách theo nhóm không còn là ngõ cụt",
+    /error\.status === 409/.test(nguonQCUI) &&
+      /await moNhomQuangCao\(campaignId, amount\);/.test(nguonQCUI) &&
+      /api\.ads\.updateAdSetBudget\(/.test(nguonQCUI), true);
 }
 
 // ---------------------------------------------------------------------------

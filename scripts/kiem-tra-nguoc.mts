@@ -1272,6 +1272,32 @@ const DUC: PhepDuc[] = [
     thay: "    if (false) {",
   },
   {
+    // Chính ngõ cụt đã tìm ra: máy chủ bảo đi sửa ở nhóm, giao diện không có chỗ.
+    ten: "ngân sách theo nhóm quảng cáo lại thành ngõ cụt",
+    tep: "src/pages/Ads.tsx",
+    tim: "        await moNhomQuangCao(campaignId, amount);",
+    thay: "",
+  },
+  {
+    ten: "bỏ đường liệt kê nhóm quảng cáo",
+    tep: "server/routes/ads.ts",
+    tim: '    const adSets = await ads.listAdSets({',
+    thay: "    const adSets = [] as never[]; void ads.listAdSets; void ({",
+  },
+  {
+    // Chính lỗi đã tìm ra: menu chỉ mở bằng hover, điện thoại bấm không được.
+    ten: "menu chiến dịch chỉ mở bằng rê chuột, điện thoại không bấm được",
+    tep: "src/pages/Ads.tsx",
+    tim: "                      onClick={() => setMenuChienDich((m) => (m === camp.id ? null : camp.id))}\n",
+    thay: "",
+  },
+  {
+    ten: "thư mục giao diện chứa mã kết nối database",
+    tep: "src/lib/api.ts",
+    tim: "export class ApiError extends Error {",
+    thay: "import { Pool } from \"pg\";\nvoid Pool;\nexport class ApiError extends Error {",
+  },
+  {
     ten: "không nói đang xem tài khoản quảng cáo nào",
     tep: "src/pages/Ads.tsx",
     tim: "              <span className=\"text-xs text-on-surface-variant\">Tài khoản quảng cáo:</span>",

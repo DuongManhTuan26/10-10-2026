@@ -974,6 +974,22 @@ export const api = {
       id: string,
       payload: { amount: number; budgetType?: "daily" | "lifetime"; platform?: string },
     ) => patch<{ data: unknown }>(`/ads/campaigns/${id}/budget`, payload),
+    /**
+     * Các nhóm quảng cáo bên trong một chiến dịch.
+     *
+     * Chiến dịch đặt ngân sách theo nhóm thì sửa ở cấp chiến dịch bị từ chối,
+     * và máy chủ bảo "mở chiến dịch và sửa ngân sách của nhóm bên trong" —
+     * nhưng trước đây không có đường nào để mở nhóm ra. Lời chỉ dẫn dẫn vào
+     * ngõ cụt.
+     */
+    adSets: (campaignId: string, platform = 'facebook') =>
+      get<{ data: Array<Record<string, unknown>> }>(
+        `/ads/campaigns/${encodeURIComponent(campaignId)}/ad-sets?platform=${platform}`
+      ),
+    updateAdSetBudget: (
+      id: string,
+      payload: { amount: number; budgetType?: 'daily' | 'lifetime'; platform?: string },
+    ) => patch<{ data: unknown }>(`/ads/ad-sets/${encodeURIComponent(id)}/budget`, payload),
     updateAudience: (id: string, payload: { name?: string; description?: string }) =>
       request<{ data: unknown }>(`/ads/audiences/${id}`, { method: "PUT", body: payload }),
     duplicateCampaign: (id: string) =>

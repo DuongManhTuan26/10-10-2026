@@ -601,10 +601,16 @@ export default function TelegramAlerts() {
               Tổng tiền: <span className="text-white font-bold">900.000 đ</span><br/>
               Địa chỉ: <span className="text-white/60 italic">(khách chưa cung cấp)</span><br/><br/>
               <span className="text-xs text-white/50">AI chốt lúc 14:19</span><br/>
-              <a href="#" className="text-[#3390ec] hover:underline block mt-2">Xem chi tiết đơn hàng</a>
+              <span className="text-[#3390ec] block mt-2">Xem chi tiết đơn hàng</span>
             </div>
           </div>
 
+          {/*
+            Đây là ẢNH MẪU minh hoạ tin Telegram sẽ nhận được, không phải dữ
+            liệu thật. Hai dòng "Xem chi tiết đơn hàng" và "Mở đoạn chat" là
+            chữ trong ảnh mẫu, không phải nút — trước đây để href="#" nên trông
+            như bấm được mà bấm vào chỉ nhảy lên đầu trang.
+          */}
           {/* Khung 2 */}
           <div className="bg-[#18222d] border border-outline-variant/30 rounded-2xl rounded-tl-sm p-4 text-[#e4e4e5] font-mono text-sm leading-relaxed shadow-lg relative">
             <div className="absolute -left-2 top-0 w-4 h-4 bg-[#18222d] border-l border-t border-outline-variant/30 rotate-[-45deg] translate-y-1 translate-x-1 -z-10"></div>
@@ -614,7 +620,7 @@ export default function TelegramAlerts() {
               Lý do: <span className="text-white">Khách khiếu nại giao hàng</span><br/>
               Tin nhắn cuối: <span className="text-[#3390ec] bg-[#3390ec]/10 px-1 rounded">'Đơn tôi đặt 3 hôm rồi sao chưa thấy ship?'</span><br/><br/>
               <span className="text-xs text-[#ff595a]">Đã chờ 18 phút</span><br/>
-              <a href="#" className="text-[#3390ec] hover:underline block mt-2">Mở đoạn chat</a>
+              <span className="text-[#3390ec] block mt-2">Mở đoạn chat</span>
             </div>
           </div>
         </div>
