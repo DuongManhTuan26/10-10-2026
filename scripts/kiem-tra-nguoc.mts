@@ -1284,6 +1284,48 @@ const DUC: PhepDuc[] = [
     tim: '    const adSets = await ads.listAdSets({',
     thay: "    const adSets = [] as never[]; void ads.listAdSets; void ({",
   },
+  // --- Bước 6: đục vào chính sáu phép đếm nguyên tắc ---
+  {
+    ten: "một chỗ cắt mốc ngày theo giờ GMT, lệch 7 tiếng",
+    tep: "server/routes/orders.ts",
+    tim: "WHERE created_at >= ${DAU_NGAY_VN})::int             AS today_count,",
+    thay: "WHERE created_at >= date_trunc('day', now()))::int AS today_count,",
+  },
+  {
+    ten: "một chỗ xếp tin nhắn theo sent_at, AI nói vài câu rồi mất hút",
+    tep: "server/services/sales-ai.ts",
+    tim: "      WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 10`,",
+    thay: "      WHERE conversation_id = $1 ORDER BY sent_at DESC LIMIT 10`,",
+  },
+  {
+    ten: "một chỗ tra bộ não theo tài khoản, lấy nhầm não Trang khác",
+    tep: "server/routes/ai.ts",
+    tim: "         FROM ai_configs WHERE trang_id = $1 AND kind = $2`,",
+    thay: "         FROM ai_configs WHERE user_id = $1 AND kind = $2`,",
+  },
+  {
+    ten: "gọi thẳng nhà cung cấp, bỏ qua cổng chung",
+    tep: "server/services/events.ts",
+    tim: "export async function",
+    thay: "export async function _boQuaCong() { await fetch('https://zernio.com/api/v1/accounts'); }\nexport async function",
+  },
+  {
+    ten: "lời đáp mang theo khoá bí mật",
+    tep: "server/routes/auth.ts",
+    tim: "    res.json({ success: true, user: await hoSoNguoiDung(user.id, null) });",
+    thay: "    res.json({ success: true, user: await hoSoNguoiDung(user.id, null), apiKey: 'x' });",
+  },
+  {
+    /*
+     * Phép đục cũ chỉ ĐỔI TÊN một đường sẵn có, nên cả hai vế của phép đếm
+     * đều không đổi — đục mà không dựng ra được cảnh cần thử. Nay THÊM HẲN một
+     * đường mới không kiểm chủ sở hữu, đúng thứ nguy hiểm thật.
+     */
+    ten: "thêm đường /trang/:id mà quên kiểm chủ sở hữu",
+    tep: "server/routes/quan-ly.ts",
+    tim: 'quanLyRouter.post(\n  "/trang/:id/mo",',
+    thay: 'quanLyRouter.get(\n  "/trang/:id/xem-lut",\n  route(async (req, res) => {\n    res.json({ success: true, id: req.params.id });\n  })\n);\n\nquanLyRouter.post(\n  "/trang/:id/mo",',
+  },
   {
     // Chính lỗi đã tìm ra: menu chỉ mở bằng hover, điện thoại bấm không được.
     ten: "menu chiến dịch chỉ mở bằng rê chuột, điện thoại không bấm được",

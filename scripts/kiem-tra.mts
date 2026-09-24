@@ -3015,6 +3015,99 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 }
 
 // ---------------------------------------------------------------------------
+// 58. Đếm nguyên tắc dùng nhiều nơi — n/n, không sót chỗ nào
+// ---------------------------------------------------------------------------
+// Quy trình kiểm duyệt, Bước 1: mọi thay đổi động tới một nguyên tắc dùng ở
+// nhiều nơi đều phải bắt đầu bằng ĐẾM, không đọc mã rồi sửa chỗ nhìn thấy.
+// Năm lỗi nặng nhất của dự án sinh ra từ đúng chỗ này.
+//
+// Đếm SỐ CHỖ, không đo khoảng cách dòng — Bước 3 mục 4 nói rõ khoảng cách đổi
+// theo từng lần sửa chú thích nên không bao giờ là thứ đáng đo.
+{
+  const tepMayChu: string[] = [];
+  const quetMayChu = (d: string): void => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p2 = path.join(d, e.name);
+      if (e.isDirectory()) quetMayChu(p2);
+      else if (/\.ts$/.test(e.name)) tepMayChu.push(p2);
+    }
+  };
+  quetMayChu(path.join(GOC, "server"));
+
+  // Bỏ chú thích trước khi đếm — Bước 3 mục 3: chú thích nhắc tới một chuỗi
+  // không có nghĩa là mã dùng chuỗi đó.
+  const sachChuThich = (ma: string) =>
+    ma
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "")
+      .replace(/^\s*\*.*$/gm, "");
+
+  const nguonMayChu = tepMayChu.map((t) => ({
+    ten: path.relative(GOC, t),
+    ma: sachChuThich(fs.readFileSync(t, "utf8")),
+  }));
+  const timKhap = (mau: RegExp, boQua?: RegExp) =>
+    nguonMayChu
+      .filter(({ ten }) => !boQua?.test(ten))
+      .flatMap(({ ten, ma }) => [...ma.matchAll(mau)].map(() => ten));
+
+  /*
+   * Database chạy GMT, Việt Nam UTC+7. Truncate thẳng thì mốc ngày rơi vào 7
+   * giờ sáng, nên mọi hoạt động từ nửa đêm tới 7 giờ bị đẩy nhầm sang ngày
+   * trước. Đã tái hiện: một đơn đặt lúc 03:00 đếm ra 0 thay vì 1.
+   */
+  kiem("đếm nguyên tắc", "không chỗ nào cắt mốc ngày/tháng theo giờ GMT",
+    timKhap(/date_trunc\(\s*'(day|month)'\s*,\s*now\(\)\s*\)/g, /moc-thoi-gian\.ts$/), []);
+
+  /*
+   * Tin nhắn xếp theo lúc NHẬN được, không theo sent_at của nền tảng. Đây là
+   * nguyên nhân gốc của "AI nói vài câu rồi mất hút".
+   */
+  kiem("đếm nguyên tắc", "không chỗ nào xếp tin nhắn theo sent_at",
+    timKhap(/ORDER BY\s+m?\.?sent_at/gi), []);
+
+  /*
+   * Bộ não AI tra theo trang_id. Tra theo user_id là tài khoản nhiều Trang lấy
+   * nhầm bộ não của Trang khác — bán mặt hàng này bằng bảng giá mặt hàng kia.
+   * Câu ĐẾM toàn bộ cấu hình của một tài khoản thì khác, không tính.
+   */
+  kiem("đếm nguyên tắc", "không chỗ nào tra bộ não theo tài khoản",
+    timKhap(/FROM ai_(configs|documents)\s+WHERE\s+user_id\s*=\s*\$\d+\s+AND\s+kind/g), []);
+
+  /*
+   * Mọi lời gọi nhà cung cấp đi qua đúng một cổng. Gọi thẳng bằng fetch là
+   * mất hết: hạn mức, thử lại, ghi nhật ký, và lớp che tên nhà cung cấp.
+   */
+  kiem("đếm nguyên tắc", "không chỗ nào gọi thẳng nhà cung cấp, bỏ qua cổng chung",
+    timKhap(/fetch\(\s*[`"']?https?:\/\/[^`"')]*zernio/gi, /services\/(zernio|ads)\.ts$/), []);
+
+  /*
+   * Bí mật không bao giờ đi ra lời đáp.
+   *
+   * Bản đầu dùng [^)]* nên dừng ở dấu ngoặc đóng ĐẦU TIÊN — mà lời đáp thật
+   * thường gọi hàm bên trong, ví dụ res.json({ user: await hoSoNguoiDung(...) }),
+   * nên chuỗi tìm không bao giờ chạm tới phần phía sau. Phép thử ngược đục
+   * thủng ngay: thêm apiKey vào sau lời gọi đó mà phép kiểm vẫn báo đạt.
+   *
+   * Nay chặn ở dấu chấm phẩy — hết câu lệnh, không bò sang câu kế.
+   */
+  kiem("đếm nguyên tắc", "không lời đáp nào mang theo khoá bí mật",
+    timKhap(/res\.json\([^;]{0,400}?\b(apiKey|sessionSecret|password_hash)\s*:/gi), []);
+
+  /*
+   * Mỗi đường /trang/:id phải kiểm chủ sở hữu. Đếm bằng nhau, không nhìn mắt:
+   * thêm đường mới mà quên kiểm là chủ chuỗi này với tay sang trang của chuỗi
+   * khác.
+   */
+  const maQuanLy = sachChuThich(
+    fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8")
+  );
+  kiem("đếm nguyên tắc", "mọi đường /trang/:id đều kiểm chủ sở hữu",
+    (maQuanLy.match(/await trangCuaToi\(/g) ?? []).length,
+    (maQuanLy.match(/"\/trang\/:id[^"]*"/g) ?? []).length);
+}
+
+// ---------------------------------------------------------------------------
 // 57. Nút bấm phải LÀM được việc, kể cả trên điện thoại
 // ---------------------------------------------------------------------------
 // Tìm thấy ba chỗ: menu thao tác chiến dịch mở hoàn toàn bằng CSS hover và nút
