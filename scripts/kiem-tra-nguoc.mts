@@ -30,6 +30,30 @@ interface PhepDuc {
 
 const DUC: PhepDuc[] = [
   {
+    ten: "bỏ kiểm mã số ở router bài đăng",
+    tep: "server/routes/posts.ts",
+    tim: 'postsRouter.param("id", chiNhanMaSo);',
+    thay: "",
+  },
+  {
+    ten: "bộ kiểm mã số nhận mọi thứ",
+    tep: "server/http.ts",
+    tim: "next(/^[1-9]\\d{0,17}$/.test(giaTri) ? undefined",
+    thay: "next(/.*/.test(giaTri) ? undefined",
+  },
+  {
+    ten: "ghi khi chưa có Trang lại để database vỡ",
+    tep: "server/routes/ai.ts",
+    tim: 'if (trang === null && req.method !== "GET") {',
+    thay: "if (false) {",
+  },
+  {
+    ten: "nhà cung cấp ảnh từ chối khoá lại trả 401 ra ngoài",
+    tep: "server/services/image-ai.ts",
+    tim: "response.status === 401 || response.status === 403\n        ? 502",
+    thay: "false\n        ? 502",
+  },
+  {
     ten: "bỏ trần lượt AI trả lời khách",
     tep: "server/services/sales-ai.ts",
     tim: "if (!xinSuatTraLoiAI(conversation.id, conversation.social_account_id)) {",

@@ -18,7 +18,7 @@ import { Router } from "express";
 
 import { requireAuth } from "../auth.js";
 import { query, queryOne } from "../db.js";
-import { AppError, route } from "../http.js";
+import { AppError, route, chiNhanMaSo } from "../http.js";
 import { sinhMatKhauTam, taoTaiKhoan, EMAIL_PATTERN } from "../services/tai-khoan.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
 import { chuyenThanhChuChuoi } from "../services/chuyen-chu-chuoi.js";
@@ -26,6 +26,9 @@ import * as zernio from "../services/zernio.js";
 import { hashPassword } from "../auth.js";
 
 export const adminRouter = Router();
+
+// Mọi :id ở đây là mã số — chữ lạ thì 404, không để database vỡ ra 500.
+adminRouter.param("id", chiNhanMaSo);
 
 adminRouter.use(requireAuth);
 

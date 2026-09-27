@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { query, queryOne } from "../db.js";
 import { requireAuth } from "../auth.js";
-import { AppError, requireString, route } from "../http.js";
+import { AppError, requireString, route, chiNhanMaSo } from "../http.js";
 import { sendTelegramMessage, createLinkUrl } from "../services/telegram.js";
 import { env } from "../env.js";
 import * as zernio from "../services/zernio.js";
@@ -14,6 +14,9 @@ import {
 import { DAU_THANG_VN } from "../moc-thoi-gian.js";
 
 export const settingsRouter = Router();
+
+// Mọi :id ở đây là mã số — chữ lạ thì 404, không để database vỡ ra 500.
+settingsRouter.param("id", chiNhanMaSo);
 
 settingsRouter.use(requireAuth);
 

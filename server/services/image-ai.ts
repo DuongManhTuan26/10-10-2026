@@ -191,10 +191,19 @@ export async function taoAnhChoBai(params: {
   };
 
   if (!response.ok || data.error) {
-    throw new AppError(
-      `Tạo ảnh thất bại: ${data.error?.message ?? `HTTP ${response.status}`}`,
-      response.status >= 400 && response.status < 500 ? response.status : 502
-    );
+    /*
+     * 401/403 ở đây là nhà cung cấp từ chối KHOÁ của hệ thống, không phải
+     * phiên của người dùng hết hạn. Đã đo: chuyển nguyên 401 ra ngoài thì giao
+     * diện coi là hết phiên và đá người dùng về màn hình đăng nhập — đổi khoá
+     * AI mà dán nhầm là mọi người bấm tạo ảnh đều bị đăng xuất.
+     */
+    const ma =
+      response.status === 401 || response.status === 403
+        ? 502
+        : response.status >= 400 && response.status < 500
+          ? response.status
+          : 502;
+    throw new AppError(`Tạo ảnh thất bại: ${data.error?.message ?? `HTTP ${response.status}`}`, ma);
   }
 
   const duLieu = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;

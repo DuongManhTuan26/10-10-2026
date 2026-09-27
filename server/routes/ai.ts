@@ -18,11 +18,26 @@ import { layTrangDangChon } from "../services/trang.js";
  * mình thuộc Trang nào. Suy từ kênh thì còn kiểm được kênh có thuộc tài khoản
  * đang đăng nhập hay không.
  */
-async function trangCuaReq(req: { user?: { id: number }; query: Record<string, unknown>; body?: Record<string, unknown> }) {
+async function trangCuaReq(req: { method: string; user?: { id: number }; query: Record<string, unknown>; body?: Record<string, unknown> }) {
   const kenh =
     (typeof req.query?.accountId === "string" ? req.query.accountId : undefined) ??
     (typeof req.body?.accountId === "string" ? (req.body.accountId as string) : undefined);
-  return layTrangDangChon(req.user!.id, kenh ?? null);
+  const trang = await layTrangDangChon(req.user!.id, kenh ?? null);
+  /*
+   * Đọc khi chưa có Trang thì trả cấu hình mặc định là đủ. GHI thì không có
+   * chỗ để ghi vào.
+   *
+   * Đã đo: tài khoản chưa có Trang bấm lưu vai trò AI, chế độ tự chủ, lịch tự
+   * đăng, phong cách ảnh hay thêm tài liệu — cả 5 đều vỡ 500 "Hệ thống gặp sự
+   * cố" vì cột trang_id không được rỗng. Người dùng không biết phải làm gì.
+   */
+  if (trang === null && req.method !== "GET") {
+    throw new AppError(
+      "Tài khoản này chưa gắn Fanpage nào. Vào mục Kết nối để gắn Fanpage trước.",
+      409
+    );
+  }
+  return trang;
 }
 import { docCauHinh, MAC_DINH } from "../services/autopilot.js";
 import { docChuTuAnh, ANH_HOP_LE, GIOI_HAN_ANH } from "../services/vision.js";

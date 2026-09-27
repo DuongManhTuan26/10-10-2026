@@ -36,7 +36,7 @@ import { matchesKeywords } from "../server/services/comment-ai.js";
 import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
-import { errorHandler } from "../server/http.js";
+import { errorHandler, chiNhanMaSo } from "../server/http.js";
 import {
   xinSuat,
   xinSuatDocAnh,
@@ -3608,6 +3608,32 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonSuKien = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/events.ts"), "utf8"));
   kiem("chống đốt tiền AI", "xin suất TRƯỚC khi gọi AI đọc ảnh khách gửi",
     /if \(!xinSuatDocAnh\(message\.conversationId, accountId\)\) \{[\s\S]{0,200}?break;\s*\}\s*try \{\s*const doc = await docTepKhachGui\(/.test(nguonSuKien), true);
+
+  // Đã đo khi quét mọi đường API: /api/posts/abc… vỡ 500 vì chữ vào cột số.
+  const thuMa = (v: string) => {
+    let ra: unknown = "chưa gọi";
+    chiNhanMaSo({} as never, {} as never, ((loi?: { status?: number }) => { ra = loi?.status ?? "qua"; }) as never, v);
+    return ra;
+  };
+  kiem("mã số", "mã số hợp lệ thì cho qua", thuMa("123"), "qua");
+  for (const sai of ["abc", "0", "-5", "1.5", "12abc", "", "99999999999999999999"]) {
+    kiem("mã số", `"${sai}" trả 404`, thuMa(sai), 404);
+  }
+  for (const [tep, ten] of [["server/routes/posts.ts", "postsRouter"], ["server/routes/orders.ts", "ordersRouter"],
+    ["server/routes/settings.ts", "settingsRouter"], ["server/routes/admin.ts", "adminRouter"]] as const) {
+    kiem("mã số", `${tep} kiểm mã số cho :id`,
+      boChuThichTS(fs.readFileSync(path.join(GOC, tep), "utf8")).includes(`${ten}.param("id", chiNhanMaSo);`), true);
+  }
+
+  // Đã đo: tài khoản chưa có Trang bấm lưu cài đặt AI → 5 đường vỡ 500.
+  const nguonAI = boChuThichTS(fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8"));
+  kiem("chưa có Trang", "ghi khi chưa có Trang thì báo rõ, không để database vỡ",
+    /if \(trang === null && req\.method !== "GET"\) \{\s*throw new AppError\([\s\S]{0,160}?409\s*\);/.test(nguonAI), true);
+
+  // Đã đo: nhà cung cấp ảnh từ chối khoá → trả 401 → giao diện đăng xuất người dùng.
+  const nguonAnh = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/image-ai.ts"), "utf8"));
+  kiem("khoá AI", "nhà cung cấp ảnh trả 401/403 thì không chuyển 401 ra ngoài",
+    /response\.status === 401 \|\| response\.status === 403\s*\?\s*502/.test(nguonAnh), true);
 
   // Đã đo: login_attempts và dang_ky_theo_ip không bao giờ bị dọn.
   const nguonKhoiDong = fs.readFileSync(path.join(GOC, "server.ts"), "utf8");

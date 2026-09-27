@@ -1,11 +1,14 @@
 import { Router } from "express";
 import { query, queryOne } from "../db.js";
 import { requireAuth } from "../auth.js";
-import { AppError, requireString, route } from "../http.js";
+import { AppError, requireString, route, chiNhanMaSo } from "../http.js";
 import { gopVaoTongChi, taoDon } from "../services/orders.js";
 import { DAU_NGAY_VN, DAU_THANG_VN } from "../moc-thoi-gian.js";
 
 export const ordersRouter = Router();
+
+// Mọi :id ở đây là mã số — chữ lạ thì 404, không để database vỡ ra 500.
+ordersRouter.param("id", chiNhanMaSo);
 
 ordersRouter.use(requireAuth);
 

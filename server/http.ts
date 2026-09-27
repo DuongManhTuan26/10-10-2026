@@ -110,6 +110,23 @@ export function errorHandler(
   });
 }
 
+/**
+ * Bộ kiểm cho tham số :id của các router mà mã luôn là số (bài đăng, đơn,
+ * kịch bản, tài khoản). Gắn bằng router.param("id", chiNhanMaSo).
+ *
+ * Đã đo: /api/posts/abc, /api/orders/abc… trả 500 "Hệ thống gặp sự cố" vì chữ
+ * bị đưa thẳng vào cột số của database. Mã không phải số thì chắc chắn không
+ * có bản ghi nào — trả 404 như mọi mã không tồn tại khác.
+ */
+export function chiNhanMaSo(
+  _req: Request,
+  _res: Response,
+  next: NextFunction,
+  giaTri: string
+): void {
+  next(/^[1-9]\d{0,17}$/.test(giaTri) ? undefined : new AppError("Không tìm thấy", 404));
+}
+
 /** Chuẩn hoá và kiểm tra một trường chuỗi bắt buộc trong body. */
 export function requireString(
   body: Record<string, unknown>,
