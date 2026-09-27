@@ -30,6 +30,90 @@ interface PhepDuc {
 
 const DUC: PhepDuc[] = [
   {
+    ten: "đăng nhập bỏ qua bước băm khi email không tồn tại (lộ email qua thời gian)",
+    tep: "server/routes/auth.ts",
+    tim: "if (!user || !user.is_active || !matKhauDung) {",
+    thay: "if (!user || !user.is_active || !(await verifyPassword(password, user.password_hash))) {",
+  },
+  {
+    ten: "phiên xem thay không kiểm người mở còn quyền",
+    tep: "server/auth.ts",
+    tim: "c.id = s.mo_boi AND c.is_active = TRUE",
+    thay: "c.id = s.mo_boi",
+  },
+  {
+    ten: "phiên xem thay không kiểm quan hệ cha con",
+    tep: "server/auth.ts",
+    tim: "AND u.parent_id = c.id))",
+    thay: "))",
+  },
+  {
+    ten: "cấp lại mật khẩu bỏ sót phiên xem thay",
+    tep: "server/routes/admin.ts",
+    tim: /(\/\/ mở vào các trang con[^\n]*\n    await query\("DELETE FROM sessions WHERE user_id = \$1) OR mo_boi = \$1/,
+    thay: "$1",
+  },
+  {
+    ten: "tự đổi mật khẩu bỏ sót phiên xem thay",
+    tep: "server/routes/auth.ts",
+    tim: "(user_id = $1 OR mo_boi = $1) AND id <> $2",
+    thay: "user_id = $1 AND id <> $2",
+  },
+  {
+    ten: "không dọn bảng đếm dò mật khẩu",
+    tep: "server/auth.ts",
+    tim: "DELETE FROM login_attempts WHERE created_at < now() - interval '1 day'",
+    thay: "SELECT 1",
+  },
+  {
+    ten: "hàm dọn không được gọi định kỳ",
+    tep: "server.ts",
+    tim: "      donDuLieuHetHan().catch(",
+    thay: "      Promise.resolve().catch(",
+  },
+  {
+    ten: "tin lại mọi mắt xích X-Forwarded-For (IP giả né chốt dò mật khẩu)",
+    tep: "server/app.ts",
+    tim: 'app.set("trust proxy", Number.isInteger(soProxy) && soProxy >= 0 ? soProxy : 1);',
+    thay: 'app.set("trust proxy", true);',
+  },
+  {
+    ten: "bỏ tiêu đề chống nhúng khung",
+    tep: "server/app.ts",
+    tim: '      res.setHeader("X-Frame-Options", "DENY");\n',
+    thay: "",
+  },
+  {
+    ten: "bỏ chốt đăng ký hàng loạt theo IP",
+    tep: "server/routes/auth.ts",
+    tim: "if ((dem?.c ?? 0) >= DANG_KY_TOI_DA_MOI_GIO) {",
+    thay: "if (false) {",
+  },
+  {
+    ten: "chỉ ghi lượt đăng ký SAU khi tạo xong (lần hỏng không bị đếm)",
+    tep: "server/routes/auth.ts",
+    tim: '    await query("INSERT INTO dang_ky_theo_ip (ip) VALUES ($1)", [ip]);\n',
+    thay: "",
+  },
+  {
+    ten: "thân quá lớn lại trả 500",
+    tep: "server/http.ts",
+    tim: 'if (loai === "entity.too.large") {',
+    thay: 'if (loai === "khong-bao-gio") {',
+  },
+  {
+    ten: "JSON hỏng lại trả 500",
+    tep: "server/http.ts",
+    tim: 'if (loai === "entity.parse.failed") {',
+    thay: 'if (loai === "khong-bao-gio") {',
+  },
+  {
+    ten: "lộ nội dung lỗi ở production",
+    tep: "server/http.ts",
+    tim: '...(process.env.NODE_ENV !== "production" ? { debug: message } : {}),',
+    thay: "debug: message,",
+  },
+  {
     ten: "gỡ chốt tự chủ ở một chỗ nhường quyền",
     tep: "server/services/sales-ai.ts",
     tim: /      if \(tuChu\.bat\) \{\n        await baoChuShop\(\n          conversation,\n          result\.blockMessage \?\? "Không gửi được tin nhắn cho khách",\n          tuChu\n        \);\n        return false;\n      \}\n/,
@@ -626,7 +710,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "khoá tài khoản mà để nguyên phiên đang mở",
     tep: "server/routes/admin.ts",
-    tim: "    if (khoa) {\n      await query(\"DELETE FROM sessions WHERE user_id = $1\", [dich.id]);\n    }",
+    tim: "    if (khoa) {\n      await query(\"DELETE FROM sessions WHERE user_id = $1 OR mo_boi = $1\", [dich.id]);\n    }",
     thay: "",
   },
   {

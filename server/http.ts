@@ -34,6 +34,25 @@ export function errorHandler(
 ): void {
   if (res.headersSent) return;
 
+  /*
+   * Lỗi do KHÁCH gửi sai thì trả mã 4xx, không trả 500.
+   *
+   * Đã đo: gửi thân 3MB (vượt giới hạn 2MB) và gửi JSON hỏng thì trước đây đều
+   * nhận 500 "Hệ thống gặp sự cố". Sai hai lần: nói dối người dùng rằng máy
+   * chủ hỏng, và làm nhiễu nhật ký lỗi thật — lỗi máy chủ thật chìm giữa đống
+   * lỗi do khách gõ sai. Thư viện đọc JSON vốn đã gắn sẵn loại lỗi, chỉ là chỗ
+   * này không đọc tới.
+   */
+  const loai = (error as { type?: unknown })?.type;
+  if (loai === "entity.too.large") {
+    res.status(413).json({ error: "Dữ liệu gửi lên quá lớn." });
+    return;
+  }
+  if (loai === "entity.parse.failed") {
+    res.status(400).json({ error: "Dữ liệu gửi lên không đúng định dạng." });
+    return;
+  }
+
   if (error instanceof AppError) {
     res.status(error.status).json({ error: error.message, details: error.details });
     return;

@@ -3,7 +3,7 @@ import { env } from "./server/env.js";
 import { verifyConnection, closePool } from "./server/db.js";
 import { runMigrations } from "./server/migrate.js";
 import { dangKyDiaChiWebhook } from "./server/services/zernio.js";
-import { pruneExpiredSessions } from "./server/auth.js";
+import { donDuLieuHetHan } from "./server/auth.js";
 import { startWorker, stopWorker, recoverStuckEvents } from "./server/worker.js";
 import {
   startTelegramPolling,
@@ -108,10 +108,11 @@ async function main() {
     console.error("[telegram] Vòng lặp liên kết dừng bất thường:", error)
   );
 
-  // Dọn phiên hết hạn mỗi giờ. unref() để tác vụ này không giữ tiến trình sống.
+  // Dọn phiên hết hạn và bộ đếm chống dò mỗi giờ. unref() để tác vụ này không
+  // giữ tiến trình sống.
   const sessionCleanup = setInterval(
     () => {
-      pruneExpiredSessions().catch((error) =>
+      donDuLieuHetHan().catch((error) =>
         console.error("[phiên] Dọn dẹp thất bại:", error)
       );
     },

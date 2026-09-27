@@ -271,8 +271,9 @@ adminRouter.post(
     ]);
 
     // Khoá thì cắt luôn mọi phiên đang mở, không để họ dùng tiếp tới khi hết hạn.
+    // Gồm cả phiên xem thay họ đã mở vào các trang con (mo_boi).
     if (khoa) {
-      await query("DELETE FROM sessions WHERE user_id = $1", [dich.id]);
+      await query("DELETE FROM sessions WHERE user_id = $1 OR mo_boi = $1", [dich.id]);
     }
 
     await ghiNhatKyQuanTri({
@@ -297,8 +298,9 @@ adminRouter.post(
       dich.id,
       await hashPassword(matKhauTam),
     ]);
-    // Mật khẩu đã đổi thì mọi phiên cũ phải chết.
-    await query("DELETE FROM sessions WHERE user_id = $1", [dich.id]);
+    // Mật khẩu đã đổi thì mọi phiên cũ phải chết — kể cả phiên xem thay họ đã
+    // mở vào các trang con: kẻ cầm mật khẩu bị lộ cũng mở được những phiên đó.
+    await query("DELETE FROM sessions WHERE user_id = $1 OR mo_boi = $1", [dich.id]);
 
     await ghiNhatKyQuanTri({
       adminId: req.user!.id,

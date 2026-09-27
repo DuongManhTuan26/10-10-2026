@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 import { query, queryOne, transaction } from "../db.js";
 import {
@@ -17,10 +18,48 @@ export const authRouter = Router();
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Cấu hình AI mặc định, tạo sẵn cho mỗi tài khoản mới. */
+/**
+ * Một địa chỉ IP đăng ký tối đa chừng này lần mỗi giờ.
+ *
+ * Đủ rộng cho một văn phòng nhiều người đăng ký chung mạng, đủ chặt để một
+ * đoạn lệnh vòng lặp không đẻ được hàng nghìn tài khoản.
+ */
+const DANG_KY_TOI_DA_MOI_GIO = 10;
+
+/**
+ * Bản băm của một mật khẩu ngẫu nhiên không ai biết, để so khi email không
+ * tồn tại — cùng thuật toán, cùng tham số nên tốn đúng bằng thời gian thật.
+ */
+let banBamGia: Promise<string> | null = null;
+function bamGia(): Promise<string> {
+  banBamGia ??= hashPassword(crypto.randomBytes(32).toString("hex"));
+  return banBamGia;
+}
+
 authRouter.post(
   "/register",
   route(async (req, res) => {
+    /*
+     * Đếm CẢ lần đăng ký hỏng, không chỉ lần thành công: không đếm thì kẻ dò
+     * dùng trang đăng ký để hỏi "email này có tài khoản chưa" bao nhiêu lần
+     * cũng được. Ghi trước khi tạo, nên lỗi giữa chừng vẫn bị đếm.
+     *
+     * Chỉ có nghĩa khi req.ip là IP thật — xem trust proxy trong app.ts.
+     */
+    const ip = req.ip ?? "";
+    const dem = await queryOne<{ c: number }>(
+      `SELECT count(*)::int AS c FROM dang_ky_theo_ip
+        WHERE ip = $1 AND created_at > now() - interval '1 hour'`,
+      [ip]
+    );
+    if ((dem?.c ?? 0) >= DANG_KY_TOI_DA_MOI_GIO) {
+      throw new AppError(
+        "Đăng ký quá nhiều lần từ cùng một mạng. Vui lòng thử lại sau một giờ.",
+        429
+      );
+    }
+    await query("INSERT INTO dang_ky_theo_ip (ip) VALUES ($1)", [ip]);
+
     /*
      * Đi qua đúng một hàm tạo tài khoản dùng chung với đường quản trị tạo hộ.
      * Hai đường tạo riêng là sớm muộn cũng lệch, rồi tài khoản đường này thiếu
@@ -132,7 +171,16 @@ authRouter.post(
      * Email không tồn tại cũng phải ghi: không ghi thì kẻ dò cứ đổi email là
      * bộ đếm theo IP không bao giờ tăng.
      */
-    if (!user || !user.is_active || !(await verifyPassword(password, user.password_hash))) {
+    /*
+     * LUÔN băm mật khẩu, kể cả khi email không tồn tại hay tài khoản bị khoá.
+     *
+     * Đã đo: bản trước bỏ qua bước băm khi không có email, nên email có thật
+     * trả lời chậm hơn ~45ms, không lần nào chồng lấn (191–201ms so với
+     * 147–151ms). Thông báo lỗi giống nhau cũng vô ích — đo năm lần là biết
+     * email nào có tài khoản.
+     */
+    const matKhauDung = await verifyPassword(password, user?.password_hash ?? (await bamGia()));
+    if (!user || !user.is_active || !matKhauDung) {
       await query("INSERT INTO login_attempts (email, ip) VALUES ($1, $2)", [email, ip]).catch(
         () => {
           /* Ghi hỏng thì vẫn phải từ chối đăng nhập, không được cho qua. */
@@ -196,10 +244,11 @@ authRouter.post(
      * Huỷ mọi phiên khác, giữ lại phiên đang dùng.
      *
      * Đổi mật khẩu thường vì nghi bị lộ; để các phiên cũ sống tiếp thì việc đổi
-     * chẳng có tác dụng gì.
+     * chẳng có tác dụng gì. Gồm cả phiên xem thay đã mở bằng tài khoản này:
+     * kẻ cầm mật khẩu bị lộ cũng mở được chúng.
      */
     const daXoa = await query(
-      "DELETE FROM sessions WHERE user_id = $1 AND id <> $2",
+      "DELETE FROM sessions WHERE (user_id = $1 OR mo_boi = $1) AND id <> $2",
       [req.user!.id, req.sessionId ?? ""]
     );
 

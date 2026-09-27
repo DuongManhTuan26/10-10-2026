@@ -31,13 +31,51 @@ export async function createApp() {
   app.use(express.json({ limit: "2mb" }));
   app.use(cookieParser());
   /*
-   * Tin header proxy để lấy đúng IP của khách.
+   * Tin header proxy để lấy đúng IP của khách — nhưng CHỈ tin đúng số proxy.
    *
    * Chạy sau Cloudflare, Render hay Nginx thì req.ip là IP của proxy chứ không
    * phải của người gọi. Không đặt cái này là bộ chặn dò mật khẩu đếm nhầm mọi
    * người vào chung một IP — chặn oan cả hệ thống, mà kẻ dò thì vẫn thoải mái.
+   *
+   * Bản trước đặt `true` — tin MỌI mắt xích trong X-Forwarded-For, kể cả phần
+   * do chính khách tự viết. Đã tái hiện: gửi X-Forwarded-For 9.9.9.9, 8.8.4.4,
+   * 1.2.3.4 thì bảng login_attempts ghi đúng ba IP giả đó. Kẻ dò mật khẩu đổi
+   * IP giả mỗi lần là né sạch chốt "sai 20 lần mỗi IP", thử một mật khẩu phổ
+   * biến lên mọi tài khoản không giới hạn.
+   *
+   * Proxy thật NỐI IP khách vào CUỐI chuỗi. Tin đúng N mắt xích cuối thì phần
+   * khách tự khai ở đầu chuỗi bị bỏ qua. Số proxy đặt qua TRUST_PROXY_HOPS,
+   * mặc định 1 — đúng với hầu hết nơi triển khai có một lớp proxy phía trước.
    */
-  app.set("trust proxy", true);
+  const soProxy = Number(process.env.TRUST_PROXY_HOPS ?? "1");
+  app.set("trust proxy", Number.isInteger(soProxy) && soProxy >= 0 ? soProxy : 1);
+
+  /*
+   * Tiêu đề bảo mật. Đã đo: trước đây lời đáp KHÔNG có tiêu đề nào cả.
+   *
+   * Viết tay mấy dòng thay vì thêm thư viện, vì chỉ cần đúng mấy tiêu đề này.
+   *
+   * Chặn nhúng khung CHỈ bật ở production: bolt hiện bản xem trước trong một
+   * khung của trang khác, chặn luôn ở đó thì bản xem trước thành trang trắng
+   * và trông như app hỏng. Rủi ro khi chưa chặn là thấp — cookie phiên là
+   * SameSite=Lax nên trang bị nhúng vào khung lạ ở trạng thái chưa đăng nhập,
+   * không lừa bấm được nút nào có quyền.
+   *
+   * Không đặt Content-Security-Policy đầy đủ: một chính sách chặt chưa kiểm
+   * trên mọi màn hình rất dễ chặn nhầm ảnh Facebook, phông chữ, bản vá nóng
+   * lúc phát triển. Chỉ đặt đúng phần frame-ancestors.
+   */
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    if (env.isProduction) {
+      res.setHeader("X-Frame-Options", "DENY");
+      res.setHeader("Content-Security-Policy", "frame-ancestors 'none'");
+      // Chỉ có nghĩa khi chạy HTTPS — ở production thì luôn là HTTPS.
+      res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+    }
+    next();
+  });
 
   app.use(attachUser);
 

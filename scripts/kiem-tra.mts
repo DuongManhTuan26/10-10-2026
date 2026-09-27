@@ -36,6 +36,7 @@ import { matchesKeywords } from "../server/services/comment-ai.js";
 import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
+import { errorHandler } from "../server/http.js";
 
 const GOC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -92,7 +93,12 @@ function kiem(nhom: string, ten: string, thuc: unknown, mong: unknown): void {
  */
 function boChuThich(ma: string): string {
   return ma
-    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "") // {/* ... */} trong JSX
+    /*
+     * {/* ... *\/} trong JSX. Phải dừng ở dấu đóng ĐẦU TIÊN: bản cũ dùng
+     * [\s\S]*? nên ghép "{" mở một hàm với chú thích nào đó ở xa phía dưới
+     * và nuốt mất cả đoạn mã giữa — phép "không được có X" đạt oan.
+     */
+    .replace(/\{\s*\/\*(?:(?!\*\/)[\s\S])*\*\/\s*\}/g, "")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^[ \t]*\/\/.*$/gm, "");
 }
@@ -1346,6 +1352,9 @@ kiem("nhiều shop", "một mình dùng thì vẫn được trọn hạn mức",
  * login_attempts đếm lần gõ sai mật khẩu, mà phần lớn lần gõ sai là vào email
  * KHÔNG có trong hệ thống — không có shop nào để gắn. Gắn user_id vào đây còn
  * làm hỏng chính tác dụng của nó.
+ *
+ * dang_ky_theo_ip đếm lượt đăng ký theo IP, ghi TRƯỚC khi tài khoản tồn tại —
+ * chưa có shop nào để gắn, cùng lý do với login_attempts.
  */
 const BANG_DUNG_CHUNG = [
   "schema_migrations",
@@ -1353,6 +1362,7 @@ const BANG_DUNG_CHUNG = [
   "webhook_events",
   "admin_audit",
   "login_attempts",
+  "dang_ky_theo_ip",
 ];
 const cauLenhTaoBang = fs
   .readdirSync(path.join(GOC, "server/migrations"))
@@ -1602,13 +1612,13 @@ kiem("chặn dò mật khẩu", "đếm theo cặp email và máy, không chặn
 kiem("chặn dò mật khẩu", "ngưỡng theo email để rất cao, tránh ai cũng khoá được tài khoản người khác",
   /const TOI_DA_THEO_EMAIL = 50;/.test(nguonDangNhap), true);
 kiem("chặn dò mật khẩu", "ghi cả lần sai của email không tồn tại",
-  /if \(!user \|\| !user\.is_active \|\| !\(await verifyPassword[\s\S]{0,120}?INSERT INTO login_attempts/.test(
+  /if \(!user \|\| !user\.is_active \|\| !matKhauDung\) \{[\s\S]{0,120}?INSERT INTO login_attempts/.test(
     nguonDangNhap
   ), true);
 kiem("chặn dò mật khẩu", "đăng nhập đúng thì xoá sạch bộ đếm",
   /DELETE FROM login_attempts WHERE lower\(email\) = \$1/.test(nguonDangNhap), true);
 kiem("chặn dò mật khẩu", "tin header proxy để lấy đúng IP của khách",
-  /app\.set\("trust proxy", true\)/.test(nguonApp), true);
+  /app\.set\("trust proxy", Number\.isInteger\(soProxy\)/.test(nguonApp), true);
 
 // --- Mã bí mật khi cấp quyền kênh --------------------------------------------
 const nguonKetNoi = fs.readFileSync(path.join(GOC, "server/routes/connections.ts"), "utf8");
@@ -3412,6 +3422,89 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     if (!mau.test(maGiaoDien)) hamBoQuen.push(`api.${nhomHienTai}.${laHam[1]}`);
   }
   kiem("hàm bỏ quên", "mọi hàm API đều có màn hình gọi tới", hamBoQuen, []);
+}
+
+// ---------------------------------------------------------------------------
+// Bảo mật: những lỗ đã tái hiện được bằng tấn công thật rồi mới vá.
+{
+  /*
+   * Không dùng boChuThich ở đây: luật bỏ chú thích JSX của nó ghép "{" mở hàm
+   * với một chú thích ở xa phía dưới, nuốt mất cả đoạn mã ở giữa trong tệp .ts.
+   * Đã bắt được khi chính phép kiểm đăng ký báo hỏng oan.
+   */
+  const boChuThichTS = (ma: string) =>
+    ma.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+  const nguonApp = boChuThichTS(fs.readFileSync(path.join(GOC, "server/app.ts"), "utf8"));
+  const nguonDangKy = boChuThichTS(fs.readFileSync(path.join(GOC, "server/routes/auth.ts"), "utf8"));
+
+  // Đã tái hiện: "trust proxy" = true thì X-Forwarded-For tự khai được ghi làm
+  // IP thật, kẻ dò mật khẩu đổi IP giả mỗi lần là né được chốt chặn.
+  kiem("bảo mật", "không tin mọi mắt xích X-Forwarded-For",
+    /set\(\s*"trust proxy"\s*,\s*true\s*\)/.test(nguonApp), false);
+  kiem("bảo mật", "số proxy tin cậy đọc từ TRUST_PROXY_HOPS",
+    /TRUST_PROXY_HOPS/.test(nguonApp) && /set\(\s*"trust proxy"\s*,\s*Number\.isInteger\(soProxy\)/.test(nguonApp), true);
+
+  // Đã tái hiện: trước đây lời đáp không có tiêu đề bảo mật nào.
+  for (const tieuDe of ["X-Content-Type-Options", "Referrer-Policy", "X-Frame-Options",
+    "Content-Security-Policy", "Strict-Transport-Security"]) {
+    kiem("bảo mật", `có đặt tiêu đề ${tieuDe}`, nguonApp.includes(`"${tieuDe}"`), true);
+  }
+  kiem("bảo mật", "tắt tiêu đề lộ tên Express", /app\.disable\("x-powered-by"\)/.test(nguonApp), true);
+
+  // Đã tái hiện: một vòng lặp đẻ tài khoản không giới hạn. Chốt phải đứng
+  // TRƯỚC khi tạo tài khoản, và phải ghi cả lần hỏng.
+  const viTriChan = nguonDangKy.indexOf("DANG_KY_TOI_DA_MOI_GIO) {");
+  const viTriGhi = nguonDangKy.indexOf("INSERT INTO dang_ky_theo_ip");
+  const viTriTao = nguonDangKy.indexOf("await taoTaiKhoan(");
+  kiem("bảo mật", "đăng ký: đếm theo IP trước khi tạo tài khoản",
+    viTriChan > 0 && viTriGhi > viTriChan && viTriTao > viTriGhi, true);
+
+  // Đã tái hiện: thân 3MB và JSON hỏng đều nhận 500 "hệ thống gặp sự cố".
+  const goi = (loi: unknown) => {
+    const kq: { ma?: number; than?: Record<string, unknown> } = {};
+    const res = {
+      headersSent: false,
+      status(m: number) { kq.ma = m; return this; },
+      json(t: Record<string, unknown>) { kq.than = t; return this; },
+    };
+    const req = { method: "POST", path: "/api/thu" };
+    const logCu = console.error;
+    console.error = () => {};
+    try { errorHandler(loi, req as never, res as never, () => {}); } finally { console.error = logCu; }
+    return kq;
+  };
+  kiem("bảo mật", "thân quá lớn trả 413", goi(Object.assign(new Error("x"), { type: "entity.too.large" })).ma, 413);
+  kiem("bảo mật", "JSON hỏng trả 400", goi(Object.assign(new SyntaxError("x"), { type: "entity.parse.failed" })).ma, 400);
+  kiem("bảo mật", "lỗi thật vẫn là 500", goi(new Error("hỏng thật")).ma, 500);
+
+  // Chi tiết lỗi chỉ được lộ khi phát triển, không bao giờ ở production.
+  const moiTruongCu = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
+  const kqProd = goi(new Error("mật khẩu database sai ở dòng 12"));
+  process.env.NODE_ENV = moiTruongCu;
+  kiem("bảo mật", "production không lộ nội dung lỗi", JSON.stringify(kqProd.than).includes("database"), false);
+
+  // Đã tái hiện: khoá chủ chuỗi xong, phiên xem thay họ đã mở vẫn xem được
+  // danh sách trang và nhảy sang trang khác.
+  const nguonPhien = boChuThichTS(fs.readFileSync(path.join(GOC, "server/auth.ts"), "utf8"));
+  const nguonQuanTri = boChuThichTS(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8"));
+  kiem("bảo mật", "phiên xem thay chết khi người mở mất quyền",
+    /s\.mo_boi IS NULL OR EXISTS \([\s\S]{0,120}c\.id = s\.mo_boi AND c\.is_active = TRUE[\s\S]{0,80}c\.role IN \('admin', 'admin_con'\) AND u\.parent_id = c\.id/.test(nguonPhien), true);
+  kiem("bảo mật", "khoá và cấp lại mật khẩu huỷ cả phiên xem thay",
+    (nguonQuanTri.match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length, 2);
+  kiem("bảo mật", "tự đổi mật khẩu huỷ cả phiên xem thay",
+    /DELETE FROM sessions WHERE \(user_id = \$1 OR mo_boi = \$1\) AND id <> \$2/.test(nguonDangKy), true);
+
+  // Đã đo: email có thật trả lời chậm hơn ~45ms vì chỉ nó mới được băm.
+  kiem("bảo mật", "đăng nhập luôn băm mật khẩu, kể cả email không tồn tại",
+    /const matKhauDung = await verifyPassword\(password, user\?\.password_hash \?\? \(await bamGia\(\)\)\);\s*if \(!user \|\| !user\.is_active \|\| !matKhauDung\)/.test(nguonDangKy), true);
+
+  // Đã đo: login_attempts và dang_ky_theo_ip không bao giờ bị dọn.
+  const nguonKhoiDong = fs.readFileSync(path.join(GOC, "server.ts"), "utf8");
+  kiem("bảo mật", "dọn bảng đếm dò mật khẩu", /DELETE FROM login_attempts WHERE created_at </.test(nguonPhien), true);
+  kiem("bảo mật", "dọn bảng đếm đăng ký", /DELETE FROM dang_ky_theo_ip WHERE created_at </.test(nguonPhien), true);
+  kiem("bảo mật", "việc dọn thật sự được gọi định kỳ",
+    /setInterval\(\s*\(\) => \{\s*donDuLieuHetHan\(\)/.test(nguonKhoiDong), true);
 }
 
 // ---------------------------------------------------------------------------

@@ -218,7 +218,20 @@ async function loadSession(req: Request): Promise<SessionRow | null> {
     `SELECT s.id AS session_id, s.mo_boi, u.id, u.email, u.name, u.plan, u.role, u.profile_ref
        FROM sessions s
        JOIN users u ON u.id = s.user_id
-      WHERE s.id = $1 AND s.expires_at > now() AND u.is_active = TRUE`,
+      WHERE s.id = $1 AND s.expires_at > now() AND u.is_active = TRUE
+        /*
+         * Phiên XEM THAY chỉ sống khi người mở nó vẫn còn quyền mở.
+         *
+         * Đã tái hiện: khoá chủ chuỗi thì phiên của chính họ bị xoá, nhưng phiên
+         * xem thay họ đang mở mang user_id của TRANG, nên sống tiếp — vẫn xem
+         * được danh sách trang và nhảy sang trang khác trong chuỗi. Kiểm ở đây,
+         * mỗi request, thì khoá, hạ vai trò hay chuyển trang sang chủ khác đều
+         * có hiệu lực ngay lượt bấm kế tiếp, không cần nhớ đi xoá phiên ở đâu.
+         */
+        AND (s.mo_boi IS NULL OR EXISTS (
+              SELECT 1 FROM users c
+               WHERE c.id = s.mo_boi AND c.is_active = TRUE
+                 AND c.role IN ('admin', 'admin_con') AND u.parent_id = c.id))`,
     [id]
   );
 
@@ -271,8 +284,23 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   next();
 }
 
-/** Xoá các phiên đã hết hạn. Gọi định kỳ từ tiến trình nền. */
-export async function pruneExpiredSessions(): Promise<number> {
-  const result = await query("DELETE FROM sessions WHERE expires_at <= now()");
-  return result.rowCount ?? 0;
+/**
+ * Dọn phiên hết hạn và hai bảng đếm chống dò. server.ts gọi mỗi giờ.
+ *
+ * Bản trước chỉ dọn phiên. login_attempts ghi cả lần gõ sai vào email không
+ * tồn tại, chỉ bị xoá khi email đó đăng nhập đúng — tức là không bao giờ; ai
+ * gõ sai liên tục là database phình mãi. dang_ky_theo_ip cũng vậy.
+ *
+ * Giữ một ngày, rộng hơn nhiều so với cửa sổ đếm (15 phút đăng nhập, một giờ
+ * đăng ký), nên dọn không bao giờ làm bộ đếm quên sớm.
+ */
+export async function donDuLieuHetHan(): Promise<number> {
+  const phien = await query("DELETE FROM sessions WHERE expires_at <= now()");
+  const dangNhap = await query(
+    "DELETE FROM login_attempts WHERE created_at < now() - interval '1 day'"
+  );
+  const dangKy = await query(
+    "DELETE FROM dang_ky_theo_ip WHERE created_at < now() - interval '1 day'"
+  );
+  return (phien.rowCount ?? 0) + (dangNhap.rowCount ?? 0) + (dangKy.rowCount ?? 0);
 }
