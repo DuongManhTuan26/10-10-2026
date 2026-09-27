@@ -30,6 +30,60 @@ interface PhepDuc {
 
 const DUC: PhepDuc[] = [
   {
+    ten: "bỏ trần lượt AI trả lời khách",
+    tep: "server/services/sales-ai.ts",
+    tim: "if (!xinSuatTraLoiAI(conversation.id, conversation.social_account_id)) {",
+    thay: "if (false) {",
+  },
+  {
+    ten: "trần lượt AI chỉ tính theo hội thoại, quên trần Fanpage",
+    tep: "server/services/chong-lam-dung.ts",
+    tim: "      { khoa: `ai-kenh:${kenhId}`, moiGio: AI_TRA_LOI_MOI_KENH_MOI_GIO },\n",
+    thay: "",
+  },
+  {
+    ten: "vượt trần vẫn đi tiếp gọi AI",
+    tep: "server/services/sales-ai.ts",
+    tim: "      tuChuSom,\n      true\n    );\n    return false;\n  }",
+    thay: "      tuChuSom,\n      true\n    );\n  }",
+  },
+  {
+    ten: "bỏ chốt chống đốt tiền ở đường tạo ảnh",
+    tep: "server/routes/ai.ts",
+    tim: '"/generate-image",\n  chanLamDungAI,\n',
+    thay: '"/generate-image",\n',
+  },
+  {
+    ten: "nới trần gọi AI theo IP lên gần như vô hạn",
+    tep: "server/services/chong-lam-dung.ts",
+    tim: "moiPhut: 60, moiGio: 600",
+    thay: "moiPhut: 60000, moiGio: 600000",
+  },
+  {
+    ten: "nới trần gọi AI mỗi phút lên gần như vô hạn",
+    tep: "server/services/chong-lam-dung.ts",
+    tim: "moiPhut: 20, moiGio: 200",
+    thay: "moiPhut: 20000, moiGio: 200000",
+  },
+  {
+    ten: "bỏ chốt trước khi đọc ảnh khách gửi",
+    tep: "server/services/events.ts",
+    tim: "if (!xinSuatDocAnh(message.conversationId, accountId)) {",
+    thay: "if (false) {",
+  },
+  {
+    ten: "trần đọc ảnh chỉ tính theo hội thoại, quên trần Fanpage",
+    tep: "server/services/chong-lam-dung.ts",
+    tim: "      { khoa: `anh-kenh:${kenhId}`, moiGio: ANH_MOI_KENH_MOI_GIO },\n",
+    thay: "",
+  },
+  {
+    ten: "bị chặn vẫn ghi lượt (kéo dài thời gian chờ mãi)",
+    tep: "server/services/chong-lam-dung.ts",
+    tim: "      return { choGiay: Math.max(1, Math.ceil((moNhat - bayGio) / 1_000)) };",
+    thay: "      (nhatKy.get(m.khoa) ?? []).push(bayGio);\n      return { choGiay: Math.max(1, Math.ceil((moNhat - bayGio) / 1_000)) };",
+  },
+  {
     ten: "đăng nhập bỏ qua bước băm khi email không tồn tại (lộ email qua thời gian)",
     tep: "server/routes/auth.ts",
     tim: "if (!user || !user.is_active || !matKhauDung) {",

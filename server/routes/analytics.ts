@@ -6,6 +6,7 @@ import { AppError, route } from "../http.js";
 import { chatJson, asRecord, optionalString } from "../services/ai.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "../services/text.js";
 import { loadKnowledge } from "../services/knowledge.js";
+import { chanLamDungAI } from "../services/chong-lam-dung.js";
 
 export const analyticsRouter = Router();
 
@@ -196,6 +197,7 @@ analyticsRouter.get(
  */
 analyticsRouter.post(
   "/analyze",
+  chanLamDungAI,
   route(async (req, res) => {
     const userId = req.user!.id;
     const days = rangeDays(req.body?.range);

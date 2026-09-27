@@ -5,6 +5,7 @@ import { docTuChu } from "./sales-autonomy.js";
 import { handleCommentReceived } from "./comment-ai.js";
 import { touchCustomerMessage } from "./outbound.js";
 import { syncAccountsForUser } from "./accounts.js";
+import { xinSuatDocAnh } from "./chong-lam-dung.js";
 
 /**
  * Chuyển sự kiện webhook thành dữ liệu nghiệp vụ.
@@ -268,6 +269,12 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
     for (const t of attachments.slice(0, 3)) {
       const o = (t ?? {}) as Record<string, unknown>;
       if (typeof o.url !== "string" || typeof o.type !== "string") continue;
+      if (!xinSuatDocAnh(message.conversationId, accountId)) {
+        console.warn(
+          `[sự kiện] Bỏ qua đọc ảnh trong ${message.conversationId}: vượt trần đọc ảnh mỗi giờ`
+        );
+        break;
+      }
       try {
         const doc = await docTepKhachGui({ url: o.url, type: o.type, userId: account.user_id });
         if (doc) moTa.push(doc);

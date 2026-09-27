@@ -7,6 +7,7 @@ import * as zernio from "./zernio.js";
 import { sendHandoffAlert } from "./telegram.js";
 import { taoDon, daCoDon } from "./orders.js";
 import { sendMessageSafely } from "./outbound.js";
+import { xinSuatTraLoiAI } from "./chong-lam-dung.js";
 
 /**
  * Bộ não AI bán hàng.
@@ -206,6 +207,31 @@ export async function handleIncomingMessage(conversationId: string): Promise<boo
     console.log(
       `[AI bán hàng] Bỏ qua hội thoại ${conversationId}: ` +
         `tin cuối là của ${lastMessage.sender_type}, không phải của khách`
+    );
+    return false;
+  }
+
+  /*
+   * Trần lượt AI để chặn đốt tiền.
+   *
+   * Đã tái hiện: bật chế độ tự chủ, bắn 40 tin chữ vào một hội thoại thì AI
+   * bán hàng bị gọi đủ 40 lần. Chốt "quá số lượt thì nhường người" không cản
+   * được vì ở chế độ tự chủ nó chỉ báo chủ shop rồi AI chạy tiếp. Kẻ xấu
+   * không cần tài khoản gì của mình, chỉ cần vài nick Facebook nhắn liên tục.
+   *
+   * Khách thật trò chuyện bình thường cách rất xa mức này. Vượt trần thì AI
+   * tạm ngừng ở hội thoại đó và báo chủ shop MỘT lần — không im lặng bỏ khách.
+   */
+  if (!xinSuatTraLoiAI(conversation.id, conversation.social_account_id)) {
+    console.warn(
+      `[AI bán hàng] Hội thoại ${conversationId} vượt trần lượt AI mỗi giờ — tạm ngừng trả lời.`
+    );
+    await baoChuShop(
+      conversation,
+      "Khách nhắn dồn dập bất thường. AI tạm ngừng trả lời hội thoại này (tối đa 1 giờ) " +
+        "để chặn đốt tiền AI. Vào xem, nếu là khách thật thì trả lời tay.",
+      tuChuSom,
+      true
     );
     return false;
   }
@@ -1077,7 +1103,9 @@ async function notifyCustomerOfHandoff(conversation: ConversationRow): Promise<v
 async function baoChuShop(
   conversation: ConversationRow,
   reason: string,
-  tuChu: TuChuConfig
+  tuChu: TuChuConfig,
+  /** AI đã dừng ở hội thoại này — câu báo không được nói là AI vẫn đang nói tiếp. */
+  aiDaDung = false
 ): Promise<void> {
   const daBao = await queryOne(
     `SELECT id FROM messages
@@ -1102,7 +1130,7 @@ async function baoChuShop(
 
   await sendHandoffAlert(conversation.user_id, {
     customerName: customer?.name || "Khách chưa có tên",
-    reason: `${reason} — AI vẫn đang tiếp tục nói chuyện với khách`,
+    reason: aiDaDung ? reason : `${reason} — AI vẫn đang tiếp tục nói chuyện với khách`,
     platform: conversation.platform,
   }).catch((error) =>
     console.error(

@@ -37,6 +37,18 @@ import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
 import { errorHandler } from "../server/http.js";
+import {
+  xinSuat,
+  xinSuatDocAnh,
+  _xoaBoDemChoKiemTra,
+  _soLuotDaGhi,
+  chanLamDungAI,
+  xinSuatTraLoiAI,
+  AI_TRA_LOI_MOI_HOI_THOAI_MOI_GIO,
+  AI_TRA_LOI_MOI_KENH_MOI_GIO,
+  ANH_MOI_HOI_THOAI_MOI_GIO,
+  ANH_MOI_KENH_MOI_GIO,
+} from "../server/services/chong-lam-dung.js";
 
 const GOC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -3498,6 +3510,104 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   // Đã đo: email có thật trả lời chậm hơn ~45ms vì chỉ nó mới được băm.
   kiem("bảo mật", "đăng nhập luôn băm mật khẩu, kể cả email không tồn tại",
     /const matKhauDung = await verifyPassword\(password, user\?\.password_hash \?\? \(await bamGia\(\)\)\);\s*if \(!user \|\| !user\.is_active \|\| !matKhauDung\)/.test(nguonDangKy), true);
+
+  // Đã tái hiện: một tài khoản gọi lặp AI 40 lần, cả 40 lần đều tới nhà cung
+  // cấp. Mọi đường người dùng bấm mà tốn tiền AI phải đi qua chốt.
+  const DUONG_TON_TIEN_AI: [string, string][] = [
+    ["server/routes/ai.ts", "/configs/:kind/documents"],
+    ["server/routes/ai.ts", "/generate-image"],
+    ["server/routes/ai.ts", "/generate-post"],
+    ["server/routes/ai.ts", "/conversations/:id/extract"],
+    ["server/routes/ai.ts", "/conversations/:id/suggest"],
+    ["server/routes/ai.ts", "/test"],
+    ["server/routes/analytics.ts", "/analyze"],
+    ["server/routes/ads.ts", "/analyze"],
+  ];
+  for (const [tep, duong] of DUONG_TON_TIEN_AI) {
+    const ma = fs.readFileSync(path.join(GOC, tep), "utf8");
+    kiem("chống đốt tiền AI", `${tep} ${duong} có chốt`,
+      ma.includes(`.post(\n  "${duong}",\n  chanLamDungAI,\n  route(`), true);
+  }
+  // Không sót đường nào: mọi route gọi hàm AI trả tiền đều phải nằm trong danh sách trên.
+  const soDuongGoiAI = ["server/routes/ai.ts", "server/routes/analytics.ts", "server/routes/ads.ts"]
+    .map((t) => boChuThichTS(fs.readFileSync(path.join(GOC, t), "utf8")))
+    .flatMap((ma) => ma.split(/\n(?=\w+Router\.(?:get|post|put|patch|delete)\()/))
+    .filter((khoi) => /\b(chat|chatJson|taoAnhChoBai|docChuTuAnh|generatePostContent|extractOrderInfo|suggestReply)\s*(<[^>]*>)?\(/.test(khoi))
+    .length;
+  kiem("chống đốt tiền AI", "số đường gọi AI trả tiền khớp danh sách có chốt", soDuongGoiAI, DUONG_TON_TIEN_AI.length);
+
+  _xoaBoDemChoKiemTra();
+  const luot = Array.from({ length: 25 }, () => xinSuat([{ khoa: "thu:a", moiPhut: 20, moiGio: 200 }]).choGiay);
+  kiem("chống đốt tiền AI", "20 lượt đầu trong phút được qua", luot.slice(0, 20).every((g) => g === 0), true);
+  kiem("chống đốt tiền AI", "lượt 21 trở đi bị chặn", luot.slice(20).every((g) => g > 0), true);
+  kiem("chống đốt tiền AI", "khoá khác không bị vạ lây",
+    xinSuat([{ khoa: "thu:b", moiPhut: 20, moiGio: 200 }]).choGiay, 0);
+  /*
+   * Gọi thẳng CHỐT THẬT, không tự đặt mức: phép kiểm cũ tự đặt mức 20 riêng
+   * nên ai nới mức thật lên 20.000 nó vẫn báo đạt — bộ đục lỗ đã bắt được.
+   */
+  _xoaBoDemChoKiemTra();
+  const goiChot = (userId: number, ip: string) => {
+    let ma = 200;
+    const res = { setHeader() {} };
+    chanLamDungAI({ user: { id: userId }, ip } as never, res as never,
+      ((loi?: { status?: number }) => { if (loi) ma = loi.status ?? 500; }) as never);
+    return ma;
+  };
+  const ketQua = Array.from({ length: 25 }, () => goiChot(1, "1.1.1.1"));
+  kiem("chống đốt tiền AI", "chốt thật: một tài khoản qua đúng 20 lượt mỗi phút",
+    ketQua.filter((m) => m === 200).length, 20);
+  kiem("chống đốt tiền AI", "chốt thật: lượt vượt trả 429", ketQua[24], 429);
+  // Nhiều tài khoản cùng một IP: IP chặn ở lượt 61 dù mỗi tài khoản còn suất.
+  _xoaBoDemChoKiemTra();
+  const quaTheoIP = Array.from({ length: 70 }, (_, i) => goiChot(100 + Math.floor(i / 10), "2.2.2.2"))
+    .filter((m) => m === 200).length;
+  kiem("chống đốt tiền AI", "chốt thật: một IP qua đúng 60 lượt mỗi phút dù đổi tài khoản", quaTheoIP, 60);
+  _xoaBoDemChoKiemTra();
+  xinSuat([{ khoa: "thu:a", moiPhut: 20, moiGio: 200 }]);
+  for (let i = 0; i < 24; i++) xinSuat([{ khoa: "thu:a", moiPhut: 20, moiGio: 200 }]);
+
+  // Lượt bị chặn mà vẫn ghi thì kẻ bắn liên tục tự kéo dài lệnh cấm — và
+  // người thật lỡ bấm quá nhanh cũng bị khoá mãi không mở.
+  kiem("chống đốt tiền AI", "lượt bị chặn không được ghi thêm", _soLuotDaGhi("thu:a"), 20);
+
+  // Đã tái hiện: 10 ảnh gửi vào hội thoại đã tắt AI vẫn gọi AI đọc ảnh 10 lần.
+  _xoaBoDemChoKiemTra();
+  const docMotHoiThoai = Array.from({ length: 30 }, () => xinSuatDocAnh("ht-1", "kenh-1")).filter(Boolean).length;
+  kiem("chống đốt tiền AI", "một hội thoại chỉ đọc tối đa số ảnh cho phép mỗi giờ",
+    docMotHoiThoai, ANH_MOI_HOI_THOAI_MOI_GIO);
+  _xoaBoDemChoKiemTra();
+  let docCaKenh = 0;
+  for (let h = 0; h < 40; h++) {
+    for (let i = 0; i < ANH_MOI_HOI_THOAI_MOI_GIO; i++) if (xinSuatDocAnh(`ht-${h}`, "kenh-1")) docCaKenh++;
+  }
+  kiem("chống đốt tiền AI", "nhiều hội thoại cộng lại không vượt trần của Fanpage", docCaKenh, ANH_MOI_KENH_MOI_GIO);
+  kiem("chống đốt tiền AI", "Fanpage khác không bị vạ lây", xinSuatDocAnh("ht-khac", "kenh-2"), true);
+  _xoaBoDemChoKiemTra();
+
+  // Đã tái hiện: chế độ tự chủ, 40 tin chữ vào một hội thoại gọi AI đủ 40 lần.
+  _xoaBoDemChoKiemTra();
+  kiem("chống đốt tiền AI", "một hội thoại chỉ được AI trả lời tối đa số lượt cho phép mỗi giờ",
+    Array.from({ length: 50 }, () => xinSuatTraLoiAI("ht-1", "kenh-1")).filter(Boolean).length,
+    AI_TRA_LOI_MOI_HOI_THOAI_MOI_GIO);
+  _xoaBoDemChoKiemTra();
+  let traLoiCaKenh = 0;
+  for (let h = 0; h < 40; h++) {
+    for (let i = 0; i < AI_TRA_LOI_MOI_HOI_THOAI_MOI_GIO; i++) if (xinSuatTraLoiAI(`ht-${h}`, "kenh-1")) traLoiCaKenh++;
+  }
+  kiem("chống đốt tiền AI", "nhiều hội thoại cộng lại không vượt trần lượt AI của Fanpage",
+    traLoiCaKenh, AI_TRA_LOI_MOI_KENH_MOI_GIO);
+  _xoaBoDemChoKiemTra();
+  const nguonBanHang = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/sales-ai.ts"), "utf8"));
+  const viTriTran = nguonBanHang.indexOf("if (!xinSuatTraLoiAI(conversation.id, conversation.social_account_id)) {");
+  const viTriGoiAI = nguonBanHang.indexOf("const decision = await decide(conversation, history, rules);");
+  kiem("chống đốt tiền AI", "xin suất TRƯỚC khi gọi AI bán hàng", viTriTran > 0 && viTriGoiAI > viTriTran, true);
+  kiem("chống đốt tiền AI", "vượt trần thì dừng hẳn, không gọi AI",
+    /if \(!xinSuatTraLoiAI\([^)]*\)\) \{[\s\S]{0,500}?return false;\s*\}/.test(nguonBanHang), true);
+
+  const nguonSuKien = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/events.ts"), "utf8"));
+  kiem("chống đốt tiền AI", "xin suất TRƯỚC khi gọi AI đọc ảnh khách gửi",
+    /if \(!xinSuatDocAnh\(message\.conversationId, accountId\)\) \{[\s\S]{0,200}?break;\s*\}\s*try \{\s*const doc = await docTepKhachGui\(/.test(nguonSuKien), true);
 
   // Đã đo: login_attempts và dang_ky_theo_ip không bao giờ bị dọn.
   const nguonKhoiDong = fs.readFileSync(path.join(GOC, "server.ts"), "utf8");

@@ -31,6 +31,7 @@ import { docTuChu } from "../services/sales-autonomy.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "../services/text.js";
 import { taoAnhChoBai, docPhongCachDaLuu, PHONG_CACH_MAC_DINH } from "../services/image-ai.js";
 import { anDiaChiKho } from "../services/media-proxy.js";
+import { chanLamDungAI } from "../services/chong-lam-dung.js";
 
 export const aiRouter = Router();
 
@@ -370,6 +371,7 @@ aiRouter.patch(
  */
 aiRouter.post(
   "/configs/:kind/documents",
+  chanLamDungAI,
   route(async (req, res) => {
     const kind = assertKind(req.params.kind);
     const body = req.body ?? {};
@@ -461,6 +463,7 @@ aiRouter.get(
  */
 aiRouter.post(
   "/generate-image",
+  chanLamDungAI,
   route(async (req, res) => {
     const noiDung = typeof req.body?.content === "string" ? req.body.content : "";
     const yeuCau = typeof req.body?.prompt === "string" ? req.body.prompt : undefined;
@@ -482,6 +485,7 @@ aiRouter.post(
 
 aiRouter.post(
   "/generate-post",
+  chanLamDungAI,
   route(async (req, res) => {
     const topic = requireString(req.body, "topic", "chủ đề bài viết");
 
@@ -505,6 +509,7 @@ aiRouter.post(
 
 aiRouter.post(
   "/conversations/:id/extract",
+  chanLamDungAI,
   route(async (req, res) => {
     const conversation = await queryOne(
       "SELECT id FROM conversations WHERE id = $1 AND user_id = $2",
@@ -519,6 +524,7 @@ aiRouter.post(
 
 aiRouter.post(
   "/conversations/:id/suggest",
+  chanLamDungAI,
   route(async (req, res) => {
     const conversation = await queryOne(
       "SELECT id FROM conversations WHERE id = $1 AND user_id = $2",
@@ -571,6 +577,7 @@ aiRouter.patch(
 
 aiRouter.post(
   "/test",
+  chanLamDungAI,
   route(async (req, res) => {
     const kind = assertKind(
       typeof req.body?.kind === "string" ? req.body.kind : "sales"

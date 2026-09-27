@@ -7,6 +7,7 @@ import * as ads from "../services/ads.js";
 import { chatJson, asRecord, optionalString } from "../services/ai.js";
 import { loadKnowledge } from "../services/knowledge.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "../services/text.js";
+import { chanLamDungAI } from "../services/chong-lam-dung.js";
 
 export const adsRouter = Router();
 
@@ -505,6 +506,7 @@ adsRouter.post(
  */
 adsRouter.post(
   "/analyze",
+  chanLamDungAI,
   route(async (req, res) => {
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
