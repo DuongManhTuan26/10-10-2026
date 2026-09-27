@@ -1202,7 +1202,7 @@ export default function Connections() {
     {selectedPlatform.instructions.map((inst: string, idx: number) => (
       <div key={idx} className="flex gap-4">
         <div className="w-7 h-7 rounded-full bg-surface-variant flex items-center justify-center text-sm font-bold text-on-surface shrink-0">{idx + 1}</div>
-        <div className="pt-0.5 text-sm font-medium text-on-surface leading-relaxed" dangerouslySetInnerHTML={{__html: inst}} />
+        <div className="pt-0.5 text-sm font-medium text-on-surface leading-relaxed">{inst}</div>
       </div>
     ))}
   </div>
@@ -1282,7 +1282,7 @@ export default function Connections() {
     {selectedPlatform.instructions.map((inst: string, idx: number) => (
       <div key={idx} className="flex gap-4">
         <div className="w-7 h-7 rounded-full bg-surface-variant flex items-center justify-center text-sm font-bold text-on-surface shrink-0">{idx + 1}</div>
-        <div className="pt-0.5 text-sm font-medium text-on-surface leading-relaxed" dangerouslySetInnerHTML={{__html: inst}} />
+        <div className="pt-0.5 text-sm font-medium text-on-surface leading-relaxed">{inst}</div>
       </div>
     ))}
   </div>
@@ -1323,7 +1323,7 @@ export default function Connections() {
     {selectedPlatform.instructions.map((inst: string, idx: number) => (
       <div key={idx} className="flex gap-4">
         <div className="w-7 h-7 rounded-full bg-surface-variant flex items-center justify-center text-sm font-bold text-on-surface shrink-0">{idx + 1}</div>
-        <div className="pt-0.5 text-sm font-medium text-on-surface leading-relaxed" dangerouslySetInnerHTML={{__html: inst}} />
+        <div className="pt-0.5 text-sm font-medium text-on-surface leading-relaxed">{inst}</div>
       </div>
     ))}
   </div>
