@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { api, ApiError, type LuaChonVideo, type MediaItem, type ModelVideo, type ViecVideo } from '../lib/api';
+import VideoDaiPanel from './VideoDaiPanel';
+import VideoSuaPanel from './VideoSuaPanel';
+import VideoTrendPanel from './VideoTrendPanel';
 
 /**
  * Khối "AI tạo video" trong khung soạn bài.
@@ -22,6 +25,15 @@ const KHUNG: { id: string; ten: string }[] = [
 const DO_NET = ['480p', '720p', '1080p'];
 const GIAY_NHANH = [5, 8, 10, 15, 30];
 
+type CheDo = 'mot_canh' | 'kich_ban' | 'tham_chieu' | 'sua_video' | 'trend';
+const CHE_DO: { id: CheDo; ten: string; moTa: string }[] = [
+  { id: 'mot_canh', ten: 'Một cảnh', moTa: 'Video ngắn một cảnh, nhanh và rẻ' },
+  { id: 'kich_ban', ten: 'Video dài theo kịch bản', moTa: 'AI chia ý tưởng thành nhiều cảnh nối liền, ghép thành video dài' },
+  { id: 'tham_chieu', ten: 'Từ ảnh tham chiếu', moTa: 'Giữ đúng nhân vật, sản phẩm trong ảnh xuyên suốt nhiều cảnh' },
+  { id: 'sua_video', ten: 'Sửa video có sẵn', moTa: 'Đổi bối cảnh, thêm bớt đồ vật, đổi phong cách cho video bạn đã có' },
+  { id: 'trend', ten: 'Theo trend', moTa: 'AI học công thức của một video trend rồi làm video mới cho sản phẩm của bạn' },
+];
+
 function tien(usd: number | null): string {
   if (usd === null) return 'chưa rõ giá';
   const vnd = Math.round((usd * TY_GIA) / 500) * 500;
@@ -31,14 +43,18 @@ function tien(usd: number | null): string {
 export default function VideoAiPanel({
   noiDung,
   anhCoSan,
+  videoCoSan,
   onGanVaoBai,
 }: {
   noiDung: string;
   /** Ảnh đang có trong bài, để chọn làm khung hình mở đầu. */
   anhCoSan: string[];
+  /** Video đang có trong bài, để chọn làm video nguồn khi sửa video. */
+  videoCoSan: string[];
   onGanVaoBai: (item: MediaItem) => void;
 }) {
   const [bat, setBat] = useState<boolean | null>(null);
+  const [cheDo, setCheDo] = useState<CheDo>('mot_canh');
   const [dangDoiBat, setDangDoiBat] = useState(false);
   const [mucDichDs, setMucDichDs] = useState<Record<string, string>>({});
   const [mucDich, setMucDich] = useState('khoe_san_pham');
@@ -99,7 +115,7 @@ export default function VideoAiPanel({
     const tai = async () => {
       try {
         const { data } = await api.ai.videoViec();
-        if (!huy) setViec(data);
+        if (!huy) setViec(data.filter((v) => !v.la_sua_video));
       } catch {
         /* Lượt sau thử lại. */
       }
@@ -211,7 +227,29 @@ export default function VideoAiPanel({
         </p>
       ) : (
         <div className="space-y-3">
+          {/* Chế độ */}
+          <div className="flex flex-wrap gap-2">
+            {CHE_DO.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setCheDo(c.id)}
+                title={c.moTa}
+                className={clsx(
+                  'px-3 py-2 rounded-lg text-xs font-bold border transition-colors',
+                  cheDo === c.id
+                    ? 'border-primary bg-primary text-on-primary'
+                    : 'border-outline-variant bg-surface-container text-on-surface-variant hover:border-primary/50'
+                )}
+              >
+                {c.ten}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-on-surface-variant">{CHE_DO.find((c) => c.id === cheDo)?.moTa}</p>
+
           {/* Mục đích */}
+          {cheDo === 'mot_canh' && (
           <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-2">
             <label className="block text-xs font-bold text-on-surface">Video để làm gì</label>
             <div className="flex flex-wrap gap-2">
@@ -233,9 +271,12 @@ export default function VideoAiPanel({
               ))}
             </div>
           </div>
+          )}
 
-          {/* Thông số */}
+          {/* Thông số — sửa video giữ nguyên khung và độ nét của video nguồn */}
+          {cheDo !== 'sua_video' && (
           <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-3">
+            {cheDo === 'mot_canh' && (
             <div>
               <label className="block text-xs font-bold text-on-surface mb-2">Độ dài (giây)</label>
               <div className="flex flex-wrap items-center gap-2">
@@ -271,6 +312,7 @@ export default function VideoAiPanel({
                 Reels và video bán hàng thường hiệu quả nhất ở 6–8 giây. Chỉ vài model làm được trên 15 giây.
               </p>
             </div>
+            )}
             <div className="flex flex-wrap gap-4">
               <div>
                 <label className="block text-xs font-bold text-on-surface mb-2">Độ nét</label>
@@ -319,6 +361,35 @@ export default function VideoAiPanel({
             </label>
           </div>
 
+          )}
+
+          {cheDo === 'sua_video' && <VideoSuaPanel videoCoSan={videoCoSan} onGanVaoBai={onGanVaoBai} />}
+          {cheDo === 'trend' && (
+            <VideoTrendPanel
+              noiDung={noiDung}
+              anhCoSan={anhCoSan}
+              doNet={doNet}
+              khung={khung}
+              coTieng={coTieng}
+              onGanVaoBai={onGanVaoBai}
+            />
+          )}
+
+          {(cheDo === 'kich_ban' || cheDo === 'tham_chieu') && (
+            <div key={cheDo}>
+            <VideoDaiPanel
+              loai={cheDo}
+              noiDung={noiDung}
+              anhCoSan={anhCoSan}
+              doNet={doNet}
+              khung={khung}
+              coTieng={coTieng}
+              onGanVaoBai={onGanVaoBai}
+            />
+            </div>
+          )}
+
+          {cheDo === 'mot_canh' && (<>
           {/* Ảnh mở đầu */}
           <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-2">
             <label className="block text-xs font-bold text-on-surface">
@@ -504,6 +575,7 @@ export default function VideoAiPanel({
               ))}
             </div>
           )}
+          </>)}
         </div>
       )}
     </div>

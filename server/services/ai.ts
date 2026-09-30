@@ -33,7 +33,9 @@ export const DEFAULT_MODELS: Record<AiTask, string> = {
  */
 export type ChatContentPart =
   | { type: "text"; text: string }
-  | { type: "image_url"; image_url: { url: string } };
+  | { type: "image_url"; image_url: { url: string } }
+  // Video cho model "xem" được (dùng để phân tích video trend).
+  | { type: "video_url"; video_url: { url: string } };
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";

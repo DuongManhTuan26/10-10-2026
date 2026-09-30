@@ -1438,6 +1438,7 @@ export default function Content() {
                   ...composerMedia.filter((m) => m.type === 'image').map((m) => m.url),
                   ...(anhMauChon ? [anhMauChon] : []),
                 ].filter((u, i, ds) => ds.indexOf(u) === i)}
+                videoCoSan={composerMedia.filter((m) => m.type === 'video').map((m) => m.url)}
                 onGanVaoBai={(item) => setComposerMedia((truoc) => [...truoc, item])}
               />
 

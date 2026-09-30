@@ -19,6 +19,7 @@ import { AppError } from "../http.js";
 import { chatJson, asRecord, optionalString } from "./ai.js";
 import { hoanDiaChiKho, laDiaChiKho } from "./media-proxy.js";
 import * as zernio from "./zernio.js";
+import { anhTheoKhung } from "./video-cong-cu.js";
 
 const GOC_API = "https://openrouter.ai/api/v1";
 
@@ -131,6 +132,25 @@ export function dienTich(model: ModelVideo, doNet: string, khung: string): numbe
   }
   const dai = Math.round((ngan * Math.max(a, b)) / Math.min(a, b));
   return ngan * dai;
+}
+
+/**
+ * Kích thước chính xác model tự khai cho (độ nét, khung), ví dụ "480x854".
+ *
+ * Gửi kèm để ÉP đúng khung. Đã đo: có ảnh mở đầu hoặc ảnh tham chiếu vuông mà
+ * chỉ gửi aspect_ratio 9:16 thì Seedance vẫn trả video vuông 640×640.
+ */
+export function kichThuocKhop(model: ModelVideo, doNet: string, khung: string): string | null {
+  const ngan = CANH_NGAN[doNet.toLowerCase()];
+  const [a, b] = khung.split(":").map(Number);
+  if (!ngan || !a || !b) return null;
+  const doc = a < b;
+  for (const kt of model.kichThuoc) {
+    const [w, h] = kt.split("x").map(Number);
+    if (!w || !h) continue;
+    if (Math.min(w, h) === ngan && Math.abs(w / h - a / b) < 0.03 && (w < h) === doc) return kt;
+  }
+  return null;
 }
 
 /**
@@ -286,59 +306,80 @@ export interface ViecVideo {
   loi: string | null;
   created_at: string;
   xong_at: string | null;
+  /** true nếu là video → video (sửa video có sẵn). */
+  la_sua_video: boolean;
 }
 
 export const COT_VIEC =
-  "id, model, loi_mo_ta, so_giay, do_net, khung, co_tieng, trang_thai, gia_uoc_tinh, gia_thuc, url, loi, created_at, xong_at";
+  "id, model, loi_mo_ta, so_giay, do_net, khung, co_tieng, trang_thai, gia_uoc_tinh, gia_thuc, url, loi, created_at, xong_at, (video_nguon IS NOT NULL) AS la_sua_video";
 
 /** Loại 401/403 của nhà cung cấp thành 502 — xem lý do ở image-ai.ts. */
 function maLoi(status: number): number {
   return status === 401 || status === 403 ? 502 : status >= 400 && status < 500 ? status : 502;
 }
 
-export async function taoVideo(params: {
+/** Nhận một địa chỉ kho (dạng /media/… hoặc gốc), trả địa chỉ gốc; địa chỉ lạ thì từ chối. */
+export function diaChiKhoHopLe(u: string, ten: string): string {
+  const that = hoanDiaChiKho(u);
+  if (!laDiaChiKho(that)) throw new AppError(`${ten} không hợp lệ.`, 400);
+  return that;
+}
+
+/**
+ * Gửi MỘT việc tạo video sang nhà cung cấp và ghi vào video_ai.
+ *
+ * Dùng chung cho video một cảnh, từng cảnh của video dài và video → video, để
+ * mọi đường đều qua cùng luật an toàn, cùng cách ghi giá, cùng worker.
+ */
+export async function guiViecVideo(p: {
   userId: number;
   trangId: number;
-  model: string;
+  model: ModelVideo;
   loiMoTa: string;
   lc: LuaChonVideo;
+  /** Địa chỉ gốc trong kho (đã kiểm). */
   anhMoDau?: string;
+  anhThamChieu?: string[];
+  duAnId?: number;
+  thuTu?: number;
 }): Promise<ViecVideo> {
-  if (!(await videoDangBat(params.trangId))) {
-    throw new AppError("Tạo video AI đang tắt. Bật trong phần soạn bài trước khi tạo.", 409);
-  }
-  const loiMoTa = params.loiMoTa.trim().slice(0, 2_000);
-  if (!loiMoTa) throw new AppError("Cần lời mô tả video.", 400);
-
-  const model = (await layDanhSachModel()).find((m) => m.id === params.model);
-  if (!model) throw new AppError("Model video này không có hoặc đã ngừng.", 400);
-
-  // Chỉ nhận ảnh trong kho của mình — không chuyển tiếp địa chỉ lạ cho bên AI.
-  let anhMoDau: string | undefined;
-  if (params.anhMoDau) {
-    const that = hoanDiaChiKho(params.anhMoDau);
-    if (!laDiaChiKho(that)) throw new AppError("Ảnh mở đầu không hợp lệ.", 400);
-    anhMoDau = that;
-  }
-  const lc = { ...params.lc, coAnhMoDau: Boolean(anhMoDau) };
-  const lyDo = lyDoKhongHop(model, lc);
-  if (lyDo) throw new AppError(`Model này ${lyDo}.`, 400);
-
-  const moiGiay = giaMoiGiay(model, lc);
+  const lc = { ...p.lc, coAnhMoDau: Boolean(p.anhMoDau) };
+  const moiGiay = giaMoiGiay(p.model, lc);
   const giaUocTinh = moiGiay === null ? null : moiGiay * lc.soGiay;
 
   const than: Record<string, unknown> = {
-    model: model.id,
-    prompt: `${loiMoTa}\n\n${LUAT_VIDEO}`,
+    model: p.model.id,
+    prompt: `${p.loiMoTa}\n\n${LUAT_VIDEO}`,
     duration: lc.soGiay,
     resolution: lc.doNet,
     aspect_ratio: lc.khung,
   };
-  if (model.coTieng) than.generate_audio = lc.coTieng;
-  if (anhMoDau) {
-    than.frame_images = [{ type: "image_url", image_url: { url: anhMoDau }, frame_type: "first_frame" }];
+  const kichThuoc = kichThuocKhop(p.model, lc.doNet, lc.khung);
+  if (kichThuoc) than.size = kichThuoc;
+  if (p.model.coTieng) than.generate_audio = lc.coTieng;
+  if (p.anhMoDau) {
+    than.frame_images = [{ type: "image_url", image_url: { url: p.anhMoDau }, frame_type: "first_frame" }];
+  } else if (p.anhThamChieu?.length) {
+    // Có khung mở đầu thì nhà cung cấp bỏ qua ảnh tham chiếu, nên chỉ gửi khi không có.
+    than.input_references = p.anhThamChieu.map((url) => ({ type: "image_url", image_url: { url } }));
   }
 
+  const maViec = await goiTaoViec(than);
+  const row = await queryOne<ViecVideo>(
+    `INSERT INTO video_ai
+       (user_id, trang_id, model, loi_mo_ta, so_giay, do_net, khung, co_tieng, anh_mo_dau,
+        anh_tham_chieu, ma_viec, gia_uoc_tinh, du_an_id, thu_tu)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14)
+     RETURNING ${COT_VIEC}`,
+    [p.userId, p.trangId, p.model.id, p.loiMoTa, lc.soGiay, lc.doNet, lc.khung,
+      p.model.coTieng && lc.coTieng, p.anhMoDau ?? null, JSON.stringify(p.anhThamChieu ?? []),
+      maViec, giaUocTinh, p.duAnId ?? null, p.thuTu ?? null]
+  );
+  return row!;
+}
+
+/** POST /videos, trả mã việc. Lỗi của nhà cung cấp thành AppError tiếng Việt. */
+export async function goiTaoViec(than: Record<string, unknown>): Promise<string> {
   let r: Response;
   try {
     r = await fetch(`${GOC_API}/videos`, {
@@ -360,19 +401,39 @@ export async function taoVideo(params: {
   const j = asRecord(await r.json().catch(() => ({})));
   const maViec = optionalString(j.id);
   if (!r.ok || !maViec) {
-    const loi = optionalString(asRecord(j.error).message) ?? `HTTP ${r.status}`;
+    const loi = optionalString(asRecord(j.error).message) ?? optionalString(j.error) ?? `HTTP ${r.status}`;
     throw new AppError(`Tạo video thất bại: ${loi}`, maLoi(r.status));
   }
+  return maViec;
+}
 
-  const row = await queryOne<ViecVideo>(
-    `INSERT INTO video_ai
-       (user_id, trang_id, model, loi_mo_ta, so_giay, do_net, khung, co_tieng, anh_mo_dau, ma_viec, gia_uoc_tinh)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-     RETURNING ${COT_VIEC}`,
-    [params.userId, params.trangId, model.id, loiMoTa, lc.soGiay, lc.doNet, lc.khung,
-      model.coTieng && lc.coTieng, anhMoDau ?? null, maViec, giaUocTinh]
-  );
-  return row!;
+export async function taoVideo(params: {
+  userId: number;
+  trangId: number;
+  model: string;
+  loiMoTa: string;
+  lc: LuaChonVideo;
+  anhMoDau?: string;
+}): Promise<ViecVideo> {
+  if (!(await videoDangBat(params.trangId))) {
+    throw new AppError("Tạo video AI đang tắt. Bật trong phần soạn bài trước khi tạo.", 409);
+  }
+  const loiMoTa = params.loiMoTa.trim().slice(0, 2_000);
+  if (!loiMoTa) throw new AppError("Cần lời mô tả video.", 400);
+
+  const model = (await layDanhSachModel()).find((m) => m.id === params.model);
+  if (!model) throw new AppError("Model video này không có hoặc đã ngừng.", 400);
+
+  // Chỉ nhận ảnh trong kho của mình — không chuyển tiếp địa chỉ lạ cho bên AI.
+  const anhMoDau = params.anhMoDau ? diaChiKhoHopLe(params.anhMoDau, "Ảnh mở đầu") : undefined;
+  const lc = { ...params.lc, coAnhMoDau: Boolean(anhMoDau) };
+  const lyDo = lyDoKhongHop(model, lc);
+  if (lyDo) throw new AppError(`Model này ${lyDo}.`, 400);
+
+  const anhDungKhung = anhMoDau
+    ? await anhTheoKhung(anhMoDau, lc.khung, lc.doNet, `mo-dau-${params.userId}-${Date.now()}.jpg`)
+    : undefined;
+  return guiViecVideo({ userId: params.userId, trangId: params.trangId, model, loiMoTa, lc, anhMoDau: anhDungKhung });
 }
 
 // ---------------------------------------------------------------------------

@@ -465,6 +465,42 @@ export interface ModelVideo {
   lyDo: string | null;
 }
 
+export interface CanhVideo {
+  soGiay: number;
+  moTa: string;
+  tomTat: string;
+}
+
+export interface DuAnVideo {
+  id: number;
+  loai: 'kich_ban' | 'tham_chieu' | 'trend';
+  y_tuong: string;
+  anh_tham_chieu: string[];
+  nhat_quan: string;
+  phan_canh: CanhVideo[];
+  model: string;
+  do_net: string;
+  khung: string;
+  co_tieng: boolean;
+  trang_thai: 'nhap' | 'dang_tao' | 'dang_ghep' | 'xong' | 'loi';
+  gia_uoc_tinh: string | null;
+  gia_thuc: string | null;
+  url: string | null;
+  loi: string | null;
+  created_at: string;
+  canh_xong?: number;
+}
+
+export interface ModelSuaVideo {
+  id: string;
+  ten: string;
+  moTa: string;
+  /** USD mỗi giây đầu ra. */
+  giaMoiGiay: number;
+  /** USD tối thiểu mỗi lượt. */
+  toiThieu: number;
+}
+
 export interface ViecVideo {
   id: number;
   model: string;
@@ -480,6 +516,8 @@ export interface ViecVideo {
   loi: string | null;
   created_at: string;
   xong_at: string | null;
+  /** true nếu là video → video (sửa video có sẵn). */
+  la_sua_video: boolean;
 }
 
 export type PostStatus =
@@ -1229,6 +1267,33 @@ export const api = {
       post<{ data: ViecVideo }>('/ai/video', payload),
     /** Các video của trang đang chọn, mới nhất trước. */
     videoViec: () => get<{ data: ViecVideo[] }>('/ai/video/viec'),
+    /** AI chia ý tưởng thành cảnh và báo giá — chưa tạo video. */
+    taoDuAnVideo: (payload: {
+      loai: DuAnVideo['loai'];
+      yTuong: string;
+      tongGiay: number;
+      model: string;
+      doNet: string;
+      khung: string;
+      coTieng: boolean;
+      anhThamChieu?: string[];
+      congThucTrend?: string;
+    }) => post<{ data: DuAnVideo }>('/ai/video/du-an', payload),
+    /** Sửa phân cảnh khi còn là nháp. */
+    suaDuAnVideo: (id: number, payload: { nhatQuan: string; phanCanh: CanhVideo[] }) =>
+      request<{ data: DuAnVideo }>(`/ai/video/du-an/${id}`, { method: 'PUT', body: payload }),
+    /** Duyệt phân cảnh và bắt đầu tạo — từ đây mới tốn tiền video. */
+    batDauDuAnVideo: (id: number) => post<{ data: DuAnVideo }>(`/ai/video/du-an/${id}/bat-dau`),
+    /** Các dự án video dài của trang. */
+    duAnVideo: () => get<{ data: DuAnVideo[] }>('/ai/video/du-an'),
+    /** Model sửa video (video → video), xếp rẻ tới đắt. */
+    modelSuaVideo: () => get<{ data: ModelSuaVideo[] }>('/ai/video/sua/models'),
+    /** Sửa một video có sẵn theo yêu cầu. */
+    suaVideo: (payload: { model: string; videoNguon: string; yeuCau: string }) =>
+      post<{ data: ViecVideo }>('/ai/video/sua', payload),
+    /** AI xem video trend và rút ra công thức. */
+    phanTichTrend: (videoNguon: string) =>
+      post<{ data: { congThuc: string; tomTat: string[] } }>('/ai/video/trend/phan-tich', { videoNguon }),
     test: (kind: string, message: string) =>
       post<{ data: { reply: string; model: string; usage: { costUsd: number } } }>("/ai/test", {
         kind,

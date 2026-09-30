@@ -30,6 +30,72 @@ interface PhepDuc {
 
 const DUC: PhepDuc[] = [
   {
+    ten: "danh sách sửa video lẫn model tạo video",
+    tep: "server/services/video-sua.ts",
+    tim: "return /video[- ]?edit|editing|aleph|upscal/i.test(",
+    thay: "return /./i.test(",
+  },
+  {
+    ten: "sửa video khi công tắc đang tắt",
+    tep: "server/services/video-sua.ts",
+    tim: "if (!(await videoDangBat(p.trangId))) {",
+    thay: "if (false) {",
+  },
+  {
+    ten: "phân tích trend nhận video ngoài kho",
+    tep: "server/services/video-trend.ts",
+    tim: 'const nguon = diaChiKhoHopLe(p.videoNguon, "Video trend");',
+    thay: "const nguon = p.videoNguon;",
+  },
+  {
+    ten: "không chặn video nguồn quá dài",
+    tep: "server/services/video-sua.ts",
+    tim: "if (soGiay > TOI_DA_GIAY_NGUON) {",
+    thay: "if (false) {",
+  },
+  {
+    ten: "gửi ảnh mở đầu nguyên tỷ lệ (ảnh vuông ra video vuông)",
+    tep: "server/services/video-ai.ts",
+    tim: "? await anhTheoKhung(anhMoDau, lc.khung, lc.doNet,",
+    thay: "? anhMoDau || await anhTheoKhung(anhMoDau, lc.khung, lc.doNet,",
+  },
+  {
+    ten: "cảnh sau không nối từ khung cuối cảnh trước",
+    tep: "server/services/video-dai.ts",
+    tim: "const anhMoDau = i > 0 ? await layKhungCuoi(ds[i - 1].url!",
+    thay: "const anhMoDau = i > 0 && false ? await layKhungCuoi(ds[i - 1].url!",
+  },
+  {
+    ten: "gửi ảnh tham chiếu ở mọi cảnh",
+    tep: "server/services/video-dai.ts",
+    tim: "anhThamChieu: i === 0 ? anhThamChieuCanhDau : [],",
+    thay: "anhThamChieu: d.anh_tham_chieu,",
+  },
+  {
+    ten: "bắt đầu dự án khi công tắc đang tắt",
+    tep: "server/services/video-dai.ts",
+    tim: "export async function batDauDuAn(trangId: number, id: number): Promise<DuAnVideo> {\n  if (!(await videoDangBat(trangId))) {",
+    thay: "export async function batDauDuAn(trangId: number, id: number): Promise<DuAnVideo> {\n  if (false) {",
+  },
+  {
+    ten: "không giới hạn số cảnh",
+    tep: "server/services/video-dai.ts",
+    tim: "for (const c of ds.slice(0, TOI_DA_CANH)) {",
+    thay: "for (const c of ds) {",
+  },
+  {
+    ten: "đọc kích thước nhầm mã codec",
+    tep: "server/services/video-cong-cu.ts",
+    tim: "Video:[^\\n]*?\\b(\\d{2,5})x(\\d{2,5})\\b/",
+    thay: "Video:[^\\n]*?(\\d{1,5})x(\\d{2,5})/",
+  },
+  {
+    ten: "bỏ ép kích thước khung",
+    tep: "server/services/video-ai.ts",
+    tim: "if (kichThuoc) than.size = kichThuoc;",
+    thay: "",
+  },
+  {
     ten: "không chuyển tiếp yêu cầu tua (Safari không phát được video)",
     tep: "server/app.ts",
     tim: "headers: tua ? { Range: tua } : {},",
@@ -50,8 +116,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "quên gắn luật không chữ, không logo",
     tep: "server/services/video-ai.ts",
-    tim: "prompt: `${loiMoTa}\\n\\n${LUAT_VIDEO}`,",
-    thay: "prompt: loiMoTa,",
+    tim: "prompt: `${p.loiMoTa}\\n\\n${LUAT_VIDEO}`,",
+    thay: "prompt: `${p.loiMoTa}`,",
   },
   {
     ten: "nhận ảnh mở đầu từ địa chỉ lạ",

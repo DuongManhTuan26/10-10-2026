@@ -59,6 +59,9 @@ import {
   type LuaChonVideo,
   type ViecVideo,
 } from "../services/video-ai.js";
+import { batDauDuAn, COT_DU_AN, suaDuAn, taoDuAn, type DuAnVideo } from "../services/video-dai.js";
+import { layModelSuaVideo, suaVideo } from "../services/video-sua.js";
+import { phanTichTrend } from "../services/video-trend.js";
 
 export const aiRouter = Router();
 
@@ -569,11 +572,140 @@ aiRouter.get(
     const trangId = await trangCuaReq(req);
     const ds = trangId
       ? await query<ViecVideo>(
-          `SELECT ${COT_VIEC} FROM video_ai WHERE trang_id = $1 ORDER BY created_at DESC LIMIT 20`,
+          `SELECT ${COT_VIEC} FROM video_ai WHERE trang_id = $1 AND du_an_id IS NULL ORDER BY created_at DESC LIMIT 20`,
           [trangId]
         )
       : { rows: [] as ViecVideo[] };
     res.json({ success: true, data: ds.rows.map(viecRaNgoai) });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Video dài nhiều cảnh
+// ---------------------------------------------------------------------------
+
+function duAnRaNgoai(d: DuAnVideo & { canh_xong?: number }) {
+  return {
+    ...d,
+    url: d.url ? anDiaChiKho(d.url) : null,
+    anh_tham_chieu: (d.anh_tham_chieu ?? []).map((u) => anDiaChiKho(u)),
+  };
+}
+
+function maDuAn(v: unknown): number {
+  const so = Number(v);
+  if (!Number.isInteger(so) || so <= 0) throw new AppError("Không tìm thấy dự án video", 404);
+  return so;
+}
+
+/** AI chia ý tưởng thành cảnh và báo giá. Chưa tạo video, chưa tốn tiền video. */
+aiRouter.post(
+  "/video/du-an",
+  chanLamDungAI,
+  route(async (req, res) => {
+    const trangId = (await trangCuaReq(req))!;
+    const b = req.body ?? {};
+    const loai = b.loai === "tham_chieu" || b.loai === "trend" ? b.loai : "kich_ban";
+    const lc = docLuaChonVideo(b);
+    const duAn = await taoDuAn({
+      userId: req.user!.id,
+      trangId,
+      loai,
+      yTuong: typeof b.yTuong === "string" ? b.yTuong : "",
+      tongGiay: Number(b.tongGiay),
+      model: typeof b.model === "string" ? b.model : "",
+      lc: { doNet: lc.doNet, khung: lc.khung, coTieng: lc.coTieng },
+      anhThamChieu: Array.isArray(b.anhThamChieu) ? b.anhThamChieu.filter((x: unknown): x is string => typeof x === "string") : [],
+      congThucTrend: typeof b.congThucTrend === "string" ? b.congThucTrend.slice(0, 4_000) : undefined,
+    });
+    res.status(201).json({ success: true, data: duAnRaNgoai(duAn) });
+  })
+);
+
+/** Sửa phân cảnh khi còn là nháp; giá tính lại theo cảnh đã sửa. */
+aiRouter.put(
+  "/video/du-an/:id",
+  route(async (req, res) => {
+    const trangId = (await trangCuaReq(req))!;
+    const duAn = await suaDuAn({
+      trangId,
+      id: maDuAn(req.params.id),
+      nhatQuan: typeof req.body?.nhatQuan === "string" ? req.body.nhatQuan : "",
+      phanCanh: req.body?.phanCanh,
+    });
+    res.json({ success: true, data: duAnRaNgoai(duAn) });
+  })
+);
+
+/** Chủ shop duyệt phân cảnh và giá → bắt đầu tạo. Từ đây mới tốn tiền video. */
+aiRouter.post(
+  "/video/du-an/:id/bat-dau",
+  chanLamDungAI,
+  route(async (req, res) => {
+    const trangId = (await trangCuaReq(req))!;
+    const duAn = await batDauDuAn(trangId, maDuAn(req.params.id));
+    res.status(202).json({ success: true, data: duAnRaNgoai(duAn) });
+  })
+);
+
+/** Các dự án video dài của trang, kèm số cảnh đã xong. */
+aiRouter.get(
+  "/video/du-an",
+  route(async (req, res) => {
+    const trangId = await trangCuaReq(req);
+    const ds = trangId
+      ? await query<DuAnVideo & { canh_xong: number }>(
+          `SELECT ${COT_DU_AN},
+                  (SELECT count(*)::int FROM video_ai v WHERE v.du_an_id = d.id AND v.trang_thai = 'xong') AS canh_xong
+             FROM du_an_video d WHERE trang_id = $1 ORDER BY created_at DESC LIMIT 20`,
+          [trangId]
+        )
+      : { rows: [] as (DuAnVideo & { canh_xong: number })[] };
+    res.json({ success: true, data: ds.rows.map(duAnRaNgoai) });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Video → video và trend → video
+// ---------------------------------------------------------------------------
+
+/** Model sửa video, xếp rẻ tới đắt, giá theo giây đầu ra. */
+aiRouter.get(
+  "/video/sua/models",
+  route(async (_req, res) => {
+    res.json({ success: true, data: await layModelSuaVideo() });
+  })
+);
+
+/** Sửa video có sẵn. Đo độ dài video nguồn để báo giá, rồi gửi việc. */
+aiRouter.post(
+  "/video/sua",
+  chanLamDungAI,
+  route(async (req, res) => {
+    const trangId = (await trangCuaReq(req))!;
+    const viec = await suaVideo({
+      userId: req.user!.id,
+      trangId,
+      model: typeof req.body?.model === "string" ? req.body.model : "",
+      videoNguon: typeof req.body?.videoNguon === "string" ? req.body.videoNguon : "",
+      yeuCau: typeof req.body?.yeuCau === "string" ? req.body.yeuCau : "",
+    });
+    res.status(202).json({ success: true, data: viecRaNgoai(viec) });
+  })
+);
+
+/** AI xem video trend, rút ra công thức để làm video mới theo công thức đó. */
+aiRouter.post(
+  "/video/trend/phan-tich",
+  chanLamDungAI,
+  route(async (req, res) => {
+    const trangId = (await trangCuaReq(req))!;
+    const kq = await phanTichTrend({
+      userId: req.user!.id,
+      trangId,
+      videoNguon: typeof req.body?.videoNguon === "string" ? req.body.videoNguon : "",
+    });
+    res.json({ success: true, data: kq });
   })
 );
 

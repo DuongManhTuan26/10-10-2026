@@ -9,6 +9,7 @@ import { runDuePostRecheck } from "./services/post-status.js";
 import { sendTelegramMessage, escapeHtml } from "./services/telegram.js";
 import { layNhatKyWebhook, type LanGiaoWebhook } from "./services/zernio.js";
 import { runDueVideoJobs } from "./services/video-ai.js";
+import { runDueVideoProjects } from "./services/video-dai.js";
 
 /**
  * Worker xử lý hàng đợi sự kiện.
@@ -443,8 +444,11 @@ export function startWorker(): void {
         lanVideoCuoi = Date.now();
         dangXuLyVideo = true;
         void runDueVideoJobs()
-          .then((soVideo) => {
+          .then(async (soVideo) => {
             if (soVideo > 0) console.log(`[video AI] Đã chốt ${soVideo} video.`);
+            // Video dài chạy SAU bước chốt, để thấy ngay cảnh vừa xong mà tạo cảnh kế.
+            const soDuAn = await runDueVideoProjects();
+            if (soDuAn > 0) console.log(`[video dài] Đã chốt ${soDuAn} dự án.`);
           })
           .catch((error) =>
             console.error(

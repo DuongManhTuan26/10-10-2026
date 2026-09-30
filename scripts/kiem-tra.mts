@@ -37,7 +37,10 @@ import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
 import { errorHandler, chiNhanMaSo } from "../server/http.js";
-import { chuanHoaModel, giaMoiGiay, lyDoKhongHop } from "../server/services/video-ai.js";
+import { chuanHoaModel, giaMoiGiay, lyDoKhongHop, kichThuocKhop } from "../server/services/video-ai.js";
+import { chuanHoaCanh, giaDuAn, giayGanNhat, TOI_DA_CANH, TOI_DA_GIAY_DU_AN } from "../server/services/video-dai.js";
+import { docThongTinVideo } from "../server/services/video-cong-cu.js";
+import { laModelSuaVideo, giaSuaVideo } from "../server/services/video-sua.js";
 import {
   xinSuat,
   xinSuatDocAnh,
@@ -3525,6 +3528,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     ["server/routes/ads.ts", "/analyze"],
     ["server/routes/ai.ts", "/video/loi-mo-ta"],
     ["server/routes/ai.ts", "/video"],
+    ["server/routes/ai.ts", "/video/du-an"],
+    ["server/routes/ai.ts", "/video/du-an/:id/bat-dau"],
+    ["server/routes/ai.ts", "/video/sua"],
+    ["server/routes/ai.ts", "/video/trend/phan-tich"],
   ];
   for (const [tep, duong] of DUONG_TON_TIEN_AI) {
     const ma = fs.readFileSync(path.join(GOC, tep), "utf8");
@@ -3535,7 +3542,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const soDuongGoiAI = ["server/routes/ai.ts", "server/routes/analytics.ts", "server/routes/ads.ts"]
     .map((t) => boChuThichTS(fs.readFileSync(path.join(GOC, t), "utf8")))
     .flatMap((ma) => ma.split(/\n(?=\w+Router\.(?:get|post|put|patch|delete)\()/))
-    .filter((khoi) => /\b(chat|chatJson|taoAnhChoBai|docChuTuAnh|generatePostContent|extractOrderInfo|suggestReply|vietLoiMoTaVideo|taoVideo)\s*(<[^>]*>)?\(/.test(khoi))
+    .filter((khoi) => /\b(chat|chatJson|taoAnhChoBai|docChuTuAnh|generatePostContent|extractOrderInfo|suggestReply|vietLoiMoTaVideo|taoVideo|taoDuAn|batDauDuAn|suaVideo|phanTichTrend)\s*(<[^>]*>)?\(/.test(khoi))
     .length;
   kiem("chống đốt tiền AI", "số đường gọi AI trả tiền khớp danh sách có chốt", soDuongGoiAI, DUONG_TON_TIEN_AI.length);
 
@@ -3675,16 +3682,102 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     typeof lyDoKhongHop({ ...veoLite, anhMoDau: false }, lc({ khung: "9:16", coAnhMoDau: true })), "string");
 
   const nguonVideo = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8"));
-  const viTriKiemBat = nguonVideo.indexOf("if (!(await videoDangBat(params.trangId))) {");
-  const viTriGoiTao = nguonVideo.indexOf("r = await fetch(`${GOC_API}/videos`, {");
-  kiem("video AI", "đang tắt thì chặn TRƯỚC khi gọi nhà cung cấp", viTriKiemBat > 0 && viTriGoiTao > viTriKiemBat, true);
-  kiem("video AI", "luật không chữ, không logo luôn gắn vào lời mô tả",
-    nguonVideo.includes("prompt: `${loiMoTa}\\n\\n${LUAT_VIDEO}`,"), true);
-  kiem("video AI", "ảnh mở đầu chỉ nhận ảnh trong kho của mình",
-    /const that = hoanDiaChiKho\(params\.anhMoDau\);\s*if \(!laDiaChiKho\(that\)\)/.test(nguonVideo), true);
+  const hamTaoVideo = nguonVideo.slice(nguonVideo.indexOf("export async function taoVideo("));
+  const viTriKiemBat = hamTaoVideo.indexOf("if (!(await videoDangBat(params.trangId))) {");
+  const viTriGui = hamTaoVideo.indexOf("return guiViecVideo(");
+  kiem("video AI", "đang tắt thì chặn TRƯỚC khi gửi việc", viTriKiemBat > 0 && viTriGui > viTriKiemBat, true);
+  // Mọi lời mô tả gửi đi đều phải kèm luật: đếm số chỗ gán prompt và số chỗ có luật.
+  const nguonGuiVideo = nguonVideo + boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-sua.ts"), "utf8"));
+  const soChoPrompt = (nguonGuiVideo.match(/\bprompt: /g) ?? []).length;
+  const soChoCoLuat = (nguonGuiVideo.match(/\bprompt: `\$\{[^}]+\}\\n\\n\$\{LUAT_VIDEO\}`/g) ?? []).length;
+  kiem("video AI", "luật không chữ, không logo gắn vào MỌI lời mô tả gửi đi", soChoPrompt > 0 && soChoCoLuat === soChoPrompt, true);
+  kiem("video AI", "địa chỉ kho được kiểm trước khi chuyển cho bên AI",
+    /const that = hoanDiaChiKho\(u\);\s*if \(!laDiaChiKho\(that\)\) throw/.test(nguonVideo) &&
+      /diaChiKhoHopLe\(params\.anhMoDau, "Ảnh mở đầu"\)/.test(hamTaoVideo), true);
   kiem("video AI", "mỗi video đều ghi vào sổ tiền AI", /INSERT INTO ai_usage \(user_id, task, model, cost_usd\) VALUES \(\$1, 'video'/.test(nguonVideo), true);
   const nguonWorker = boChuThichTS(fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8"));
   kiem("video AI", "theo dõi video không chặn vòng trả lời khách", /void runDueVideoJobs\(\)/.test(nguonWorker), true);
+
+  // Video dài nhiều cảnh.
+  const sd15 = chuanHoaModel({ id: "bytedance/seedance-1-5-pro", supported_durations: [4, 5, 6, 7, 8, 9, 10, 11, 12],
+    supported_resolutions: ["480p", "720p"], supported_aspect_ratios: ["16:9", "9:16", "1:1"], generate_audio: true,
+    supported_sizes: ["854x480", "480x854", "480x480", "1280x720", "720x1280"], supported_frame_images: ["first_frame", "last_frame"],
+    pricing_skus: { video_tokens: "0.0000024", video_tokens_without_audio: "0.0000012" } })!;
+  kiem("video dài", "số giây lạ về giá trị model làm được gần nhất", [giayGanNhat(sd15, 3), giayGanNhat(sd15, 40), giayGanNhat(sd15, 9)], [4, 12, 9]);
+  /*
+   * Hai trần kiểm RIÊNG. Bản trước dùng 15 cảnh × 12 giây: trần 120 giây tự
+   * dừng ở cảnh 10 nên trần số cảnh không bao giờ bị chạm — bộ đục lỗ đã bắt
+   * được phép kiểm giả này.
+   */
+  const canhNgan = chuanHoaCanh(sd15, Array.from({ length: 15 }, (_, i) => ({ soGiay: 4, moTa: `cảnh ${i}`, tomTat: "" })));
+  kiem("video dài", "không quá số cảnh tối đa (cảnh ngắn, chưa chạm trần giây)", canhNgan.length, TOI_DA_CANH);
+  const canhDai = chuanHoaCanh(sd15, Array.from({ length: 9 }, (_, i) => ({ soGiay: 20, moTa: `cảnh ${i}`, tomTat: "" })));
+  kiem("video dài", "không quá tổng số giây tối đa (ít cảnh, cảnh dài)", canhDai.reduce((t, c) => t + c.soGiay, 0) <= TOI_DA_GIAY_DU_AN, true);
+  kiem("video dài", "bỏ cảnh không có mô tả", chuanHoaCanh(sd15, [{ soGiay: 5 }, { soGiay: 5, moTa: "có" }]).length, 1);
+  kiem("video dài", "dữ liệu rác thì ra rỗng, không vỡ", chuanHoaCanh(sd15, "rác").length, 0);
+  // Wan 2.6: giá "từ chữ" và "từ ảnh" khác nhau — cảnh 1 từ chữ, cảnh sau từ ảnh.
+  const wan26 = chuanHoaModel({ id: "alibaba/wan-2.6", supported_durations: [5, 10], supported_resolutions: ["720p"],
+    supported_aspect_ratios: ["16:9", "9:16"], generate_audio: true, supported_frame_images: ["first_frame"],
+    pricing_skus: { text_to_video_duration_seconds_720p: "0.08", image_to_video_duration_seconds_720p: "0.10" } })!;
+  kiem("video dài", "cảnh 1 tính giá từ chữ, cảnh sau tính giá từ ảnh",
+    giaDuAn(wan26, [{ soGiay: 5, moTa: "a", tomTat: "" }, { soGiay: 10, moTa: "b", tomTat: "" }], { doNet: "720p", khung: "9:16", coTieng: false }),
+    Math.round((5 * 0.08 + 10 * 0.1) * 1e6) / 1e6);
+  kiem("video dài", "khung dọc 9:16 chọn kích thước dọc", kichThuocKhop(sd15, "480p", "9:16"), "480x854");
+  kiem("video dài", "khung ngang 16:9 chọn kích thước ngang", kichThuocKhop(sd15, "480p", "16:9"), "854x480");
+  kiem("video dài", "không có kích thước khớp thì không đoán", kichThuocKhop(sd15, "1080p", "9:16"), null);
+  const logMau = "Input #0, mov,mp4\n  Duration: 00:00:12.04, start: 0.000000, bitrate: 900 kb/s\n" +
+    "  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 496x864, 800 kb/s, 24 fps\n" +
+    "  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s";
+  kiem("video dài", "đọc đúng kích thước, độ dài, có tiếng", docThongTinVideo(logMau), { rong: 496, cao: 864, coTieng: true, soGiay: 12.04 });
+  kiem("video dài", "không nhầm mã codec 0x… thành kích thước",
+    docThongTinVideo("Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p").rong, 0);
+
+  // Đã đo: ảnh vuông + chỉ gửi aspect_ratio 9:16 → Seedance trả video vuông 640×640.
+  kiem("video dài", "gửi kèm kích thước chính xác để ép đúng khung",
+    /const kichThuoc = kichThuocKhop\(p\.model, lc\.doNet, lc\.khung\);\s*if \(kichThuoc\) than\.size = kichThuoc;/.test(nguonVideo), true);
+
+  const nguonDai = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-dai.ts"), "utf8"));
+  kiem("video dài", "cảnh sau lấy khung cuối cảnh trước làm khung mở đầu",
+    /const anhMoDau = i > 0 \? await layKhungCuoi\(ds\[i - 1\]\.url!/.test(nguonDai), true);
+  kiem("video dài", "ảnh tham chiếu chỉ gửi ở cảnh đầu (có khung mở đầu thì bên AI bỏ qua)",
+    /anhThamChieu: i === 0 \? anhThamChieuCanhDau : \[\]/.test(nguonDai), true);
+  kiem("video dài", "tạo dự án và bắt đầu đều kiểm công tắc bật",
+    (nguonDai.match(/if \(!\(await videoDangBat\((p\.trangId|trangId)\)\)\) \{/g) ?? []).length, 2);
+  kiem("video dài", "lỗi giữa chừng thì dừng hẳn, không tự thử lại",
+    /catch \(error\) \{[\s\S]{0,300}?await ketThucDuAn\(d\.id, loi\);/.test(nguonDai), true);
+  const nguonCongCu = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-cong-cu.ts"), "utf8"));
+  kiem("video dài", "ghép mã hoá H.264 và faststart cho Facebook",
+    nguonCongCu.includes('"-c:v", "libx264"') && nguonCongCu.includes('"+faststart"'), true);
+  // Đã đo 3 lần: ảnh vuông → video vuông dù gửi khung 9:16. Ảnh phải được cắt theo khung trước.
+  kiem("video dài", "ảnh mở đầu (một cảnh) được cắt theo khung trước khi gửi",
+    /anhMoDau\s*\? await anhTheoKhung\(anhMoDau, lc\.khung, lc\.doNet,/.test(hamTaoVideo), true);
+  kiem("video dài", "ảnh tham chiếu cảnh đầu được cắt theo khung trước khi gửi",
+    /d\.anh_tham_chieu\.map\(\(u, k\) => anhTheoKhung\(u, d\.khung, d\.do_net,/.test(nguonDai), true);
+  kiem("video dài", "worker chạy video dài trong chuỗi không chặn",
+    /void runDueVideoJobs\(\)[\s\S]{0,300}?await runDueVideoProjects\(\)/.test(nguonWorker), true);
+
+  // Video → video. Đã đo: lọc theo kiểu tính giá lẫn cả 2 model TẠO video.
+  kiem("sửa video", "FLUX Video Edit là model sửa", laModelSuaVideo("black-forest-labs/flux-video-edit", "FLUX Video Edit [fast] takes a source video"), true);
+  kiem("sửa video", "Runway Aleph là model sửa", laModelSuaVideo("runway/aleph-2", "an in-context video editing model"), true);
+  kiem("sửa video", "Runway Gen-4.5 KHÔNG phải model sửa",
+    laModelSuaVideo("runway/gen-4.5", "Runway Gen-4.5 is a video generation model for text-to-video and image-to-video"), false);
+  kiem("sửa video", "FLUX 3 Video KHÔNG phải model sửa",
+    laModelSuaVideo("black-forest-labs/flux-3-video", "FLUX.3 Video generates videos from text prompts"), false);
+  const aleph = { id: "runway/aleph-2", ten: "", moTa: "", giaMoiGiay: 0.28, toiThieu: 0.56 };
+  kiem("sửa video", "áp mức tối thiểu mỗi lượt", giaSuaVideo(aleph, 1), 0.56);
+  kiem("sửa video", "trên mức tối thiểu thì tính theo giây", giaSuaVideo(aleph, 10), 2.8);
+  const nguonSua = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-sua.ts"), "utf8"));
+  const nguonTrend = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-trend.ts"), "utf8"));
+  for (const [ten, ma] of [["sửa video", nguonSua], ["trend", nguonTrend]] as const) {
+    const viTriBat = ma.indexOf("if (!(await videoDangBat(p.trangId))) {");
+    const viTriKho = ma.search(/diaChiKhoHopLe\(p\.videoNguon, /);
+    const viTriGoi = Math.max(ma.indexOf("await goiTaoViec("), ma.indexOf("await chatJson("));
+    kiem(ten, "kiểm công tắc bật và địa chỉ kho TRƯỚC khi gọi bên AI", viTriBat > 0 && viTriKho > viTriBat && viTriGoi > viTriKho, true);
+  }
+  kiem("sửa video", "video nguồn quá dài bị từ chối trước khi tốn tiền",
+    /if \(soGiay > TOI_DA_GIAY_NGUON\) \{\s*throw/.test(nguonSua) && nguonSua.indexOf("if (soGiay > TOI_DA_GIAY_NGUON)") < nguonSua.indexOf("await goiTaoViec("), true);
+  kiem("trend", "chỉ đưa model xem video trong kho của mình",
+    /\{ type: "video_url", video_url: \{ url: nguon \} \}/.test(nguonTrend), true);
 
   // Đã đo: Range 0-99 lên /media trả 200 cả tệp, không Accept-Ranges — Safari
   // không phát được video. Nay chuyển tiếp Range, trả 206 và gửi dạng dòng chảy.
