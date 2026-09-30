@@ -441,6 +441,47 @@ export interface MediaItem {
   type: 'image' | 'video' | 'gif' | 'document';
 }
 
+/** Lựa chọn khi tạo video AI. */
+export interface LuaChonVideo {
+  soGiay: number;
+  doNet: string;
+  khung: string;
+  coTieng: boolean;
+  coAnhMoDau: boolean;
+}
+
+/** Một model video kèm giá ước tính cho lựa chọn đang chọn. */
+export interface ModelVideo {
+  id: string;
+  ten: string;
+  soGiay: number[];
+  doNet: string[];
+  khung: string[];
+  coTieng: boolean;
+  anhMoDau: boolean;
+  /** USD cho cả video; null nếu bảng giá không có mục khớp. */
+  giaUocTinh: number | null;
+  /** Vì sao model không làm được lựa chọn này; null nếu làm được. */
+  lyDo: string | null;
+}
+
+export interface ViecVideo {
+  id: number;
+  model: string;
+  loi_mo_ta: string;
+  so_giay: number;
+  do_net: string;
+  khung: string;
+  co_tieng: boolean;
+  trang_thai: 'dang_tao' | 'xong' | 'loi';
+  gia_uoc_tinh: string | null;
+  gia_thuc: string | null;
+  url: string | null;
+  loi: string | null;
+  created_at: string;
+  xong_at: string | null;
+}
+
 export type PostStatus =
   | 'draft'
   | 'pending_approval'
@@ -1164,6 +1205,30 @@ export const api = {
       patch<{ success: boolean }>('/ai/configs/content/settings', {
         settings: { anhPhongCach: phongCach },
       }),
+    /** Model video kèm giá cho đúng lựa chọn, xếp rẻ tới đắt. */
+    videoModels: (lc: LuaChonVideo) => {
+      const q = new URLSearchParams({
+        soGiay: String(lc.soGiay),
+        doNet: lc.doNet,
+        khung: lc.khung,
+        coTieng: String(lc.coTieng),
+        coAnhMoDau: String(lc.coAnhMoDau),
+      });
+      return get<{
+        data: { bat: boolean; luaChon: LuaChonVideo; models: ModelVideo[]; mucDich: Record<string, string> };
+      }>(`/ai/video/models?${q}`);
+    },
+    /** Bật hoặc tắt tạo video AI cho trang đang chọn. */
+    batVideo: (bat: boolean) =>
+      patch<{ data: AiConfig }>('/ai/configs/content/settings', { settings: { videoBat: bat } }),
+    /** AI viết lời mô tả video từ nội dung bài. */
+    videoLoiMoTa: (payload: { noiDung: string; mucDich: string; soGiay: number; coAnhMoDau: boolean }) =>
+      post<{ data: { loiMoTa: string; tomTat: string } }>('/ai/video/loi-mo-ta', payload),
+    /** Gửi việc tạo video; trả về ngay, video xong sau vài phút. */
+    taoVideo: (payload: LuaChonVideo & { model: string; loiMoTa: string; anhMoDau?: string }) =>
+      post<{ data: ViecVideo }>('/ai/video', payload),
+    /** Các video của trang đang chọn, mới nhất trước. */
+    videoViec: () => get<{ data: ViecVideo[] }>('/ai/video/viec'),
     test: (kind: string, message: string) =>
       post<{ data: { reply: string; model: string; usage: { costUsd: number } } }>("/ai/test", {
         kind,

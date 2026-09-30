@@ -10,6 +10,7 @@ import { useActivePage } from '../lib/ActivePage';
 import { gioiHanChatNhat, kenhMacDinh, tinhKenhSeDang, type CheDoKenh } from '../lib/gioi-han-kenh';
 import ChonKenhDang from '../components/ChonKenhDang';
 import { MAU_PHONG_CACH } from '../lib/phong-cach-anh';
+import VideoAiPanel from '../components/VideoAiPanel';
 
 /** Nhãn tab -> trạng thái trong database. */
 const FILTER_TO_STATUS: Record<string, PostStatus> = {
@@ -1429,6 +1430,16 @@ export default function Content() {
                 </div>
 
               </div>
+
+              {/* Block 3C: AI tạo video — mặc định tắt, luôn báo giá trước khi tạo */}
+              <VideoAiPanel
+                noiDung={composerContent}
+                anhCoSan={[
+                  ...composerMedia.filter((m) => m.type === 'image').map((m) => m.url),
+                  ...(anhMauChon ? [anhMauChon] : []),
+                ].filter((u, i, ds) => ds.indexOf(u) === i)}
+                onGanVaoBai={(item) => setComposerMedia((truoc) => [...truoc, item])}
+              />
 
               {/* Block 4: THỜI GIAN ĐĂNG */}
               <div>

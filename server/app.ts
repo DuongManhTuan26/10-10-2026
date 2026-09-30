@@ -1,6 +1,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { env, missingOptionalConfig } from "./env.js";
 import { attachUser } from "./auth.js";
 import { errorHandler } from "./http.js";
@@ -96,19 +97,46 @@ export async function createApp() {
       res.status(400).json({ error: "Địa chỉ ảnh không hợp lệ" });
       return;
     }
+    /*
+     * Chuyển tiếp yêu cầu TUA (Range) và gửi dạng dòng chảy.
+     *
+     * Đã đo: gửi Range 0-99 cho một video thì nhận 200 kèm cả tệp 2,2MB, không
+     * có Accept-Ranges. Safari bắt buộc máy chủ hỗ trợ tua mới chịu phát video,
+     * nên video AI và video chủ shop tải lên không xem trước được trên Mac và
+     * iPhone. Bản cũ còn đọc cả tệp vào bộ nhớ rồi mới gửi — video vài chục MB
+     * là vài chục MB RAM cho mỗi người đang xem.
+     *
+     * Hẹn giờ chỉ tính tới lúc kho trả lời đầu tiên: dòng dữ liệu video chạy
+     * lâu hơn 30 giây là chuyện bình thường, không được cắt ngang.
+     */
+    const ngat = new AbortController();
+    const hen = setTimeout(() => ngat.abort(), 30_000);
     try {
-      const nguon = await fetch(that, { signal: AbortSignal.timeout(30_000) });
-      if (!nguon.ok || !nguon.body) {
-        res.status(nguon.status === 404 ? 404 : 502).end();
+      const tua = typeof req.headers.range === "string" ? req.headers.range : undefined;
+      const nguon = await fetch(that, {
+        headers: tua ? { Range: tua } : {},
+        signal: ngat.signal,
+      });
+      clearTimeout(hen);
+      if ((!nguon.ok && nguon.status !== 206) || !nguon.body) {
+        res.status(nguon.status === 404 ? 404 : nguon.status === 416 ? 416 : 502).end();
         return;
       }
+      res.status(nguon.status === 206 ? 206 : 200);
       res.setHeader("Content-Type", nguon.headers.get("content-type") ?? "application/octet-stream");
-      const dai = nguon.headers.get("content-length");
-      if (dai) res.setHeader("Content-Length", dai);
+      for (const ten of ["content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
+        const v = nguon.headers.get(ten);
+        if (v) res.setHeader(ten, v);
+      }
       res.setHeader("Cache-Control", "private, max-age=3600");
-      res.send(Buffer.from(await nguon.arrayBuffer()));
+      const dong = Readable.fromWeb(nguon.body as import("node:stream/web").ReadableStream);
+      // Người xem đóng trang giữa chừng thì ngắt luôn dòng tải từ kho.
+      res.on("close", () => dong.destroy());
+      dong.on("error", () => res.destroy());
+      dong.pipe(res);
     } catch {
-      res.status(502).end();
+      clearTimeout(hen);
+      if (!res.headersSent) res.status(502).end();
     }
   });
 

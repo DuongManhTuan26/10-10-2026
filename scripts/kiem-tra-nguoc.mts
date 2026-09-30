@@ -30,6 +30,66 @@ interface PhepDuc {
 
 const DUC: PhepDuc[] = [
   {
+    ten: "không chuyển tiếp yêu cầu tua (Safari không phát được video)",
+    tep: "server/app.ts",
+    tim: "headers: tua ? { Range: tua } : {},",
+    thay: "headers: {},",
+  },
+  {
+    ten: "luôn trả 200 kể cả khi tua",
+    tep: "server/app.ts",
+    tim: "res.status(nguon.status === 206 ? 206 : 200);",
+    thay: "res.status(200);",
+  },
+  {
+    ten: "tạo video khi đang tắt",
+    tep: "server/services/video-ai.ts",
+    tim: "if (!(await videoDangBat(params.trangId))) {",
+    thay: "if (false) {",
+  },
+  {
+    ten: "quên gắn luật không chữ, không logo",
+    tep: "server/services/video-ai.ts",
+    tim: "prompt: `${loiMoTa}\\n\\n${LUAT_VIDEO}`,",
+    thay: "prompt: loiMoTa,",
+  },
+  {
+    ten: "nhận ảnh mở đầu từ địa chỉ lạ",
+    tep: "server/services/video-ai.ts",
+    tim: "if (!laDiaChiKho(that)) throw",
+    thay: "if (false) throw",
+  },
+  {
+    ten: "bỏ ghi sổ tiền video",
+    tep: "server/services/video-ai.ts",
+    tim: "VALUES ($1, 'video', $2, $3)`,",
+    thay: "VALUES ($1, 'khac', $2, $3)`,",
+  },
+  {
+    ten: "tính giá video bỏ quên phần có tiếng",
+    tep: "server/services/video-ai.ts",
+    tim: "const tieng = lc.coTieng && model.coTieng;",
+    thay: "const tieng = false;",
+  },
+  {
+    ten: "công thức token sai khung hình/giây",
+    tep: "server/services/video-ai.ts",
+    tim: "return ((dt * 24) / 1024) * giaToken;",
+    thay: "return ((dt * 30) / 1024) * giaToken;",
+  },
+  {
+    ten: "worker đứng chờ video, chặn trả lời khách",
+    tep: "server/worker.ts",
+    tim: "void runDueVideoJobs()",
+    thay: "await runDueVideoJobs()",
+  },
+  {
+    ten: "bỏ chốt chống đốt tiền ở đường tạo video",
+    tep: "server/routes/ai.ts",
+    tim: '"/video",\n  chanLamDungAI,\n',
+    thay: '"/video",\n',
+  },
+  {
     ten: "bỏ kiểm mã số ở router bài đăng",
     tep: "server/routes/posts.ts",
     tim: 'postsRouter.param("id", chiNhanMaSo);',

@@ -47,6 +47,18 @@ import { boMarkdown, DAN_KHONG_MARKDOWN } from "../services/text.js";
 import { taoAnhChoBai, docPhongCachDaLuu, PHONG_CACH_MAC_DINH } from "../services/image-ai.js";
 import { anDiaChiKho } from "../services/media-proxy.js";
 import { chanLamDungAI } from "../services/chong-lam-dung.js";
+import {
+  COT_VIEC,
+  giaMoiGiay,
+  layDanhSachModel,
+  lyDoKhongHop,
+  MUC_DICH_VIDEO,
+  taoVideo,
+  videoDangBat,
+  vietLoiMoTaVideo,
+  type LuaChonVideo,
+  type ViecVideo,
+} from "../services/video-ai.js";
 
 export const aiRouter = Router();
 
@@ -455,6 +467,115 @@ aiRouter.delete(
 // ---------------------------------------------------------------------------
 // Sinh nội dung
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// AI tạo video
+// ---------------------------------------------------------------------------
+
+/** Đọc lựa chọn video từ query hoặc body, có giá trị mặc định hợp lý. */
+function docLuaChonVideo(nguon: Record<string, unknown>): LuaChonVideo {
+  const soGiay = Number(nguon.soGiay);
+  return {
+    soGiay: Number.isInteger(soGiay) && soGiay > 0 && soGiay <= 60 ? soGiay : 8,
+    doNet: typeof nguon.doNet === "string" && /^[0-9a-zA-Z]{2,6}$/.test(nguon.doNet) ? nguon.doNet : "720p",
+    khung: typeof nguon.khung === "string" && /^\d{1,2}:\d{1,2}$/.test(nguon.khung) ? nguon.khung : "9:16",
+    coTieng: nguon.coTieng === true || nguon.coTieng === "true",
+    coAnhMoDau: nguon.coAnhMoDau === true || nguon.coAnhMoDau === "true",
+  };
+}
+
+/**
+ * Mọi model video kèm giá cho ĐÚNG lựa chọn đang chọn, xếp rẻ tới đắt.
+ *
+ * Model không làm được lựa chọn này vẫn trả về (xếp cuối, kèm lý do) để chủ
+ * shop biết vì sao không chọn được, thay vì tự dưng biến mất.
+ */
+aiRouter.get(
+  "/video/models",
+  route(async (req, res) => {
+    const lc = docLuaChonVideo(req.query as Record<string, unknown>);
+    const ds = await layDanhSachModel();
+    const models = ds
+      .map((m) => {
+        const moiGiay = giaMoiGiay(m, lc);
+        const lyDo = lyDoKhongHop(m, lc);
+        return {
+          id: m.id,
+          ten: m.ten,
+          soGiay: m.soGiay,
+          doNet: m.doNet,
+          khung: m.khung,
+          coTieng: m.coTieng,
+          anhMoDau: m.anhMoDau,
+          giaUocTinh: moiGiay === null ? null : Math.round(moiGiay * lc.soGiay * 10_000) / 10_000,
+          lyDo,
+        };
+      })
+      .sort((a, b) => {
+        if (!a.lyDo !== !b.lyDo) return a.lyDo ? 1 : -1;
+        return (a.giaUocTinh ?? Infinity) - (b.giaUocTinh ?? Infinity);
+      });
+    res.json({
+      success: true,
+      data: { bat: await videoDangBat(await trangCuaReq(req)), luaChon: lc, models, mucDich: MUC_DICH_VIDEO },
+    });
+  })
+);
+
+/** AI viết lời mô tả video từ bài viết. Tốn một lượt AI chữ nên qua chốt. */
+aiRouter.post(
+  "/video/loi-mo-ta",
+  chanLamDungAI,
+  route(async (req, res) => {
+    await trangCuaReq(req);
+    const lc = docLuaChonVideo(req.body ?? {});
+    const kq = await vietLoiMoTaVideo({
+      userId: req.user!.id,
+      noiDung: typeof req.body?.noiDung === "string" ? req.body.noiDung : "",
+      mucDich: typeof req.body?.mucDich === "string" ? req.body.mucDich : "khoe_san_pham",
+      soGiay: lc.soGiay,
+      coAnhMoDau: lc.coAnhMoDau,
+    });
+    res.json({ success: true, data: kq });
+  })
+);
+
+function viecRaNgoai(v: ViecVideo) {
+  return { ...v, url: v.url ? anDiaChiKho(v.url) : null };
+}
+
+/** Gửi việc tạo video. Trả về ngay; worker tự theo dõi tới khi xong. */
+aiRouter.post(
+  "/video",
+  chanLamDungAI,
+  route(async (req, res) => {
+    const trangId = (await trangCuaReq(req))!;
+    const viec = await taoVideo({
+      userId: req.user!.id,
+      trangId,
+      model: typeof req.body?.model === "string" ? req.body.model : "",
+      loiMoTa: typeof req.body?.loiMoTa === "string" ? req.body.loiMoTa : "",
+      lc: docLuaChonVideo(req.body ?? {}),
+      anhMoDau: typeof req.body?.anhMoDau === "string" && req.body.anhMoDau ? req.body.anhMoDau : undefined,
+    });
+    res.status(202).json({ success: true, data: viecRaNgoai(viec) });
+  })
+);
+
+/** Các video của trang đang chọn, mới nhất trước. */
+aiRouter.get(
+  "/video/viec",
+  route(async (req, res) => {
+    const trangId = await trangCuaReq(req);
+    const ds = trangId
+      ? await query<ViecVideo>(
+          `SELECT ${COT_VIEC} FROM video_ai WHERE trang_id = $1 ORDER BY created_at DESC LIMIT 20`,
+          [trangId]
+        )
+      : { rows: [] as ViecVideo[] };
+    res.json({ success: true, data: ds.rows.map(viecRaNgoai) });
+  })
+);
 
 /** Phong cách vẽ ảnh chủ shop đang đặt. Đổi lúc nào cũng được. */
 aiRouter.get(

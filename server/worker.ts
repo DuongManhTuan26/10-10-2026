@@ -8,6 +8,7 @@ import { runDueAccountSync } from "./services/accounts.js";
 import { runDuePostRecheck } from "./services/post-status.js";
 import { sendTelegramMessage, escapeHtml } from "./services/telegram.js";
 import { layNhatKyWebhook, type LanGiaoWebhook } from "./services/zernio.js";
+import { runDueVideoJobs } from "./services/video-ai.js";
 
 /**
  * Worker xử lý hàng đợi sự kiện.
@@ -40,6 +41,10 @@ let lanTuDongCuoi = 0;
 let lanNhacCuoi = 0;
 let lanDongBoKenhCuoi = 0;
 let lanSoatBaiCuoi = 0;
+let lanVideoCuoi = 0;
+let dangXuLyVideo = false;
+/** Video AI thường xong trong 30 giây tới vài phút, hỏi thăm mỗi 15 giây. */
+const VIDEO_INTERVAL_MS = 15_000;
 let lanNhipTimCuoi = 0;
 /** Lần cảnh báo ứ hàng đợi gần nhất của từng shop, để không nhắn dồn dập. */
 const lanBaoUngDong = new Map<number, number>();
@@ -425,6 +430,31 @@ export function startWorker(): void {
             error instanceof Error ? error.message : error
           );
         }
+      }
+
+      /*
+       * Video AI chạy SONG SONG, không await.
+       *
+       * Tải một video về rồi đưa lên kho có thể mất cả phút. Đứng chờ ở đây thì
+       * tin nhắn khách phải xếp hàng sau — AI trả lời khách chậm hẳn chỉ vì một
+       * video. Cờ dangXuLyVideo giữ cho chỉ một lượt video chạy mỗi lúc.
+       */
+      if (!dangXuLyVideo && Date.now() - lanVideoCuoi >= VIDEO_INTERVAL_MS) {
+        lanVideoCuoi = Date.now();
+        dangXuLyVideo = true;
+        void runDueVideoJobs()
+          .then((soVideo) => {
+            if (soVideo > 0) console.log(`[video AI] Đã chốt ${soVideo} video.`);
+          })
+          .catch((error) =>
+            console.error(
+              "[video AI] Lỗi khi theo dõi video:",
+              error instanceof Error ? error.message : error
+            )
+          )
+          .finally(() => {
+            dangXuLyVideo = false;
+          });
       }
 
       /*

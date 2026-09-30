@@ -37,6 +37,7 @@ import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
 import { errorHandler, chiNhanMaSo } from "../server/http.js";
+import { chuanHoaModel, giaMoiGiay, lyDoKhongHop } from "../server/services/video-ai.js";
 import {
   xinSuat,
   xinSuatDocAnh,
@@ -3522,6 +3523,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     ["server/routes/ai.ts", "/test"],
     ["server/routes/analytics.ts", "/analyze"],
     ["server/routes/ads.ts", "/analyze"],
+    ["server/routes/ai.ts", "/video/loi-mo-ta"],
+    ["server/routes/ai.ts", "/video"],
   ];
   for (const [tep, duong] of DUONG_TON_TIEN_AI) {
     const ma = fs.readFileSync(path.join(GOC, tep), "utf8");
@@ -3532,7 +3535,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const soDuongGoiAI = ["server/routes/ai.ts", "server/routes/analytics.ts", "server/routes/ads.ts"]
     .map((t) => boChuThichTS(fs.readFileSync(path.join(GOC, t), "utf8")))
     .flatMap((ma) => ma.split(/\n(?=\w+Router\.(?:get|post|put|patch|delete)\()/))
-    .filter((khoi) => /\b(chat|chatJson|taoAnhChoBai|docChuTuAnh|generatePostContent|extractOrderInfo|suggestReply)\s*(<[^>]*>)?\(/.test(khoi))
+    .filter((khoi) => /\b(chat|chatJson|taoAnhChoBai|docChuTuAnh|generatePostContent|extractOrderInfo|suggestReply|vietLoiMoTaVideo|taoVideo)\s*(<[^>]*>)?\(/.test(khoi))
     .length;
   kiem("chống đốt tiền AI", "số đường gọi AI trả tiền khớp danh sách có chốt", soDuongGoiAI, DUONG_TON_TIEN_AI.length);
 
@@ -3634,6 +3637,62 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonAnh = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/image-ai.ts"), "utf8"));
   kiem("khoá AI", "nhà cung cấp ảnh trả 401/403 thì không chuyển 401 ra ngoài",
     /response\.status === 401 \|\| response\.status === 403\s*\?\s*502/.test(nguonAnh), true);
+
+  // Video AI: giá tính từ bảng giá sống. Số liệu dưới đây chép từ bảng giá THẬT
+  // của OpenRouter ngày 30/09/2026; kết quả khớp giá niêm yết của họ.
+  const veoLite = chuanHoaModel({ id: "google/veo-3.1-lite", supported_durations: [4, 6, 8],
+    supported_resolutions: ["720p", "1080p"], supported_aspect_ratios: ["16:9", "9:16"], generate_audio: true,
+    supported_frame_images: ["first_frame"], pricing_skus: { duration_seconds_with_audio: "0.08",
+      duration_seconds_without_audio: "0.05", duration_seconds_with_audio_720p: "0.05", duration_seconds_without_audio_720p: "0.03" } })!;
+  const sdMini = chuanHoaModel({ id: "bytedance/seedance-2.0-mini", supported_durations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supported_resolutions: ["480p", "720p"], supported_aspect_ratios: ["16:9", "9:16", "1:1"], generate_audio: true,
+    supported_sizes: ["854x480", "480x854", "480x480", "1280x720", "720x1280", "720x720"], supported_frame_images: ["first_frame"],
+    pricing_skus: { video_tokens: "0.0000035", video_tokens_without_audio: "0.0000035" } })!;
+  const sd25 = chuanHoaModel({ id: "bytedance/seedance-2.5", supported_durations: [4, 5, 30],
+    supported_resolutions: ["480p", "720p"], supported_aspect_ratios: ["16:9", "9:16"], generate_audio: true,
+    supported_sizes: ["854x480", "480x854", "1280x720", "720x1280"], supported_frame_images: ["first_frame"],
+    pricing_skus: { video_tokens: "0.0000107" } })!;
+  const klingStd = chuanHoaModel({ id: "kwaivgi/kling-v3.0-std", supported_durations: [5, 10], supported_resolutions: ["720p"],
+    supported_aspect_ratios: ["16:9"], generate_audio: true, pricing_skus: { duration_seconds: "0.084",
+      duration_seconds_with_audio: "0.126", text_to_video_duration_seconds_720p: "0.084" } })!;
+  const lc = (x: Partial<{ soGiay: number; doNet: string; khung: string; coTieng: boolean; coAnhMoDau: boolean }>) =>
+    ({ soGiay: 4, doNet: "720p", khung: "16:9", coTieng: false, coAnhMoDau: false, ...x });
+  const lamTron = (n: number | null) => (n === null ? null : Math.round(n * 10_000) / 10_000);
+  kiem("video AI", "Veo Lite 720p không tiếng = 0,03 USD/giây", giaMoiGiay(veoLite, lc({})), 0.03);
+  kiem("video AI", "Veo Lite 720p có tiếng = 0,05 USD/giây", giaMoiGiay(veoLite, lc({ coTieng: true })), 0.05);
+  kiem("video AI", "Veo Lite 1080p có tiếng = 0,08 USD/giây", giaMoiGiay(veoLite, lc({ doNet: "1080p", coTieng: true })), 0.08);
+  kiem("video AI", "Seedance Mini 480p khớp giá niêm yết 0,0336", lamTron(giaMoiGiay(sdMini, lc({ doNet: "480p" }))), 0.0336);
+  kiem("video AI", "Seedance 2.5 480p khớp giá niêm yết 0,1028", lamTron(giaMoiGiay(sd25, lc({ doNet: "480p" }))), 0.1028);
+  kiem("video AI", "khung dọc cùng độ nét thì cùng giá", lamTron(giaMoiGiay(sd25, lc({ doNet: "480p", khung: "9:16" }))), 0.1028);
+  kiem("video AI", "Kling có tiếng lấy giá có tiếng", giaMoiGiay(klingStd, lc({ soGiay: 5, coTieng: true })), 0.126);
+  kiem("video AI", "Kling không tiếng lấy giá thường", giaMoiGiay(klingStd, lc({ soGiay: 5 })), 0.084);
+  kiem("video AI", "không có mục giá khớp thì báo chưa rõ, không đoán",
+    giaMoiGiay({ ...veoLite, giaSku: {} }, lc({})), null);
+  kiem("video AI", "số giây model không làm được thì có lý do", typeof lyDoKhongHop(veoLite, lc({ soGiay: 5 })), "string");
+  kiem("video AI", "khung model không có thì có lý do", typeof lyDoKhongHop(veoLite, lc({ khung: "1:1" })), "string");
+  kiem("video AI", "lựa chọn hợp lệ thì không có lý do", lyDoKhongHop(veoLite, lc({ khung: "9:16" })), null);
+  kiem("video AI", "model không nhận ảnh mở đầu thì báo",
+    typeof lyDoKhongHop({ ...veoLite, anhMoDau: false }, lc({ khung: "9:16", coAnhMoDau: true })), "string");
+
+  const nguonVideo = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8"));
+  const viTriKiemBat = nguonVideo.indexOf("if (!(await videoDangBat(params.trangId))) {");
+  const viTriGoiTao = nguonVideo.indexOf("r = await fetch(`${GOC_API}/videos`, {");
+  kiem("video AI", "đang tắt thì chặn TRƯỚC khi gọi nhà cung cấp", viTriKiemBat > 0 && viTriGoiTao > viTriKiemBat, true);
+  kiem("video AI", "luật không chữ, không logo luôn gắn vào lời mô tả",
+    nguonVideo.includes("prompt: `${loiMoTa}\\n\\n${LUAT_VIDEO}`,"), true);
+  kiem("video AI", "ảnh mở đầu chỉ nhận ảnh trong kho của mình",
+    /const that = hoanDiaChiKho\(params\.anhMoDau\);\s*if \(!laDiaChiKho\(that\)\)/.test(nguonVideo), true);
+  kiem("video AI", "mỗi video đều ghi vào sổ tiền AI", /INSERT INTO ai_usage \(user_id, task, model, cost_usd\) VALUES \(\$1, 'video'/.test(nguonVideo), true);
+  const nguonWorker = boChuThichTS(fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8"));
+  kiem("video AI", "theo dõi video không chặn vòng trả lời khách", /void runDueVideoJobs\(\)/.test(nguonWorker), true);
+
+  // Đã đo: Range 0-99 lên /media trả 200 cả tệp, không Accept-Ranges — Safari
+  // không phát được video. Nay chuyển tiếp Range, trả 206 và gửi dạng dòng chảy.
+  kiem("xem video", "chuyển tiếp yêu cầu tua sang kho",
+    /headers: tua \? \{ Range: tua \} : \{\}/.test(nguonApp), true);
+  kiem("xem video", "trả đúng mã 206 khi kho trả 206", /res\.status\(nguon\.status === 206 \? 206 : 200\)/.test(nguonApp), true);
+  kiem("xem video", "chuyển đủ tiêu đề tua", /"content-range", "accept-ranges"/.test(nguonApp), true);
+  kiem("xem video", "không đọc cả tệp vào bộ nhớ", /arrayBuffer\(\)/.test(nguonApp.slice(nguonApp.indexOf('app.get("/media/:ma"'), nguonApp.indexOf('app.use("/api/webhooks", webhooksRouter)'))), false);
 
   // Đã đo: login_attempts và dang_ky_theo_ip không bao giờ bị dọn.
   const nguonKhoiDong = fs.readFileSync(path.join(GOC, "server.ts"), "utf8");
