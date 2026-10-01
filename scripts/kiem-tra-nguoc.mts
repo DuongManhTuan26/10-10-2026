@@ -159,6 +159,24 @@ const DUC: PhepDuc[] = [
     thay: "      false ||",
   },
   {
+    ten: "cho tự cấp lại mật khẩu, tự khoá mình ngoài",
+    tep: "server/routes/admin.ts",
+    tim: "    if (dich.id === req.user!.id) {\n      throw new AppError(\n        \"Không tự cấp lại mật khẩu",
+    thay: "    if (false) {\n      throw new AppError(\n        \"Không tự cấp lại mật khẩu",
+  },
+  {
+    ten: "dòng của mình vẫn bấm cấp lại mật khẩu",
+    tep: "src/pages/Admin.tsx",
+    tim: "onClick={() => (t.la_toi ? setDoiMatKhauMo(true) : capLaiMatKhau(t))}",
+    thay: "onClick={() => capLaiMatKhau(t)}",
+  },
+  {
+    ten: "mật khẩu tạm lại nằm lẫn phía trên trang",
+    tep: "src/pages/Admin.tsx",
+    tim: "        <div className=\"fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm\">",
+    thay: "        <div className=\"mb-6\">",
+  },
+  {
     ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",
     tep: "server/services/so-ai.ts",
     tim: "      ORDER BY tra_luc NULLS FIRST, created_at LIMIT $1`,",

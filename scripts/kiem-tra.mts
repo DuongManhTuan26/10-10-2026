@@ -4069,6 +4069,24 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
 }
 
 // ---------------------------------------------------------------------------
+// Không tự khoá mình ngoài
+// ---------------------------------------------------------------------------
+{
+  // Đã xảy ra 01/10/2026: quản trị tổng bấm "Mật khẩu" trên dòng của mình → mật khẩu đổi,
+  // phiên bị cắt, bị đá ra trước khi thấy mật khẩu tạm → không vào được nữa.
+  const nguonQT = fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8");
+  kiem("tự khoá", "máy chủ từ chối tự cấp lại mật khẩu cho chính mình",
+    /"\/accounts\/:id\/reset-password"[\s\S]{0,1200}?if \(dich\.id === req\.user!\.id\) \{\s*throw new AppError\(/.test(nguonQT), true);
+  kiem("tự khoá", "danh sách tài khoản đánh dấu dòng của chính mình", /\(u\.id = \$1\) AS la_toi,/.test(nguonQT), true);
+  const nguonTrangQT = fs.readFileSync(path.join(GOC, "src/pages/Admin.tsx"), "utf8");
+  kiem("tự khoá", "dòng của mình mở hộp đổi mật khẩu (nhập mật khẩu hiện tại), không cấp lại",
+    /onClick=\{\(\) => \(t\.la_toi \? setDoiMatKhauMo\(true\) : capLaiMatKhau\(t\)\)\}/.test(nguonTrangQT) &&
+      /\{doiMatKhauMo && <DoiMatKhau onClose=/.test(nguonTrangQT), true);
+  kiem("tự khoá", "mật khẩu tạm hiện ở cửa sổ nổi, không lẫn phía trên trang",
+    /\{matKhauTam && \(\s*<div className="fixed inset-0/.test(nguonTrangQT), true);
+}
+
+// ---------------------------------------------------------------------------
 console.log(`\nĐã kiểm ${tong} điểm.`);
 if (hong === 0) {
   console.log("Tất cả đều đạt.\n");

@@ -228,6 +228,8 @@ export interface TaiKhoanQuanTri {
   hoat_dong_cuoi: string | null;
   tu_chu: string | null;
   telegram: boolean | null;
+  /** Dòng của chính người đang xem. */
+  la_toi: boolean;
 }
 
 export interface NhatKyQuanTri {

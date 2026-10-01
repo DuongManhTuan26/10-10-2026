@@ -88,9 +88,11 @@ async function layTaiKhoanDich(
  */
 adminRouter.get(
   "/accounts",
-  route(async (_req, res) => {
+  route(async (req, res) => {
     const rows = await query(
       `SELECT u.id, u.email, u.name, u.plan, u.role, u.is_active, u.created_at,
+              -- Dòng của chính người đang xem: giao diện thay nút "cấp lại mật khẩu" bằng "đổi mật khẩu".
+              (u.id = $1) AS la_toi,
               (SELECT COUNT(*) FROM social_accounts s
                 WHERE s.user_id = u.id AND s.connected)::int          AS kenh,
               (SELECT COUNT(*) FROM conversations c
@@ -112,7 +114,8 @@ adminRouter.get(
                 ORDER BY tr.id LIMIT 1)                                AS tu_chu,
               (SELECT t.enabled FROM telegram_configs t WHERE t.user_id = u.id) AS telegram
          FROM users u
-        ORDER BY u.created_at`
+        ORDER BY u.created_at`,
+      [req.user!.id]
     );
     res.json({ success: true, data: rows.rows });
   })
@@ -298,6 +301,20 @@ adminRouter.post(
   "/accounts/:id/reset-password",
   route(async (req, res) => {
     const dich = await layTaiKhoanDich(req.params.id, req.user!.id, "sua");
+    /*
+     * Không tự cấp lại mật khẩu cho chính mình. Đã xảy ra 01/10/2026: quản trị
+     * tổng bấm "Mật khẩu" trên dòng của mình → mật khẩu đổi, phiên đang dùng bị
+     * cắt ngay, giao diện đá ra màn hình đăng nhập trước khi kịp thấy mật khẩu
+     * tạm → tự khoá mình ngoài. Đổi mật khẩu của mình phải qua /auth/change-password
+     * (nhập mật khẩu hiện tại, giữ phiên đang dùng).
+     */
+    if (dich.id === req.user!.id) {
+      throw new AppError(
+        "Không tự cấp lại mật khẩu cho chính mình được — làm vậy là tự khoá mình ngoài. " +
+          "Dùng nút \"Đổi mật khẩu\": nhập mật khẩu hiện tại và mật khẩu mới do bạn tự đặt.",
+        400
+      );
+    }
     const matKhauTam = sinhMatKhauTam();
 
     await query("UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1", [

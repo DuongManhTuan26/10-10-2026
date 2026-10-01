@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, type TaiKhoanQuanTri, type NhatKyQuanTri } from '../lib/api';
 import BangLoi from '../components/BangLoi';
 import ChiPhiHeThong from '../components/ChiPhiHeThong';
+import DoiMatKhau from '../components/DoiMatKhau';
 
 const TEN_VIEC: Record<string, string> = {
   tao_tai_khoan: 'Tạo tài khoản',
@@ -45,6 +46,8 @@ export default function Admin() {
   const [dangTao, setDangTao] = useState(false);
   /* Mật khẩu tạm chỉ hiện ĐÚNG MỘT LẦN, không lưu lại ở đâu cả. */
   const [matKhauTam, setMatKhauTam] = useState<{ email: string; mk: string } | null>(null);
+  /** Đổi mật khẩu của CHÍNH MÌNH: nhập mật khẩu hiện tại, giữ phiên đang dùng. */
+  const [doiMatKhauMo, setDoiMatKhauMo] = useState(false);
 
   const [dangSua, setDangSua] = useState<TaiKhoanQuanTri | null>(null);
   const [suaTen, setSuaTen] = useState('');
@@ -106,7 +109,8 @@ export default function Admin() {
   const capLaiMatKhau = async (tk: TaiKhoanQuanTri) => {
     if (!confirm(
       `Cấp lại mật khẩu cho ${tk.email}?\n\n` +
-      'Mật khẩu cũ mất hiệu lực ngay, mọi phiên đang mở của họ bị cắt.'
+      'Mật khẩu cũ mất hiệu lực ngay, mọi phiên đang mở của họ bị cắt.\n' +
+      'Mật khẩu tạm mới hiện ra ngay sau đây — chép lại và gửi cho chủ tài khoản.'
     )) return;
     setDangLam(tk.id);
     setErrorMessage('');
@@ -214,8 +218,15 @@ export default function Admin() {
 
       <ChiPhiHeThong />
 
+      {doiMatKhauMo && <DoiMatKhau onClose={() => setDoiMatKhauMo(false)} />}
+      {/*
+        Cửa sổ nổi giữa màn hình, không đóng khi bấm ra ngoài. Đã thấy: hộp nằm
+        phía trên khối chi phí, người bấm ở bảng phía dưới không nhìn thấy —
+        mà mật khẩu tạm chỉ hiện đúng một lần.
+      */}
       {matKhauTam && (
-        <div className="mb-6 bg-surface-container rounded-xl border-2 border-primary/50 p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+        <div className="w-full max-w-[440px] bg-surface-container rounded-xl border-2 border-primary/50 p-4">
           <p className="text-sm font-bold text-on-surface mb-1">
             Mật khẩu tạm cho {matKhauTam.email}
           </p>
@@ -234,6 +245,7 @@ export default function Admin() {
               Đã chép, đóng
             </button>
           </div>
+        </div>
         </div>
       )}
 
@@ -307,12 +319,17 @@ export default function Admin() {
                       >
                         Sửa
                       </button>
+                      {/*
+                        Dòng của chính mình: ĐỔI mật khẩu (tự đặt, giữ phiên), không
+                        CẤP LẠI. Đã xảy ra: tự cấp lại cho mình → phiên bị cắt, đá ra
+                        ngoài trước khi kịp thấy mật khẩu tạm → tự khoá mình ngoài.
+                      */}
                       <button
-                        onClick={() => capLaiMatKhau(t)}
+                        onClick={() => (t.la_toi ? setDoiMatKhauMo(true) : capLaiMatKhau(t))}
                         disabled={dangLam === t.id}
                         className="px-2.5 py-1.5 rounded-lg border border-outline-variant text-on-surface text-xs font-bold hover:border-primary transition-colors disabled:opacity-50"
                       >
-                        Mật khẩu
+                        {t.la_toi ? 'Đổi mật khẩu' : 'Mật khẩu'}
                       </button>
                       {/*
                         Chỉ hiện với tài khoản đứng riêng chưa phải chủ chuỗi.
