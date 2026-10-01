@@ -186,7 +186,7 @@ export default function VideoDaiPanel({
               value={yTuong}
               onChange={(e) => setYTuong(e.target.value)}
               placeholder="Ví dụ: mở đầu cận cảnh giọt mật, rồi rót mật vào hũ, kết bằng hũ mật trên bàn gỗ trong nắng sớm…"
-              className="w-full bg-surface rounded-lg border border-outline-variant p-3 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none resize-none"
+              className="bg-surface-container-high w-full rounded-lg border border-outline-variant p-3 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none resize-none"
             />
             <p className="text-[11px] text-on-surface-variant">
               Viết tiếng Việt thoải mái. AI sẽ tự chia thành từng cảnh và giữ nhân vật, bối cảnh nhất quán xuyên suốt.
@@ -278,7 +278,7 @@ export default function VideoDaiPanel({
                     const n = Math.round(Number(e.target.value));
                     if (Number.isFinite(n)) setTongGiay(Math.min(120, Math.max(4, n)));
                   }}
-                  className="w-20 bg-surface rounded-lg border border-outline-variant px-2 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none"
+                  className="bg-surface-container-high w-20 rounded-lg border border-outline-variant px-2 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none"
                   aria-label="Tổng số giây tuỳ chọn"
                 />
               </div>
@@ -290,7 +290,7 @@ export default function VideoDaiPanel({
               <select
                 value={modelChon}
                 onChange={(e) => setModelChon(e.target.value)}
-                className="w-full bg-surface rounded-lg border border-outline-variant px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none"
+                className="bg-surface-container-high w-full rounded-lg border border-outline-variant px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none"
               >
                 {models.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -339,7 +339,7 @@ export default function VideoDaiPanel({
               rows={3}
               value={nhap.nhat_quan}
               onChange={(e) => setNhap({ ...nhap, nhat_quan: e.target.value })}
-              className="w-full bg-surface rounded-lg border border-outline-variant p-2 text-xs text-on-surface leading-relaxed focus:border-primary focus:outline-none resize-none"
+              className="bg-surface-container-high w-full rounded-lg border border-outline-variant p-2 text-xs text-on-surface leading-relaxed focus:border-primary focus:outline-none resize-none"
             />
           </div>
           {nhap.phan_canh.map((c, i) => (
@@ -349,7 +349,7 @@ export default function VideoDaiPanel({
                 <select
                   value={c.soGiay}
                   onChange={(e) => suaCanh(i, { soGiay: Number(e.target.value) })}
-                  className="bg-surface rounded border border-outline-variant px-2 py-0.5 text-xs text-on-surface"
+                  className="bg-surface-container-high rounded border border-outline-variant px-2 py-0.5 text-xs text-on-surface"
                 >
                   {(model?.soGiay ?? [c.soGiay]).map((g) => (
                     <option key={g} value={g}>{g} giây</option>
@@ -361,7 +361,7 @@ export default function VideoDaiPanel({
                 rows={3}
                 value={c.moTa}
                 onChange={(e) => suaCanh(i, { moTa: e.target.value })}
-                className="w-full bg-surface rounded-lg border border-outline-variant p-2 text-[11px] text-on-surface-variant leading-relaxed focus:border-primary focus:outline-none resize-none"
+                className="bg-surface-container-high w-full rounded-lg border border-outline-variant p-2 text-[11px] text-on-surface-variant leading-relaxed focus:border-primary focus:outline-none resize-none"
               />
             </div>
           ))}

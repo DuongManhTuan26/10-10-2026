@@ -287,7 +287,7 @@ export default function Orders() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 blur-2xl rounded-full group-hover:bg-primary/30 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">ĐƠN HÔM NAY</h3>
+            <h3 className="tieu-de-muc mb-1">ĐƠN HÔM NAY</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">{summary.today_count}</span>
             </div>
@@ -305,7 +305,7 @@ export default function Orders() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 blur-2xl rounded-full group-hover:bg-primary/30 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">CHỜ XÁC NHẬN</h3>
+            <h3 className="tieu-de-muc mb-1">CHỜ XÁC NHẬN</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">{summary.pending}</span>
             </div>
@@ -323,7 +323,7 @@ export default function Orders() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 blur-2xl rounded-full group-hover:bg-primary/30 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">ĐANG GIAO</h3>
+            <h3 className="tieu-de-muc mb-1">ĐANG GIAO</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">{summary.shipping}</span>
             </div>
@@ -335,7 +335,7 @@ export default function Orders() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 blur-2xl rounded-full group-hover:bg-primary/30 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">DOANH THU THÁNG</h3>
+            <h3 className="tieu-de-muc mb-1">DOANH THU THÁNG</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-2xl font-bold text-on-surface">{formatCurrency(summary.month_revenue)}</span>
             </div>
@@ -358,7 +358,7 @@ export default function Orders() {
             placeholder="Tìm theo tên khách hoặc số điện thoại..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-surface-container border border-outline-variant rounded-lg pl-10 pr-4 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+            className="bg-surface-container-high w-full border border-outline-variant rounded-lg pl-10 pr-4 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
           />
         </div>
         

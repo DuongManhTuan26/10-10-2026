@@ -139,7 +139,7 @@ export default function Analytics() {
             <select 
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              className="px-4 py-2 bg-surface-container rounded-lg border border-outline-variant hover:border-primary transition-colors text-sm font-medium outline-none text-on-surface appearance-none"
+              className="bg-surface-container-high px-4 py-2 rounded-lg border border-outline-variant hover:border-primary transition-colors text-sm font-medium outline-none text-on-surface appearance-none"
             >
               <option value="today">Hôm nay</option>
               <option value="7days">7 ngày qua</option>
@@ -189,7 +189,7 @@ export default function Analytics() {
               )}
 
               {aiReport && (
-                <div className="mt-3 p-4 bg-surface-container-lowest border border-outline-variant rounded-xl">
+                <div className="mt-3 p-4 bg-surface-container-low border border-outline-variant rounded-xl">
                   <p className="text-sm text-on-surface leading-relaxed whitespace-pre-line">{aiReport}</p>
                   {aiActions.length > 0 && (
                     <ul className="mt-3 pt-3 border-t border-outline-variant/50 space-y-1.5">

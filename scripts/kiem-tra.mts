@@ -4125,8 +4125,10 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const NEN = hexMau(mau.background.c);
   const THE = tren(mau["surface-container"], NEN);
   const TRONG_THE = tren(mau["surface-container-high"], THE);
-  const HOP = hexMau(mau["hop-thoai"].c);
-  const O = hexMau(mau["surface-container-lowest"].c);
+  // Thân hộp thoại dùng đúng nền lưới của app (nền đặc màu background); ô nhập là kính
+  // (surface-container-high) nằm trên thẻ kính — đo đúng chồng lớp người dùng thấy.
+  const HOP = NEN;
+  const O = tren(mau["surface-container-high"], THE);
   const datChuan = [
     // Ảnh mẫu chủ dự án chọn đo được 2,15 — thẻ kính nổi nhờ viền, không nhờ nền.
     ["viền thẻ ↔ nền (thấy rõ từng thẻ)", tp(tren(mau["outline-variant"], NEN), NEN), 2.2],
@@ -4136,8 +4138,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     ["chữ chính trên hộp thoại", tp(hexMau(mau["on-surface"].c), HOP), 7],
     ["chữ phụ trên menu nổi", tp(hexMau(mau["on-surface-variant"].c), hexMau(mau.noi.c)), 4.5],
     ["chữ gợi ý (70%) trên ô nhập", tp(tron(hexMau(mau["on-surface-variant"].c), O, 0.7), O), 4.5],
-    ["viền ô nhập", tp(hexMau(mau.outline.c), O), 3],
-    ["viền ô nhập trên hộp thoại", tp(hexMau(mau.outline.c), HOP), 3],
+    ["chữ nhập vào trên ô nhập", tp(hexMau(mau["on-surface"].c), O), 7],
+    ["viền ô nhập ↔ thẻ", tp(tren(mau["outline-variant"], THE), THE), 2],
   ] as const;
   kiem("giao diện", "mọi cặp màu đạt độ tương phản tối thiểu",
     datChuan.filter(([, v, min]) => !(v >= min)).map(([ten, v, min]) => `${ten}: ${v.toFixed(2)} < ${min}`), []);
@@ -4171,10 +4173,52 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       .filter((t) => /<main className="[^"]*\bbg-background\b(?!\/)/.test(fs.readFileSync(path.join(GOC, `src/pages/${t}.tsx`), "utf8"))), []);
   // Thứ NỔI trên nội dung phải đặc — thẻ kính trong suốt thì chữ trang sau lẫn vào.
   kiem("giao diện", "hộp thoại dùng nền đặc riêng, không dùng màu thẻ kính",
-    /border-outline-variant bg-hop-thoai /.test(fs.readFileSync(path.join(GOC, "src/components/HopThoai.tsx"), "utf8")), true);
+    /border-outline-variant nen-app /.test(fs.readFileSync(path.join(GOC, "src/components/HopThoai.tsx"), "utf8")), true);
   kiem("giao diện", "menu thả xuống / thông báo nổi không dùng nền kính trong suốt",
     tepGiaoDien.flatMap((tep) => dongNgoaiChuThich(fs.readFileSync(tep, "utf8"))
       .filter(({ d }) => /(absolute|fixed)[^"'`]*\bbg-surface-container(-high|-highest)?\b(?!\/)[^"'`]*(shadow|z-)/.test(d))
+      .map((x) => `${path.basename(tep)}:${x.dong}`)).join(", "), "");
+  // Đã thấy 01/10/2026: 76 ô nhập mang 7 kiểu nền khác nhau. Nay MỘT kiểu: kính xanh ngọc
+  // (bg-surface-container-high) hoặc O_NHAP; trong suốt chỉ khi nằm lọt trong khung đã có kiểu.
+  const kieuONhap = new Map<string, string[]>();
+  for (const tep of tepGiaoDien) {
+    const ma = fs.readFileSync(tep, "utf8");
+    for (const m of ma.matchAll(/<(input|textarea|select)\b/g)) {
+      const doan = ma.slice(m.index! + m[0].length, m.index! + m[0].length + 1500);
+      const het = /\/>|<\/(textarea|select)>|>\s*\n\s*<option/.exec(doan);
+      const the = doan.slice(0, het ? het.index : 1500);
+      if (/type=["'](checkbox|radio|range|file|hidden)["']/.test(the)) continue;
+      const lop = /className="([^"]*)"/.exec(the)?.[1];
+      if (lop === undefined) continue;
+      const nen = (lop.match(/(?<![:\w/-])bg-[a-z\[\]#0-9-]+(?:\/\d+)?/g) ?? []).join(" ") || "(không nền)";
+      const viTri = `${path.basename(tep)}:${ma.slice(0, m.index).split("\n").length}`;
+      kieuONhap.set(nen, [...(kieuONhap.get(nen) ?? []), viTri]);
+    }
+  }
+  kiem("giao diện", "mọi ô nhập cùng một kiểu (kính xanh ngọc)",
+    [...kieuONhap].filter(([k]) => k !== "bg-surface-container-high" && k !== "bg-transparent").map(([k, v]) => `${k}: ${v.slice(0, 3).join(", ")}`), []);
+  const nguonHopThoai2 = fs.readFileSync(path.join(GOC, "src/components/HopThoai.tsx"), "utf8");
+  kiem("giao diện", "ô nhập trong hộp thoại cùng kiểu với ô nhập ngoài trang",
+    /export const O_NHAP =\s*'w-full h-12 px-4 rounded-xl bg-surface-container-high border border-outline-variant /.test(nguonHopThoai2), true);
+  // Màu nền ghi cứng chỉ được là màu thương hiệu / màu nhấn đã biết; còn lại phải dùng màu chung.
+  // Màu thương hiệu (Messenger, Telegram) và màu nhấn của thanh menu — mẫu chủ dự án chọn.
+  const MAU_CUNG_DUOC_PHEP = new Set(["#00e5ff", "#10b981", "#2aabee", "#030509", "#d946ef", "#0084ff", "#229ed9", "#3390ec", "#ef4444"]);
+  kiem("giao diện", "không ghi cứng màu nền lạc tông (đã thấy #18222d, #022c22, #450a0a)",
+    tepGiaoDien.flatMap((tep) => [...fs.readFileSync(tep, "utf8").matchAll(/\bbg-\[(#[0-9a-fA-F]{3,8})\]/g)]
+      .filter((m) => !MAU_CUNG_DUOC_PHEP.has(m[1].toLowerCase())).map((m) => `${path.basename(tep)}: ${m[1]}`)), []);
+  kiem("giao diện", "khung Hộp thư không phủ nền đặc che lưới",
+    /bg-background|bg-surface-container-lowest/.test(fs.readFileSync(path.join(GOC, "src/pages/Inbox.tsx"), "utf8")), false);
+
+  // Đã xảy ra 01/10/2026: một lần sửa kiểu tiêu đề hàng loạt làm 87 tiêu đề nhân đôi chữ
+  // ("Các kênh có thể kết nốiCác kênh có thể kết nối"), biên dịch vẫn qua.
+  kiem("giao diện", "không tiêu đề nào bị nhân đôi chữ",
+    tepGiaoDien.flatMap((tep) => [...fs.readFileSync(tep, "utf8").matchAll(/<(h[1-4])\b[^>]*>([^<]*)/g)]
+      .filter(([, , x]) => x.trim() !== "" && x.length % 2 === 0 && x.slice(0, x.length / 2) === x.slice(x.length / 2))
+      .map(([, , x]) => `${path.basename(tep)}: ${x.trim().slice(0, 40)}`)), []);
+  // Đã thấy ở Cảnh báo Telegram: công tắc không giữ kích thước, bị ép co và đè lên chữ mô tả.
+  kiem("giao diện", "công tắc bật/tắt luôn giữ nguyên kích thước, không đè lên chữ",
+    tepGiaoDien.flatMap((tep) => dongNgoaiChuThich(fs.readFileSync(tep, "utf8"))
+      .filter(({ d }) => /"(w-1[0-2]|w-9) h-[56] [^"]*rounded-full relative/.test(d) && !/shrink-0/.test(d))
       .map((x) => `${path.basename(tep)}:${x.dong}`)).join(", "), "");
   kiem("giao diện", "mọi hộp thoại dùng khung chung HopThoai",
     tepGiaoDien.filter((tep) => !DUOC_PHEP.includes(path.basename(tep)))

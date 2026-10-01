@@ -29,7 +29,7 @@ export const NUT_PHU =
 /** Nhãn ô nhập và ô nhập — một kiểu cho mọi biểu mẫu trong hộp thoại. */
 export const NHAN_O = 'block text-sm font-semibold text-on-surface mb-2';
 export const O_NHAP =
-  'w-full h-12 px-4 rounded-xl bg-surface-container-lowest border border-outline text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/30 outline-none transition';
+  'w-full h-12 px-4 rounded-xl bg-surface-container-high border border-outline-variant text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/30 outline-none transition';
 
 const CO: Record<CoHopThoai, string> = {
   lon: 'w-[min(1240px,96vw)] h-[min(92vh,1100px)]',
@@ -76,11 +76,11 @@ export default function HopThoai({
         role="dialog"
         aria-modal="true"
         className={clsx(
-          'relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant bg-hop-thoai shadow-[0_0_40px_rgba(0,229,255,0.12)]',
+          'relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant nen-app shadow-[0_0_40px_rgba(0,229,255,0.12)]',
           CO[co]
         )}
       >
-        <div className="flex items-center gap-4 px-6 sm:px-8 py-5 border-b border-outline-variant bg-hop-thoai-dau shrink-0">
+        <div className="flex items-center gap-4 px-6 sm:px-8 py-5 border-b border-outline-variant bg-surface-container shrink-0">
           {bieuTuong && (
             <span className="w-11 h-11 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-[24px]">{bieuTuong}</span>
@@ -100,12 +100,12 @@ export default function HopThoai({
           </button>
         </div>
 
-        {dauPhu && <div className="shrink-0 border-b border-outline-variant bg-hop-thoai-dau/60 px-6 sm:px-8 py-4">{dauPhu}</div>}
+        {dauPhu && <div className="shrink-0 border-b border-outline-variant bg-surface-container-low px-6 sm:px-8 py-4">{dauPhu}</div>}
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6">{children}</div>
 
         {chan && (
-          <div className="flex items-center justify-end gap-3 px-6 sm:px-8 py-4 border-t border-outline-variant bg-hop-thoai-dau shrink-0">
+          <div className="flex items-center justify-end gap-3 px-6 sm:px-8 py-4 border-t border-outline-variant bg-surface-container shrink-0">
             {chan}
           </div>
         )}

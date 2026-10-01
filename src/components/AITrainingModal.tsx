@@ -210,7 +210,7 @@ export default function AITrainingModal({
           <div>
             <label className="block text-sm font-bold text-on-surface mb-2">Vai trò & Định hướng (System Prompt)</label>
             <textarea 
-              className="w-full h-32 bg-surface-container-lowest border border-outline-variant rounded-xl p-4 text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none"
+              className="bg-surface-container-high w-full h-32 border border-outline-variant rounded-xl p-4 text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none"
               placeholder={`Ví dụ: Bạn là một chuyên gia đảm nhiệm ${aiName}. Nhiệm vụ của bạn là...`}
               value={role}
               onChange={(e) => setRole(e.target.value)}

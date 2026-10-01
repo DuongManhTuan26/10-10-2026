@@ -278,7 +278,7 @@ export default function Pricing() {
             */}
           <div className="flex flex-col gap-3 mb-md">
             {safetyStatus === 'safe' && (
-              <div className="bg-[#022c22] border border-[#10b981] rounded-lg p-4 flex items-start md:items-center gap-3">
+              <div className="bg-green-500/10 border border-green-500/40 rounded-xl p-4 flex items-start md:items-center gap-3">
                 <span className="material-symbols-outlined text-[#10b981] text-[24px]">gpp_good</span>
                 <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 flex-1">
                   <p className="font-body-md text-[#10b981] font-bold">Tài khoản của bạn đang an toàn</p>
@@ -289,7 +289,7 @@ export default function Pricing() {
             )}
 
             {safetyStatus === 'warning' && (
-              <div className="bg-[#422006] border border-[#f59e0b] rounded-lg p-4 flex items-start md:items-center gap-3">
+              <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-4 flex items-start md:items-center gap-3">
                 <span className="material-symbols-outlined text-[#f59e0b] text-[24px]">warning</span>
                 <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 flex-1">
                   <p className="font-body-md text-[#f59e0b] font-bold">Cần chú ý — tỷ lệ khách chặn đang tăng</p>
@@ -297,7 +297,7 @@ export default function Pricing() {
               </div>
             )}
             {safetyStatus === 'danger' && (
-              <div className="bg-[#450a0a] border border-[#ef4444] rounded-lg p-4 flex items-start md:items-center gap-3">
+              <div className="bg-red-500/10 border border-red-500/40 rounded-xl p-4 flex items-start md:items-center gap-3">
                 <span className="material-symbols-outlined text-[#ef4444] text-[24px]">gpp_bad</span>
                 <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 flex-1">
                   <p className="font-body-md text-[#ef4444] font-bold">AI đã tự tạm dừng để bảo vệ tài khoản của bạn</p>
@@ -323,7 +323,7 @@ export default function Pricing() {
           {guardrails && guardrails.pausedAccounts.length > 0 && (
             <div className="mb-md space-y-2">
               {guardrails.pausedAccounts.map((kenh) => (
-                <div key={kenh.id} className="bg-[#450a0a]/60 border border-[#ef4444]/40 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div key={kenh.id} className="bg-red-500/10 border border-red-500/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                   <span className="material-symbols-outlined text-[#ef4444] text-[22px] shrink-0">pause_circle</span>
                   <div className="flex-1">
                     <p className="font-body-md text-on-surface font-bold">{kenh.display_name}</p>
@@ -411,7 +411,7 @@ export default function Pricing() {
                         }
                       }}
                       disabled={dangLuuHangRao}
-                      className="w-24 bg-surface-container-high border border-outline-variant rounded-lg px-2 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none disabled:opacity-60"
+                      className="bg-surface-container-high w-24 border border-outline-variant rounded-lg px-2 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none disabled:opacity-60"
                     />
                     <span className="text-xs text-on-surface-variant">0 = không giới hạn</span>
                   </div>

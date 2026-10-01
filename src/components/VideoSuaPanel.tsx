@@ -179,7 +179,7 @@ export default function VideoSuaPanel({
           value={yeuCau}
           onChange={(e) => setYeuCau(e.target.value)}
           placeholder="Ví dụ: đổi nền thành bãi biển lúc hoàng hôn, giữ nguyên người và sản phẩm…"
-          className="w-full bg-surface rounded-lg border border-outline-variant p-3 text-sm text-on-surface focus:border-primary focus:outline-none resize-none"
+          className="bg-surface-container-high w-full rounded-lg border border-outline-variant p-3 text-sm text-on-surface focus:border-primary focus:outline-none resize-none"
         />
       </div>
 

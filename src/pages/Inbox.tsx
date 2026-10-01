@@ -497,7 +497,7 @@ export default function Inbox() {
       )}
 
       {/* Top Menu Bar: Connected Accounts (Horizontal) */}
-      <nav className="h-[52px] bg-background border-b border-outline-variant/50 flex items-center px-4 shrink-0 overflow-x-auto no-scrollbar gap-2 z-10">
+      <nav className="h-[52px] bg-surface-container-low border-b border-outline-variant/50 flex items-center px-4 shrink-0 overflow-x-auto no-scrollbar gap-2 z-10">
         <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mr-1 shrink-0">Trang:</span>
         
         {accounts.map(acc => {
@@ -511,7 +511,7 @@ export default function Inbox() {
                 "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all border shrink-0 group",
                 isActive 
                   ? "bg-primary/10 border-primary/30 text-primary shadow-[0_0_10px_rgba(0,229,255,0.05)]" 
-                  : "bg-surface-container-lowest border-outline-variant/60 hover:bg-surface-container hover:border-outline-variant/50 text-on-surface-variant hover:text-on-surface"
+                  : "bg-surface-container border-outline-variant/60 hover:bg-surface-container-high hover:border-outline-variant/50 text-on-surface-variant hover:text-on-surface"
               )}
             >
               <div className={clsx(
@@ -535,7 +535,7 @@ export default function Inbox() {
       <div className="flex-1 flex flex-row w-full h-full overflow-hidden">
         
         {/* Pane 1: Conversation List */}
-        <aside className={`w-full lg:w-[320px] bg-surface-container-lowest border-r border-outline-variant/60 flex-col h-full lg:flex-shrink-0 z-0 ${xemChiTietDiDong ? 'hidden lg:flex' : 'flex'}`}>
+        <aside className={`w-full lg:w-[320px] bg-surface-container-low border-r border-outline-variant/60 flex-col h-full lg:flex-shrink-0 z-0 ${xemChiTietDiDong ? 'hidden lg:flex' : 'flex'}`}>
           <div className="p-3 border-b border-outline-variant/60 shrink-0">
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
@@ -544,7 +544,7 @@ export default function Inbox() {
                 placeholder="Tìm khách hàng..." 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-background border border-outline-variant/50 rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                className="bg-surface-container-high w-full border border-outline-variant rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
               />
             </div>
           </div>
@@ -626,9 +626,9 @@ export default function Inbox() {
 
         {/* Pane 2: Chat Interface */}
         {selectedConv ? (
-          <section className={`flex-1 flex-col h-full min-w-0 lg:min-w-[350px] bg-background ${xemChiTietDiDong ? 'flex' : 'hidden lg:flex'}`}>
+          <section className={`flex-1 flex-col h-full min-w-0 lg:min-w-[350px] ${xemChiTietDiDong ? 'flex' : 'hidden lg:flex'}`}>
             {/* Header */}
-            <div className="h-16 border-b border-outline-variant/60 bg-surface-container-lowest px-4 flex items-center justify-between shrink-0">
+            <div className="h-16 border-b border-outline-variant/60 bg-surface-container-low px-4 flex items-center justify-between shrink-0">
               {/* Customer Info */}
               <div className="flex items-center gap-3 overflow-hidden pr-4">
                 <button
@@ -680,7 +680,7 @@ export default function Inbox() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-background relative custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 space-y-5 relative custom-scrollbar">
               
               {/* Handoff Reason Banner inside chat */}
               {selectedConv.handoffReason && (
@@ -766,7 +766,7 @@ export default function Inbox() {
             </div>
 
             {/* Composer */}
-            <div className="p-4 bg-surface-container-lowest border-t border-outline-variant/60 z-10 shrink-0">
+            <div className="p-4 bg-surface-container-low border-t border-outline-variant/60 z-10 shrink-0">
               {selectedConv.status === 'ai' && (
                 <div className="mb-3 px-3 py-2 bg-primary/10 border border-primary/20 rounded-md flex items-center gap-2 text-xs text-primary">
                   <span className="material-symbols-outlined text-[16px]">smart_toy</span>
@@ -774,7 +774,7 @@ export default function Inbox() {
                 </div>
               )}
               
-              <div className="bg-background rounded-xl border border-outline-variant/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all flex items-end p-1.5 shadow-sm">
+              <div className="bg-surface-container-high rounded-xl border border-outline-variant focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all flex items-end p-1.5 shadow-sm">
                 <button
                   onClick={handleExtractInfo}
                   disabled={isExtracting}
@@ -823,7 +823,7 @@ export default function Inbox() {
             </div>
           </section>
         ) : (
-          <section className={`flex-1 flex-col h-full bg-background items-center justify-center text-on-surface-variant min-w-0 lg:min-w-[350px] ${xemChiTietDiDong ? 'flex' : 'hidden lg:flex'}`}>
+          <section className={`flex-1 flex-col h-full items-center justify-center text-on-surface-variant min-w-0 lg:min-w-[350px] ${xemChiTietDiDong ? 'flex' : 'hidden lg:flex'}`}>
             <span className="material-symbols-outlined text-6xl mb-4 opacity-50">forum</span>
             <p className="text-sm font-medium">Chọn một cuộc trò chuyện để xem</p>
           </section>
@@ -831,7 +831,7 @@ export default function Inbox() {
 
         {/* Pane 3: Customer Info (Right Panel) */}
         {selectedConv && (
-          <aside className="w-[300px] bg-surface-container-lowest border-l border-outline-variant/60 hidden xl:flex flex-col h-full flex-shrink-0 z-0 overflow-y-auto no-scrollbar">
+          <aside className="w-[300px] bg-surface-container-low border-l border-outline-variant/60 hidden xl:flex flex-col h-full flex-shrink-0 z-0 overflow-y-auto no-scrollbar">
             <div className="flex-1 p-4 space-y-6">
               
               <div className="flex flex-col items-center text-center mt-2">

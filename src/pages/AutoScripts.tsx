@@ -65,7 +65,7 @@ function VariationEditor({
               onChange(next);
             }}
             placeholder={placeholder}
-            className="flex-1 bg-surface-container-high border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+            className="bg-surface-container-high flex-1 border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
           />
           <button
             onClick={() => onChange(values.filter((_, i) => i !== index))}
@@ -606,7 +606,7 @@ export default function AutoScripts() {
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
           rows={6}
-          className="w-full bg-surface-container-high border border-outline focus:border-primary rounded-xl px-4 py-3 text-on-surface text-sm outline-none transition-colors resize-y mb-6"
+          className="bg-surface-container-high w-full border border-outline-variant focus:border-primary rounded-xl px-4 py-3 text-on-surface text-sm outline-none transition-colors resize-y mb-6"
           /*
             * Ví dụ viết MỜ, không phải chữ thật.
             *
@@ -873,7 +873,7 @@ export default function AutoScripts() {
                     value={tuChu[khoa]}
                     onChange={(e) => doiTuChu({ [khoa]: e.target.value } as Partial<TuChuConfig>)}
                     rows={2}
-                    className="w-full bg-surface-container border border-outline-variant focus:border-primary rounded-xl px-4 py-3 text-sm text-on-surface outline-none transition-colors resize-y leading-relaxed"
+                    className="bg-surface-container-high w-full border border-outline-variant focus:border-primary rounded-xl px-4 py-3 text-sm text-on-surface outline-none transition-colors resize-y leading-relaxed"
                   />
                 </div>
               ))}
@@ -924,14 +924,14 @@ export default function AutoScripts() {
                     type="number" min={15} max={720}
                     value={tuChu.nhacSauPhut}
                     onChange={(e) => doiTuChu({ nhacSauPhut: Number(e.target.value) })}
-                    className="w-[90px] bg-surface-container border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface focus:border-primary outline-none"
+                    className="bg-surface-container-high w-[90px] border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface focus:border-primary outline-none"
                   />
                   <span>phút thì nhắc, tối đa</span>
                   <input
                     type="number" min={1} max={3}
                     value={tuChu.nhacToiDa}
                     onChange={(e) => doiTuChu({ nhacToiDa: Number(e.target.value) })}
-                    className="w-[70px] bg-surface-container border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface focus:border-primary outline-none"
+                    className="bg-surface-container-high w-[70px] border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface focus:border-primary outline-none"
                   />
                   <span>lần. Chỉ nhắc trong 24 giờ — ngoài khung đó Facebook không cho.</span>
                 </div>
@@ -1057,7 +1057,7 @@ export default function AutoScripts() {
                     onChange={(e) => doiBuoc(b.id, { mucTieu: e.target.value })}
                     rows={2}
                     placeholder="AI phải làm gì ở bước này…"
-                    className="w-full mt-2 bg-surface-container-high border border-outline focus:border-primary rounded-lg px-3 py-2 text-on-surface text-xs outline-none transition-colors resize-y leading-relaxed"
+                    className="bg-surface-container-high w-full mt-2 border border-outline-variant focus:border-primary rounded-lg px-3 py-2 text-on-surface text-xs outline-none transition-colors resize-y leading-relaxed"
                   />
                 </div>
               </div>
@@ -1150,7 +1150,7 @@ export default function AutoScripts() {
                         onChange={(e) =>
                           handleToggleRule(rule.id, true, { maxTurns: Number(e.target.value) })
                         }
-                        className="w-16 bg-surface-container-high border border-outline focus:border-primary rounded-lg px-2 py-1 text-sm text-on-surface outline-none text-center"
+                        className="bg-surface-container-high w-16 border border-outline-variant focus:border-primary rounded-lg px-2 py-1 text-sm text-on-surface outline-none text-center"
                       />
                       <span className="text-xs text-on-surface-variant">{rule.inputUnit} trao đổi</span>
                     </div>
@@ -1207,7 +1207,7 @@ export default function AutoScripts() {
             onChange={(e) => setTestInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleTestAi(); }}
             placeholder="Nhập câu khách hàng có thể hỏi…"
-            className="flex-1 bg-surface-container-high border border-outline focus:border-primary rounded-xl px-4 py-3 text-on-surface text-sm outline-none transition-colors"
+            className="bg-surface-container-high flex-1 border border-outline-variant focus:border-primary rounded-xl px-4 py-3 text-on-surface text-sm outline-none transition-colors"
           />
           <button
             onClick={() => handleTestAi()}
@@ -1545,7 +1545,7 @@ export default function AutoScripts() {
                 <button 
                   onClick={() => toggleScriptStatus(script.id)}
                   className={clsx(
-                    "w-11 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-surface-container",
+                    "w-11 h-6 shrink-0 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-surface-container",
                     script.is_active ? "bg-primary" : "bg-surface-variant border border-outline-variant"
                   )}
                 >
@@ -1575,7 +1575,7 @@ export default function AutoScripts() {
             <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-outline-variant/50">
               {/* Col 1 */}
               <div className="md:pr-6">
-                <h3 className="font-mono text-[11px] font-bold text-on-surface-variant tracking-wider uppercase mb-3">TỪ KHÓA KÍCH HOẠT</h3>
+                <h3 className="tieu-de-muc mb-3">TỪ KHÓA KÍCH HOẠT</h3>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {script.keywords.map(kw => (
                     <span key={kw} className="px-2.5 py-1 bg-surface-variant text-on-surface font-medium text-xs rounded-full border border-outline-variant">
@@ -1588,7 +1588,7 @@ export default function AutoScripts() {
 
               {/* Col 2 */}
               <div className="md:px-6 py-4 md:py-0">
-                <h3 className="font-mono text-[11px] font-bold text-on-surface-variant tracking-wider uppercase mb-3">
+                <h3 className="tieu-de-muc mb-3">
                   {script.send_dm === false ? 'CÂU TRẢ LỜI CÔNG KHAI' : 'TIN NHẮN SẼ GỬI'}
                 </h3>
                 <p className="text-sm text-on-surface leading-relaxed line-clamp-3 mb-3">
@@ -1603,7 +1603,7 @@ export default function AutoScripts() {
 
               {/* Col 3 */}
               <div className="md:pl-6 pt-4 md:pt-0">
-                <h3 className="font-mono text-[11px] font-bold text-on-surface-variant tracking-wider uppercase mb-3">KẾT QUẢ</h3>
+                <h3 className="tieu-de-muc mb-3">KẾT QUẢ</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between items-center">
                     <span className="text-on-surface-variant">Đã kích hoạt</span>
@@ -1709,7 +1709,7 @@ export default function AutoScripts() {
                   value={scriptName}
                   onChange={(e) => setScriptName(e.target.value)}
                   placeholder="Ví dụ: Khách hỏi giá"
-                  className="w-full bg-surface-container-high border border-outline-variant rounded-lg p-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                  className="bg-surface-container-high w-full border border-outline-variant rounded-lg p-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
                 />
               </div>
 
@@ -1874,7 +1874,7 @@ export default function AutoScripts() {
                   rows={5}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="w-full bg-surface-container-high rounded-xl border border-outline-variant p-4 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none  mb-3"
+                  className="bg-surface-container-high w-full rounded-xl border border-outline-variant p-4 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none mb-3"
                 ></textarea>
                 <div className="flex gap-2 items-start text-xs text-on-surface-variant mb-4">
                   <span className="material-symbols-outlined text-[14px] shrink-0 mt-0.5">shield</span>
@@ -1936,7 +1936,7 @@ export default function AutoScripts() {
                         type="text" 
                         value={publicReplyText}
                         onChange={(e) => setPublicReplyText(e.target.value)}
-                        className="w-full bg-surface-container-high border border-outline-variant rounded-lg p-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all mb-2"
+                        className="bg-surface-container-high w-full border border-outline-variant rounded-lg p-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all mb-2"
                       />
                       <p className="text-xs text-on-surface-variant leading-relaxed mb-4">Câu này hiện công khai dưới bình luận để khách biết mà vào xem tin nhắn</p>
 

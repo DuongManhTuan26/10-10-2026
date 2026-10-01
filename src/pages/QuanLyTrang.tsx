@@ -362,7 +362,7 @@ export default function QuanLyTrang() {
               onChange={(e) => setTenMoi(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') lapTrang(); }}
               placeholder="Tên trang mới, ví dụ: Bột sắn dây quê"
-              className="flex-1 min-w-[240px] px-4 py-2.5 rounded-xl bg-surface border border-outline-variant text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:border-primary"
+              className="bg-surface-container-high flex-1 min-w-[240px] px-4 py-2.5 rounded-xl border border-outline-variant text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:border-primary"
             />
             <button
               onClick={lapTrang}
@@ -413,7 +413,7 @@ export default function QuanLyTrang() {
                                 if (e.key === 'Enter') luuTen(t);
                                 if (e.key === 'Escape') setDangSuaTen(null);
                               }}
-                              className="px-2 py-1 rounded-lg bg-surface-variant border border-primary text-sm font-bold text-on-surface focus:outline-none"
+                              className="bg-surface-container-high px-2 py-1 rounded-lg border border-primary text-sm font-bold text-on-surface focus:outline-none"
                             />
                             <button
                               onClick={() => luuTen(t)}

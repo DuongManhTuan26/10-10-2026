@@ -119,7 +119,7 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu }: {
               </span>
             </div>
           )}
-          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#72a664] rounded-full border-2 border-background"></div>
+          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-background"></div>
         </div>
 
         {/*

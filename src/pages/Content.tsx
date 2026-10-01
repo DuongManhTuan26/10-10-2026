@@ -835,7 +835,7 @@ export default function Content() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-yellow-500/10 blur-2xl rounded-full group-hover:bg-yellow-500/20 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">CHỜ DUYỆT</h3>
+            <h3 className="tieu-de-muc mb-1">CHỜ DUYỆT</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">{activeCounts.pending}</span>
             </div>
@@ -846,7 +846,7 @@ export default function Content() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full group-hover:bg-blue-500/20 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">ĐÃ LÊN LỊCH</h3>
+            <h3 className="tieu-de-muc mb-1">ĐÃ LÊN LỊCH</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">{activeCounts.scheduled}</span>
             </div>
@@ -857,7 +857,7 @@ export default function Content() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 blur-2xl rounded-full group-hover:bg-primary/20 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">ĐÃ ĐĂNG TUẦN NÀY</h3>
+            <h3 className="tieu-de-muc mb-1">ĐÃ ĐĂNG TUẦN NÀY</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">{publishedThisWeek}</span>
             </div>
@@ -873,7 +873,7 @@ export default function Content() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-purple-500/10 blur-2xl rounded-full group-hover:bg-purple-500/20 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">TƯƠNG TÁC TRUNG BÌNH</h3>
+            <h3 className="tieu-de-muc mb-1">TƯƠNG TÁC TRUNG BÌNH</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">{avgEngagement}</span>
             </div>
@@ -1181,7 +1181,7 @@ export default function Content() {
                       value={composerTopic}
                       onChange={(e) => setComposerTopic(e.target.value)}
                       placeholder="Ví dụ: giới thiệu sản phẩm mới, thông báo khuyến mãi cuối tuần..."
-                      className="w-full bg-surface-container-high border border-outline-variant rounded-lg p-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                      className="bg-surface-container-high w-full border border-outline-variant rounded-lg p-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
                     />
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1243,7 +1243,7 @@ export default function Content() {
                     value={composerContent}
                     onChange={(e) => setComposerContent(e.target.value)}
                     placeholder="Nội dung bài viết sẽ hiển thị trên Fanpage..."
-                    className="w-full bg-surface-container rounded-xl border border-outline-variant p-4 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none "
+                    className="bg-surface-container-high w-full rounded-xl border border-outline-variant p-4 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none"
                   ></textarea>
                   <span
                     className={`absolute bottom-3 right-4 text-xs font-mono ${
@@ -1407,7 +1407,7 @@ export default function Content() {
                     value={phongCachAnh}
                     onChange={(e) => setPhongCachAnh(e.target.value)}
                     placeholder="Ví dụ: ảnh quảng cáo sang trọng, nền tối, ánh sáng viền, màu vàng đồng…"
-                    className="w-full bg-surface rounded-lg border border-outline-variant p-3 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none"
+                    className="bg-surface-container-high w-full rounded-lg border border-outline-variant p-3 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none"
                   />
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs text-on-surface-variant leading-relaxed flex-1">

@@ -652,7 +652,7 @@ export default function Ads() {
                 value={adAccount?.adAccountId ?? ''}
                 onChange={(e) => doiTaiKhoanQuangCao(e.target.value)}
                 disabled={busy}
-                className="px-3 py-1.5 rounded-lg bg-surface border border-outline-variant text-sm text-on-surface focus:outline-none focus:border-primary disabled:opacity-50"
+                className="bg-surface-container-high px-3 py-1.5 rounded-lg border border-outline-variant text-sm text-on-surface focus:outline-none focus:border-primary disabled:opacity-50"
               >
                 {tatCaTaiKhoan.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -680,7 +680,7 @@ export default function Ads() {
           <select
             value={ky}
             onChange={(e) => setKy(e.target.value)}
-            className="bg-surface-container border border-outline-variant rounded-lg px-4 py-2 text-sm text-on-surface font-medium focus:outline-none focus:border-primary"
+            className="bg-surface-container-high border border-outline-variant rounded-lg px-4 py-2 text-sm text-on-surface font-medium focus:outline-none focus:border-primary"
           >
             {KY_SO_LIEU.map((k) => (
               <option key={k.ma} value={k.ma}>{k.nhan}</option>
@@ -698,7 +698,7 @@ export default function Ads() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full group-hover:bg-blue-500/20 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">TỔNG CHI TIÊU</h3>
+            <h3 className="tieu-de-muc mb-1">TỔNG CHI TIÊU</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">
                 {hienSo(soLieu?.daChi, (n) => formatCurrency(n))}
@@ -711,7 +711,7 @@ export default function Ads() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-purple-500/10 blur-2xl rounded-full group-hover:bg-purple-500/20 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">LƯỢT TIẾP CẬN</h3>
+            <h3 className="tieu-de-muc mb-1">LƯỢT TIẾP CẬN</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">
                 {hienSo(soLieu?.tiepCan, (n) => compact(n))}
@@ -724,7 +724,7 @@ export default function Ads() {
         <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-orange-500/10 blur-2xl rounded-full group-hover:bg-orange-500/20 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">BÌNH LUẬN THU ĐƯỢC</h3>
+            <h3 className="tieu-de-muc mb-1">BÌNH LUẬN THU ĐƯỢC</h3>
             <div className="flex items-baseline gap-2">
               <span className="font-headline-sm text-3xl font-bold text-on-surface">
                 {hienSo(soLieu?.binhLuan, (n) => n.toLocaleString('vi-VN'))}
@@ -1124,7 +1124,7 @@ export default function Ads() {
                                 setDailyBudget(0);
                               }
                             }}
-                            className="w-full bg-surface-container-high border border-outline-variant rounded-xl px-4 py-3 text-lg font-bold text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all pr-12"
+                            className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-lg font-bold text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all pr-12"
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold">đ</span>
                         </div>
@@ -1152,7 +1152,7 @@ export default function Ads() {
                               type="number" 
                               value={duration}
                               onChange={(e) => setDuration(Number(e.target.value) || 1)}
-                              className="w-full bg-surface-container-high border border-outline-variant rounded-xl px-4 py-3 text-lg font-bold text-on-surface text-center focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all pr-16"
+                              className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-lg font-bold text-on-surface text-center focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all pr-16"
                             />
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold">ngày</span>
                           </div>
@@ -1223,7 +1223,7 @@ export default function Ads() {
                         </div>
                         {audienceType === 'saved' && (
                           <div className="pl-8 mt-4 animate-in slide-in-from-top-2 duration-200">
-                            <select className="w-full bg-surface-container-high border border-outline-variant rounded-xl px-4 py-3 text-sm font-medium text-on-surface focus:outline-none focus:border-primary">
+                            <select className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-sm font-medium text-on-surface focus:outline-none focus:border-primary">
                               <option>Khách đã mua</option>
                               <option>Giống khách đã mua</option>
                               <option>Quan tâm sản phẩm</option>
@@ -1249,7 +1249,7 @@ export default function Ads() {
                           <div className="pl-8 mt-6 space-y-5 animate-in slide-in-from-top-2 duration-200 cursor-default" onClick={e => e.stopPropagation()}>
                             <div>
                               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Khu vực</label>
-                              <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary" />
+                              <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="bg-surface-container-high w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Độ tuổi: {ageRange[0]} - {ageRange[1]}</label>
@@ -1275,7 +1275,7 @@ export default function Ads() {
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Sở thích</label>
-                              <input type="text" placeholder="Thêm sở thích..." className="w-full bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-on-surface-variant/70" />
+                              <input type="text" placeholder="Thêm sở thích..." className="bg-surface-container-high w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-on-surface-variant/70" />
                             </div>
                           </div>
                         )}
@@ -1302,7 +1302,7 @@ export default function Ads() {
 
                     <div className="md:col-span-1">
                       <div className="sticky top-0 bg-surface-container border border-outline-variant rounded-2xl p-6 h-full flex flex-col justify-center text-center">
-                        <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-4">
+                        <h3 className="tieu-de-muc mb-4">
                           ƯỚC TÍNH TIẾP CẬN
                         </h3>
                         <div className="text-2xl font-black text-primary mb-6">
@@ -1447,7 +1447,7 @@ export default function Ads() {
                   value={audName}
                   onChange={e => setAudName(e.target.value)}
                   placeholder="Ví dụ: Khách đã mua"
-                  className="w-full bg-surface-container-high border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-on-surface-variant/70"
+                  className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-on-surface-variant/70"
                 />
               </div>
 
@@ -1510,7 +1510,7 @@ export default function Ads() {
                       <select 
                         value={audLookalikeSource}
                         onChange={e => setAudLookalikeSource(e.target.value)}
-                        className="w-full bg-surface-container-high border border-outline-variant rounded-xl px-4 py-3 text-sm font-medium text-on-surface focus:outline-none focus:border-primary"
+                        className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-sm font-medium text-on-surface focus:outline-none focus:border-primary"
                       >
                         <option>Khách đã mua</option>
                         <option>Người đã nhắn tin</option>
@@ -1567,7 +1567,7 @@ export default function Ads() {
 
               {/* Block 4 */}
               <div className="bg-surface-container border border-outline-variant rounded-xl p-5 text-center">
-                <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-2">ƯỚC TÍNH SỐ NGƯỜI</h3>
+                <h3 className="tieu-de-muc mb-2">ƯỚC TÍNH SỐ NGƯỜI</h3>
                 <div className="text-3xl font-black text-primary">
                   {audType === 'custom' ? 'khoảng 45.000' : 
                    audType === 'lookalike' ? 'khoảng 850.000' : 'khoảng 320.000'} <span className="text-lg text-on-surface font-bold">người</span>

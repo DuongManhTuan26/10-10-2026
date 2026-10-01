@@ -247,7 +247,7 @@ export default function Sidebar({
           </button>
 
           {pageMenuOpen && (
-            <div className="absolute left-0 right-0 top-full mt-2 z-40 rounded-xl border border-[#00e5ff]/25 bg-[#0a1420] backdrop-blur-xl shadow-[0_0_24px_rgba(0,229,255,0.15)] overflow-hidden">
+            <div className="absolute left-0 right-0 top-full mt-2 z-40 rounded-xl border border-outline-variant bg-noi backdrop-blur-xl shadow-[0_0_24px_rgba(0,229,255,0.15)] overflow-hidden">
               <button
                 onClick={() => { setActiveAccountId(null); setPageMenuOpen(false); }}
                 className={clsx(

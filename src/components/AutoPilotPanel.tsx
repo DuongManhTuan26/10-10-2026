@@ -305,7 +305,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
               onChange={(e) => { setChuDeText(e.target.value); setDaLuu(false); }}
               rows={6}
               placeholder={'Công dụng của kem dưỡng da tay mùa hanh khô\nCách phân biệt hàng chính hãng\nƯu đãi tuần này'}
-              className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary focus:outline-none resize-y leading-relaxed"
+              className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary focus:outline-none resize-y leading-relaxed"
             />
             <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
               AI xoay vòng lần lượt từng chủ đề. Hết danh sách thì quay lại từ đầu, nhưng mỗi
@@ -354,7 +354,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
                     type="time"
                     value={gio}
                     onChange={(e) => doiGio(i, e.target.value)}
-                    className="bg-surface-container border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none"
+                    className="bg-surface-container-high border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none"
                   />
                   {cau.times.length > 1 && (
                     <button
@@ -465,7 +465,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
                   max={1440}
                   value={cau.notifyMinutes}
                   onChange={(e) => sua({ notifyMinutes: Number(e.target.value) })}
-                  className="w-[90px] bg-surface-container border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none"
+                  className="bg-surface-container-high w-[90px] border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none"
                 />
                 <span className="text-sm text-on-surface-variant">
                   phút rồi mới đăng. Muốn huỷ thì vào mục Chờ duyệt xoá bài đó đi.

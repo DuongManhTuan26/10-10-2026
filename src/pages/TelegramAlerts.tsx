@@ -428,7 +428,7 @@ export default function TelegramAlerts() {
                       value={botTokenInput}
                       onChange={(e) => setBotTokenInput(e.target.value)}
                       placeholder={hasToken ? '••••••  (đã lưu, để trống nếu không đổi)' : '123456789:ABCdef...'}
-                      className="w-full bg-surface-container border border-outline-variant/50 rounded-lg px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all font-mono"
+                      className="bg-surface-container-high w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all font-mono"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -438,7 +438,7 @@ export default function TelegramAlerts() {
                       value={chatId}
                       onChange={(e) => setChatId(e.target.value)}
                       placeholder="Ví dụ: 123456789 hoặc -1001234567890"
-                      className="w-full bg-surface-container border border-outline-variant/50 rounded-lg px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all font-mono"
+                      className="bg-surface-container-high w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all font-mono"
                     />
                   </div>
                 </div>
@@ -465,46 +465,46 @@ export default function TelegramAlerts() {
           </div>
 
           <div className="space-y-4 flex-1">
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
               <div>
                 <div className="font-bold text-on-surface mb-1">AI chốt được đơn hàng</div>
                 <div className="text-sm text-on-surface-variant">Gửi ngay tên khách, số điện thoại và chi tiết đơn</div>
               </div>
-              <div className="w-12 h-6 bg-primary rounded-full relative opacity-50 cursor-not-allowed">
+              <div className="w-12 h-6 shrink-0 bg-primary rounded-full relative opacity-50 cursor-not-allowed">
                 <div className="w-4 h-4 bg-on-primary rounded-full absolute right-1 top-1 flex items-center justify-center">
                   <span className="material-symbols-outlined text-[12px] text-primary">lock</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
               <div>
                 <div className="font-bold text-on-surface mb-1">Khách cần người thật xử lý</div>
                 <div className="text-sm text-on-surface-variant">Khách khiếu nại, đòi gặp người, hoặc AI không xử lý được</div>
               </div>
-              <div className="w-12 h-6 bg-primary rounded-full relative opacity-50 cursor-not-allowed">
+              <div className="w-12 h-6 shrink-0 bg-primary rounded-full relative opacity-50 cursor-not-allowed">
                 <div className="w-4 h-4 bg-on-primary rounded-full absolute right-1 top-1 flex items-center justify-center">
                   <span className="material-symbols-outlined text-[12px] text-primary">lock</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
               <div>
                 <div className="font-bold text-on-surface mb-1">Sắp hết 24 giờ nhắn tin</div>
                 <div className="text-sm text-on-surface-variant">Báo trước 2 giờ để bạn kịp chốt khách</div>
               </div>
-              <button onClick={() => setWarnNear24h(!warnNear24h)} className={clsx("w-12 h-6 rounded-full relative transition-colors duration-200", warnNear24h ? "bg-primary" : "bg-surface-variant")}>
+              <button onClick={() => setWarnNear24h(!warnNear24h)} className={clsx("w-12 h-6 shrink-0 rounded-full relative transition-colors duration-200", warnNear24h ? "bg-primary" : "bg-surface-variant")}>
                 <div className={clsx("w-4 h-4 rounded-full absolute top-1 transition-transform duration-200", warnNear24h ? "bg-on-primary translate-x-7" : "bg-on-surface-variant translate-x-1")}></div>
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
               <div>
                 <div className="font-bold text-on-surface mb-1">Mất kết nối Fanpage</div>
                 <div className="text-sm text-on-surface-variant">Token hết hạn, AI ngừng hoạt động</div>
               </div>
-              <div className="w-12 h-6 bg-primary rounded-full relative opacity-50 cursor-not-allowed">
+              <div className="w-12 h-6 shrink-0 bg-primary rounded-full relative opacity-50 cursor-not-allowed">
                 <div className="w-4 h-4 bg-on-primary rounded-full absolute right-1 top-1 flex items-center justify-center">
                   <span className="material-symbols-outlined text-[12px] text-primary">lock</span>
                 </div>
@@ -527,7 +527,7 @@ export default function TelegramAlerts() {
             <div className="flex flex-col p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
               <div className="flex items-center justify-between mb-2">
                 <div className="font-bold text-on-surface">Tổng kết cuối ngày</div>
-                <button onClick={() => setDailySummary(!dailySummary)} className={clsx("w-12 h-6 rounded-full relative transition-colors duration-200", dailySummary ? "bg-primary" : "bg-surface-variant")}>
+                <button onClick={() => setDailySummary(!dailySummary)} className={clsx("w-12 h-6 shrink-0 rounded-full relative transition-colors duration-200", dailySummary ? "bg-primary" : "bg-surface-variant")}>
                   <div className={clsx("w-4 h-4 rounded-full absolute top-1 transition-transform duration-200", dailySummary ? "bg-on-primary translate-x-7" : "bg-on-surface-variant translate-x-1")}></div>
                 </button>
               </div>
@@ -535,47 +535,47 @@ export default function TelegramAlerts() {
               {dailySummary && (
                 <div className="flex items-center gap-3 mt-auto">
                   <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">LÚC</span>
-                  <input type="time" value={dailySummaryTime} onChange={e => setDailySummaryTime(e.target.value)} className="bg-surface-container border border-outline-variant rounded-lg px-2 py-1 text-sm text-on-surface focus:outline-none focus:border-primary" />
+                  <input type="time" value={dailySummaryTime} onChange={e => setDailySummaryTime(e.target.value)} className="bg-surface-container-high border border-outline-variant rounded-lg px-2 py-1 text-sm text-on-surface focus:outline-none focus:border-primary" />
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
               <div>
                 <div className="font-bold text-on-surface mb-1">Tổng kết cuối tuần</div>
                 <div className="text-sm text-on-surface-variant">So sánh với tuần trước</div>
               </div>
-              <button onClick={() => setWeeklySummary(!weeklySummary)} className={clsx("w-12 h-6 rounded-full relative transition-colors duration-200", weeklySummary ? "bg-primary" : "bg-surface-variant")}>
+              <button onClick={() => setWeeklySummary(!weeklySummary)} className={clsx("w-12 h-6 shrink-0 rounded-full relative transition-colors duration-200", weeklySummary ? "bg-primary" : "bg-surface-variant")}>
                 <div className={clsx("w-4 h-4 rounded-full absolute top-1 transition-transform duration-200", weeklySummary ? "bg-on-primary translate-x-7" : "bg-on-surface-variant translate-x-1")}></div>
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
               <div>
                 <div className="font-bold text-on-surface mb-1">Bài đăng đã lên sóng</div>
                 <div className="text-sm text-on-surface-variant">Báo mỗi khi bài theo lịch được đăng</div>
               </div>
-              <button onClick={() => setPostPublished(!postPublished)} className={clsx("w-12 h-6 rounded-full relative transition-colors duration-200", postPublished ? "bg-primary" : "bg-surface-variant")}>
+              <button onClick={() => setPostPublished(!postPublished)} className={clsx("w-12 h-6 shrink-0 rounded-full relative transition-colors duration-200", postPublished ? "bg-primary" : "bg-surface-variant")}>
                 <div className={clsx("w-4 h-4 rounded-full absolute top-1 transition-transform duration-200", postPublished ? "bg-on-primary translate-x-7" : "bg-on-surface-variant translate-x-1")}></div>
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
               <div>
                 <div className="font-bold text-on-surface mb-1">Có khách mới bình luận</div>
                 <div className="text-sm text-on-surface-variant">Có thể rất nhiều thông báo nếu bài viral</div>
               </div>
-              <button onClick={() => setNewComment(!newComment)} className={clsx("w-12 h-6 rounded-full relative transition-colors duration-200", newComment ? "bg-primary" : "bg-surface-variant")}>
+              <button onClick={() => setNewComment(!newComment)} className={clsx("w-12 h-6 shrink-0 rounded-full relative transition-colors duration-200", newComment ? "bg-primary" : "bg-surface-variant")}>
                 <div className={clsx("w-4 h-4 rounded-full absolute top-1 transition-transform duration-200", newComment ? "bg-on-primary translate-x-7" : "bg-on-surface-variant translate-x-1")}></div>
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50 hover:border-primary/50 transition-colors">
               <div>
                 <div className="font-bold text-on-surface mb-1">Cảnh báo chi tiêu quảng cáo</div>
                 <div className="text-sm text-on-surface-variant">Báo khi chiến dịch sắp hết ngân sách</div>
               </div>
-              <button onClick={() => setAdsBudgetWarn(!adsBudgetWarn)} className={clsx("w-12 h-6 rounded-full relative transition-colors duration-200", adsBudgetWarn ? "bg-primary" : "bg-surface-variant")}>
+              <button onClick={() => setAdsBudgetWarn(!adsBudgetWarn)} className={clsx("w-12 h-6 shrink-0 rounded-full relative transition-colors duration-200", adsBudgetWarn ? "bg-primary" : "bg-surface-variant")}>
                 <div className={clsx("w-4 h-4 rounded-full absolute top-1 transition-transform duration-200", adsBudgetWarn ? "bg-on-primary translate-x-7" : "bg-on-surface-variant translate-x-1")}></div>
               </button>
             </div>
@@ -590,8 +590,8 @@ export default function TelegramAlerts() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           {/* Khung 1 */}
-          <div className="bg-[#18222d] border border-outline-variant/60 rounded-2xl rounded-tl-sm p-4 text-[#e4e4e5] font-mono text-sm leading-relaxed shadow-lg relative">
-            <div className="absolute -left-2 top-0 w-4 h-4 bg-[#18222d] border-l border-t border-outline-variant/60 rotate-[-45deg] translate-y-1 translate-x-1 -z-10"></div>
+          <div className="bg-noi border border-outline-variant rounded-2xl rounded-tl-sm p-4 text-on-surface font-mono text-sm leading-relaxed shadow-lg relative">
+            <div className="absolute -left-2 top-0 w-4 h-4 bg-noi border-l border-t border-outline-variant rotate-[-45deg] translate-y-1 translate-x-1 -z-10"></div>
             <div>
               <span className="text-xl leading-none mr-2">🎉</span><span className="font-bold text-white text-base">ĐƠN HÀNG MỚI</span><br/><br/>
               Khách: <span className="text-white font-medium">Nguyễn Thị Hoa</span><br/>
@@ -612,8 +612,8 @@ export default function TelegramAlerts() {
             như bấm được mà bấm vào chỉ nhảy lên đầu trang.
           */}
           {/* Khung 2 */}
-          <div className="bg-[#18222d] border border-outline-variant/60 rounded-2xl rounded-tl-sm p-4 text-[#e4e4e5] font-mono text-sm leading-relaxed shadow-lg relative">
-            <div className="absolute -left-2 top-0 w-4 h-4 bg-[#18222d] border-l border-t border-outline-variant/60 rotate-[-45deg] translate-y-1 translate-x-1 -z-10"></div>
+          <div className="bg-noi border border-outline-variant rounded-2xl rounded-tl-sm p-4 text-on-surface font-mono text-sm leading-relaxed shadow-lg relative">
+            <div className="absolute -left-2 top-0 w-4 h-4 bg-noi border-l border-t border-outline-variant rotate-[-45deg] translate-y-1 translate-x-1 -z-10"></div>
             <div>
               <span className="text-xl leading-none mr-2">🔔</span><span className="font-bold text-white text-base">CẦN BẠN XỬ LÝ</span><br/><br/>
               Khách: <span className="text-white font-medium">Trần Thị Mai</span><br/>

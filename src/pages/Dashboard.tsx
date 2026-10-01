@@ -228,7 +228,7 @@ export default function Dashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-outline-variant text-on-surface-variant font-label-sm text-xs uppercase tracking-wider bg-surface-container-lowest">
+                    <tr className="border-b border-outline-variant text-on-surface-variant font-label-sm text-xs uppercase tracking-wider bg-surface-container-low">
                       <th className="py-3 px-4 font-medium">KHÁCH HÀNG</th>
                       <th className="py-3 px-4 font-medium">SẢN PHẨM</th>
                       <th className="py-3 px-4 font-medium">GIÁ TRỊ</th>
@@ -380,7 +380,7 @@ export default function Dashboard() {
 
             {/* Block 3: AI Activity Log */}
             <div className="bg-surface-container rounded-xl border border-outline-variant p-4 shadow-lg flex-1">
-              <h3 className="font-mono text-xs font-bold text-on-surface-variant tracking-wider uppercase mb-5">Dòng hoạt động AI</h3>
+              <h3 className="tieu-de-muc mb-5">Dòng hoạt động AI</h3>
               
               <div className="flex flex-col relative before:content-[''] before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-[2px] before:bg-outline-variant">
                 {aiActivity.map((log) => (

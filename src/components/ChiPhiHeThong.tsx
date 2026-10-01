@@ -486,7 +486,7 @@ export default function ChiPhiHeThong() {
                 step={buoc}
                 value={nguong[khoa]}
                 onChange={(e) => setNguong({ ...nguong, [khoa]: Number(e.target.value) })}
-                className="w-24 bg-surface rounded-lg border border-outline-variant px-2 py-1 text-right text-on-surface"
+                className="bg-surface-container-high w-24 rounded-lg border border-outline-variant px-2 py-1 text-right text-on-surface"
               />
             </label>
           ))}

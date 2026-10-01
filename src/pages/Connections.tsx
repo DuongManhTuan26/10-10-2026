@@ -944,7 +944,7 @@ export default function Connections() {
                 </div>
               ) : (
                 <>
-                  <h4 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-3">QUYỀN ĐÃ CẤP TỪ TÀI KHOẢN NÀY</h4>
+                  <h4 className="tieu-de-muc mb-3">QUYỀN ĐÃ CẤP TỪ TÀI KHOẢN NÀY</h4>
                   <div className="space-y-2">
                     {account.permissions.map((perm, idx) => {
                       let missingText = "";
@@ -1103,7 +1103,7 @@ export default function Connections() {
                   <h2 className="text-2xl font-bold text-on-surface mb-6">Bạn muốn kết nối nền tảng nào?</h2>
                   <div className="space-y-10">
                     <div>
-                      <h3 className="font-mono text-sm font-bold tracking-wider text-on-surface-variant uppercase mb-4">MẠNG XÃ HỘI</h3>
+                      <h3 className="tieu-de-muc mb-4">MẠNG XÃ HỘI</h3>
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                         {liveSocialChannels.map((channel) => (
                           <button
@@ -1123,7 +1123,7 @@ export default function Connections() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="font-mono text-sm font-bold tracking-wider text-on-surface-variant uppercase mb-4">TÀI KHOẢN QUẢNG CÁO</h3>
+                      <h3 className="tieu-de-muc mb-4">TÀI KHOẢN QUẢNG CÁO</h3>
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                         {liveAdChannels.map((channel) => (
                           <button
@@ -1143,7 +1143,7 @@ export default function Connections() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="font-mono text-sm font-bold tracking-wider text-on-surface-variant uppercase mb-4">TIN NHẮN VÀ ĐIỆN THOẠI</h3>
+                      <h3 className="tieu-de-muc mb-4">TIN NHẮN VÀ ĐIỆN THOẠI</h3>
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                         {liveCommChannels.map((channel) => (
                           <button
@@ -1196,7 +1196,7 @@ export default function Connections() {
 
 {selectedPlatform.instructions && selectedPlatform.instructions.length > 0 && (
   <div className="space-y-4 mb-8">
-    <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-4">HƯỚNG DẪN KẾT NỐI</h3>
+    <h3 className="tieu-de-muc mb-4">HƯỚNG DẪN KẾT NỐI</h3>
     {selectedPlatform.instructions.map((inst: string, idx: number) => (
       <div key={idx} className="flex gap-4">
         <div className="w-7 h-7 rounded-full bg-surface-variant flex items-center justify-center text-sm font-bold text-on-surface shrink-0">{idx + 1}</div>
@@ -1210,22 +1210,22 @@ export default function Connections() {
   <div className="space-y-4 mb-8">
     <div>
       <label className="block text-sm font-bold text-on-surface mb-2">Tên tài khoản (Handle)</label>
-      <input type="text" placeholder="vidu.bsky.social" className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+      <input type="text" placeholder="vidu.bsky.social" className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
     </div>
     <div>
       <label className="block text-sm font-bold text-on-surface mb-2">Mật khẩu ứng dụng</label>
-      <input type="password" placeholder="••••••••••••" className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+      <input type="password" placeholder="••••••••••••" className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
     </div>
   </div>
 ) : (
   <div className="space-y-4 mb-8">
     <div>
       <label className="block text-sm font-bold text-on-surface mb-2">Account SID</label>
-      <input type="text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxx" className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+      <input type="text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxx" className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
     </div>
     <div>
       <label className="block text-sm font-bold text-on-surface mb-2">Auth Token</label>
-      <input type="password" placeholder="••••••••••••" className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+      <input type="password" placeholder="••••••••••••" className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
     </div>
   </div>
 )}
@@ -1260,7 +1260,7 @@ export default function Connections() {
 )}
 
 <div className="bg-surface-container border border-outline-variant/50 rounded-xl p-5 mb-8 text-center relative mt-4">
-  <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-4">MÃ TRUY CẬP CỦA BẠN</h3>
+  <h3 className="tieu-de-muc mb-4">MÃ TRUY CẬP CỦA BẠN</h3>
   <div className="flex items-center justify-center gap-3 mb-3">
     <span className="text-3xl font-mono font-bold text-on-surface tracking-widest">{accessCode}</span>
     <button
@@ -1276,7 +1276,7 @@ export default function Connections() {
 
 {selectedPlatform.instructions && selectedPlatform.instructions.length > 0 && (
   <div className="space-y-4 mb-8">
-    <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-4">HƯỚNG DẪN KẾT NỐI</h3>
+    <h3 className="tieu-de-muc mb-4">HƯỚNG DẪN KẾT NỐI</h3>
     {selectedPlatform.instructions.map((inst: string, idx: number) => (
       <div key={idx} className="flex gap-4">
         <div className="w-7 h-7 rounded-full bg-surface-variant flex items-center justify-center text-sm font-bold text-on-surface shrink-0">{idx + 1}</div>
@@ -1317,7 +1317,7 @@ export default function Connections() {
 
 {selectedPlatform.instructions && selectedPlatform.instructions.length > 0 ? (
   <div className="space-y-4 mb-8">
-    <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-4">HƯỚNG DẪN KẾT NỐI</h3>
+    <h3 className="tieu-de-muc mb-4">HƯỚNG DẪN KẾT NỐI</h3>
     {selectedPlatform.instructions.map((inst: string, idx: number) => (
       <div key={idx} className="flex gap-4">
         <div className="w-7 h-7 rounded-full bg-surface-variant flex items-center justify-center text-sm font-bold text-on-surface shrink-0">{idx + 1}</div>
@@ -1345,7 +1345,7 @@ export default function Connections() {
 )}
 
                   <div className="bg-surface-container border border-outline-variant/50 rounded-xl p-5 mb-8">
-                    <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-4">CÁC QUYỀN SẼ ĐƯỢC XIN</h3>
+                    <h3 className="tieu-de-muc mb-4">CÁC QUYỀN SẼ ĐƯỢC XIN</h3>
                     <div className="space-y-4">
                       {(selectedPlatform.requestedPermissions || [
                         { icon: 'api', name: `Truy cập API ${selectedPlatform.name}`, desc: 'Cho phép hệ thống kết nối và trao đổi dữ liệu với tài khoản của bạn.' },

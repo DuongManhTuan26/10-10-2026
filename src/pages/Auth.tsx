@@ -150,7 +150,7 @@ export default function Auth({ onLogin, onRegister }: {
                 maxLength={6}
                 value={ma}
                 onChange={(e) => setMa(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="w-full bg-surface-container-high border border-outline focus:border-primary rounded-lg px-4 py-3 text-on-surface outline-none transition-colors text-center text-2xl tracking-[0.5em] font-bold"
+                className="bg-surface-container-high w-full border border-outline-variant focus:border-primary rounded-lg px-4 py-3 text-on-surface outline-none transition-colors text-center text-2xl tracking-[0.5em] font-bold"
                 placeholder="••••••"
               />
             </div>
@@ -182,7 +182,7 @@ export default function Auth({ onLogin, onRegister }: {
                 type="text"
                 name="name"
                 required
-                className="w-full bg-surface-container-high border border-outline focus:border-primary rounded-lg px-4 py-3 text-on-surface outline-none transition-colors"
+                className="bg-surface-container-high w-full border border-outline-variant focus:border-primary rounded-lg px-4 py-3 text-on-surface outline-none transition-colors"
                 placeholder="Ví dụ: Thời Trang Minh Anh"
               />
             </div>
@@ -194,7 +194,7 @@ export default function Auth({ onLogin, onRegister }: {
               type="email" 
               name="email" 
               required 
-              className="w-full bg-surface-container-high border border-outline focus:border-primary rounded-lg px-4 py-3 text-on-surface outline-none transition-colors" 
+              className="bg-surface-container-high w-full border border-outline-variant focus:border-primary rounded-lg px-4 py-3 text-on-surface outline-none transition-colors" 
               placeholder="name@example.com" 
             />
           </div>
@@ -241,7 +241,7 @@ export default function Auth({ onLogin, onRegister }: {
                 type="password"
                 name="confirmPassword"
                 required
-                className="w-full bg-surface-container-high border border-outline focus:border-primary rounded-lg px-4 py-3 text-on-surface outline-none transition-colors"
+                className="bg-surface-container-high w-full border border-outline-variant focus:border-primary rounded-lg px-4 py-3 text-on-surface outline-none transition-colors"
                 placeholder="••••••••"
               />
             </div>

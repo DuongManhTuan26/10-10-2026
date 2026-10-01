@@ -263,7 +263,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "hộp thoại trong suốt, chữ trang sau lẫn vào",
     tep: "src/components/HopThoai.tsx",
-    tim: "border border-outline-variant bg-hop-thoai shadow",
+    tim: "border border-outline-variant nen-app shadow",
     thay: "border border-outline-variant bg-surface-container shadow",
   },
   {
@@ -271,6 +271,36 @@ const DUC: PhepDuc[] = [
     tep: "src/components/TopNavBar.tsx",
     tim: "absolute right-0 mt-2 w-64 bg-noi",
     thay: "absolute right-0 mt-2 w-64 bg-surface-container-high",
+  },
+  {
+    ten: "khung danh sách Hộp thư lại phủ nền đặc",
+    tep: "src/pages/Inbox.tsx",
+    tim: "lg:w-[320px] bg-surface-container-low border-r",
+    thay: "lg:w-[320px] bg-surface-container-lowest border-r",
+  },
+  {
+    ten: "ô nhập trong hộp thoại khác kiểu ô ngoài trang",
+    tep: "src/components/HopThoai.tsx",
+    tim: "'w-full h-12 px-4 rounded-xl bg-surface-container-high border border-outline-variant ",
+    thay: "'w-full h-12 px-4 rounded-xl bg-surface-container-lowest border border-outline ",
+  },
+  {
+    ten: "bong bóng Telegram lại xanh lam xám",
+    tep: "src/pages/TelegramAlerts.tsx",
+    tim: "w-4 h-4 bg-noi border-l border-t border-outline-variant",
+    thay: "w-4 h-4 bg-[#18222d] border-l border-t border-outline-variant",
+  },
+  {
+    ten: "tiêu đề bị nhân đôi chữ",
+    tep: "src/pages/Connections.tsx",
+    tim: ">Bạn muốn kết nối nền tảng nào?<",
+    thay: ">Bạn muốn kết nối nền tảng nào?Bạn muốn kết nối nền tảng nào?<",
+  },
+  {
+    ten: "công tắc bị ép co, đè lên chữ",
+    tep: "src/pages/AutoScripts.tsx",
+    tim: "\"w-11 h-6 shrink-0 rounded-full relative transition-colors",
+    thay: "\"w-11 h-6 rounded-full relative transition-colors",
   },
   {
     ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",

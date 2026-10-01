@@ -304,7 +304,7 @@ export default function VideoAiPanel({
                     const n = Math.round(Number(e.target.value));
                     if (Number.isFinite(n)) setSoGiay(Math.min(30, Math.max(2, n)));
                   }}
-                  className="w-20 bg-surface rounded-lg border border-outline-variant px-2 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none"
+                  className="bg-surface-container-high w-20 rounded-lg border border-outline-variant px-2 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none"
                   aria-label="Số giây tuỳ chọn"
                 />
               </div>
@@ -458,7 +458,7 @@ export default function VideoAiPanel({
               value={loiMoTa}
               onChange={(e) => setLoiMoTa(e.target.value)}
               placeholder="Bấm 'AI viết lời mô tả' để AI viết từ nội dung bài, hoặc tự mô tả cảnh bạn muốn…"
-              className="w-full bg-surface rounded-lg border border-outline-variant p-3 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none"
+              className="bg-surface-container-high w-full rounded-lg border border-outline-variant p-3 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none"
             />
             <p className="text-[11px] text-on-surface-variant leading-relaxed">
               AI viết bằng tiếng Anh vì các model video hiểu tiếng Anh chính xác nhất. Video sẽ không có
