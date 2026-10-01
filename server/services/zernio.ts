@@ -978,6 +978,28 @@ export async function dangKyDiaChiWebhook(
   return { doi: true, cu: hook.url };
 }
 
+/**
+ * Gỡ trạng thái "ngắt gửi" của nhà cung cấp.
+ *
+ * Endpoint hỏng liên tục thì họ NGỪNG GỬI hẳn và không tự gỡ kể cả khi
+ * endpoint đã sống lại — chỉ một lời gọi /webhooks/test thành công mới gỡ
+ * (đã quan sát 17/08/2026: mất tin hơn 3 giờ sau khi đường đã thông).
+ * Trả về true nếu sau đó không còn bị ngắt.
+ */
+export async function goNgatGuiWebhook(): Promise<boolean> {
+  const data = await request<{ webhooks?: Array<{ _id: string; attemptFailingSince?: string | null }> }>(
+    "/webhooks/settings",
+    { retries: 0 }
+  );
+  const id = data.webhooks?.[0]?._id;
+  if (!id) return false;
+  await request("/webhooks/test", { method: "POST", body: { webhookId: id }, retries: 0 });
+  const sau = await request<{ webhooks?: Array<{ attemptFailingSince?: string | null }> }>("/webhooks/settings", {
+    retries: 0,
+  });
+  return !sau.webhooks?.[0]?.attemptFailingSince;
+}
+
 export async function layNhatKyWebhook(limit = 50): Promise<LanGiaoWebhook[]> {
   const data = await request<{ logs?: LanGiaoWebhook[] }>("/webhooks/logs", {
     query: { limit },

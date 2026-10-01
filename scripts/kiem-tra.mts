@@ -46,6 +46,7 @@ import { danhGia, chuanHoaNguong, NGUONG_MAC_DINH, trangThaiLuot, trangThaiTong,
 import { VIEC, NHOM_VIEC, tenViec, nhomCua, TEN_CHUA_PHAN_LOAI } from "../server/services/so-ai.js";
 import { banGhi } from "../server/services/ai.js";
 import { chi, chiDu, mauChi } from "../src/lib/tien-chi.js";
+import { laDiaChiNoiBo } from "../server/services/duong-ham.js";
 import {
   xinSuat,
   xinSuatDocAnh,
@@ -2209,11 +2210,11 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonVao = fs.readFileSync(path.join(GOC, "server.ts"), "utf8");
   kiem("đăng ký webhook", "khởi động có gọi đăng ký",
     /await dangKyDiaChiWebhook\(diaChi\)/.test(nguonVao), true);
+  // Trên máy nội bộ thì không tự đăng ký APP_URL (người canh đường hầm lo việc đó).
   kiem("đăng ký webhook", "KHÔNG đăng ký khi chạy trên máy nội bộ",
-    /u\.protocol !== "https:" \|\| laNoiBo/.test(nguonVao), true);
+    /if \(laDiaChiNoiBo\(env\.appUrl\)\) \{[\s\S]{0,1200}?return;\s*\}\s*const diaChi = /.test(nguonVao), true);
   kiem("đăng ký webhook", "nhận diện đủ các dạng địa chỉ nội bộ",
-    /localhost/.test(nguonVao) && /127\.0\.0\.1/.test(nguonVao) &&
-      /endsWith\("\.local"\)/.test(nguonVao), true);
+    ["http://localhost:3000", "https://127.0.0.1", "https://may.local"].every(laDiaChiNoiBo), true);
   kiem("đăng ký webhook", "đăng ký hỏng KHÔNG được làm chết khởi động",
     /void \(async \(\) => \{[\s\S]{0,1400}?catch \(error\)/.test(nguonVao), true);
 }
@@ -4026,6 +4027,45 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("sổ AI", "lọc nhật ký chỉ nhận đúng nhóm/việc đã khai",
     /nhom: nhom in NHOM_VIEC \|\| nhom === "chua_phan_loai" \? nhom : undefined,/.test(nguonQT2) &&
       /viec: viec in VIEC \|\| viec === "chua_phan_loai" \? viec : undefined,/.test(nguonQT2), true);
+}
+
+// ---------------------------------------------------------------------------
+// Webhook theo thời gian thực: đường hầm tự bật, tự sửa, không chạy trùng
+// ---------------------------------------------------------------------------
+{
+  // Đã xảy ra: webhook chết từ 18/09 tới 01/10/2026 (30/30 lần giao hỏng) — bật app
+  // bằng nút Desktop không bật người canh, cloudflared nằm trong thư mục tạm đã bị xoá.
+  kiem("webhook", "nhận biết địa chỉ nội bộ (phải đi qua đường hầm)",
+    ["http://localhost:3000", "http://app.vn", "https://localhost", "https://may.local", "rác", "https://app.ban-hang.vn"].map(laDiaChiNoiBo),
+    [true, true, true, true, true, false]);
+  const nguonServer = fs.readFileSync(path.join(GOC, "server.ts"), "utf8");
+  kiem("webhook", "server chạy trên máy thì tự bật người canh đường hầm",
+    /if \(laDiaChiNoiBo\(env\.appUrl\)\) \{[\s\S]{0,600}?const tinhTrang = damBaoNguoiCanh\(\);/.test(nguonServer), true);
+  const nguonDH = fs.readFileSync(path.join(GOC, "server/services/duong-ham.ts"), "utf8");
+  kiem("webhook", "người canh chạy tách rời, server khởi động lại không kéo đường hầm chết theo",
+    /detached: true,/.test(nguonDH) && /con\.unref\(\);/.test(nguonDH), true);
+  kiem("webhook", "người canh đang chạy thì không bật thêm", /if \(pid && dangSong\(pid\)\) return "dang_chay";/.test(nguonDH), true);
+  const nguonCanh = fs.readFileSync(path.join(GOC, "scripts/tunnel-watchdog.mjs"), "utf8");
+  kiem("webhook", "chỉ một người canh được chạy (tranh nhau ghi địa chỉ webhook)",
+    /async function main\(\) \{\s*giuChoDuyNhat\(\);/.test(nguonCanh) &&
+      /if \(cu && cu !== process\.pid && dangSong\(cu\)\) \{[\s\S]{0,200}?process\.exit\(0\);/.test(nguonCanh), true);
+  kiem("webhook", "chờ đường hầm thông rồi mới đăng ký (đã thấy: gọi thử khi tên miền chưa phân giải)",
+    /for \(let i = 0; i < 12 && !\(await tunnelHealthy\(currentUrl\)\); i\+\+\) \{[\s\S]{0,120}?\}\s*await updateZernioWebhook\(currentUrl\);/.test(nguonCanh), true);
+  kiem("webhook", "hỏng một lần chưa dựng lại (đã thấy: đập bỏ đường hầm đang chạy tốt)",
+    /const HONG_LIEN_TIEP_MOI_DUNG_LAI = 3;/.test(nguonCanh) &&
+      /if \(!healthy && currentUrl && soLanKhongThong < HONG_LIEN_TIEP_MOI_DUNG_LAI\) \{[\s\S]{0,200}?return;/.test(nguonCanh), true);
+  const nguonWk = fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8");
+  kiem("webhook", "webhook chết thì worker tự sửa ngay",
+    /webhookDangChet = nhatKy\.length > 0 && hong\.length === nhatKy\.length;\s*if \(webhookDangChet\) \{[\s\S]{0,500}?tuSuaWebhook\(\)/.test(nguonWk), true);
+  kiem("webhook", "trên máy chủ thật: đăng ký lại địa chỉ và gỡ ngắt gửi",
+    /if \(laDiaChiNoiBo\(env\.appUrl\)\) return `người canh đường hầm: \$\{damBaoNguoiCanh\(\)\}`;\s*const kq = await dangKyDiaChiWebhook\([\s\S]{0,120}?const daGo = await goNgatGuiWebhook\(\);/.test(nguonWk), true);
+  kiem("webhook", "webhook chết thì quét bù mỗi phút thay vì 5 phút",
+    /const RECONCILE_KHI_WEBHOOK_CHET_MS = 60_000;/.test(nguonWk) &&
+      /\(webhookDangChet \? RECONCILE_KHI_WEBHOOK_CHET_MS : RECONCILE_INTERVAL_MS\)/.test(nguonWk), true);
+  kiem("webhook", "gỡ ngắt gửi gọi đúng lệnh thử kèm mã webhook",
+    /request\("\/webhooks\/test", \{ method: "POST", body: \{ webhookId: id \}/.test(fs.readFileSync(path.join(GOC, "server/services/zernio.ts"), "utf8")), true);
+  kiem("webhook", "hướng dẫn cài đường hầm có trong .env.example",
+    /CLOUDFLARED_PATH=/.test(fs.readFileSync(path.join(GOC, ".env.example"), "utf8")), true);
 }
 
 // ---------------------------------------------------------------------------

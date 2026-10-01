@@ -99,6 +99,66 @@ const DUC: PhepDuc[] = [
     thay: "  return `${p.day}-${p.month}`;",
   },
   {
+    ten: "server không bật người canh đường hầm",
+    tep: "server.ts",
+    tim: "        const tinhTrang = damBaoNguoiCanh();",
+    thay: "        const tinhTrang = \"dang_chay\" as string;",
+  },
+  {
+    ten: "người canh chết theo server",
+    tep: "server/services/duong-ham.ts",
+    tim: "    detached: true,",
+    thay: "    detached: false,",
+  },
+  {
+    ten: "bật thêm người canh dù đã có",
+    tep: "server/services/duong-ham.ts",
+    tim: "    if (pid && dangSong(pid)) return \"dang_chay\";",
+    thay: "    if (pid && dangSong(pid) && false) return \"dang_chay\";",
+  },
+  {
+    ten: "hai người canh chạy trùng",
+    tep: "scripts/tunnel-watchdog.mjs",
+    tim: "async function main() {\n  giuChoDuyNhat();",
+    thay: "async function main() {",
+  },
+  {
+    ten: "đăng ký webhook khi đường hầm chưa thông",
+    tep: "scripts/tunnel-watchdog.mjs",
+    tim: "  for (let i = 0; i < 12 && !(await tunnelHealthy(currentUrl)); i++) {",
+    thay: "  for (let i = 0; i < 0 && !(await tunnelHealthy(currentUrl)); i++) {",
+  },
+  {
+    ten: "hỏng một lần là đập đường hầm",
+    tep: "scripts/tunnel-watchdog.mjs",
+    tim: "  const HONG_LIEN_TIEP_MOI_DUNG_LAI = 3;",
+    thay: "  const HONG_LIEN_TIEP_MOI_DUNG_LAI = 1;",
+  },
+  {
+    ten: "webhook chết mà không tự sửa",
+    tep: "server/worker.ts",
+    tim: "              await coHanGio(\"tự sửa webhook\", tuSuaWebhook(), 30_000)",
+    thay: "              await coHanGio(\"tự sửa webhook\", Promise.resolve(\"bỏ qua\"), 30_000)",
+  },
+  {
+    ten: "máy chủ thật không gỡ ngắt gửi",
+    tep: "server/worker.ts",
+    tim: "  const daGo = await goNgatGuiWebhook();",
+    thay: "  const daGo = false;",
+  },
+  {
+    ten: "webhook chết vẫn quét bù 5 phút",
+    tep: "server/worker.ts",
+    tim: "const RECONCILE_KHI_WEBHOOK_CHET_MS = 60_000;",
+    thay: "const RECONCILE_KHI_WEBHOOK_CHET_MS = 5 * 60_000;",
+  },
+  {
+    ten: "coi địa chỉ http là công khai",
+    tep: "server/services/duong-ham.ts",
+    tim: "      u.protocol !== \"https:\" ||",
+    thay: "      false ||",
+  },
+  {
     ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",
     tep: "server/services/so-ai.ts",
     tim: "      ORDER BY tra_luc NULLS FIRST, created_at LIMIT $1`,",
@@ -1646,8 +1706,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "tự đăng ký webhook cả khi chạy trên máy nội bộ",
     tep: "server.ts",
-    tim: 'if (u.protocol !== "https:" || laNoiBo) {',
-    thay: "if (false) {",
+    tim: "      if (laDiaChiNoiBo(env.appUrl)) {",
+    thay: "      if (false) {",
   },
   {
     ten: "bỏ bước tự đăng ký địa chỉ webhook khi khởi động",

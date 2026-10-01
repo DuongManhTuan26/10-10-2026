@@ -8,3 +8,4 @@ coverage/
 !.env.example
 backup/
 .tunnel-url
+.tunnel.pid

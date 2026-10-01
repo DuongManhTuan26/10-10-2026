@@ -7,7 +7,9 @@ import { runDueFollowUps, runDueBoSot } from "./services/sales-ai.js";
 import { runDueAccountSync } from "./services/accounts.js";
 import { runDuePostRecheck } from "./services/post-status.js";
 import { sendTelegramMessage, escapeHtml } from "./services/telegram.js";
-import { layNhatKyWebhook, type LanGiaoWebhook } from "./services/zernio.js";
+import { dangKyDiaChiWebhook, goNgatGuiWebhook, layNhatKyWebhook, type LanGiaoWebhook } from "./services/zernio.js";
+import { damBaoNguoiCanh, laDiaChiNoiBo } from "./services/duong-ham.js";
+import { env } from "./env.js";
 import { runDueVideoJobs } from "./services/video-ai.js";
 import { runDueVideoProjects } from "./services/video-dai.js";
 import { runDueCanhBaoChiPhi } from "./services/chi-phi.js";
@@ -30,7 +32,14 @@ const POLL_INTERVAL_MS = 5_000;
  * giành hạn mức gọi Zernio của việc trả lời khách.
  */
 const RECONCILE_INTERVAL_MS = 5 * 60_000;
+/**
+ * Khi webhook đang chết, quét bù dày hơn hẳn: đó là đường DUY NHẤT tin của
+ * khách còn về. Đã thấy: webhook chết, quét 5 phút/lần, khách chờ tới 5 phút.
+ */
+const RECONCILE_KHI_WEBHOOK_CHET_MS = 60_000;
 let lanRaSoatCuoi = 0;
+/** Nhịp tim gần nhất thấy mọi lần giao webhook đều hỏng. */
+let webhookDangChet = false;
 
 /**
  * Nhịp kiểm tra lịch tự đăng bài: 1 phút.
@@ -64,6 +73,20 @@ const BATCH_SIZE = 10;
 const MAX_ATTEMPTS = 5;
 
 let running = false;
+
+/**
+ * Webhook chết thì tự sửa.
+ *   - Trên máy: bật lại người canh đường hầm (nó dựng đường hầm, đăng ký địa
+ *     chỉ, gỡ trạng thái ngắt gửi).
+ *   - Trên máy chủ thật: đăng ký lại đúng địa chỉ APP_URL và gỡ ngắt gửi —
+ *     nhà cung cấp KHÔNG tự gỡ kể cả khi đường đã thông lại.
+ */
+export async function tuSuaWebhook(): Promise<string> {
+  if (laDiaChiNoiBo(env.appUrl)) return `người canh đường hầm: ${damBaoNguoiCanh()}`;
+  const kq = await dangKyDiaChiWebhook(`${env.appUrl.replace(/\/$/, "")}/api/webhooks/zernio`);
+  const daGo = await goNgatGuiWebhook();
+  return `${kq.doi ? `đã đăng ký lại địa chỉ (cũ: ${kq.cu})` : "địa chỉ đã đúng"}; ${daGo ? "đã gỡ ngắt gửi" : "nhà cung cấp VẪN ngắt gửi"}`;
+}
 let stopping = false;
 let wakeUp: (() => void) | null = null;
 
@@ -307,7 +330,7 @@ export function startWorker(): void {
        * quét này bơm tin tìm được vào đúng hàng đợi của webhook nên mọi chốt
        * chặn vẫn giữ nguyên.
        */
-      if (Date.now() - lanRaSoatCuoi >= RECONCILE_INTERVAL_MS) {
+      if (Date.now() - lanRaSoatCuoi >= (webhookDangChet ? RECONCILE_KHI_WEBHOOK_CHET_MS : RECONCILE_INTERVAL_MS)) {
         lanRaSoatCuoi = Date.now();
         try {
           const kq = await coHanGio("rà soát hộp thư", reconcileInbox(), HAN_MOI_VIEC_MS);
@@ -542,12 +565,19 @@ export function startWorker(): void {
               20_000
             );
             const hong = nhatKy.filter((l) => l.status === "failed");
-            if (nhatKy.length > 0 && hong.length === nhatKy.length) {
+            webhookDangChet = nhatKy.length > 0 && hong.length === nhatKy.length;
+            if (webhookDangChet) {
               const lyDo = hong[0]?.errorMessage ?? "không rõ";
               console.error(
                 `[worker] WEBHOOK CHẾT: ${hong.length}/${nhatKy.length} lần giao gần nhất đều hỏng. ` +
                   `Địa chỉ: ${hong[0]?.url}. Lý do: ${lyDo}`
               );
+              // Tự sửa ngay, không chờ người — mỗi phút chết là khách phải chờ.
+              await coHanGio("tự sửa webhook", tuSuaWebhook(), 30_000)
+                .then((kq) => console.warn(`[worker] Tự sửa webhook: ${kq}. Quét bù tạm 1 phút/lần.`))
+                .catch((error) =>
+                  console.error("[worker] Tự sửa webhook hỏng:", error instanceof Error ? error.message : error)
+                );
               const baoTruoc = lanBaoWebhookChet;
               if (Date.now() - baoTruoc >= 60 * 60_000) {
                 lanBaoWebhookChet = Date.now();
@@ -559,8 +589,8 @@ export function startWorker(): void {
                     s.user_id,
                     "⚠️ <b>TIN NHẮN VÀ BÌNH LUẬN KHÔNG VỀ ĐƯỢC</b>\n\n" +
                       "Đường nhận tin của hệ thống đang hỏng, nhà cung cấp đã tạm ngừng gửi.\n\n" +
-                      "Tin nhắn vẫn về chậm nhờ vòng quét bù 5 phút, nhưng <b>bình luận thì mất hẳn</b>. " +
-                      "Vào hộp thư trả lời tay giúp khách, và báo kỹ thuật kiểm tra ngay.",
+                      "Hệ thống đang tự sửa. Trong lúc đó tin nhắn và bình luận vẫn về nhờ quét bù mỗi phút, " +
+                      "nên AI trả lời chậm hơn bình thường. Nếu sau 15 phút vẫn nhận tin này, báo kỹ thuật kiểm tra ngay.",
                     "webhook_dead"
                   ).catch(() => {
                     /* Không báo được thì thôi, không để làm dừng vòng lặp. */

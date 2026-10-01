@@ -3,6 +3,7 @@ import { env } from "./server/env.js";
 import { verifyConnection, closePool } from "./server/db.js";
 import { runMigrations } from "./server/migrate.js";
 import { dangKyDiaChiWebhook } from "./server/services/zernio.js";
+import { damBaoNguoiCanh, laDiaChiNoiBo, NHAT_KY_DUONG_HAM } from "./server/services/duong-ham.js";
 import { donDuLieuHetHan } from "./server/auth.js";
 import { startWorker, stopWorker, recoverStuckEvents } from "./server/worker.js";
 import {
@@ -74,14 +75,20 @@ async function main() {
    */
   void (async () => {
     try {
-      const u = new URL(env.appUrl);
-      const laNoiBo =
-        u.hostname === "localhost" ||
-        u.hostname === "127.0.0.1" ||
-        u.hostname.endsWith(".local");
-      if (u.protocol !== "https:" || laNoiBo) {
+      if (laDiaChiNoiBo(env.appUrl)) {
+        /*
+         * Trên máy: tự bật người canh đường hầm — nó dựng đường hầm công khai
+         * và đăng ký webhook. Đã thấy: bật app mà quên bật người canh là
+         * webhook chết, khách nhắn phải chờ vòng quét bù.
+         */
+        const tinhTrang = damBaoNguoiCanh();
         console.log(
-          `[khởi động] APP_URL là ${env.appUrl} — địa chỉ nội bộ, không tự đăng ký webhook.`
+          tinhTrang === "dang_chay"
+            ? "[khởi động] Người canh đường hầm đang chạy — webhook nhận tin theo thời gian thực."
+            : tinhTrang === "vua_bat"
+              ? `[khởi động] Đã bật người canh đường hầm (nhật ký: ${NHAT_KY_DUONG_HAM}).`
+              : `[khởi động] KHÔNG bật được đường hầm (${tinhTrang}) — webhook sẽ chết, tin chỉ về qua quét bù. ` +
+                "Cài cloudflared và điền CLOUDFLARED_PATH trong .env."
         );
         return;
       }

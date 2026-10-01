@@ -25,6 +25,7 @@ const CLOUDFLARED = process.env.CLOUDFLARED_PATH;
 const LOCAL_URL = `http://localhost:${process.env.PORT ?? 3000}`;
 const CHECK_INTERVAL_MS = 30_000;
 const STATE_FILE = path.join(process.cwd(), ".tunnel-url");
+const PID_FILE = path.join(process.cwd(), ".tunnel.pid");
 
 if (!CLOUDFLARED || !fs.existsSync(CLOUDFLARED)) {
   console.error(
@@ -281,10 +282,56 @@ async function rotate() {
   currentUrl = await startTunnel();
   fs.writeFileSync(STATE_FILE, currentUrl);
   log(`Tunnel mới: ${currentUrl}`);
+  /*
+   * Chờ đường hầm THÔNG rồi mới đăng ký. Đã thấy ngày 01/10/2026: đăng ký và
+   * gọi thử ngay khi vừa có địa chỉ thì tên miền chưa kịp phân giải
+   * (getaddrinfo EBUSY) — lần thử hỏng, nhà cung cấp vẫn ngắt gửi thêm 30 giây.
+   */
+  for (let i = 0; i < 12 && !(await tunnelHealthy(currentUrl)); i++) {
+    await new Promise((r) => setTimeout(r, 5_000));
+  }
   await updateZernioWebhook(currentUrl);
 }
 
+function dangSong(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * CHỈ MỘT người canh được chạy.
+ *
+ * Hai người canh cùng chạy thì mỗi bên dựng một tunnel và tranh nhau ghi địa
+ * chỉ webhook — bên này vừa đăng ký xong bên kia ghi đè, tin về chỗ chết. Nay
+ * server tự bật người canh mỗi lần khởi động, nên chốt này là bắt buộc.
+ */
+function giuChoDuyNhat() {
+  try {
+    const cu = Number(fs.readFileSync(PID_FILE, "utf8"));
+    if (cu && cu !== process.pid && dangSong(cu)) {
+      log(`Đã có người canh khác đang chạy (pid ${cu}) — thoát, không chạy trùng.`);
+      process.exit(0);
+    }
+  } catch {
+    /* chưa có tệp khoá */
+  }
+  fs.writeFileSync(PID_FILE, String(process.pid));
+  process.on("exit", () => {
+    try {
+      if (Number(fs.readFileSync(PID_FILE, "utf8")) === process.pid) fs.rmSync(PID_FILE);
+    } catch {
+      /* đã xoá rồi */
+    }
+    child?.kill();
+  });
+}
+
 async function main() {
+  giuChoDuyNhat();
   log("Bắt đầu trông tunnel");
 
   /*
@@ -320,6 +367,15 @@ async function main() {
   const LUI_TOI_DA_PHUT = 15;
   const LUI_KHI_BI_CHAN_PHUT = 15;
 
+  /*
+   * Phải hỏng NHIỀU LẦN LIÊN TIẾP mới dựng lại. Đã thấy ngày 01/10/2026: đường
+   * hầm vừa dựng 90 giây, nhà cung cấp đã giao thử thành công, vậy mà một lần
+   * kiểm tra hỏng (máy này tạm nhớ kết quả tra tên miền thất bại) là bị đập bỏ
+   * dựng lại — địa chỉ đổi vô ích, dựng dồn dập thì Cloudflare chặn tần suất.
+   */
+  const HONG_LIEN_TIEP_MOI_DUNG_LAI = 3;
+  let soLanKhongThong = 0;
+
   setInterval(async () => {
     // Đang trong thời gian lùi thì không đụng vào Cloudflare.
     if (choToiPhut > 0) {
@@ -328,8 +384,15 @@ async function main() {
     }
 
     const healthy = currentUrl ? await tunnelHealthy(currentUrl) : false;
+    soLanKhongThong = healthy ? 0 : soLanKhongThong + 1;
+
+    if (!healthy && currentUrl && soLanKhongThong < HONG_LIEN_TIEP_MOI_DUNG_LAI) {
+      log(`Tunnel không phản hồi (lần ${soLanKhongThong}/${HONG_LIEN_TIEP_MOI_DUNG_LAI}) — chờ xem lại, chưa dựng lại.`);
+      return;
+    }
 
     if (!healthy) {
+      soLanKhongThong = 0;
       log("Tunnel không phản hồi — đang dựng lại");
       try {
         await rotate();
