@@ -28,7 +28,7 @@ export default function SetupComplete({ onFinish }: { onFinish: () => void }) {
   const duXong = muc.every((m) => m.xong);
 
   return (
-    <div className="h-screen w-full flex items-center justify-center bg-background relative overflow-hidden p-4">
+    <div className="h-screen w-full flex items-center justify-center bg-background nen-app relative overflow-hidden p-4">
       {/* Background glow - using green tint for success */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#10b981]/10 rounded-full blur-[120px] pointer-events-none"></div>
 

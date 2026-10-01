@@ -1235,7 +1235,7 @@ export default function AutoScripts() {
   );
 
   return (
-    <main className="flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative    bg-background">
+    <main className="flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative">
 
       {/*
         Kịch bản bình luận và bộ não bán hàng đều thuộc về một Trang cụ thể.

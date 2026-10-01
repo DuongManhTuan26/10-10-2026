@@ -727,7 +727,7 @@ export default function Content() {
 
 
   return (
-    <main className="flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative    bg-background">
+    <main className="flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative">
 
       {/* Lỗi của các thao tác ngoài hộp soạn bài: đăng lại, xoá, duyệt, tải danh sách. */}
       {errorMessage && !isComposerOpen && (

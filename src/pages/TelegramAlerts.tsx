@@ -248,7 +248,7 @@ export default function TelegramAlerts() {
   const setAdsBudgetWarn = (v: boolean) => setEvent('ads_budget', v);
 
   return (
-    <main className="flex-1   p-8 bg-background space-y-8  ">
+    <main className="flex-1   p-8 space-y-8  ">
       
       {/* HEADER */}
       <div>

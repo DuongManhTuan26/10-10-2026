@@ -203,13 +203,13 @@ const DUC: PhepDuc[] = [
   {
     ten: "nền lại tối om như cũ (thẻ chìm vào nền)",
     tep: "src/index.css",
-    tim: "  --color-surface-container: #213256;",
+    tim: "  --color-surface-container: #1e363e;",
     thay: "  --color-surface-container: #0f172a;",
   },
   {
     ten: "chữ phụ lại tối",
     tep: "src/index.css",
-    tim: "  --color-on-surface-variant: #c3cee0;",
+    tim: "  --color-on-surface-variant: #bfd0d6;",
     thay: "  --color-on-surface-variant: #64748b;",
   },
   {
@@ -253,6 +253,12 @@ const DUC: PhepDuc[] = [
     tep: "src/components/ChiPhiHeThong.tsx",
     tim: "<h2 className=\"tieu-de-muc\">Chi phí tháng này</h2>",
     thay: "<h2 className=\"font-mono text-[11px] font-bold text-primary tracking-wider uppercase\">Chi phí tháng này</h2>",
+  },
+  {
+    ten: "bỏ nền lưới chung của app (khác tông menu)",
+    tep: "src/App.tsx",
+    tim: "    <div className=\"flex h-screen w-full bg-background nen-app\">",
+    thay: "    <div className=\"flex h-screen w-full bg-background\">",
   },
   {
     ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",

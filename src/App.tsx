@@ -152,7 +152,7 @@ export default function App() {
 
   return (
     <ActivePageProvider>
-    <div className="flex h-screen w-full bg-background">
+    <div className="flex h-screen w-full bg-background nen-app">
       <Sidebar
         onLogout={handleLogout}
         laQuanTri={user?.role === 'admin'}

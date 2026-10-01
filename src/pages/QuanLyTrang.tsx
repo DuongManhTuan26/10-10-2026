@@ -255,7 +255,7 @@ export default function QuanLyTrang() {
     .sort((a, b) => (mucDoNang(b.viec) === 'hong' ? 1 : 0) - (mucDoNang(a.viec) === 'hong' ? 1 : 0));
 
   return (
-    <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full bg-background">
+    <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full">
       <div className="mb-6">
         <h1 className="font-headline-sm text-2xl font-bold text-on-surface">Điều hành chuỗi trang</h1>
         <p className="text-sm text-on-surface-variant mt-1">

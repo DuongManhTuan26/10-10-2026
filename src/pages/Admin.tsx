@@ -196,7 +196,7 @@ export default function Admin() {
   const soKhoa = danhSach.filter((t) => !t.is_active).length;
 
   return (
-    <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full bg-background">
+    <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full">
       <BangLoi noiDung={errorMessage} onDong={() => setErrorMessage('')} className="mb-6" />
 
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">

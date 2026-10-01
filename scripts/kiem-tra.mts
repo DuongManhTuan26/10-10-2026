@@ -4142,6 +4142,13 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
 
   // Mọi hộp thoại đi qua khung chung. Chỉ còn lớp phủ của menu/thanh bên được dùng fixed inset-0.
   const DUOC_PHEP = ["HopThoai.tsx", "Sidebar.tsx", "TopNavBar.tsx", "Orders.tsx"];
+  // Chủ dự án chọn tông của thanh menu cho cả app: nền lưới + quầng sáng xanh ngọc.
+  kiem("giao diện", "nền chung của app cùng chất liệu với menu",
+    /\.nen-app \{[\s\S]{0,600}?background-size: auto, auto, 24px 24px, 24px 24px;/.test(nguonCss) &&
+      /<div className="flex h-screen w-full bg-background nen-app">/.test(fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8")), true);
+  kiem("giao diện", "trang không tự phủ nền đặc che mất nền chung",
+    ["Dashboard", "Ads", "Content", "AutoScripts", "Orders", "Admin", "Connections", "Inbox", "Analytics", "QuanLyTrang", "TelegramAlerts", "Pricing"]
+      .filter((t) => /<main className="[^"]*\bbg-background\b(?!\/)/.test(fs.readFileSync(path.join(GOC, `src/pages/${t}.tsx`), "utf8"))), []);
   kiem("giao diện", "mọi hộp thoại dùng khung chung HopThoai",
     tepGiaoDien.filter((tep) => !DUOC_PHEP.includes(path.basename(tep)))
       .filter((tep) => /fixed inset-0/.test(fs.readFileSync(tep, "utf8"))).map((t) => path.basename(t)), []);

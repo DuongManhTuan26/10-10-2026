@@ -102,7 +102,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <main className="flex-1 w-full relative     bg-background text-on-surface">
+    <main className="flex-1 w-full relative text-on-surface">
       <div className="pt-8 pb-8 px-margin max-w-[1600px] mx-auto w-full">
         
         {/* Header Section */}

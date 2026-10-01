@@ -138,7 +138,7 @@ export default function Pricing() {
   };
 
   return (
-    <div className="flex-1   p-gutter  bg-background relative">
+    <div className="flex-1   p-gutter relative">
       {errorMessage && (
         <div className="mb-md text-sm text-error bg-error/10 border border-error/30 rounded-xl px-4 py-3 max-w-5xl mx-auto">
           {errorMessage}

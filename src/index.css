@@ -22,23 +22,27 @@
    * cũ: nền ↔ thẻ 1,16 (thẻ mờ 40%: 1,05 — không thấy khối), chữ phụ mờ 4,04,
    * chữ gợi ý ô nhập 2,69. Bảng này: nền ↔ thẻ 1,56, chữ phụ ≥ 5,9, chữ gợi ý
    * 11,3, viền ô nhập 4,9. scripts/kiem-tra.mts tính lại mỗi lần chạy.
+   *
+   * SẮC MÀU: tông xanh ngọc đậm của thanh menu (chủ dự án chọn — "không thích
+   * màu xám, thích màu giống phần menu chính"). Đổi sắc nhưng GIỮ NGUYÊN độ
+   * chói từng màu (lệch < 2%), nên mọi số đo tương phản trên vẫn giữ.
    */
-  --color-background: #060a14;
+  --color-background: #050c0e;
   --color-on-background: #e2e8f0;
   
-  --color-surface: #111c33;
+  --color-surface: #0f1f24;
   --color-on-surface: #f1f5f9;
-  --color-surface-variant: #30466f;
-  --color-on-surface-variant: #c3cee0;
+  --color-surface-variant: #2e4b55;
+  --color-on-surface-variant: #bfd0d6;
   
-  --color-surface-container-lowest: #0e1729;
-  --color-surface-container-low: #18243f;
-  --color-surface-container: #213256;
-  --color-surface-container-high: #30466f;
-  --color-surface-container-highest: #3d5686;
+  --color-surface-container-lowest: #0c191d;
+  --color-surface-container-low: #15272e;
+  --color-surface-container: #1e363e;
+  --color-surface-container-high: #2e4b55;
+  --color-surface-container-highest: #3a5b67;
   
-  --color-outline: #7487a8;
-  --color-outline-variant: #4a5d82;
+  --color-outline: #668b99;
+  --color-outline-variant: #40616e;
   
   --color-error: #ef4444;
   --color-on-error: #450a0a;
@@ -182,6 +186,20 @@ textarea::placeholder {
  * đậm và vạch nhấn.
  */
 @layer components {
+  /*
+   * Nền chung của app — cùng một chất liệu với thanh menu (chủ dự án chọn):
+   * nền gần đen ánh xanh ngọc, quầng sáng xanh mờ, lưới ô 24px rất nhạt.
+   */
+  .nen-app {
+    background-color: var(--color-background);
+    background-image:
+      radial-gradient(640px 420px at 90% -8%, rgb(0 229 255 / 0.07), transparent 70%),
+      radial-gradient(560px 420px at 30% 108%, rgb(0 229 255 / 0.05), transparent 70%),
+      linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px);
+    background-size: auto, auto, 24px 24px, 24px 24px;
+  }
+
   .tieu-de-muc {
     display: flex;
     align-items: center;

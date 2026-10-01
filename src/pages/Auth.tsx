@@ -105,7 +105,7 @@ export default function Auth({ onLogin, onRegister }: {
   };
 
   return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-background relative overflow-hidden">
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-background nen-app relative overflow-hidden">
       {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
 

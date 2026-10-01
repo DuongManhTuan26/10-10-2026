@@ -534,7 +534,7 @@ export default function Connections() {
   ) : null;
 
   return (
-    <main className="flex-1   p-8 bg-background relative  ">
+    <main className="flex-1   p-8 relative  ">
 
       {errorBanner && <div className="mb-6">{errorBanner}</div>}
 

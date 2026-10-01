@@ -478,7 +478,7 @@ export default function Inbox() {
   };
 
   return (
-    <main className="flex flex-col w-full h-full bg-background overflow-hidden relative">
+    <main className="flex flex-col w-full h-full overflow-hidden relative">
 
       {/* Trang này chiếm trọn chiều cao và không cuộn ở gốc, nên băng lỗi phải
           nổi lên trên cùng thì chủ shop mới thấy. */}
