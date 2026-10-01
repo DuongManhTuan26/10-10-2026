@@ -4102,7 +4102,19 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   // đâu chính đâu phụ", "không đồng nhất kích thước, thu hẹp bé lại". Đo bảng cũ: nền ↔ thẻ
   // 1,16 (thẻ mờ 40%: 1,05), chữ phụ mờ 4,04, chữ gợi ý 2,69; 15 hộp thoại, 9 kiểu rộng.
   const nguonCss = fs.readFileSync(path.join(GOC, "src/index.css"), "utf8");
-  const mau = Object.fromEntries([...nguonCss.matchAll(/--color-([a-z-]+):\s*(#[0-9a-fA-F]{6});/g)].map((m) => [m[1], m[2]]));
+  // Màu có thể là #hex (đặc) hoặc rgb(r g b / a) (kính trong suốt) — trong suốt thì
+  // TRỘN với lớp dưới rồi mới đo, đúng như mắt người thấy.
+  type Mau = { c: number[]; a: number };
+  const docMau = (v: string): Mau => {
+    const h = /^#([0-9a-fA-F]{6})$/.exec(v.trim());
+    if (h) return { c: [0, 2, 4].map((i) => parseInt(h[1].slice(i, i + 2), 16)), a: 1 };
+    const r = /^rgb\((\d+) (\d+) (\d+)(?: \/ ([\d.]+))?\)$/.exec(v.trim());
+    if (!r) throw new Error(`không đọc được màu ${v}`);
+    return { c: [+r[1], +r[2], +r[3]], a: r[4] === undefined ? 1 : +r[4] };
+  };
+  const mau = Object.fromEntries([...nguonCss.matchAll(/--color-([a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], docMau(m[2])]));
+  const hexMau = (c: number[]) => "#" + c.map((x) => Math.round(x).toString(16).padStart(2, "0")).join("");
+  const tren = (tren: Mau, duoi: string) => hexMau(tren.c.map((x, i) => x * tren.a + docMau(duoi).c[i] * (1 - tren.a)));
   const kenh = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const sang = (h: string) => {
     const [r, g, b] = kenh(h).map((c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
@@ -4110,14 +4122,22 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   };
   const tp = (a: string, b: string) => { const [x, y] = [sang(a), sang(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
   const tron = (a: string, b: string, t: number) => "#" + kenh(a).map((c, i) => Math.round(c * t + kenh(b)[i] * (1 - t)).toString(16).padStart(2, "0")).join("");
+  const NEN = hexMau(mau.background.c);
+  const THE = tren(mau["surface-container"], NEN);
+  const TRONG_THE = tren(mau["surface-container-high"], THE);
+  const HOP = hexMau(mau["hop-thoai"].c);
+  const O = hexMau(mau["surface-container-lowest"].c);
   const datChuan = [
-    ["nền ↔ thẻ (thấy rõ từng khối)", tp(mau.background, mau["surface-container"]), 1.5],
-    ["chữ phụ trên thẻ", tp(mau["on-surface-variant"], mau["surface-container"]), 4.5],
-    ["chữ phụ trên hộp thoại", tp(mau["on-surface-variant"], mau["surface-container-high"]), 4.5],
-    ["chữ chính trên hộp thoại", tp(mau["on-surface"], mau["surface-container-high"]), 7],
-    ["chữ gợi ý (70%) trên ô nhập", tp(tron(mau["on-surface-variant"], mau["surface-container-lowest"], 0.7), mau["surface-container-lowest"]), 4.5],
-    ["viền ô nhập", tp(mau.outline, mau["surface-container-lowest"]), 3],
-    ["ô nhập ↔ hộp thoại", tp(mau["surface-container-lowest"], mau["surface-container-high"]), 1.5],
+    // Ảnh mẫu chủ dự án chọn đo được 2,15 — thẻ kính nổi nhờ viền, không nhờ nền.
+    ["viền thẻ ↔ nền (thấy rõ từng thẻ)", tp(tren(mau["outline-variant"], NEN), NEN), 2.2],
+    ["chữ phụ trên thẻ kính", tp(hexMau(mau["on-surface-variant"].c), THE), 4.5],
+    ["chữ phụ trên phần tử trong thẻ", tp(hexMau(mau["on-surface-variant"].c), TRONG_THE), 4.5],
+    ["chữ phụ trên hộp thoại", tp(hexMau(mau["on-surface-variant"].c), HOP), 4.5],
+    ["chữ chính trên hộp thoại", tp(hexMau(mau["on-surface"].c), HOP), 7],
+    ["chữ phụ trên menu nổi", tp(hexMau(mau["on-surface-variant"].c), hexMau(mau.noi.c)), 4.5],
+    ["chữ gợi ý (70%) trên ô nhập", tp(tron(hexMau(mau["on-surface-variant"].c), O, 0.7), O), 4.5],
+    ["viền ô nhập", tp(hexMau(mau.outline.c), O), 3],
+    ["viền ô nhập trên hộp thoại", tp(hexMau(mau.outline.c), HOP), 3],
   ] as const;
   kiem("giao diện", "mọi cặp màu đạt độ tương phản tối thiểu",
     datChuan.filter(([, v, min]) => !(v >= min)).map(([ten, v, min]) => `${ten}: ${v.toFixed(2)} < ${min}`), []);
@@ -4149,6 +4169,13 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("giao diện", "trang không tự phủ nền đặc che mất nền chung",
     ["Dashboard", "Ads", "Content", "AutoScripts", "Orders", "Admin", "Connections", "Inbox", "Analytics", "QuanLyTrang", "TelegramAlerts", "Pricing"]
       .filter((t) => /<main className="[^"]*\bbg-background\b(?!\/)/.test(fs.readFileSync(path.join(GOC, `src/pages/${t}.tsx`), "utf8"))), []);
+  // Thứ NỔI trên nội dung phải đặc — thẻ kính trong suốt thì chữ trang sau lẫn vào.
+  kiem("giao diện", "hộp thoại dùng nền đặc riêng, không dùng màu thẻ kính",
+    /border-outline-variant bg-hop-thoai /.test(fs.readFileSync(path.join(GOC, "src/components/HopThoai.tsx"), "utf8")), true);
+  kiem("giao diện", "menu thả xuống / thông báo nổi không dùng nền kính trong suốt",
+    tepGiaoDien.flatMap((tep) => dongNgoaiChuThich(fs.readFileSync(tep, "utf8"))
+      .filter(({ d }) => /(absolute|fixed)[^"'`]*\bbg-surface-container(-high|-highest)?\b(?!\/)[^"'`]*(shadow|z-)/.test(d))
+      .map((x) => `${path.basename(tep)}:${x.dong}`)).join(", "), "");
   kiem("giao diện", "mọi hộp thoại dùng khung chung HopThoai",
     tepGiaoDien.filter((tep) => !DUOC_PHEP.includes(path.basename(tep)))
       .filter((tep) => /fixed inset-0/.test(fs.readFileSync(tep, "utf8"))).map((t) => path.basename(t)), []);

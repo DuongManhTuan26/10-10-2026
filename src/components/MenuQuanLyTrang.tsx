@@ -76,7 +76,7 @@ export default function MenuQuanLyTrang({ muc, tat }: { muc: MucMenu[]; tat?: bo
         <div
           style={{ width: RONG_MENU }}
           className={clsx(
-            'absolute top-11 z-20 rounded-xl border border-outline-variant bg-surface-container-high shadow-xl py-1',
+            'absolute top-11 z-20 rounded-xl border border-outline-variant bg-noi shadow-xl py-1',
             thaSangPhai ? 'right-0' : 'left-0'
           )}
         >

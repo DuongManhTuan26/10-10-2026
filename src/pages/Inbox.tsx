@@ -490,7 +490,7 @@ export default function Inbox() {
 
       {/* Toast Notification */}
       {showCopyToast && (
-        <div className="fixed top-20 right-8 z-[100] bg-surface-container-high border border-primary/30 text-primary px-6 py-3 rounded-lg shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="fixed top-20 right-8 z-[100] bg-noi border border-primary/30 text-primary px-6 py-3 rounded-lg shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
           <span className="font-bold text-sm">Đã sao chép số điện thoại</span>
         </div>

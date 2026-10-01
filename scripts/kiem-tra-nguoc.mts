@@ -201,10 +201,10 @@ const DUC: PhepDuc[] = [
     thay: "\";",
   },
   {
-    ten: "nền lại tối om như cũ (thẻ chìm vào nền)",
+    ten: "viền thẻ kính mờ mất, thẻ chìm vào nền",
     tep: "src/index.css",
-    tim: "  --color-surface-container: #1e363e;",
-    thay: "  --color-surface-container: #0f172a;",
+    tim: "  --color-outline-variant: rgb(0 229 255 / 0.34);",
+    thay: "  --color-outline-variant: rgb(0 229 255 / 0.08);",
   },
   {
     ten: "chữ phụ lại tối",
@@ -259,6 +259,18 @@ const DUC: PhepDuc[] = [
     tep: "src/App.tsx",
     tim: "    <div className=\"flex h-screen w-full bg-background nen-app\">",
     thay: "    <div className=\"flex h-screen w-full bg-background\">",
+  },
+  {
+    ten: "hộp thoại trong suốt, chữ trang sau lẫn vào",
+    tep: "src/components/HopThoai.tsx",
+    tim: "border border-outline-variant bg-hop-thoai shadow",
+    thay: "border border-outline-variant bg-surface-container shadow",
+  },
+  {
+    ten: "menu tài khoản trong suốt",
+    tep: "src/components/TopNavBar.tsx",
+    tim: "absolute right-0 mt-2 w-64 bg-noi",
+    thay: "absolute right-0 mt-2 w-64 bg-surface-container-high",
   },
   {
     ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",

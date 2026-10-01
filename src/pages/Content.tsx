@@ -1324,7 +1324,7 @@ export default function Content() {
                         )}
                         <button
                           onClick={() => setComposerMedia((current) => current.filter((_, i) => i !== index))}
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:border-error hover:text-error"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-noi border border-outline-variant flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:border-error hover:text-error"
                           title="Bỏ tệp này"
                         >
                           <span className="material-symbols-outlined text-[14px]">close</span>

@@ -76,11 +76,11 @@ export default function HopThoai({
         role="dialog"
         aria-modal="true"
         className={clsx(
-          'relative flex flex-col overflow-hidden rounded-2xl border border-outline bg-surface-container shadow-2xl',
+          'relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant bg-hop-thoai shadow-[0_0_40px_rgba(0,229,255,0.12)]',
           CO[co]
         )}
       >
-        <div className="flex items-center gap-4 px-6 sm:px-8 py-5 border-b border-outline-variant bg-surface-container-high shrink-0">
+        <div className="flex items-center gap-4 px-6 sm:px-8 py-5 border-b border-outline-variant bg-hop-thoai-dau shrink-0">
           {bieuTuong && (
             <span className="w-11 h-11 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-[24px]">{bieuTuong}</span>
@@ -100,12 +100,12 @@ export default function HopThoai({
           </button>
         </div>
 
-        {dauPhu && <div className="shrink-0 border-b border-outline-variant bg-surface-container-low px-6 sm:px-8 py-4">{dauPhu}</div>}
+        {dauPhu && <div className="shrink-0 border-b border-outline-variant bg-hop-thoai-dau/60 px-6 sm:px-8 py-4">{dauPhu}</div>}
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6">{children}</div>
 
         {chan && (
-          <div className="flex items-center justify-end gap-3 px-6 sm:px-8 py-4 border-t border-outline-variant bg-surface-container-high shrink-0">
+          <div className="flex items-center justify-end gap-3 px-6 sm:px-8 py-4 border-t border-outline-variant bg-hop-thoai-dau shrink-0">
             {chan}
           </div>
         )}

@@ -256,7 +256,7 @@ export default function Orders() {
 
       {/* Toast Notification */}
       {showCopyToast && (
-        <div className="fixed top-20 right-8 z-[100] bg-surface-container-high border border-primary/30 text-primary px-6 py-3 rounded-lg shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="fixed top-20 right-8 z-[100] bg-noi border border-primary/30 text-primary px-6 py-3 rounded-lg shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
           <span className="font-bold text-sm">Đã sao chép số điện thoại</span>
         </div>
@@ -478,7 +478,7 @@ export default function Orders() {
                       </button>
 
                       {openDropdownId === order.id && (
-                        <div className="absolute right-12 top-10 w-[200px] bg-surface-container-high border border-outline-variant rounded-xl shadow-lg z-50 flex flex-col py-1.5 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="absolute right-12 top-10 w-[200px] bg-noi border border-outline-variant rounded-xl shadow-lg z-50 flex flex-col py-1.5 animate-in fade-in zoom-in-95 duration-150">
                           <button 
                             className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-variant transition-colors w-full text-left"
                             onClick={(e) => { 

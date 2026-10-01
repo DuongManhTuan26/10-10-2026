@@ -132,7 +132,7 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu }: {
         {menuMo && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenuMo(false)} />
-            <div className="absolute right-0 mt-2 w-64 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl z-50 overflow-hidden">
+            <div className="absolute right-0 mt-2 w-64 bg-noi border border-outline-variant rounded-xl shadow-xl z-50 overflow-hidden">
               <div className="px-4 py-3 border-b border-outline-variant/50">
                 <p className="text-sm font-bold text-on-surface truncate">{user?.name || 'Gian hàng'}</p>
                 <p className="text-xs text-on-surface-variant truncate">{user?.email}</p>

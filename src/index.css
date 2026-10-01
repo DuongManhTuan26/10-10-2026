@@ -26,23 +26,37 @@
    * SẮC MÀU: tông xanh ngọc đậm của thanh menu (chủ dự án chọn — "không thích
    * màu xám, thích màu giống phần menu chính"). Đổi sắc nhưng GIỮ NGUYÊN độ
    * chói từng màu (lệch < 2%), nên mọi số đo tương phản trên vẫn giữ.
+   *
+   * THẺ KÍNH (chủ dự án chọn theo mẫu thẻ cảnh báo / thẻ kênh): nền thẻ là lớp
+   * kính TRONG SUỐT ám xanh ngọc — nhìn xuyên lưới nền — và nổi lên nhờ VIỀN xanh
+   * ngọc sáng (outline-variant), không nhờ nền đặc. Đo trên ảnh mẫu: nền thẻ
+   * rgb(8,21,26) trên nền rgb(6,12,15), viền rgb(32,78,87). Màu chữ tính trên
+   * màu SAU KHI TRỘN với nền: chữ phụ ≥ 7, viền thẻ ↔ nền ≥ 2,2.
    */
   --color-background: #050c0e;
   --color-on-background: #e2e8f0;
   
   --color-surface: #0f1f24;
   --color-on-surface: #f1f5f9;
-  --color-surface-variant: #2e4b55;
+  --color-surface-variant: rgb(40 105 118 / 0.30);
   --color-on-surface-variant: #bfd0d6;
   
-  --color-surface-container-lowest: #0c191d;
-  --color-surface-container-low: #15272e;
-  --color-surface-container: #1e363e;
-  --color-surface-container-high: #2e4b55;
-  --color-surface-container-highest: #3a5b67;
+  --color-surface-container-lowest: #081317;
+  --color-surface-container-low: rgb(24 72 82 / 0.14);
+  --color-surface-container: rgb(24 72 82 / 0.22);
+  --color-surface-container-high: rgb(40 105 118 / 0.30);
+  --color-surface-container-highest: rgb(50 125 140 / 0.40);
   
+  /*
+   * Nền đặc cho thứ NỔI trên nội dung (hộp thoại, menu thả xuống, thông báo
+   * nổi): trong suốt thì chữ của trang phía sau lẫn vào chữ của nó.
+   */
+  --color-hop-thoai: #0a171b;
+  --color-hop-thoai-dau: #0f2227;
+  --color-noi: #0e1f24;
+
   --color-outline: #668b99;
-  --color-outline-variant: #40616e;
+  --color-outline-variant: rgb(0 229 255 / 0.34);
   
   --color-error: #ef4444;
   --color-on-error: #450a0a;

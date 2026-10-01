@@ -923,7 +923,7 @@ export default function Ads() {
                     <div
                       onClick={() => setMenuChienDich(null)}
                       className={clsx(
-                        'absolute right-8 top-1/2 -translate-y-1/2 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl py-1 transition-all z-10',
+                        'absolute right-8 top-1/2 -translate-y-1/2 w-48 bg-noi border border-outline-variant rounded-xl shadow-xl py-1 transition-all z-10',
                         menuChienDich === camp.id
                           ? 'opacity-100 visible'
                           : 'opacity-0 invisible peer-hover:opacity-100 peer-hover:visible hover:opacity-100 hover:visible'

@@ -120,7 +120,7 @@ export default function Dashboard() {
               <span className="material-symbols-outlined text-[18px]">arrow_drop_down</span>
             </button>
             {rangeOpen && (
-              <div className="absolute right-0 top-full mt-2 z-20 w-44 bg-surface-container-high border border-outline-variant rounded-lg shadow-lg overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 z-20 w-44 bg-noi border border-outline-variant rounded-lg shadow-lg overflow-hidden">
                 {(Object.keys(RANGE_LABELS) as Range[]).map((option) => (
                   <button
                     key={option}
