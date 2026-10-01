@@ -3985,7 +3985,15 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("hiển thị chi phí", "chưa đọc được nhà cung cấp thì chấm xám, không tô xanh",
     /: cb\.length\s*\? 'xam'\s*: 'xanh'/.test(nguonKhoi3), true);
   kiem("hiển thị chi phí", "nhà cung cấp kênh không trả lời thì nói lý do",
-    /\{mo === 'kenh' && kenh && !kenh\.ok && \(/.test(nguonKhoi3), true);
+    /\{mo === 'kenh' && kenh && \(\s*<div className=\{KHUNG_CON\}>\s*\{canhBao\('kenh'\)\.map/.test(nguonKhoi3), true);
+  // Đã bị chê: phần mở ra không có dòng kẻ, chữ mục chính/mục con lẫn lộn.
+  kiem("ba cấp", "khung mục con có nền riêng và đường kẻ giữa các dòng",
+    /const KHUNG_CON = '[^']*bg-surface-container-lowest[^']*divide-y[^']*';/.test(nguonKhoi3), true);
+  kiem("ba cấp", "dòng chính chữ lớn đậm, mục con chữ vừa không đậm, chi tiết chữ nhỏ nhạt",
+    /block text-base font-bold text-on-surface">\{ten\}/.test(nguonKhoi3) &&
+      /cap === 2 \? 'text-sm text-on-surface' : 'text-xs text-on-surface-variant'/.test(nguonKhoi3), true);
+  kiem("ba cấp", "chi tiết cấp 3 thụt sâu hơn và có vạch dọc nối lên mục cha",
+    /const LE_CAP3 =\s*"relative pl-\[3\.6rem\][^"]*before:w-px before:bg-outline-variant";/.test(nguonKhoi3), true);
   // Đã thấy toLocaleDateString('vi-VN') ra "01-10", lệch với "01/10" ở mọi chỗ khác.
   kiem("hiển thị chi phí", "ngày viết 01/10, không phải 01-10",
     /\)\.toLocaleDateString\(/.test(nguonKhoi3) === false && /return `\$\{p\.day\}\/\$\{p\.month\}`;/.test(nguonKhoi3), true);

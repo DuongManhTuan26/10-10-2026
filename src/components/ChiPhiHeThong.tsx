@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { api, ApiError, type LocLuot, type NguongCanhBao, type SaoKeChiPhi } from '../lib/api';
 import { chi, chiDu, daChi, mauChi, so, vnd } from '../lib/tien-chi';
@@ -15,8 +15,30 @@ import NhatKyChiPhi from './NhatKyChiPhi';
 
 type Dong = 'ai' | 'kenh';
 type CachXem = 'viec' | 'taiKhoan';
-/** [nhãn, giá trị, màu chữ của giá trị]. Giá trị rỗng = tiêu đề nhóm. */
-type Hang = [string, string, string?];
+/**
+ * BA CẤP, mỗi cấp một kiểu — nhìn là biết cái nào nằm trong cái nào.
+ * Đã bị chê: phần mở ra không có dòng kẻ, chữ mục con đậm ngang dòng chính,
+ * "phân chia cỡ chữ mục chính, mục phụ lẫn lộn hết lên".
+ *   Cấp 1 — dòng chính: chữ to, đậm (AI, Kết nối kênh, Tổng).
+ *   Cấp 2 — mục con: khung nền tối hơn, kẻ dòng, chữ vừa, không đậm.
+ *   Cấp 3 — chi tiết của mục con: thụt sâu hơn, vạch dọc bên trái, chữ nhỏ, nhạt.
+ */
+const KHUNG_CON = 'bg-surface-container-lowest/80 border-t border-outline-variant/60 divide-y divide-outline-variant/40';
+const LE_CAP2 = 'pl-[2.6rem] pr-5';
+const LE_CAP3 =
+  "relative pl-[3.6rem] pr-5 before:content-[''] before:absolute before:left-[2.95rem] before:top-0 before:bottom-0 before:w-px before:bg-outline-variant";
+
+interface Hang {
+  khoa: string;
+  nhan: ReactNode;
+  giaTri?: ReactNode;
+  mauGiaTri?: string;
+  /** Chữ phụ nhỏ trước số tiền, ví dụ "15 lượt". */
+  phu?: string;
+  onClick?: () => void;
+  /** Có cấp con: undefined = không có; true/false = đang mở/đóng. */
+  moRong?: boolean;
+}
 type TaiKhoan = SaoKeChiPhi['so']['theoTaiKhoan'][number];
 
 /** "01/10" theo giờ Việt Nam. Đã thấy toLocaleDateString('vi-VN') ra "01-10", lệch với chỗ khác. */
@@ -121,7 +143,7 @@ export default function ChiPhiHeThong() {
           )}
         />
         <span className="flex-1 min-w-0">
-          <span className="block text-sm font-bold text-on-surface">{ten}</span>
+          <span className="block text-base font-bold text-on-surface">{ten}</span>
           {cb[0] && (
             <span
               className={clsx(
@@ -142,21 +164,62 @@ export default function ChiPhiHeThong() {
     );
   };
 
-  const chiTiet = (hang: Hang[], nut?: { ten: string; link?: string }) => (
-    <div className="px-5 pb-4 pl-[2.6rem] space-y-1.5">
-      {hang.map(([k, v, mau]) => (
-        <div key={k} className={clsx('flex justify-between gap-4 text-xs', !v && 'pt-2')}>
-          <span className={v ? 'text-on-surface-variant' : 'text-[11px] font-bold text-primary'}>{k}</span>
-          <span className={clsx('tabular-nums text-right', mau ?? 'text-on-surface')}>{v}</span>
-        </div>
-      ))}
-      {nut?.link && (
-        <a href={nut.link} target="_blank" rel="noreferrer" className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold">
-          {nut.ten}
-        </a>
-      )}
+  /** Một dòng cấp 2 hoặc cấp 3. Bấm được thì là nút, không thì là dòng tĩnh. */
+  const hang = (cap: 2 | 3, h: Hang) => {
+    const noiDung = (
+      <>
+        <span className={clsx('flex-1 min-w-0', cap === 2 ? 'text-sm text-on-surface' : 'text-xs text-on-surface-variant')}>{h.nhan}</span>
+        {h.phu && <span className="text-[11px] text-on-surface-variant/70 tabular-nums whitespace-nowrap">{h.phu}</span>}
+        {h.giaTri !== undefined && (
+          <span
+            className={clsx(
+              'tabular-nums text-right whitespace-nowrap shrink-0',
+              cap === 2 ? 'text-sm font-semibold' : 'text-xs',
+              h.mauGiaTri ?? 'text-on-surface'
+            )}
+          >
+            {h.giaTri}
+          </span>
+        )}
+        <span
+          className={clsx(
+            'material-symbols-outlined text-[18px] w-[18px] shrink-0 text-on-surface-variant transition-transform',
+            h.moRong && 'rotate-90'
+          )}
+        >
+          {h.moRong !== undefined || h.onClick ? 'chevron_right' : ''}
+        </span>
+      </>
+    );
+    const lop = clsx(
+      cap === 2 ? LE_CAP2 : LE_CAP3,
+      'w-full flex items-center gap-3 text-left',
+      cap === 2 ? 'py-2.5' : 'py-2',
+      h.onClick && 'hover:bg-surface-container-high/40 transition-colors'
+    );
+    return h.onClick ? (
+      <button key={h.khoa} type="button" onClick={h.onClick} className={lop}>
+        {noiDung}
+      </button>
+    ) : (
+      <div key={h.khoa} className={lop}>
+        {noiDung}
+      </div>
+    );
+  };
+
+  /** Tiêu đề nhỏ viết hoa ngăn các nhóm trong cấp 2. */
+  const tieuDeMuc = (chu: string, phai?: ReactNode) => (
+    <div className={clsx(LE_CAP2, 'pt-3 pb-2 flex items-center justify-between gap-3')}>
+      <span className="font-mono text-[10px] font-bold tracking-wider uppercase text-on-surface-variant">{chu}</span>
+      {phai}
     </div>
   );
+
+  /** Hàng nút cuối khung con. */
+  const hangNut = (nut: ReactNode) => <div className={clsx(LE_CAP2, 'py-3 flex items-center gap-4')}>{nut}</div>;
+
+  const nutChinh = 'px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold';
 
   const ai = du?.ai;
   const kenh = du?.kenh;
@@ -166,58 +229,13 @@ export default function ChiPhiHeThong() {
 
   const moNhatKy = (loc: LocLuot, tieuDe: string) => setNhatKy({ loc, tieuDe });
 
-  /** Một dòng bấm được trong phần con: tên, số lượt, số tiền. */
-  const dongCon = (khoa: string, ten: string, lan: number, usd: number, onClick: () => void, thut = false, dam = false) => (
-    <button
-      key={khoa}
-      type="button"
-      onClick={onClick}
-      className={clsx('w-full flex items-center gap-3 py-1.5 text-xs text-left hover:bg-surface-container-high/40 rounded', thut && 'pl-4')}
-    >
-      <span className={clsx('flex-1 min-w-0 truncate', dam ? 'font-bold text-on-surface' : 'text-on-surface-variant')}>{ten}</span>
-      <span className="text-on-surface-variant/70 tabular-nums">{lan.toLocaleString('vi-VN')} lượt</span>
-      <span className={clsx('shrink-0 text-right tabular-nums whitespace-nowrap', dam && 'font-bold', mauChi(usd))}>{chiDu(usd)}</span>
-    </button>
-  );
-
-  const dongDoiChieu = () => {
-    const kieu = !dc
-      ? { ky: 'help', mau: 'text-on-surface-variant', chu: 'Chưa đối chiếu được với nhà cung cấp' }
-      : dc.trangThai === 'khop'
-        ? { ky: 'check_circle', mau: 'text-green-400', chu: 'Khớp tuyệt đối với nhà cung cấp' }
-        : dc.trangThai === 'dang_cho'
-          ? { ky: 'schedule', mau: 'text-amber-400', chu: `Đang chờ nhà cung cấp chốt ${dc.sauMoc.soLuotCho} lượt` }
-          : { ky: 'error', mau: 'text-red-400', chu: `Lệch ${chiDu(Math.abs(dc.sauMoc.lechUsd)).replace('−', '')} so với nhà cung cấp` };
-    return (
-      <div>
-        <button type="button" onClick={() => setMoDoiChieu(!moDoiChieu)} className={clsx('w-full flex items-center gap-2 text-xs text-left', kieu.mau)}>
-          <span className="material-symbols-outlined text-[16px]">{kieu.ky}</span>
-          <span className="flex-1 font-bold">{kieu.chu}</span>
-          <span className={clsx('material-symbols-outlined text-[16px] transition-transform', moDoiChieu && 'rotate-90')}>chevron_right</span>
-        </button>
-        {moDoiChieu && dc && (
-          <div className="mt-1.5 pl-6 space-y-1 text-xs">
-            {(
-              [
-                ['Nhà cung cấp đã trừ, từ trước tới nay', dc.nhaCungCapUsd],
-                ['Sổ của app ghi, từ trước tới nay', dc.soAppUsd],
-                ...(daChi(dc.ngoaiSoTruocMocUsd)
-                  ? [[`Ngoài sổ, trước ${ngayVN(dc.mocLuc)} (chạy thử, sổ cũ ghi thiếu)`, dc.ngoaiSoTruocMocUsd]]
-                  : []),
-                [`Từ ${ngayVN(dc.mocLuc)}: nhà cung cấp trừ`, dc.sauMoc.nhaCungCapUsd],
-                [`Từ ${ngayVN(dc.mocLuc)}: sổ ghi`, dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd],
-              ] as [string, number][]
-            ).map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4">
-                <span className="text-on-surface-variant min-w-0">{k}</span>
-                <span className={clsx('tabular-nums text-right whitespace-nowrap shrink-0', mauChi(v))}>{chiDu(v)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const kieuDoiChieu = !dc
+    ? { ky: 'help', mau: 'text-on-surface-variant', chu: 'Chưa đối chiếu được với nhà cung cấp' }
+    : dc.trangThai === 'khop'
+      ? { ky: 'check_circle', mau: 'text-green-400', chu: 'Khớp tuyệt đối với nhà cung cấp' }
+      : dc.trangThai === 'dang_cho'
+        ? { ky: 'schedule', mau: 'text-amber-400', chu: `Đang chờ nhà cung cấp chốt ${dc.sauMoc.soLuotCho} lượt` }
+        : { ky: 'error', mau: 'text-red-400', chu: `Lệch ${chiDu(Math.abs(dc.sauMoc.lechUsd)).replace('−', '')} so với nhà cung cấp` };
 
   return (
     <section className="mb-10 max-w-2xl">
@@ -242,26 +260,59 @@ export default function ChiPhiHeThong() {
          * kiện ai.ok giấu sạch phần chi tiết — bấm vào không ra gì, không lý do.
          */}
         {mo === 'ai' && du && (
-          <div className="px-5 pb-4 pl-[2.6rem] space-y-3">
-            {canhBao('ai').map((c) => (
-              <p key={c.ma} className={clsx('text-xs', c.mucDo === 'nguy_cap' ? 'text-red-400' : c.mucDo === 'can_lam' ? 'text-amber-400' : 'text-on-surface-variant')}>
-                {c.noiDung}
-              </p>
-            ))}
-
-            {dongDoiChieu()}
-
-            {ai?.ok && (
-              <div className="flex justify-between gap-4 text-xs">
-                <span className="text-on-surface-variant">Còn lại</span>
-                <span className={clsx('tabular-nums', thieuTien ? 'text-amber-400' : 'text-green-400')}>
-                  {so(ai.conLaiUsd ?? 0)} USD{tbNgay > 0 ? ` · đủ ~${Math.floor((ai.conLaiUsd ?? 0) / tbNgay)} ngày` : ''}
-                </span>
-              </div>
+          <div className={KHUNG_CON}>
+            {canhBao('ai').map((c) =>
+              hang(2, {
+                khoa: `cb-${c.ma}`,
+                nhan: (
+                  <span className={c.mucDo === 'nguy_cap' ? 'text-red-400' : c.mucDo === 'can_lam' ? 'text-amber-400' : 'text-on-surface-variant'}>
+                    {c.noiDung}
+                  </span>
+                ),
+              })
             )}
 
-            <div>
-              <div className="flex gap-1 mb-1.5">
+            {tieuDeMuc('Đối chiếu')}
+            {hang(2, {
+              khoa: 'doi-chieu',
+              nhan: (
+                <span className={clsx('flex items-center gap-2', kieuDoiChieu.mau)}>
+                  <span className="material-symbols-outlined text-[18px]">{kieuDoiChieu.ky}</span>
+                  {kieuDoiChieu.chu}
+                </span>
+              ),
+              onClick: dc ? () => setMoDoiChieu(!moDoiChieu) : undefined,
+              moRong: dc ? moDoiChieu : undefined,
+            })}
+            {moDoiChieu &&
+              dc &&
+              (
+                [
+                  ['Nhà cung cấp đã trừ, từ trước tới nay', dc.nhaCungCapUsd],
+                  ['Sổ của app ghi, từ trước tới nay', dc.soAppUsd],
+                  ...(daChi(dc.ngoaiSoTruocMocUsd)
+                    ? [[`Ngoài sổ, trước ${ngayVN(dc.mocLuc)} (chạy thử, sổ cũ ghi thiếu)`, dc.ngoaiSoTruocMocUsd]]
+                    : []),
+                  [`Từ ${ngayVN(dc.mocLuc)}: nhà cung cấp trừ`, dc.sauMoc.nhaCungCapUsd],
+                  [`Từ ${ngayVN(dc.mocLuc)}: sổ ghi`, dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd],
+                ] as [string, number][]
+              ).map(([k, v]) => hang(3, { khoa: `dc-${k}`, nhan: k, giaTri: chiDu(v), mauGiaTri: mauChi(v) }))}
+
+            {ai?.ok && (
+              <>
+                {tieuDeMuc('Số dư')}
+                {hang(2, {
+                  khoa: 'con-lai',
+                  nhan: 'Còn lại',
+                  giaTri: `${so(ai.conLaiUsd ?? 0)} USD${tbNgay > 0 ? ` · đủ ~${Math.floor((ai.conLaiUsd ?? 0) / tbNgay)} ngày` : ''}`,
+                  mauGiaTri: thieuTien ? 'text-amber-400' : 'text-green-400',
+                })}
+              </>
+            )}
+
+            {tieuDeMuc(
+              'Tháng này',
+              <div className="flex gap-1">
                 {(
                   [
                     ['viec', 'Theo việc'],
@@ -281,82 +332,131 @@ export default function ChiPhiHeThong() {
                   </button>
                 ))}
               </div>
+            )}
 
-              {cachXem === 'viec' &&
-                du.so.theoNhom.map((g) => (
-                  <div key={g.nhom}>
-                    {dongCon(`n-${g.nhom}`, g.ten, g.lan, g.usd, () => setMoNhom(moNhom === g.nhom ? null : g.nhom), false, true)}
-                    {moNhom === g.nhom &&
-                      g.viec.map((v) =>
-                        dongCon(`v-${v.viec}`, v.ten, v.lan, v.usd, () => moNhatKy({ viec: v.viec ?? 'chua_phan_loai' }, v.ten), true)
-                      )}
-                  </div>
-                ))}
+            {cachXem === 'viec' &&
+              du.so.theoNhom.flatMap((g) => [
+                hang(2, {
+                  khoa: `n-${g.nhom}`,
+                  nhan: g.ten,
+                  phu: `${g.lan.toLocaleString('vi-VN')} lượt`,
+                  giaTri: chiDu(g.usd),
+                  mauGiaTri: mauChi(g.usd),
+                  onClick: () => setMoNhom(moNhom === g.nhom ? null : g.nhom),
+                  moRong: moNhom === g.nhom,
+                }),
+                ...(moNhom === g.nhom
+                  ? g.viec.map((v) =>
+                      hang(3, {
+                        khoa: `v-${g.nhom}-${v.viec}`,
+                        nhan: v.ten,
+                        phu: `${v.lan.toLocaleString('vi-VN')} lượt`,
+                        giaTri: chiDu(v.usd),
+                        mauGiaTri: mauChi(v.usd),
+                        onClick: () => moNhatKy({ viec: v.viec ?? 'chua_phan_loai' }, v.ten),
+                      })
+                    )
+                  : []),
+              ])}
 
-              {cachXem === 'taiKhoan' &&
-                cay.map((t) => (
-                  <div key={`t-${t.userId}`}>
-                    {dongCon(
-                      `t-${t.userId}`,
-                      t.con.length ? `${t.ten} — cả chuỗi` : t.ten,
-                      t.lan + t.con.reduce((s2, c) => s2 + c.lan, 0),
-                      t.tongChuoi,
-                      () => moNhatKy({ tk: t.userId ?? 'chung', kemCon: t.con.length > 0 }, t.con.length ? `${t.ten} — cả chuỗi` : t.ten),
-                      false,
-                      true
-                    )}
-                    {t.con.length > 0 && daChi(t.usd) &&
-                      dongCon(`r-${t.userId}`, `${t.ten} — riêng`, t.lan, t.usd, () => moNhatKy({ tk: t.userId ?? 'chung' }, `${t.ten} — riêng`), true)}
-                    {t.con.map((c) => dongCon(`c-${c.userId}`, c.ten, c.lan, c.usd, () => moNhatKy({ tk: c.userId ?? 'chung' }, c.ten), true))}
-                  </div>
-                ))}
+            {cachXem === 'taiKhoan' &&
+              cay.flatMap((t) => {
+                const tenDong = t.con.length ? `${t.ten} — cả chuỗi` : t.ten;
+                return [
+                  hang(2, {
+                    khoa: `t-${t.userId}`,
+                    nhan: tenDong,
+                    phu: `${(t.lan + t.con.reduce((s2, c) => s2 + c.lan, 0)).toLocaleString('vi-VN')} lượt`,
+                    giaTri: chiDu(t.tongChuoi),
+                    mauGiaTri: mauChi(t.tongChuoi),
+                    onClick: () => moNhatKy({ tk: t.userId ?? 'chung', kemCon: t.con.length > 0 }, tenDong),
+                  }),
+                  ...(t.con.length > 0 && daChi(t.usd)
+                    ? [
+                        hang(3, {
+                          khoa: `r-${t.userId}`,
+                          nhan: `${t.ten} — riêng`,
+                          phu: `${t.lan.toLocaleString('vi-VN')} lượt`,
+                          giaTri: chiDu(t.usd),
+                          mauGiaTri: mauChi(t.usd),
+                          onClick: () => moNhatKy({ tk: t.userId ?? 'chung' }, `${t.ten} — riêng`),
+                        }),
+                      ]
+                    : []),
+                  ...t.con.map((c) =>
+                    hang(3, {
+                      khoa: `c-${c.userId}`,
+                      nhan: c.ten,
+                      phu: `${c.lan.toLocaleString('vi-VN')} lượt`,
+                      giaTri: chiDu(c.usd),
+                      mauGiaTri: mauChi(c.usd),
+                      onClick: () => moNhatKy({ tk: c.userId ?? 'chung' }, c.ten),
+                    })
+                  ),
+                ];
+              })}
 
-              {du.so.theoNhom.length === 0 && <p className="text-xs text-on-surface-variant py-1.5">Tháng này chưa dùng AI.</p>}
-            </div>
+            {du.so.theoNhom.length === 0 && hang(2, { khoa: 'trong', nhan: 'Tháng này chưa dùng AI.' })}
 
-            <div className="flex items-center gap-4">
-              <a
-                href={du.linkNap.openrouter}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold"
-              >
-                Nạp tiền AI
-              </a>
-              <button type="button" onClick={() => moNhatKy({}, 'Từng lượt dùng AI')} className="text-xs text-primary hover:underline">
-                Xem từng lượt ›
-              </button>
-            </div>
+            {hangNut(
+              <>
+                <a href={du.linkNap.openrouter} target="_blank" rel="noreferrer" className={nutChinh}>
+                  Nạp tiền AI
+                </a>
+                <button type="button" onClick={() => moNhatKy({}, 'Từng lượt dùng AI')} className="text-xs text-primary hover:underline">
+                  Xem từng lượt ›
+                </button>
+              </>
+            )}
           </div>
         )}
 
         {dong('kenh', 'Kết nối kênh', tienKenh)}
-        {mo === 'kenh' && kenh && !kenh.ok && (
-          <div className="px-5 pb-4 pl-[2.6rem]">
-            <p className="text-xs text-on-surface-variant">Chưa đọc được nhà cung cấp kênh: {kenh.loi ?? 'không rõ lý do'}</p>
-            <a href={du?.linkNap.kenh} target="_blank" rel="noreferrer" className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold">
-              Trang thanh toán
-            </a>
+        {mo === 'kenh' && kenh && (
+          <div className={KHUNG_CON}>
+            {canhBao('kenh').map((c) =>
+              hang(2, {
+                khoa: `cb-${c.ma}`,
+                nhan: (
+                  <span className={c.mucDo === 'nguy_cap' ? 'text-red-400' : c.mucDo === 'can_lam' ? 'text-amber-400' : 'text-on-surface-variant'}>
+                    {c.noiDung}
+                  </span>
+                ),
+              })
+            )}
+            {kenh.ok && (
+              <>
+                {hang(2, {
+                  khoa: 'trang-thai',
+                  nhan: 'Trạng thái',
+                  giaTri: kenh.conHoatDong ? 'Đang hoạt động' : `Tạm dừng — ${kenh.lyDoTamDung ?? 'chưa thanh toán'}`,
+                  mauGiaTri: kenh.conHoatDong ? 'text-green-400' : 'text-red-400',
+                })}
+                {hang(2, {
+                  khoa: 'can-tra',
+                  nhan: 'Cần trả',
+                  giaTri: kenh.canTraUsd ? chi(kenh.canTraUsd) : 'Không',
+                  mauGiaTri: mauChi(kenh.canTraUsd),
+                })}
+                {hang(2, { khoa: 'goi', nhan: 'Gói', giaTri: kenh.goi ?? '—', mauGiaTri: 'text-on-surface-variant' })}
+              </>
+            )}
+            {hangNut(
+              <a
+                href={(kenh.ok && kenh.linkHoaDon) || du?.linkNap.kenh}
+                target="_blank"
+                rel="noreferrer"
+                className={nutChinh}
+              >
+                {kenh.ok && kenh.linkHoaDon ? 'Trả hoá đơn' : 'Trang thanh toán'}
+              </a>
+            )}
           </div>
         )}
-        {mo === 'kenh' &&
-          kenh?.ok &&
-          chiTiet(
-            [
-              [
-                'Trạng thái',
-                kenh.conHoatDong ? 'Đang hoạt động' : `Tạm dừng — ${kenh.lyDoTamDung ?? 'chưa thanh toán'}`,
-                kenh.conHoatDong ? 'text-green-400' : 'text-red-400',
-              ],
-              ['Cần trả', kenh.canTraUsd ? chi(kenh.canTraUsd) : 'Không', mauChi(kenh.canTraUsd)],
-              ['Gói', kenh.goi ?? '—'],
-            ],
-            { ten: kenh.linkHoaDon ? 'Trả hoá đơn' : 'Trang thanh toán', link: kenh.linkHoaDon ?? du?.linkNap.kenh }
-          )}
 
         <div className="px-5 py-4 flex items-center gap-3 bg-surface-container-high/30">
           <span className="w-2.5 shrink-0" />
-          <span className="flex-1 text-sm font-bold text-on-surface">Tổng</span>
+          <span className="flex-1 text-base font-bold text-on-surface">Tổng</span>
           <span className="text-right">
             <span className={clsx('block text-xl font-bold tabular-nums', du ? mauChi(tong) : 'text-on-surface-variant')}>
               {du ? chi(tong) : '—'}

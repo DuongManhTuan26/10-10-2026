@@ -177,6 +177,30 @@ const DUC: PhepDuc[] = [
     thay: "        <div className=\"mb-6\">",
   },
   {
+    ten: "nhà cung cấp kênh không trả lời thì giấu chi tiết",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "        {mo === 'kenh' && kenh && (",
+    thay: "        {mo === 'kenh' && kenh?.ok && (",
+  },
+  {
+    ten: "bỏ đường kẻ giữa các dòng mục con",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "border-t border-outline-variant/60 divide-y divide-outline-variant/40';",
+    thay: "border-t border-outline-variant/60';",
+  },
+  {
+    ten: "mục con chữ to ngang dòng chính",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "cap === 2 ? 'text-sm text-on-surface' : 'text-xs text-on-surface-variant'",
+    thay: "cap === 2 ? 'text-base font-bold text-on-surface' : 'text-xs text-on-surface-variant'",
+  },
+  {
+    ten: "chi tiết cấp 3 không có vạch dọc",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: " before:w-px before:bg-outline-variant\";",
+    thay: "\";",
+  },
+  {
     ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",
     tep: "server/services/so-ai.ts",
     tim: "      ORDER BY tra_luc NULLS FIRST, created_at LIMIT $1`,",
