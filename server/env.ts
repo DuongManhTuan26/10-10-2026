@@ -68,11 +68,38 @@ export const env = {
   },
 
   sessionSecret: required("SESSION_SECRET"),
+
+  /**
+   * Xác thực bằng email khi đăng nhập/đăng ký.
+   *
+   * Mặc định BẬT khi chạy thật, TẮT khi thử trên máy. Đặt XAC_THUC_EMAIL=bat
+   * hoặc =tat để ép. Gửi qua Gmail của chủ hệ thống: SMTP_USER là địa chỉ
+   * Gmail, SMTP_PASS là "mật khẩu ứng dụng" 16 ký tự của Google (không phải
+   * mật khẩu Gmail).
+   */
+  email: {
+    batXacThuc:
+      optional("XAC_THUC_EMAIL") === "bat"
+        ? true
+        : optional("XAC_THUC_EMAIL") === "tat"
+          ? false
+          : nodeEnv === "production",
+    smtpHost: optional("SMTP_HOST", "smtp.gmail.com"),
+    smtpPort: Number(optional("SMTP_PORT", "465")),
+    smtpUser: optional("SMTP_USER"),
+    smtpPass: optional("SMTP_PASS"),
+    tenNguoiGui: optional("EMAIL_TEN_NGUOI_GUI", "Quản lý Fanpage"),
+  },
 } as const;
 
 /** Những tính năng chưa dùng được vì thiếu cấu hình — hiện cảnh báo lúc khởi động. */
 export function missingOptionalConfig(): string[] {
   const missing: string[] = [];
+  if (env.email.batXacThuc && (!env.email.smtpUser || !env.email.smtpPass)) {
+    missing.push(
+      "SMTP_USER / SMTP_PASS — đang bắt buộc xác thực email mà chưa cấu hình gửi email: KHÔNG AI đăng nhập được cho tới khi điền"
+    );
+  }
   if (!env.openrouter.apiKey) {
     missing.push(
       "OPENROUTER_API_KEY — các tính năng AI sẽ trả lỗi cho tới khi được điền"

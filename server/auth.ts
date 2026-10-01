@@ -302,5 +302,6 @@ export async function donDuLieuHetHan(): Promise<number> {
   const dangKy = await query(
     "DELETE FROM dang_ky_theo_ip WHERE created_at < now() - interval '1 day'"
   );
-  return (phien.rowCount ?? 0) + (dangNhap.rowCount ?? 0) + (dangKy.rowCount ?? 0);
+  const ve = await query("DELETE FROM ma_xac_thuc WHERE het_han < now() - interval '1 day'");
+  return (phien.rowCount ?? 0) + (dangNhap.rowCount ?? 0) + (dangKy.rowCount ?? 0) + (ve.rowCount ?? 0);
 }

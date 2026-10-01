@@ -8,6 +8,18 @@ export default function Auth({ onLogin, onRegister }: {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  /*
+   * Bước 2 khi chạy thật: mật khẩu đúng rồi, mã 6 số đã gửi vào email. Giữ
+   * email + mật khẩu trong bộ nhớ để "Gửi lại mã" không bắt gõ lại.
+   */
+  const [buocMa, setBuocMa] = useState<{
+    ve: string;
+    guiToi: string;
+    laDangKy: boolean;
+    email: string;
+    password: string;
+  } | null>(null);
+  const [ma, setMa] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,16 +35,26 @@ export default function Auth({ onLogin, onRegister }: {
 
     try {
       if (mode === 'login') {
-        const { user } = await api.auth.login(email, password);
-        onLogin(user);
+        const kq = await api.auth.login(email, password);
+        if (kq.canMa && kq.ve) {
+          setBuocMa({ ve: kq.ve, guiToi: kq.guiToi ?? 'email của bạn', laDangKy: false, email, password });
+          setMa('');
+          return;
+        }
+        onLogin(kq.user!);
       } else {
         const confirm = String(formData.get('confirmPassword') ?? '');
         if (confirm && confirm !== password) {
           setError('Mật khẩu nhập lại không khớp');
           return;
         }
-        const { user } = await api.auth.register(email, password, name);
-        onRegister(user);
+        const kq = await api.auth.register(email, password, name);
+        if (kq.canMa && kq.ve) {
+          setBuocMa({ ve: kq.ve, guiToi: kq.guiToi ?? 'email của bạn', laDangKy: true, email, password });
+          setMa('');
+          return;
+        }
+        onRegister(kq.user!);
       }
     } catch (err) {
       setError(
@@ -44,6 +66,43 @@ export default function Auth({ onLogin, onRegister }: {
       setBusy(false);
     }
   }
+
+  const xacNhanMa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!buocMa || busy) return;
+    setError('');
+    setBusy(true);
+    try {
+      const { user } = await api.auth.xacThuc(buocMa.ve, ma);
+      if (buocMa.laDangKy) onRegister(user);
+      else onLogin(user);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Không kết nối được máy chủ.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const guiLaiMa = async () => {
+    if (!buocMa || busy) return;
+    setError('');
+    setBusy(true);
+    try {
+      // Gửi lại = đăng nhập lại bằng đúng email và mật khẩu vừa gõ → vé mới, mã mới.
+      const kq = await api.auth.login(buocMa.email, buocMa.password);
+      if (kq.canMa && kq.ve) {
+        setBuocMa({ ...buocMa, ve: kq.ve, guiToi: kq.guiToi ?? buocMa.guiToi });
+        setMa('');
+        setError('Đã gửi mã mới. Kiểm tra cả mục Thư rác nếu chưa thấy.');
+      } else if (kq.user) {
+        onLogin(kq.user);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Không kết nối được máy chủ.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-background relative overflow-hidden">
@@ -75,6 +134,46 @@ export default function Auth({ onLogin, onRegister }: {
           </button>
         </div>
 
+        {buocMa ? (
+          <form onSubmit={xacNhanMa} className="p-md flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="font-label-sm text-on-surface">Mã xác thực</label>
+              <p className="font-body-md text-sm text-on-surface-variant leading-relaxed">
+                Mã 6 số đã gửi tới <span className="text-primary font-bold">{buocMa.guiToi}</span>. Mã có hiệu lực 10
+                phút. Không thấy thì kiểm tra cả mục Thư rác.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={6}
+                value={ma}
+                onChange={(e) => setMa(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full bg-surface-container-high border border-outline focus:border-primary rounded-lg px-4 py-3 text-on-surface outline-none transition-colors text-center text-2xl tracking-[0.5em] font-bold"
+                placeholder="••••••"
+              />
+            </div>
+            {error && (
+              <p className="text-error font-body-md text-sm bg-error/10 border border-error/30 rounded-lg px-4 py-3">{error}</p>
+            )}
+            <button
+              type="submit"
+              disabled={busy || ma.length !== 6}
+              className="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg shadow-[0_0_15px_rgba(0,229,255,0.4)] hover:brightness-110 transition-all font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+            >
+              {busy ? 'Đang kiểm tra…' : 'Xác nhận'}
+            </button>
+            <div className="flex items-center justify-between text-sm">
+              <button type="button" onClick={() => { setBuocMa(null); setError(''); }} className="text-on-surface-variant hover:text-on-surface">
+                ← Quay lại
+              </button>
+              <button type="button" onClick={guiLaiMa} disabled={busy} className="text-primary hover:underline font-bold disabled:opacity-50">
+                Gửi lại mã
+              </button>
+            </div>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} className="p-md flex flex-col gap-4">
           {mode === 'register' && (
             <div className="flex flex-col gap-1.5">
@@ -170,6 +269,7 @@ export default function Auth({ onLogin, onRegister }: {
             </p>
           )}
         </form>
+        )}
       </div>
     </div>
   );

@@ -30,6 +30,48 @@ interface PhepDuc {
 
 const DUC: PhepDuc[] = [
   {
+    ten: "đăng ký cấp phiên luôn, không chứng minh email",
+    tep: "server/routes/auth.ts",
+    tim: 'const ve = await taoVeXacThuc({ user: taiKhoan, mucDich: "dang_ky" });\n      res.status(201).json({ success: true, canMa: true, ...ve });\n      return;',
+    thay: "",
+  },
+  {
+    ten: "đăng nhập cấp phiên luôn, bỏ bước mã email",
+    tep: "server/routes/auth.ts",
+    tim: 'const ve = await taoVeXacThuc({ user, mucDich: "dang_nhap" });\n      res.json({ success: true, canMa: true, ...ve });\n      return;',
+    thay: "",
+  },
+  {
+    ten: "so mã trước rồi mới tăng số lần sai (đoán song song lọt)",
+    tep: "server/services/xac-thuc-email.ts",
+    tim: "AND so_lan_sai < $2 AND dung_at IS NULL",
+    thay: "AND dung_at IS NULL",
+  },
+  {
+    ten: "xoá vé khi dùng xong (bộ đếm mã mỗi giờ đếm thiếu)",
+    tep: "server/services/xac-thuc-email.ts",
+    tim: 'await query("UPDATE ma_xac_thuc SET dung_at = now() WHERE id = $1", [ve]);',
+    thay: 'await query("DELETE FROM ma_xac_thuc WHERE id = $1", [ve]);',
+  },
+  {
+    ten: "chạy thật mà chưa có Gmail thì lặng lẽ bỏ qua",
+    tep: "server/services/xac-thuc-email.ts",
+    tim: "    if (env.isProduction) {\n      throw new AppError(\n        \"Hệ thống chưa cấu hình gửi email",
+    thay: "    if (false) {\n      throw new AppError(\n        \"Hệ thống chưa cấu hình gửi email",
+  },
+  {
+    ten: "in mã ra nhật ký cả khi chạy thật",
+    tep: "server/services/xac-thuc-email.ts",
+    tim: "if (!env.email.smtpUser && !env.isProduction) {",
+    thay: "if (!env.email.smtpUser) {",
+  },
+  {
+    ten: "tắt xác thực email mặc định khi chạy thật",
+    tep: "server/env.ts",
+    tim: ': nodeEnv === "production",\n    smtpHost',
+    thay: ": false,\n    smtpHost",
+  },
+  {
     ten: "danh sách sửa video lẫn model tạo video",
     tep: "server/services/video-sua.ts",
     tim: "return /video[- ]?edit|editing|aleph|upscal/i.test(",
@@ -1921,8 +1963,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "tự đăng ký ra thẳng một trang, không thêm được trang thứ hai",
     tep: "server/routes/auth.ts",
-    tim: '      role: "admin_con",\n    });\n\n    await createSession(res, taiKhoan.id);',
-    thay: "    });\n\n    await createSession(res, taiKhoan.id);",
+    tim: '      role: "admin_con",\n    });\n',
+    thay: "    });\n",
   },
   {
     // Đúng lỗi chủ sản phẩm bắt được: đổi tên trang làm xong ở máy chủ và ở

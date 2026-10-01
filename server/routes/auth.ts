@@ -12,7 +12,8 @@ import {
 import { AppError, requireString, route } from "../http.js";
 import * as zernio from "../services/zernio.js";
 import { ensureProfile } from "../services/accounts.js";
-import { taoTaiKhoan } from "../services/tai-khoan.js";
+import { taoTaiKhoan, laTenDangNhapNoiBo } from "../services/tai-khoan.js";
+import { canXacThucEmail, taoVeXacThuc, xacNhanMa } from "../services/xac-thuc-email.js";
 
 export const authRouter = Router();
 
@@ -83,6 +84,16 @@ authRouter.post(
       name: typeof req.body?.name === "string" ? req.body.name : "",
       role: "admin_con",
     });
+
+    /*
+     * Chạy thật thì phải chứng minh email là của mình rồi mới có phiên — không
+     * thì ai cũng đăng ký được bằng email của người khác.
+     */
+    if (canXacThucEmail()) {
+      const ve = await taoVeXacThuc({ user: taiKhoan, mucDich: "dang_ky" });
+      res.status(201).json({ success: true, canMa: true, ...ve });
+      return;
+    }
 
     await createSession(res, taiKhoan.id);
     res.status(201).json({ success: true, user: await hoSoNguoiDung(taiKhoan.id, null) });
@@ -192,9 +203,45 @@ authRouter.post(
     // Đúng mật khẩu thì xoá sạch lịch sử sai, để lần sau gõ nhầm không bị chặn oan.
     await query("DELETE FROM login_attempts WHERE lower(email) = $1", [email]).catch(() => {});
 
+    /*
+     * Mật khẩu đúng CHƯA đủ khi chạy thật: gửi mã vào email, chưa cấp phiên.
+     * Kẻ biết mật khẩu mà không mở được hộp thư thì không vào được.
+     */
+    if (canXacThucEmail()) {
+      const ve = await taoVeXacThuc({ user, mucDich: "dang_nhap" });
+      res.json({ success: true, canMa: true, ...ve });
+      return;
+    }
+
     await createSession(res, user.id);
     // Cùng một hình dạng với /auth/me. Thiếu role ở đây là giao diện vẽ sai
     // menu cho tới khi người dùng tự tải lại trang.
+    res.json({ success: true, user: await hoSoNguoiDung(user.id, null) });
+  })
+);
+
+/** Bước 2 của đăng nhập/đăng ký: gõ mã 6 số đã gửi vào email. Đúng mới có phiên. */
+authRouter.post(
+  "/xac-thuc",
+  route(async (req, res) => {
+    const ve = typeof req.body?.ve === "string" ? req.body.ve : "";
+    const ma = typeof req.body?.ma === "string" ? req.body.ma : "";
+    const { userId } = await xacNhanMa(ve, ma);
+
+    const user = await queryOne<{ id: number; email: string; is_active: boolean }>(
+      "SELECT id, email, is_active FROM users WHERE id = $1",
+      [userId]
+    );
+    // Bị khoá trong lúc chờ mã thì vẫn không cho vào.
+    if (!user || !user.is_active) throw new AppError("Email hoặc mật khẩu không đúng", 401);
+    // Gõ đúng mã = email này đúng là của chủ tài khoản (trang con thì mã về email chủ chuỗi).
+    if (!laTenDangNhapNoiBo(user.email)) {
+      await query(
+        "UPDATE users SET email_xac_thuc_at = now() WHERE id = $1 AND email_xac_thuc_at IS NULL",
+        [user.id]
+      );
+    }
+    await createSession(res, user.id);
     res.json({ success: true, user: await hoSoNguoiDung(user.id, null) });
   })
 );

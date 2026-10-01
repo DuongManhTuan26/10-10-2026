@@ -41,6 +41,7 @@ import { chuanHoaModel, giaMoiGiay, lyDoKhongHop, kichThuocKhop } from "../serve
 import { chuanHoaCanh, giaDuAn, giayGanNhat, TOI_DA_CANH, TOI_DA_GIAY_DU_AN } from "../server/services/video-dai.js";
 import { docThongTinVideo } from "../server/services/video-cong-cu.js";
 import { laModelSuaVideo, giaSuaVideo } from "../server/services/video-sua.js";
+import { cheEmail, SAI_TOI_DA, MA_MOI_GIO_TOI_DA, SONG_PHUT } from "../server/services/xac-thuc-email.js";
 import {
   xinSuat,
   xinSuatDocAnh,
@@ -2907,8 +2908,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    */
   const nguonAuthRoute = fs.readFileSync(path.join(GOC, "server/routes/auth.ts"), "utf8");
   const soDungChung = (nguonAuthRoute.match(/await hoSoNguoiDung\(/g) ?? []).length;
-  kiem("phân tầng", "đăng nhập, đăng ký và /me trả cùng một hình dạng người dùng",
-    soDungChung, 3);
+  // 4 chỗ: đăng nhập, đăng ký, /me và bước gõ mã email (/xac-thuc) — mọi chỗ cấp
+  // phiên đều trả hồ sơ qua cùng một hàm.
+  kiem("phân tầng", "đăng nhập, đăng ký, gõ mã email và /me trả cùng một hình dạng người dùng",
+    soDungChung, 4);
   kiem("phân tầng", "không đường nào tự bịa hình dạng người dùng riêng",
     /user: \{ id: [a-zA-Z.]+, email: [a-zA-Z.]+, name: [a-zA-Z.]+ \}/.test(nguonAuthRoute), false);
 
@@ -3778,6 +3781,41 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /if \(soGiay > TOI_DA_GIAY_NGUON\) \{\s*throw/.test(nguonSua) && nguonSua.indexOf("if (soGiay > TOI_DA_GIAY_NGUON)") < nguonSua.indexOf("await goiTaoViec("), true);
   kiem("trend", "chỉ đưa model xem video trong kho của mình",
     /\{ type: "video_url", video_url: \{ url: nguon \} \}/.test(nguonTrend), true);
+
+  // Xác thực bằng email. Đã thử tấn công thật: 12/12 tình huống đúng.
+  kiem("xác thực email", "che email khi báo đã gửi", cheEmail("hoangtuan3310tn@gmail.com"), "ho************n@gmail.com");
+  kiem("xác thực email", "email tên ngắn vẫn che", cheEmail("ab@x.vn"), "a*@x.vn");
+  kiem("xác thực email", "sai tối đa 5 lần, mã sống 10 phút, 5 mã mỗi giờ", [SAI_TOI_DA, SONG_PHUT, MA_MOI_GIO_TOI_DA], [5, 10, 5]);
+  const nguonOtp = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/xac-thuc-email.ts"), "utf8"));
+  kiem("xác thực email", "tăng số lần sai TRƯỚC khi so (bắn song song không vượt 5)",
+    /UPDATE ma_xac_thuc SET so_lan_sai = so_lan_sai \+ 1\s*WHERE id = \$1 AND het_han > now\(\) AND so_lan_sai < \$2 AND dung_at IS NULL/.test(nguonOtp), true);
+  kiem("xác thực email", "so mã theo thời gian hằng số", /crypto\.timingSafeEqual\(Buffer\.from\(bamMa\(ve, sach\)\)/.test(nguonOtp), true);
+  kiem("xác thực email", "vé dùng xong đánh dấu, không xoá (bộ đếm 5 mã/giờ thấy đủ)",
+    /UPDATE ma_xac_thuc SET dung_at = now\(\) WHERE id = \$1/.test(nguonOtp) && !/DELETE FROM ma_xac_thuc WHERE id/.test(nguonOtp), true);
+  kiem("xác thực email", "chỉ lưu bản băm của mã", /ma_hash, gui_toi, het_han\)/.test(nguonOtp) && /bamMa\(ve, ma\)/.test(nguonOtp), true);
+  kiem("xác thực email", "chạy thật mà chưa có Gmail thì từ chối, không bỏ qua bước",
+    /if \(env\.isProduction\) \{\s*throw new AppError\(\s*"Hệ thống chưa cấu hình gửi email/.test(nguonOtp), true);
+  kiem("xác thực email", "chỉ in mã ra nhật ký khi KHÔNG chạy thật",
+    /if \(!env\.email\.smtpUser && !env\.isProduction\) \{[\s\S]{0,200}?mã cho vé/.test(nguonOtp), true);
+  kiem("xác thực email", "trang con: mã về email chủ chuỗi",
+    /if \(!laTenDangNhapNoiBo\(user\.email\)\) return \{ email: user\.email, laChuChuoi: false \};[\s\S]{0,200}?JOIN users t ON t\.parent_id = c\.id/.test(nguonOtp), true);
+  const nguonEnv = boChuThichTS(fs.readFileSync(path.join(GOC, "server/env.ts"), "utf8"));
+  kiem("xác thực email", "mặc định BẬT khi chạy thật", /: nodeEnv === "production",\s*smtpHost/.test(nguonEnv), true);
+  /*
+   * Khớp NGUYÊN khối: gửi mã, trả canMa, rồi return — đứng TRƯỚC chỗ cấp phiên.
+   * Bản trước dò chữ "return;" bằng indexOf: đục bỏ cả khối thì indexOf trả -1,
+   * mà -1 < vị trí cấp phiên nên vẫn báo đạt — bộ đục lỗ đã bắt được.
+   */
+  const hamDangNhap = nguonDangKy.slice(nguonDangKy.indexOf('"/login",'), nguonDangKy.indexOf('"/xac-thuc",'));
+  const khoiMaDangNhap = /if \(canXacThucEmail\(\)\) \{\s*const ve = await taoVeXacThuc\(\{ user, mucDich: "dang_nhap" \}\);\s*res\.json\(\{ success: true, canMa: true, \.\.\.ve \}\);\s*return;\s*\}/.exec(hamDangNhap);
+  kiem("xác thực email", "đăng nhập: cần mã thì gửi mã và KHÔNG cấp phiên",
+    !!khoiMaDangNhap && khoiMaDangNhap.index < hamDangNhap.indexOf("await createSession(res, user.id);"), true);
+  const hamDangKy = nguonDangKy.slice(nguonDangKy.indexOf('"/register",'), nguonDangKy.indexOf('"/login",'));
+  const khoiMaDangKy = /if \(canXacThucEmail\(\)\) \{\s*const ve = await taoVeXacThuc\(\{ user: taiKhoan, mucDich: "dang_ky" \}\);\s*res\.status\(201\)\.json\(\{ success: true, canMa: true, \.\.\.ve \}\);\s*return;\s*\}/.exec(hamDangKy);
+  kiem("xác thực email", "đăng ký: cần mã thì gửi mã và KHÔNG cấp phiên",
+    !!khoiMaDangKy && khoiMaDangKy.index < hamDangKy.indexOf("await createSession(res, taiKhoan.id);"), true);
+  kiem("xác thực email", "bị khoá trong lúc chờ mã thì không cho vào",
+    /if \(!user \|\| !user\.is_active\) throw new AppError\("Email hoặc mật khẩu không đúng", 401\);/.test(nguonDangKy), true);
 
   // Đã đo: Range 0-99 lên /media trả 200 cả tệp, không Accept-Ranges — Safari
   // không phát được video. Nay chuyển tiếp Range, trả 206 và gửi dạng dòng chảy.

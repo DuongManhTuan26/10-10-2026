@@ -626,10 +626,16 @@ export const api = {
 
   auth: {
     me: () => get<{ user: User }>("/auth/me"),
+    /**
+     * Khi chạy thật, mật khẩu đúng chưa cấp phiên mà trả canMa + vé: mã 6 số
+     * đã gửi vào email, gọi xacThuc(ve, ma) để vào.
+     */
     login: (email: string, password: string) =>
-      post<{ user: User }>("/auth/login", { email, password }),
+      post<{ user?: User; canMa?: boolean; ve?: string; guiToi?: string }>("/auth/login", { email, password }),
     register: (email: string, password: string, name: string) =>
-      post<{ user: User }>("/auth/register", { email, password, name }),
+      post<{ user?: User; canMa?: boolean; ve?: string; guiToi?: string }>("/auth/register", { email, password, name }),
+    /** Bước 2: gõ mã 6 số đã gửi vào email. */
+    xacThuc: (ve: string, ma: string) => post<{ user: User }>("/auth/xac-thuc", { ve, ma }),
     logout: () => post<{ success: boolean }>("/auth/logout"),
     /** Đổi mật khẩu. Mọi phiên đăng nhập khác sẽ bị đăng xuất. */
     changePassword: (currentPassword: string, newPassword: string) =>
