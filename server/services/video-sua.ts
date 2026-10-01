@@ -9,7 +9,7 @@
 import { queryOne } from "../db.js";
 import { env } from "../env.js";
 import { AppError } from "../http.js";
-import { asRecord, optionalString } from "./ai.js";
+import { banGhi, optionalString } from "./ai.js";
 import { thongTin, taiVe, voiThuMucTam } from "./video-cong-cu.js";
 import { COT_VIEC, diaChiKhoHopLe, goiTaoViec, LUAT_VIDEO, videoDangBat, type ViecVideo } from "./video-ai.js";
 import path from "node:path";
@@ -41,8 +41,8 @@ export async function layModelSuaVideo(): Promise<ModelSuaVideo[]> {
   const j = (await r.json()) as { data?: unknown[] } | unknown[];
   const tho = Array.isArray(j) ? j : (j.data ?? []);
   const ds: ModelSuaVideo[] = [];
-  for (const m of tho.map(asRecord)) {
-    const gia = asRecord(m.pricing_skus);
+  for (const m of tho.map(banGhi)) {
+    const gia = banGhi(m.pricing_skus);
     const cent = Number(gia.cents_per_second_output);
     const id = optionalString(m.id);
     if (!id || !Number.isFinite(cent) || cent <= 0) continue;

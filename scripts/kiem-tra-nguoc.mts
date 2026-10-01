@@ -30,6 +30,36 @@ interface PhepDuc {
 
 const DUC: PhepDuc[] = [
   {
+    ten: "tạo ảnh không ghi sổ chi phí",
+    tep: "server/services/image-ai.ts",
+    tim: "`INSERT INTO ai_usage (user_id, task, model, cost_usd) VALUES ($1, 'image', $2, $3)`,",
+    thay: "`SELECT $1::bigint, $2::text, $3::numeric`,",
+  },
+  {
+    ten: "bỏ cảnh báo khi nhà cung cấp kênh tạm dừng",
+    tep: "server/services/chi-phi.ts",
+    tim: "if (kenh.ok && kenh.conHoatDong === false) {",
+    thay: "if (false) {",
+  },
+  {
+    ten: "bỏ cảnh báo tiền AI sắp hết",
+    tep: "server/services/chi-phi.ts",
+    tim: "} else if (conLai < nguong.soDuToiThieuUsd || (soNgayCon !== null && soNgayCon < nguong.soNgayToiThieu)) {",
+    thay: "} else if (false) {",
+  },
+  {
+    ten: "gửi hỏng vẫn đánh dấu đã gửi (lần sau không báo nữa)",
+    tep: "server/services/chi-phi.ts",
+    tim: "if (soDaGui > 0) {\n    for (const c of moi) daGui[c.ma] = bayGio;",
+    thay: "if (true) {\n    for (const c of moi) daGui[c.ma] = bayGio;",
+  },
+  {
+    ten: "đọc mềm lại ném lỗi",
+    tep: "server/services/ai.ts",
+    tim: "? (value as Record<string, unknown>)\n    : {};",
+    thay: "? (value as Record<string, unknown>)\n    : (null as never);",
+  },
+  {
     ten: "đăng ký cấp phiên luôn, không chứng minh email",
     tep: "server/routes/auth.ts",
     tim: 'const ve = await taoVeXacThuc({ user: taiKhoan, mucDich: "dang_ky" });\n      res.status(201).json({ success: true, canMa: true, ...ve });\n      return;',

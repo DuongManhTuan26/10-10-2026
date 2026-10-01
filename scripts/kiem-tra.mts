@@ -42,6 +42,8 @@ import { chuanHoaCanh, giaDuAn, giayGanNhat, TOI_DA_CANH, TOI_DA_GIAY_DU_AN } fr
 import { docThongTinVideo } from "../server/services/video-cong-cu.js";
 import { laModelSuaVideo, giaSuaVideo } from "../server/services/video-sua.js";
 import { cheEmail, SAI_TOI_DA, MA_MOI_GIO_TOI_DA, SONG_PHUT } from "../server/services/xac-thuc-email.js";
+import { danhGia, chuanHoaNguong, NGUONG_MAC_DINH } from "../server/services/chi-phi.js";
+import { banGhi } from "../server/services/ai.js";
 import {
   xinSuat,
   xinSuatDocAnh,
@@ -1372,6 +1374,9 @@ kiem("nhiều shop", "một mình dùng thì vẫn được trọn hạn mức",
  *
  * dang_ky_theo_ip đếm lượt đăng ký theo IP, ghi TRƯỚC khi tài khoản tồn tại —
  * chưa có shop nào để gắn, cùng lý do với login_attempts.
+ *
+ * cai_dat_he_thong là cài đặt của chủ hệ thống (ngưỡng cảnh báo chi phí…),
+ * áp cho mọi shop — không thuộc shop nào.
  */
 const BANG_DUNG_CHUNG = [
   "schema_migrations",
@@ -1380,6 +1385,7 @@ const BANG_DUNG_CHUNG = [
   "admin_audit",
   "login_attempts",
   "dang_ky_theo_ip",
+  "cai_dat_he_thong",
 ];
 const cauLenhTaoBang = fs
   .readdirSync(path.join(GOC, "server/migrations"))
@@ -3816,6 +3822,37 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     !!khoiMaDangKy && khoiMaDangKy.index < hamDangKy.indexOf("await createSession(res, taiKhoan.id);"), true);
   kiem("xác thực email", "bị khoá trong lúc chờ mã thì không cho vào",
     /if \(!user \|\| !user\.is_active\) throw new AppError\("Email hoặc mật khẩu không đúng", 401\);/.test(nguonDangKy), true);
+
+  // Chi phí hệ thống. Đã đo: nhà cung cấp kênh từng bị dừng vì chưa trả tiền mà
+  // không ai biết; sổ AI từng ghi thiếu ảnh (app 1,49 USD, thật 2,62 USD).
+  const aiOn = { ok: true, daNapUsd: 10, daTieuUsd: 2, conLaiUsd: 8, homNayUsd: 0.1, tuanNayUsd: 1.4, thangNayUsd: 2 };
+  const kenhOn = { ok: true, conHoatDong: true, canTraUsd: null };
+  const ma = (ds: { ma: string }[]) => ds.map((c) => c.ma).sort();
+  kiem("chi phí", "mọi thứ ổn thì không cảnh báo", ma(danhGia(aiOn, kenhOn, NGUONG_MAC_DINH)), []);
+  kiem("chi phí", "kênh bị tạm dừng → cảnh báo nguy cấp kèm link trả",
+    danhGia(aiOn, { ok: true, conHoatDong: false, lyDoTamDung: "payment required", linkHoaDon: "https://hd" }, NGUONG_MAC_DINH)
+      .map((c) => `${c.ma}/${c.mucDo}/${c.link}`), ["kenh_tam_dung/nguy_cap/https://hd"]);
+  kiem("chi phí", "có hoá đơn cần trả → cảnh báo", ma(danhGia(aiOn, { ok: true, conHoatDong: true, canTraUsd: 5 }, NGUONG_MAC_DINH)), ["kenh_can_tra"]);
+  kiem("chi phí", "tiền AI dưới ngưỡng → cảnh báo nạp", ma(danhGia({ ...aiOn, conLaiUsd: 2 }, kenhOn, NGUONG_MAC_DINH)), ["ai_sap_het"]);
+  kiem("chi phí", "còn đủ ít ngày dù trên ngưỡng tiền → cảnh báo nạp",
+    ma(danhGia({ ...aiOn, conLaiUsd: 5, tuanNayUsd: 14 }, kenhOn, NGUONG_MAC_DINH)), ["ai_sap_het"]);
+  kiem("chi phí", "hết tiền AI → nguy cấp", danhGia({ ...aiOn, conLaiUsd: 0 }, kenhOn, NGUONG_MAC_DINH)[0]?.mucDo, "nguy_cap");
+  kiem("chi phí", "tiêu gấp nhiều lần trung bình → cảnh báo tiêu quá",
+    ma(danhGia({ ...aiOn, homNayUsd: 1, tuanNayUsd: 1.4 }, kenhOn, NGUONG_MAC_DINH)), ["ai_tieu_qua"]);
+  kiem("chi phí", "tiêu ít (dưới 0,5 USD) thì không báo tiêu quá dù gấp nhiều lần",
+    ma(danhGia({ ...aiOn, homNayUsd: 0.3, tuanNayUsd: 0.14 }, kenhOn, NGUONG_MAC_DINH)), []);
+  kiem("chi phí", "ngưỡng rác về mặc định", chuanHoaNguong({ soDuToiThieuUsd: "abc", soNgayToiThieu: -3, heSoTieuQua: 0 }), NGUONG_MAC_DINH);
+  kiem("chi phí", "đọc mềm: không phải đối tượng thì ra rỗng, không vỡ", [banGhi(undefined), banGhi(null), banGhi("x"), banGhi([1])], [{}, {}, {}, {}]);
+  const nguonAnhAi = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/image-ai.ts"), "utf8"));
+  kiem("chi phí", "tạo ảnh ghi vào sổ chi phí AI", /INSERT INTO ai_usage \(user_id, task, model, cost_usd\) VALUES \(\$1, 'image'/.test(nguonAnhAi), true);
+  const nguonChiPhi = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8"));
+  kiem("chi phí", "đọc dữ liệu nhà cung cấp bằng cách mềm, không ném lỗi", /asRecord\(/.test(nguonChiPhi), false);
+  kiem("chi phí", "nội dung cảnh báo được thoát ký tự trước khi gửi Telegram", /escapeHtml\(c\.noiDung\)/.test(nguonChiPhi), true);
+  kiem("chi phí", "gửi hỏng thì không đánh dấu đã gửi", /if \(soDaGui > 0\) \{\s*for \(const c of moi\) daGui\[c\.ma\] = bayGio;/.test(nguonChiPhi), true);
+  kiem("chi phí", "worker soát chi phí định kỳ", /runDueCanhBaoChiPhi\(/.test(nguonWorker), true);
+  const nguonQuanTriCP = boChuThichTS(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8"));
+  kiem("chi phí", "sao kê nằm trong router quản trị (đã chặn người không phải quản trị)",
+    nguonQuanTriCP.indexOf('if (req.user?.role !== "admin")') > 0 && nguonQuanTriCP.indexOf('"/chi-phi",') > nguonQuanTriCP.indexOf('if (req.user?.role !== "admin")'), true);
 
   // Đã đo: Range 0-99 lên /media trả 200 cả tệp, không Accept-Ranges — Safari
   // không phát được video. Nay chuyển tiếp Range, trả 206 và gửi dạng dòng chảy.

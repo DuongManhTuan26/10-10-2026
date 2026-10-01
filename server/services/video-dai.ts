@@ -16,7 +16,7 @@
 import { anhTheoKhung, ghepVideo, layKhungCuoi } from "./video-cong-cu.js";
 import { query, queryOne } from "../db.js";
 import { AppError } from "../http.js";
-import { chatJson, asRecord, optionalString } from "./ai.js";
+import { chatJson, asRecord, banGhi, optionalString } from "./ai.js";
 import {
   diaChiKhoHopLe,
   giaMoiGiay,
@@ -55,7 +55,7 @@ export function chuanHoaCanh(model: ModelVideo, tho: unknown): Canh[] {
   const canh: Canh[] = [];
   let tong = 0;
   for (const c of ds.slice(0, TOI_DA_CANH)) {
-    const o = asRecord(c);
+    const o = banGhi(c);
     const moTa = optionalString(o.moTa)?.slice(0, 1_500);
     if (!moTa) continue;
     const soGiay = giayGanNhat(model, Number(o.soGiay) || model.soGiay[0]);

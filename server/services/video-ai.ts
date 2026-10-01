@@ -16,7 +16,7 @@
 import { query, queryOne } from "../db.js";
 import { env } from "../env.js";
 import { AppError } from "../http.js";
-import { chatJson, asRecord, optionalString } from "./ai.js";
+import { chatJson, asRecord, banGhi, optionalString } from "./ai.js";
 import { hoanDiaChiKho, laDiaChiKho } from "./media-proxy.js";
 import * as zernio from "./zernio.js";
 import { anhTheoKhung } from "./video-cong-cu.js";
@@ -62,7 +62,7 @@ export function chuanHoaModel(m: Record<string, unknown>): ModelVideo | null {
   const id = typeof m.id === "string" ? m.id : "";
   if (!id) return null;
   const giaSku: Record<string, number> = {};
-  for (const [k, v] of Object.entries(asRecord(m.pricing_skus))) {
+  for (const [k, v] of Object.entries(banGhi(m.pricing_skus))) {
     const n = Number(v);
     if (Number.isFinite(n) && n >= 0) giaSku[k] = n;
   }
@@ -93,7 +93,7 @@ export async function layDanhSachModel(): Promise<ModelVideo[]> {
     const j = (await r.json()) as { data?: unknown[] } | unknown[];
     const tho = Array.isArray(j) ? j : (j.data ?? []);
     const ds = tho
-      .map((m) => chuanHoaModel(asRecord(m)))
+      .map((m) => chuanHoaModel(banGhi(m)))
       .filter((m): m is ModelVideo => m !== null && m.soGiay.length > 0);
     boNho = { luc: Date.now(), ds };
     return ds;
@@ -398,10 +398,10 @@ export async function goiTaoViec(than: Record<string, unknown>): Promise<string>
       502
     );
   }
-  const j = asRecord(await r.json().catch(() => ({})));
+  const j = banGhi(await r.json().catch(() => ({})));
   const maViec = optionalString(j.id);
   if (!r.ok || !maViec) {
-    const loi = optionalString(asRecord(j.error).message) ?? optionalString(j.error) ?? `HTTP ${r.status}`;
+    const loi = optionalString(banGhi(j.error).message) ?? optionalString(j.error) ?? `HTTP ${r.status}`;
     throw new AppError(`Tạo video thất bại: ${loi}`, maLoi(r.status));
   }
   return maViec;
@@ -456,11 +456,11 @@ async function xuLyMotViec(v: { id: number; user_id: number; ma_viec: string; mo
     headers: { Authorization: `Bearer ${env.openrouter.apiKey}` },
     signal: AbortSignal.timeout(30_000),
   });
-  const j = asRecord(await r.json().catch(() => ({})));
+  const j = banGhi(await r.json().catch(() => ({})));
   const trangThai = optionalString(j.status) ?? "";
 
   if (trangThai === "failed" || trangThai === "cancelled" || trangThai === "expired") {
-    const loi = optionalString(j.error) ?? optionalString(asRecord(j.error).message) ?? trangThai;
+    const loi = optionalString(j.error) ?? optionalString(banGhi(j.error).message) ?? trangThai;
     await ketThuc(v.id, `Nhà cung cấp AI báo lỗi: ${loi}`);
     return;
   }
@@ -492,7 +492,7 @@ async function xuLyMotViec(v: { id: number; user_id: number; ma_viec: string; mo
   });
   if (!dua.ok) throw new Error(`đưa video lên kho hỏng: HTTP ${dua.status}`);
 
-  const gia = Number(asRecord(j.usage).cost);
+  const gia = Number(banGhi(j.usage).cost);
   const giaThuc = Number.isFinite(gia) ? gia : null;
   await query(
     `UPDATE video_ai SET trang_thai = 'xong', url = $2, gia_thuc = $3, dang_xu_ly_tu = NULL,

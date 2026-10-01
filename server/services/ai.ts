@@ -288,6 +288,20 @@ function sleep(ms: number): Promise<void> {
 // Trợ giúp kiểm tra dữ liệu AI trả về
 // ---------------------------------------------------------------------------
 
+/**
+ * Đọc "mềm": không phải đối tượng thì trả {} thay vì ném lỗi.
+ *
+ * Dùng cho dữ liệu NHÀ CUNG CẤP và database, vốn hay thiếu trường. asRecord ở
+ * dưới ném lỗi — đúng cho JSON do AI trả (sai định dạng thì thử lại), nhưng
+ * sai cho dữ liệu khác. Đã đo: dùng asRecord đọc cài đặt chưa có trong
+ * database làm cả sao kê chi phí vỡ.
+ */
+export function banGhi(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 export function asRecord(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new AiError("AI trả về dữ liệu không phải đối tượng JSON", 502, true);

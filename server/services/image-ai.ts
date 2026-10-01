@@ -13,7 +13,7 @@
  * bấm, hoặc bật rõ trong lịch tự đăng.
  */
 
-import { queryOne } from "../db.js";
+import { query, queryOne } from "../db.js";
 import { env } from "../env.js";
 import { AppError } from "../http.js";
 import { hoanDiaChiKho } from "./media-proxy.js";
@@ -237,6 +237,18 @@ export async function taoAnhChoBai(params: {
   if (!dua.ok) {
     throw new AppError(`Không tải được ảnh vừa tạo lên kho (HTTP ${dua.status}).`, 502);
   }
+
+  /*
+   * Ghi sổ chi phí như mọi lượt gọi AI khác.
+   *
+   * Đã đo: sổ ai_usage không có dòng nào cho ảnh dù đã tạo ảnh thật nhiều lần —
+   * sổ của app ghi 1,49 USD trong khi nhà cung cấp trừ thật 2,62 USD. Thiếu dòng
+   * này thì bảng sao kê chi phí báo thấp hơn thực tế, lỗ mà không biết.
+   */
+  await query(
+    `INSERT INTO ai_usage (user_id, task, model, cost_usd) VALUES ($1, 'image', $2, $3)`,
+    [params.userId, data.model ?? MODEL_ANH, data.usage?.cost ?? 0]
+  ).catch((error) => console.error("[ảnh AI] Không ghi được tiền AI:", error));
 
   return {
     url: presign.publicUrl,

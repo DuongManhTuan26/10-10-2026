@@ -10,6 +10,7 @@ import { sendTelegramMessage, escapeHtml } from "./services/telegram.js";
 import { layNhatKyWebhook, type LanGiaoWebhook } from "./services/zernio.js";
 import { runDueVideoJobs } from "./services/video-ai.js";
 import { runDueVideoProjects } from "./services/video-dai.js";
+import { runDueCanhBaoChiPhi } from "./services/chi-phi.js";
 
 /**
  * Worker xử lý hàng đợi sự kiện.
@@ -44,6 +45,9 @@ let lanDongBoKenhCuoi = 0;
 let lanSoatBaiCuoi = 0;
 let lanVideoCuoi = 0;
 let dangXuLyVideo = false;
+let lanChiPhiCuoi = 0;
+/** Soát chi phí bên thứ ba mỗi giờ: tiền AI sắp hết, tiêu bất thường, nhà cung cấp tạm dừng. */
+const CHI_PHI_INTERVAL_MS = 60 * 60_000;
 /** Video AI thường xong trong 30 giây tới vài phút, hỏi thăm mỗi 15 giây. */
 const VIDEO_INTERVAL_MS = 15_000;
 let lanNhipTimCuoi = 0;
@@ -459,6 +463,20 @@ export function startWorker(): void {
           .finally(() => {
             dangXuLyVideo = false;
           });
+      }
+
+      if (Date.now() - lanChiPhiCuoi >= CHI_PHI_INTERVAL_MS) {
+        lanChiPhiCuoi = Date.now();
+        try {
+          const soTin = await coHanGio(
+            "soát chi phí",
+            runDueCanhBaoChiPhi((adminId, noiDung) => sendTelegramMessage(adminId, noiDung, "chi_phi")),
+            HAN_MOI_VIEC_MS
+          );
+          if (soTin > 0) console.warn(`[chi phí] Đã gửi cảnh báo chi phí tới ${soTin} quản trị.`);
+        } catch (error) {
+          console.error("[chi phí] Lỗi khi soát chi phí:", error instanceof Error ? error.message : error);
+        }
       }
 
       /*

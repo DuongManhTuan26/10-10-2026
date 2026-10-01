@@ -436,6 +436,36 @@ export interface Order {
  * `url` là publicUrl do Zernio trả về sau khi tải lên. Kho tạm giữ tệp 7 ngày,
  * nên bài hẹn lịch xa hơn thế cần tải lại ảnh gần ngày đăng.
  */
+export interface NguongCanhBao {
+  soDuToiThieuUsd: number;
+  soNgayToiThieu: number;
+  heSoTieuQua: number;
+}
+
+export interface SaoKeChiPhi {
+  luc: string;
+  ai: {
+    ok: boolean; loi?: string; daNapUsd?: number; daTieuUsd?: number; conLaiUsd?: number;
+    homNayUsd?: number; tuanNayUsd?: number; thangNayUsd?: number;
+  };
+  kenh: {
+    ok: boolean; loi?: string; goi?: string; conHoatDong?: boolean; tieuKyNayUsd?: number; tinDungConUsd?: number;
+    tamDungLuc?: string | null; lyDoTamDung?: string | null; canTraUsd?: number | null; linkHoaDon?: string | null;
+    lyDoTuChoiThe?: string | null; lanThuTienTiepTheo?: string | null;
+  };
+  nguong: NguongCanhBao;
+  canhBao: { ma: string; mucDo: 'nguy_cap' | 'can_lam' | 'luu_y'; noiDung: string; link?: string }[];
+  so: {
+    soNgay: number;
+    theoViec: { viec: string; ten: string; lan: number; usd: number }[];
+    theoShop: { userId: number | null; ten: string; lan: number; usd: number }[];
+    theoNgay: { ngay: string; usd: number }[];
+    tongTuTruocUsd: number;
+  };
+  doiChieu: { nhaCungCapTruUsd: number; appGhiUsd: number } | null;
+  linkNap: { openrouter: string; kenh: string; database: string };
+}
+
 export interface MediaItem {
   url: string;
   type: 'image' | 'video' | 'gif' | 'document';
@@ -589,6 +619,12 @@ export interface DashboardStats {
 export const api = {
   /** Quản trị hệ thống. Máy chủ chặn người không phải quản trị, đây chỉ là lớp gọi. */
   admin: {
+    /** Sao kê chi phí trả cho các bên thứ ba: đọc sống + sổ của app. */
+    chiPhi: (ngay = 30) => get<{ data: SaoKeChiPhi }>(`/admin/chi-phi?ngay=${ngay}`),
+    luuNguongChiPhi: (nguong: NguongCanhBao) =>
+      request<{ data: NguongCanhBao }>('/admin/chi-phi/nguong', { method: 'PUT', body: nguong }),
+    /** Gửi thử một cảnh báo tới Telegram của chính quản trị đang bấm. */
+    thuCanhBaoChiPhi: () => post<{ success: boolean }>('/admin/chi-phi/thu-canh-bao'),
     accounts: () => get<{ data: TaiKhoanQuanTri[] }>('/admin/accounts'),
     audit: () => get<{ data: NhatKyQuanTri[] }>('/admin/audit'),
     /**

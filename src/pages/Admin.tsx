@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, type TaiKhoanQuanTri, type NhatKyQuanTri } from '../lib/api';
 import BangLoi from '../components/BangLoi';
+import ChiPhiHeThong from '../components/ChiPhiHeThong';
 
 const TEN_VIEC: Record<string, string> = {
   tao_tai_khoan: 'Tạo tài khoản',
@@ -192,6 +193,8 @@ export default function Admin() {
   return (
     <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full bg-background">
       <BangLoi noiDung={errorMessage} onDong={() => setErrorMessage('')} className="mb-6" />
+
+      <ChiPhiHeThong />
 
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
         <div>

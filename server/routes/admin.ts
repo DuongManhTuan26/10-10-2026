@@ -24,6 +24,8 @@ import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
 import { chuyenThanhChuChuoi } from "../services/chuyen-chu-chuoi.js";
 import * as zernio from "../services/zernio.js";
 import { hashPassword } from "../auth.js";
+import { luuNguong, saoKe } from "../services/chi-phi.js";
+import { sendTelegramMessage } from "../services/telegram.js";
 
 export const adminRouter = Router();
 
@@ -381,6 +383,44 @@ adminRouter.delete(
       },
     });
 
+    res.json({ success: true });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Chi phí hệ thống: sao kê, ngưỡng cảnh báo, gửi thử cảnh báo
+// ---------------------------------------------------------------------------
+
+/** Sao kê toàn bộ chi phí trả cho bên thứ ba, đọc sống + sổ của app. */
+adminRouter.get(
+  "/chi-phi",
+  route(async (req, res) => {
+    const soNgay = Number(req.query.ngay) || 30;
+    res.json({ success: true, data: await saoKe(soNgay) });
+  })
+);
+
+/** Đổi ngưỡng cảnh báo (số dư tối thiểu, số ngày còn đủ tiêu, hệ số tiêu quá). */
+adminRouter.put(
+  "/chi-phi/nguong",
+  route(async (req, res) => {
+    const nguong = await luuNguong(req.body ?? {});
+    await ghiNhatKyQuanTri({ adminId: req.user!.id, targetId: null, targetEmail: "", action: "doi_nguong_chi_phi", detail: { ...nguong } });
+    res.json({ success: true, data: nguong });
+  })
+);
+
+/** Gửi thử một cảnh báo tới Telegram của chính quản trị đang bấm. */
+adminRouter.post(
+  "/chi-phi/thu-canh-bao",
+  route(async (req, res) => {
+    const daGui = await sendTelegramMessage(
+      req.user!.id,
+      "✅ <b>Thử cảnh báo chi phí</b>\n\nTelegram đã liên kết đúng. Khi tiền AI sắp hết, tiêu bất thường hoặc nhà cung cấp kênh tạm dừng, cảnh báo sẽ về đây."
+    );
+    if (!daGui) {
+      throw new AppError("Tài khoản này chưa liên kết Telegram. Vào mục Cảnh báo Telegram để liên kết trước.", 409);
+    }
     res.json({ success: true });
   })
 );
