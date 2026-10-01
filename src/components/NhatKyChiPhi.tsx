@@ -14,7 +14,7 @@ const NHAN_DOI_CHIEU: Record<LuotChiPhi['doiChieu'], { ky: string; mau: string; 
   khop: { ky: 'check_circle', mau: 'text-green-400', giai: 'Khớp đúng số nhà cung cấp chốt' },
   cho: { ky: 'schedule', mau: 'text-amber-400', giai: 'Nhà cung cấp chưa chốt số (thường vài phút)' },
   lech: { ky: 'error', mau: 'text-red-400', giai: 'Lệch với số nhà cung cấp chốt' },
-  khong_ma: { ky: 'remove', mau: 'text-on-surface-variant', giai: 'Ghi trước khi sổ lưu mã giao dịch — không tra lại được' },
+  khong_ma: { ky: 'remove', mau: 'text-on-surface-variant', giai: 'Không có mã giao dịch nên không tra lại từng lượt được (dòng ghi trước 01/10 hoặc dòng ghi bù)' },
 };
 
 /** "01/10 13:08:21" theo giờ Việt Nam — ngày trước, giờ sau, tới giây. */

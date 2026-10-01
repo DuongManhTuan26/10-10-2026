@@ -454,7 +454,8 @@ export interface SaoKeChiPhi {
     lyDoTuChoiThe?: string | null; lanThuTienTiepTheo?: string | null;
   };
   nguong: NguongCanhBao;
-  canhBao: { ma: string; mucDo: 'nguy_cap' | 'can_lam' | 'luu_y'; noiDung: string; link?: string }[];
+  /** tomTat: một dòng ngắn cho dòng chính; noiDung: câu đầy đủ. */
+  canhBao: { ma: string; mucDo: 'nguy_cap' | 'can_lam' | 'luu_y'; noiDung: string; tomTat: string; link?: string }[];
   so: {
     soNgay: number;
     /** Nhóm việc (Chatbot bán hàng, Marketing...), mỗi nhóm kèm từng việc cụ thể. */
@@ -476,7 +477,8 @@ export interface SaoKeChiPhi {
     soAppUsd: number;
     ngoaiSoTruocMocUsd: number;
     mocLuc: string;
-    sauMoc: { nhaCungCapUsd: number; soDaChotUsd: number; soChoUsd: number; soLuotCho: number; chenhUsd: number };
+    /** lechUsd: phần lệch thật, đã trừ các lượt đang chờ nhà cung cấp chốt. */
+    sauMoc: { nhaCungCapUsd: number; soDaChotUsd: number; soChoUsd: number; soLuotCho: number; chenhUsd: number; lechUsd: number };
   } | null;
   linkNap: { openrouter: string; kenh: string; database: string };
 }

@@ -308,7 +308,9 @@ export async function nhatKyLuot(loc: { soNgay: number; taiKhoan?: number | null
     }
   }
   const where = dk.join(" AND ");
-  const trang = Math.max(1, Math.floor(loc.trang ?? 1));
+  // Đã thấy: trang=Infinity hay 1e20 làm câu truy vấn nổ (lỗi 500). Kẹp vào khoảng hợp lệ.
+  const trangTho = Number(loc.trang);
+  const trang = Number.isFinite(trangTho) ? Math.min(100_000, Math.max(1, Math.floor(trangTho))) : 1;
   const [ds, tong] = await Promise.all([
     query<{
       id: string; luc: string; user_id: number | null; email: string | null; ten: string | null; viec: string | null;
@@ -376,7 +378,15 @@ export interface DoiChieuTong {
   ngoaiSoTruocMocUsd: number;
   mocLuc: string;
   /** Từ mốc tới nay: nhà cung cấp trừ thêm bao nhiêu, sổ ghi bao nhiêu. */
-  sauMoc: { nhaCungCapUsd: number; soDaChotUsd: number; soChoUsd: number; soLuotCho: number; chenhUsd: number };
+  sauMoc: {
+    nhaCungCapUsd: number;
+    soDaChotUsd: number;
+    soChoUsd: number;
+    soLuotCho: number;
+    chenhUsd: number;
+    /** Phần chênh KHÔNG giải thích được bằng các lượt đang chờ chốt — đây mới là số lệch thật. */
+    lechUsd: number;
+  };
 }
 
 interface MocDoiChieu {
@@ -423,6 +433,17 @@ export function trangThaiTong(chenh: number, choUsd: number): DoiChieuTong["tran
   return chenh > 0 && chenh <= choUsd + 1e-6 ? "dang_cho" : "lech";
 }
 
+/**
+ * Phần lệch thật: trừ đi tiền các lượt còn chờ chốt (đang trên đường, hợp lệ).
+ * Đã thấy: chênh 0,0966 USD gồm 0,0966 của hai video đang chờ và chỉ 0,00006
+ * lọt sổ — báo "lệch 0,0966" là phóng đại hơn nghìn lần, khiến người đọc đi
+ * tìm sai chỗ. Dương = nhà cung cấp trừ mà sổ không có; âm = sổ ghi thừa.
+ */
+export function phanLech(chenh: number, choUsd: number): number {
+  if (chenh > choUsd) return chenh - choUsd;
+  return chenh < 0 ? chenh : 0;
+}
+
 export async function doiChieuTong(ai: TinhHinhAI): Promise<DoiChieuTong | null> {
   if (!ai.ok || ai.khoaDaTieuUsd === undefined) return null;
   const moc = await docMoc(ai.khoaDaTieuUsd);
@@ -447,7 +468,7 @@ export async function doiChieuTong(ai: TinhHinhAI): Promise<DoiChieuTong | null>
     soAppUsd: Number(tat?.usd ?? 0),
     ngoaiSoTruocMocUsd: moc.nccUsd - moc.soUsd,
     mocLuc: moc.luc,
-    sauMoc: { nhaCungCapUsd: nccSau, soDaChotUsd: chot, soChoUsd: cho, soLuotCho: sau?.lan_cho ?? 0, chenhUsd: chenh },
+    sauMoc: { nhaCungCapUsd: nccSau, soDaChotUsd: chot, soChoUsd: cho, soLuotCho: sau?.lan_cho ?? 0, chenhUsd: chenh, lechUsd: phanLech(chenh, cho) },
   };
 }
 
@@ -458,11 +479,28 @@ export async function doiChieuTong(ai: TinhHinhAI): Promise<DoiChieuTong | null>
 export interface CanhBao {
   ma: string;
   mucDo: "nguy_cap" | "can_lam" | "luu_y";
+  /** Câu đầy đủ — cho Telegram và phần chi tiết. */
   noiDung: string;
+  /**
+   * Một dòng ngắn cho dòng chính. Đã thấy: cắt câu đầy đủ ở dấu chấm đầu
+   * tiên thì "Tiền AI còn 2.50 USD" hiện thành "Tiền AI còn 2".
+   */
+  tomTat: string;
   link?: string;
 }
 
-export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBao): CanhBao[] {
+/** Số tiền viết kiểu Việt Nam (2,50 USD) — người đọc là chủ shop Việt. */
+export const usdVN = (n: number) =>
+  `${n.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+
+/**
+ * Đủ số lẻ (tới 10) — cho số tiền LỆCH. Lệch một lượt chat chỉ 0,000008 USD;
+ * làm tròn 2 số lẻ thì cảnh báo ghi "lệch 0,00 USD", vô nghĩa.
+ */
+export const usdVNDu = (n: number) =>
+  `${n.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 10 })} USD`;
+
+export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBao, doiChieu: DoiChieuTong | null = null): CanhBao[] {
   const ds: CanhBao[] = [];
   if (kenh.ok && kenh.conHoatDong === false) {
     ds.push({
@@ -471,6 +509,7 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
       noiDung:
         `Nhà cung cấp kênh ĐANG TẠM DỪNG tài khoản (${kenh.lyDoTamDung ?? "chưa thanh toán"}). ` +
         "Đăng bài, trả lời khách, kết nối Fanpage đều đang đứng.",
+      tomTat: "Đang bị tạm dừng — đăng bài, trả lời khách đều đứng",
       link: kenh.linkHoaDon ?? LINK_NAP.kenh,
     });
   } else if (kenh.ok && (kenh.canTraUsd ?? 0) > 0) {
@@ -478,15 +517,21 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
       ma: "kenh_can_tra",
       mucDo: "can_lam",
       noiDung:
-        `Có hoá đơn kênh cần trả: ${kenh.canTraUsd!.toFixed(2)} USD` +
+        `Có hoá đơn kênh cần trả: ${usdVN(kenh.canTraUsd!)}` +
         (kenh.lyDoTuChoiThe ? ` — thẻ bị từ chối: ${kenh.lyDoTuChoiThe}` : "") +
         (kenh.lanThuTienTiepTheo ? `. Lần thu tiếp: ${kenh.lanThuTienTiepTheo}` : "") +
         ". Trả ngay để không bị tạm dừng.",
+      tomTat: `Có hoá đơn cần trả ${usdVN(kenh.canTraUsd!)}`,
       link: kenh.linkHoaDon ?? LINK_NAP.kenh,
     });
   }
   if (!kenh.ok) {
-    ds.push({ ma: "kenh_khong_doc_duoc", mucDo: "luu_y", noiDung: `Chưa đọc được tình hình nhà cung cấp kênh: ${kenh.loi}` });
+    ds.push({
+      ma: "kenh_khong_doc_duoc",
+      mucDo: "luu_y",
+      noiDung: `Chưa đọc được tình hình nhà cung cấp kênh: ${kenh.loi}`,
+      tomTat: "Chưa đọc được nhà cung cấp kênh",
+    });
   }
 
   if (ai.ok) {
@@ -498,30 +543,53 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
         ma: "ai_het_tien",
         mucDo: "nguy_cap",
         noiDung: "Tiền AI ĐÃ HẾT. AI trả lời khách, viết bài, tạo ảnh, tạo video đều đang dừng.",
+        tomTat: "Tiền AI đã hết — mọi tính năng AI đang dừng",
         link: LINK_NAP.openrouter,
       });
     } else if (conLai < nguong.soDuToiThieuUsd || (soNgayCon !== null && soNgayCon < nguong.soNgayToiThieu)) {
+      const ngay = soNgayCon !== null ? Math.max(0, Math.floor(soNgayCon)) : null;
       ds.push({
         ma: "ai_sap_het",
         mucDo: "can_lam",
         noiDung:
-          `Tiền AI còn ${conLai.toFixed(2)} USD` +
-          (soNgayCon !== null ? `, đủ khoảng ${Math.max(0, Math.floor(soNgayCon))} ngày theo mức tiêu 7 ngày qua` : "") +
+          `Tiền AI còn ${usdVN(conLai)}` +
+          (ngay !== null ? `, đủ khoảng ${ngay} ngày theo mức tiêu 7 ngày qua` : "") +
           ". Nên nạp thêm.",
+        tomTat: `Còn ${usdVN(conLai)}${ngay !== null ? `, đủ ~${ngay} ngày` : ""} — nên nạp thêm`,
         link: LINK_NAP.openrouter,
       });
     }
     if (tbNgay > 0 && (ai.homNayUsd ?? 0) > tbNgay * nguong.heSoTieuQua && (ai.homNayUsd ?? 0) >= 0.5) {
+      const gap = ((ai.homNayUsd ?? 0) / tbNgay).toLocaleString("vi-VN", { maximumFractionDigits: 1 });
       ds.push({
         ma: "ai_tieu_qua",
         mucDo: "can_lam",
         noiDung:
-          `Hôm nay đã tiêu ${(ai.homNayUsd ?? 0).toFixed(2)} USD tiền AI — gấp ${((ai.homNayUsd ?? 0) / tbNgay).toFixed(1)} lần ` +
+          `Hôm nay đã tiêu ${usdVN(ai.homNayUsd ?? 0)} tiền AI — gấp ${gap} lần ` +
           "trung bình 7 ngày qua. Xem mục chi tiết bên dưới để biết shop nào, việc gì đang tiêu.",
+        tomTat: `Hôm nay tiêu gấp ${gap} lần mức thường`,
       });
     }
   } else {
-    ds.push({ ma: "ai_khong_doc_duoc", mucDo: "luu_y", noiDung: `Chưa đọc được số dư AI: ${ai.loi}` });
+    ds.push({ ma: "ai_khong_doc_duoc", mucDo: "luu_y", noiDung: `Chưa đọc được số dư AI: ${ai.loi}`, tomTat: "Chưa đọc được nhà cung cấp AI" });
+  }
+
+  /*
+   * Sổ lệch nhà cung cấp = có lượt dùng AI không vào sổ (hoặc khoá AI bị dùng
+   * ngoài app). Đã thấy: lệch mà chấm vẫn xanh, Telegram im — sổ dùng để tính
+   * tiền từng tài khoản mà sai thì phải báo ngay.
+   */
+  if (doiChieu?.trangThai === "lech") {
+    const chenh = doiChieu.sauMoc.lechUsd;
+    ds.push({
+      ma: "ai_lech_so",
+      mucDo: "can_lam",
+      noiDung:
+        chenh > 0
+          ? `Nhà cung cấp AI trừ nhiều hơn sổ của app ${usdVNDu(chenh)}: có lượt dùng AI không vào sổ, hoặc khoá AI đang bị dùng ngoài app.`
+          : `Sổ của app ghi nhiều hơn số nhà cung cấp AI trừ ${usdVNDu(-chenh)}: có lượt bị ghi sai tiền.`,
+      tomTat: `Sổ lệch ${usdVNDu(Math.abs(chenh))} so với nhà cung cấp`,
+    });
   }
   return ds;
 }
@@ -535,7 +603,7 @@ export async function saoKe(soNgay: number) {
     ai,
     kenh,
     nguong,
-    canhBao: danhGia(ai, kenh, nguong),
+    canhBao: danhGia(ai, kenh, nguong, doiChieu),
     so,
     doiChieu,
     linkNap: LINK_NAP,
@@ -553,7 +621,8 @@ export async function runDueCanhBaoChiPhi(
   gui: (adminId: number, noiDung: string) => Promise<boolean>
 ): Promise<number> {
   const [ai, kenh, nguong] = await Promise.all([docOpenRouter(), docNhaCungCapKenh(), docNguong()]);
-  const canBao = danhGia(ai, kenh, nguong).filter((c) => c.mucDo !== "luu_y");
+  const doiChieu = await doiChieuTong(ai).catch(() => null);
+  const canBao = danhGia(ai, kenh, nguong, doiChieu).filter((c) => c.mucDo !== "luu_y");
   if (!canBao.length) return 0;
 
   const daGui = banGhi((await queryOne<{ gia_tri: unknown }>(

@@ -216,8 +216,13 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
      *
      * Ghi ở từng nơi gọi thì chỉ cần thêm một tính năng mới mà quên ghi là
      * shop đó tiêu tiền không ai đếm.
+     *
+     * CHỜ ghi xong (ghiLuotAi tự nuốt lỗi, không bao giờ làm hỏng câu trả lời).
+     * Đã thấy: ghi kiểu bắn-rồi-quên thì tiến trình thoát ngay sau lượt cuối
+     * là mất dòng — 3 lượt bị tính tiền, sổ chỉ có 2. Ghi chỉ tốn vài chục
+     * mili-giây, không đáng kể so với vài giây chờ AI.
      */
-    void ghiLuotAi({
+    await ghiLuotAi({
       userId,
       task,
       viec,

@@ -75,6 +75,108 @@ const DUC: PhepDuc[] = [
     thay: "  void ({\n    userId: params.userId,\n    task: \"image\",",
   },
   {
+    ten: "báo giá video theo kích thước khai từng khung (lệch −44%…+24%)",
+    tep: "server/services/video-ai.ts",
+    tim: "    if (w && h && Math.min(w, h) === ngan && Math.abs(Math.max(w, h) / Math.min(w, h) - 16 / 9) < 0.03) return w * h;",
+    thay: "    if (w && h && Math.min(w, h) === ngan) return w * h;",
+  },
+  {
+    ten: "báo lệch gộp cả phần đang chờ (phóng đại nghìn lần)",
+    tep: "server/services/chi-phi.ts",
+    tim: "  if (chenh > choUsd) return chenh - choUsd;",
+    thay: "  if (chenh > choUsd) return chenh;",
+  },
+  {
+    ten: "cảnh báo lấy chênh thô thay vì phần lệch thật",
+    tep: "server/services/chi-phi.ts",
+    tim: "    const chenh = doiChieu.sauMoc.lechUsd;",
+    thay: "    const chenh = doiChieu.sauMoc.chenhUsd;",
+  },
+  {
+    ten: "ngày lại viết 01-10",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "  return `${p.day}/${p.month}`;",
+    thay: "  return `${p.day}-${p.month}`;",
+  },
+  {
+    ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",
+    tep: "server/services/so-ai.ts",
+    tim: "      ORDER BY tra_luc NULLS FIRST, created_at LIMIT $1`,",
+    thay: "      ORDER BY created_at LIMIT $1`,",
+  },
+  {
+    ten: "tra hỏng không xuống cuối hàng",
+    tep: "server/services/so-ai.ts",
+    tim: "      await query(`UPDATE ai_usage SET tra_luc = now(), so_lan_tra = so_lan_tra + 1 WHERE id = $1`, [l.id]);\n",
+    thay: "",
+  },
+  {
+    ten: "số trang lạ đi thẳng vào truy vấn",
+    tep: "server/services/chi-phi.ts",
+    tim: "  const trang = Number.isFinite(trangTho) ? Math.min(100_000, Math.max(1, Math.floor(trangTho))) : 1;",
+    thay: "  const trang = Math.max(1, Math.floor(trangTho || 1));",
+  },
+  {
+    ten: "cảnh báo viết số kiểu Mỹ",
+    tep: "server/services/chi-phi.ts",
+    tim: "      tomTat: `Còn ${usdVN(conLai)}${ngay !== null ? `, đủ ~${ngay} ngày` : \"\"} — nên nạp thêm`,",
+    thay: "      tomTat: `Còn ${conLai.toFixed(2)} USD${ngay !== null ? `, đủ ~${ngay} ngày` : \"\"} — nên nạp thêm`,",
+  },
+  {
+    ten: "sổ lệch mà không báo",
+    tep: "server/services/chi-phi.ts",
+    tim: "  if (doiChieu?.trangThai === \"lech\") {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "số lệch bị làm tròn thành 0,00",
+    tep: "server/services/chi-phi.ts",
+    tim: "      tomTat: `Sổ lệch ${usdVNDu(Math.abs(chenh))} so với nhà cung cấp`,",
+    thay: "      tomTat: `Sổ lệch ${usdVN(Math.abs(chenh))} so với nhà cung cấp`,",
+  },
+  {
+    ten: "soát hằng giờ bỏ qua đối chiếu",
+    tep: "server/services/chi-phi.ts",
+    tim: "  const canBao = danhGia(ai, kenh, nguong, doiChieu).filter",
+    thay: "  const canBao = danhGia(ai, kenh, nguong).filter",
+  },
+  {
+    ten: "dòng chính lại cắt câu ở dấu chấm",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "              {cb[0].tomTat}",
+    thay: "              {cb[0].noiDung.split('.')[0]}",
+  },
+  {
+    ten: "nhà cung cấp không trả lời thì giấu sổ",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "        {mo === 'ai' && du && (",
+    thay: "        {mo === 'ai' && ai?.ok && du && (",
+  },
+  {
+    ten: "chưa đọc được mà vẫn chấm xanh",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "          ? 'xam'\n          : 'xanh';",
+    thay: "          ? 'xanh'\n          : 'xanh';",
+  },
+  {
+    ten: "tổng thiếu kênh mà không nói",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "            {du && tienKenh === null && <span className=\"block text-[11px] text-on-surface-variant\">chưa gồm kết nối kênh</span>}",
+    thay: "",
+  },
+  {
+    ten: "chi tiết cắt mất số lẻ thứ 9",
+    tep: "src/lib/tien-chi.ts",
+    tim: "      ? `−${n.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 10 })} USD`",
+    thay: "      ? `−${n.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 8 })} USD`",
+  },
+  {
+    ten: "database lại giới hạn số lẻ của số đã chốt",
+    tep: "server/migrations/032_so_ai_du_so_le.sql",
+    tim: "ALTER TABLE ai_usage ALTER COLUMN cost_ncc TYPE NUMERIC;",
+    thay: "ALTER TABLE ai_usage ALTER COLUMN cost_ncc TYPE NUMERIC(14,8);",
+  },
+  {
     ten: "lượt không có mã giao dịch mà vẫn coi là khớp",
     tep: "server/services/chi-phi.ts",
     tim: "  if (!maNcc) return \"khong_ma\";",
@@ -101,8 +203,14 @@ const DUC: PhepDuc[] = [
   {
     ten: "lượt AI trả rỗng không vào sổ",
     tep: "server/services/ai.ts",
-    tim: "\n    void ghiLuotAi({",
-    thay: "\n    if (!rong) void ghiLuotAi({",
+    tim: "\n    await ghiLuotAi({",
+    thay: "\n    if (!rong) await ghiLuotAi({",
+  },
+  {
+    ten: "ghi sổ bắn-rồi-quên, tiến trình thoát là mất dòng",
+    tep: "server/services/ai.ts",
+    tim: "\n    await ghiLuotAi({",
+    thay: "\n    void ghiLuotAi({",
   },
   {
     ten: "chat không lưu mã giao dịch",
@@ -167,8 +275,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "chưa tra được vẫn ghi bừa",
     tep: "server/services/so-ai.ts",
-    tim: "    if (tien === null) continue;\n",
-    thay: "",
+    tim: "    if (tien === null) {",
+    thay: "    if (tien === -1) {",
   },
   {
     ten: "báo cáo cộng thẳng số lúc gọi, bỏ số đã chốt",
@@ -197,7 +305,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "làm tròn 2 số lẻ, lượt rẻ hiện thành 0",
     tep: "src/lib/tien-chi.ts",
-    tim: "  const le = a === 0 || a >= 0.01 ? 2 : Math.min(8, Math.max(2, 3 - Math.floor(Math.log10(a))));",
+    tim: "  const le = a === 0 || a >= 0.01 ? 2 : Math.min(10, Math.max(2, 3 - Math.floor(Math.log10(a))));",
     thay: "  const le = 2;",
   },
   {
@@ -1753,8 +1861,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "gọi AI mà không ghi tiền, không biết shop nào tiêu bao nhiêu",
     tep: "server/services/ai.ts",
-    tim: "    void ghiLuotAi({\n      userId,\n      task,",
-    thay: "    void ({\n      userId,\n      task,",
+    tim: "    await ghiLuotAi({\n      userId,\n      task,",
+    thay: "    await ({\n      userId,\n      task,",
   },
   {
     ten: "cho phép gọi AI mà không khai shop chịu tiền",
@@ -1770,9 +1878,9 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "làm tròn tiền AI, mất sạch số lẻ",
-    tep: "server/migrations/031_so_ai_tung_luot.sql",
-    tim: "ALTER TABLE ai_usage ALTER COLUMN cost_usd TYPE NUMERIC(14,8);",
-    thay: "ALTER TABLE ai_usage ALTER COLUMN cost_usd TYPE NUMERIC(14,6);",
+    tep: "server/migrations/032_so_ai_du_so_le.sql",
+    tim: "ALTER TABLE ai_usage ALTER COLUMN cost_usd TYPE NUMERIC;",
+    thay: "ALTER TABLE ai_usage ALTER COLUMN cost_usd TYPE NUMERIC(14,8);",
   },
   {
     ten: "bảng điều hành bỏ tiền AI, chỉ nhìn doanh thu",

@@ -146,14 +146,24 @@ export async function doiChieuLuotAi(toiDa = 40): Promise<number> {
     `SELECT id, ma_ncc, task FROM ai_usage
       WHERE ma_ncc IS NOT NULL AND doi_chieu_at IS NULL
         AND created_at < now() - interval '${CHO_TOI_THIEU}'
-      ORDER BY created_at LIMIT $1`,
+      ORDER BY tra_luc NULLS FIRST, created_at LIMIT $1`,
     [toiDa]
   );
   let xong = 0;
   for (const l of cho.rows) {
     const tien = await traTienLuot(l.ma_ncc, l.task === "video").catch(() => null);
-    if (tien === null) continue;
-    await query(`UPDATE ai_usage SET cost_ncc = $2, doi_chieu_at = now() WHERE id = $1`, [l.id, tien]);
+    if (tien === null) {
+      /*
+       * Chưa ra số: xuống cuối hàng. Đã thấy: lấy lượt cũ nhất trước mà không
+       * xoay vòng thì một lượt kẹt chặn mãi mọi lượt phía sau.
+       */
+      await query(`UPDATE ai_usage SET tra_luc = now(), so_lan_tra = so_lan_tra + 1 WHERE id = $1`, [l.id]);
+      continue;
+    }
+    await query(
+      `UPDATE ai_usage SET cost_ncc = $2, doi_chieu_at = now(), tra_luc = now(), so_lan_tra = so_lan_tra + 1 WHERE id = $1`,
+      [l.id, tien]
+    );
     xong++;
   }
   return xong;

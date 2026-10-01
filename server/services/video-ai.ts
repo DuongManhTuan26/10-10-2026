@@ -118,21 +118,26 @@ const CANH_NGAN: Record<string, number> = {
 };
 
 /**
- * Số điểm ảnh mỗi khung hình. Ưu tiên kích thước model tự khai; không có thì
- * suy từ độ nét và tỷ lệ khung.
+ * Số điểm ảnh mỗi khung hình mà nhà cung cấp TÍNH TIỀN ở một độ nét.
+ *
+ * Lấy theo khung 16:9 cùng độ nét, cho MỌI khung hình. Đã đo ngày 01/10/2026
+ * với Seedance 1.5 Pro 480p, 4 giây: khung nào cũng ra lượng điểm ảnh gần như
+ * nhau, bất kể kích thước model tự khai (khai 480×480 mà trả 640×640):
+ *   1:1  → 640×640 = 409.600   tiền thật 0,04656 USD
+ *   3:4  → 560×752 = 421.120   tiền thật 0,04787 USD
+ *   21:9 → 992×432 = 428.544   tiền thật 0,04871 USD
+ *   9:16 → 496×864 = 428.544
+ * Trước đây tính theo kích thước khai của từng khung thì báo giá lệch từ −44%
+ * (1:1) tới +24% (21:9). Tính theo 16:9 (480×854 = 409.920) thì lệch dưới 5%.
  */
-export function dienTich(model: ModelVideo, doNet: string, khung: string): number | null {
+export function dienTichTinhTien(model: ModelVideo, doNet: string): number | null {
   const ngan = CANH_NGAN[doNet.toLowerCase()];
   if (!ngan) return null;
-  const [a, b] = khung.split(":").map(Number);
-  if (!a || !b) return null;
   for (const kt of model.kichThuoc) {
     const [w, h] = kt.split("x").map(Number);
-    if (!w || !h) continue;
-    if (Math.min(w, h) === ngan && Math.abs(w / h - a / b) < 0.03) return w * h;
+    if (w && h && Math.min(w, h) === ngan && Math.abs(Math.max(w, h) / Math.min(w, h) - 16 / 9) < 0.03) return w * h;
   }
-  const dai = Math.round((ngan * Math.max(a, b)) / Math.min(a, b));
-  return ngan * dai;
+  return ngan * Math.round((ngan * 16) / 9);
 }
 
 /**
@@ -184,7 +189,7 @@ export function giaMoiGiay(model: ModelVideo, lc: LuaChonVideo): number | null {
     (!tieng ? g.video_tokens_without_audio : undefined) ??
     g.video_tokens;
   if (giaToken === undefined) return null;
-  const dt = dienTich(model, lc.doNet, lc.khung);
+  const dt = dienTichTinhTien(model, lc.doNet);
   if (!dt) return null;
   return ((dt * 24) / 1024) * giaToken;
 }

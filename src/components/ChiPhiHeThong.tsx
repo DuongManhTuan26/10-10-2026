@@ -19,7 +19,15 @@ type CachXem = 'viec' | 'taiKhoan';
 type Hang = [string, string, string?];
 type TaiKhoan = SaoKeChiPhi['so']['theoTaiKhoan'][number];
 
-const ngayVN = (iso: string) => new Date(iso).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit' });
+/** "01/10" theo giờ Việt Nam. Đã thấy toLocaleDateString('vi-VN') ra "01-10", lệch với chỗ khác. */
+const ngayVN = (iso: string) => {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit' })
+      .formatToParts(new Date(iso))
+      .map((x) => [x.type, x.value])
+  );
+  return `${p.day}/${p.month}`;
+};
 
 /**
  * Cây tài khoản: tài khoản cha (admin con) đứng trên, tài khoản trang của nó
@@ -70,8 +78,13 @@ export default function ChiPhiHeThong() {
     void tai();
   }, [tai]);
 
-  const canhBao = (nhom: Dong) =>
-    du?.canhBao.filter((c) => c.mucDo !== 'luu_y' && c.ma.startsWith(nhom === 'ai' ? 'ai_' : 'kenh_')) ?? [];
+  /** Cảnh báo của một dòng, nặng nhất trước. Gồm cả "chưa đọc được" (lưu ý). */
+  const canhBao = (nhom: Dong) => {
+    const thuTu = { nguy_cap: 0, can_lam: 1, luu_y: 2 } as const;
+    return (du?.canhBao.filter((c) => c.ma.startsWith(nhom === 'ai' ? 'ai_' : 'kenh_')) ?? []).sort(
+      (a, b) => thuTu[a.mucDo] - thuTu[b.mucDo]
+    );
+  };
 
   /*
    * Dòng AI = TỔNG các khoản chi tiết bên trong (sổ của app, tháng theo giờ
@@ -86,7 +99,14 @@ export default function ChiPhiHeThong() {
 
   const dong = (id: Dong, ten: string, tien: number | null) => {
     const cb = canhBao(id);
-    const mucDo = cb.some((c) => c.mucDo === 'nguy_cap') ? 'do' : cb.length ? 'cam' : 'xanh';
+    // Xám = chưa đọc được nhà cung cấp, không biết ổn hay không — không được tô xanh.
+    const mucDo = cb.some((c) => c.mucDo === 'nguy_cap')
+      ? 'do'
+      : cb.some((c) => c.mucDo === 'can_lam')
+        ? 'cam'
+        : cb.length
+          ? 'xam'
+          : 'xanh';
     return (
       <button
         type="button"
@@ -97,14 +117,20 @@ export default function ChiPhiHeThong() {
         <span
           className={clsx(
             'w-2.5 h-2.5 rounded-full shrink-0',
-            mucDo === 'do' ? 'bg-red-500' : mucDo === 'cam' ? 'bg-amber-400' : 'bg-green-400'
+            mucDo === 'do' ? 'bg-red-500' : mucDo === 'cam' ? 'bg-amber-400' : mucDo === 'xam' ? 'bg-on-surface-variant' : 'bg-green-400'
           )}
         />
         <span className="flex-1 min-w-0">
           <span className="block text-sm font-bold text-on-surface">{ten}</span>
           {cb[0] && (
-            <span className={clsx('block text-xs mt-0.5', mucDo === 'do' ? 'text-red-400' : 'text-amber-400')}>
-              {cb[0].noiDung.split('.')[0]}
+            <span
+              className={clsx(
+                'block text-xs mt-0.5',
+                mucDo === 'do' ? 'text-red-400' : mucDo === 'cam' ? 'text-amber-400' : 'text-on-surface-variant'
+              )}
+            >
+              {cb[0].tomTat}
+              {cb.length > 1 && ` (+${cb.length - 1})`}
             </span>
           )}
         </span>
@@ -136,6 +162,7 @@ export default function ChiPhiHeThong() {
   const kenh = du?.kenh;
   const dc = du?.doiChieu ?? null;
   const tbNgay = ai?.tuanNayUsd ? ai.tuanNayUsd / 7 : 0;
+  const thieuTien = du?.canhBao.some((c) => c.ma === 'ai_sap_het' || c.ma === 'ai_het_tien') ?? false;
 
   const moNhatKy = (loc: LocLuot, tieuDe: string) => setNhatKy({ loc, tieuDe });
 
@@ -149,7 +176,7 @@ export default function ChiPhiHeThong() {
     >
       <span className={clsx('flex-1 min-w-0 truncate', dam ? 'font-bold text-on-surface' : 'text-on-surface-variant')}>{ten}</span>
       <span className="text-on-surface-variant/70 tabular-nums">{lan.toLocaleString('vi-VN')} lượt</span>
-      <span className={clsx('w-32 text-right tabular-nums', dam && 'font-bold', mauChi(usd))}>{chiDu(usd)}</span>
+      <span className={clsx('shrink-0 text-right tabular-nums whitespace-nowrap', dam && 'font-bold', mauChi(usd))}>{chiDu(usd)}</span>
     </button>
   );
 
@@ -160,7 +187,7 @@ export default function ChiPhiHeThong() {
         ? { ky: 'check_circle', mau: 'text-green-400', chu: 'Khớp tuyệt đối với nhà cung cấp' }
         : dc.trangThai === 'dang_cho'
           ? { ky: 'schedule', mau: 'text-amber-400', chu: `Đang chờ nhà cung cấp chốt ${dc.sauMoc.soLuotCho} lượt` }
-          : { ky: 'error', mau: 'text-red-400', chu: `Lệch ${so(Math.abs(dc.sauMoc.chenhUsd))} USD so với nhà cung cấp` };
+          : { ky: 'error', mau: 'text-red-400', chu: `Lệch ${chiDu(Math.abs(dc.sauMoc.lechUsd)).replace('−', '')} so với nhà cung cấp` };
     return (
       <div>
         <button type="button" onClick={() => setMoDoiChieu(!moDoiChieu)} className={clsx('w-full flex items-center gap-2 text-xs text-left', kieu.mau)}>
@@ -172,18 +199,18 @@ export default function ChiPhiHeThong() {
           <div className="mt-1.5 pl-6 space-y-1 text-xs">
             {(
               [
-                ['Nhà cung cấp đã trừ, từ trước tới nay', chiDu(dc.nhaCungCapUsd)],
-                ['Sổ của app ghi, từ trước tới nay', chiDu(dc.soAppUsd)],
+                ['Nhà cung cấp đã trừ, từ trước tới nay', dc.nhaCungCapUsd],
+                ['Sổ của app ghi, từ trước tới nay', dc.soAppUsd],
                 ...(daChi(dc.ngoaiSoTruocMocUsd)
-                  ? [[`Ngoài sổ, trước ${ngayVN(dc.mocLuc)} (chạy thử, sổ cũ ghi thiếu)`, chiDu(dc.ngoaiSoTruocMocUsd)]]
+                  ? [[`Ngoài sổ, trước ${ngayVN(dc.mocLuc)} (chạy thử, sổ cũ ghi thiếu)`, dc.ngoaiSoTruocMocUsd]]
                   : []),
-                [`Từ ${ngayVN(dc.mocLuc)}: nhà cung cấp trừ`, chiDu(dc.sauMoc.nhaCungCapUsd)],
-                [`Từ ${ngayVN(dc.mocLuc)}: sổ ghi`, chiDu(dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd)],
-              ] as [string, string][]
+                [`Từ ${ngayVN(dc.mocLuc)}: nhà cung cấp trừ`, dc.sauMoc.nhaCungCapUsd],
+                [`Từ ${ngayVN(dc.mocLuc)}: sổ ghi`, dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd],
+              ] as [string, number][]
             ).map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4">
-                <span className="text-on-surface-variant">{k}</span>
-                <span className="text-on-surface tabular-nums text-right">{v}</span>
+                <span className="text-on-surface-variant min-w-0">{k}</span>
+                <span className={clsx('tabular-nums text-right whitespace-nowrap shrink-0', mauChi(v))}>{chiDu(v)}</span>
               </div>
             ))}
           </div>
@@ -210,16 +237,28 @@ export default function ChiPhiHeThong() {
 
       <div className="rounded-2xl border border-outline-variant bg-surface-container/40 divide-y divide-outline-variant/60 overflow-hidden">
         {dong('ai', 'AI', tienAi)}
-        {mo === 'ai' && ai?.ok && du && (
+        {/*
+         * Sổ của app vẫn hiện khi nhà cung cấp tạm không trả lời. Đã thấy: điều
+         * kiện ai.ok giấu sạch phần chi tiết — bấm vào không ra gì, không lý do.
+         */}
+        {mo === 'ai' && du && (
           <div className="px-5 pb-4 pl-[2.6rem] space-y-3">
+            {canhBao('ai').map((c) => (
+              <p key={c.ma} className={clsx('text-xs', c.mucDo === 'nguy_cap' ? 'text-red-400' : c.mucDo === 'can_lam' ? 'text-amber-400' : 'text-on-surface-variant')}>
+                {c.noiDung}
+              </p>
+            ))}
+
             {dongDoiChieu()}
 
-            <div className="flex justify-between gap-4 text-xs">
-              <span className="text-on-surface-variant">Còn lại</span>
-              <span className={clsx('tabular-nums', canhBao('ai').length ? 'text-amber-400' : 'text-green-400')}>
-                {so(ai.conLaiUsd ?? 0)} USD{tbNgay > 0 ? ` · đủ ~${Math.floor((ai.conLaiUsd ?? 0) / tbNgay)} ngày` : ''}
-              </span>
-            </div>
+            {ai?.ok && (
+              <div className="flex justify-between gap-4 text-xs">
+                <span className="text-on-surface-variant">Còn lại</span>
+                <span className={clsx('tabular-nums', thieuTien ? 'text-amber-400' : 'text-green-400')}>
+                  {so(ai.conLaiUsd ?? 0)} USD{tbNgay > 0 ? ` · đủ ~${Math.floor((ai.conLaiUsd ?? 0) / tbNgay)} ngày` : ''}
+                </span>
+              </div>
+            )}
 
             <div>
               <div className="flex gap-1 mb-1.5">
@@ -292,6 +331,14 @@ export default function ChiPhiHeThong() {
         )}
 
         {dong('kenh', 'Kết nối kênh', tienKenh)}
+        {mo === 'kenh' && kenh && !kenh.ok && (
+          <div className="px-5 pb-4 pl-[2.6rem]">
+            <p className="text-xs text-on-surface-variant">Chưa đọc được nhà cung cấp kênh: {kenh.loi ?? 'không rõ lý do'}</p>
+            <a href={du?.linkNap.kenh} target="_blank" rel="noreferrer" className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold">
+              Trang thanh toán
+            </a>
+          </div>
+        )}
         {mo === 'kenh' &&
           kenh?.ok &&
           chiTiet(
@@ -315,6 +362,8 @@ export default function ChiPhiHeThong() {
               {du ? chi(tong) : '—'}
             </span>
             {du && <span className={clsx('block text-[11px] tabular-nums', daChi(tong) ? 'text-red-400/70' : 'text-on-surface-variant')}>{vnd(tong)}</span>}
+            {/* Chưa đọc được kênh thì tổng chưa đủ — nói rõ, không để tưởng là tổng thật. */}
+            {du && tienKenh === null && <span className="block text-[11px] text-on-surface-variant">chưa gồm kết nối kênh</span>}
           </span>
           <span className="w-6 shrink-0" />
         </div>
