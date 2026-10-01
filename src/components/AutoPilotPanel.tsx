@@ -196,7 +196,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
         'relative rounded-2xl mb-8 overflow-hidden border-2 transition-colors',
         cau.enabled
           ? 'bg-primary/[0.07] border-primary shadow-[0_0_40px_rgba(0,229,255,0.18)]'
-          : 'bg-surface-container/40 border-primary/45 shadow-[0_0_30px_rgba(0,229,255,0.08)] hover:border-primary/70'
+          : 'bg-surface-container border-primary/45 shadow-[0_0_30px_rgba(0,229,255,0.08)] hover:border-primary/70'
       )}
     >
       {/* Quầng sáng nền, giống thẻ chọn chế độ ở trên cho đồng bộ */}
@@ -217,7 +217,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase">
+              <span className="tieu-de-muc">
                 Tự động hoá
               </span>
               <span
@@ -305,7 +305,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
               onChange={(e) => { setChuDeText(e.target.value); setDaLuu(false); }}
               rows={6}
               placeholder={'Công dụng của kem dưỡng da tay mùa hanh khô\nCách phân biệt hàng chính hãng\nƯu đãi tuần này'}
-              className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none resize-y leading-relaxed"
+              className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary focus:outline-none resize-y leading-relaxed"
             />
             <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
               AI xoay vòng lần lượt từng chủ đề. Hết danh sách thì quay lại từ đầu, nhưng mỗi
@@ -515,7 +515,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
                   return (
                     <div
                       key={r.slot_key}
-                      className="flex items-start gap-3 bg-surface-container/60 border border-outline-variant rounded-xl px-4 py-2.5"
+                      className="flex items-start gap-3 bg-surface-container border border-outline-variant rounded-xl px-4 py-2.5"
                     >
                       <span className="font-mono text-xs text-on-surface-variant shrink-0 mt-0.5 w-[120px]">
                         {r.slot_key}

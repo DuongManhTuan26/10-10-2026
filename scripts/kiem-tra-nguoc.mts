@@ -171,10 +171,10 @@ const DUC: PhepDuc[] = [
     thay: "onClick={() => capLaiMatKhau(t)}",
   },
   {
-    ten: "mật khẩu tạm lại nằm lẫn phía trên trang",
+    ten: "cửa sổ mật khẩu tạm lỡ bấm ra ngoài là mất (chỉ hiện một lần)",
     tep: "src/pages/Admin.tsx",
-    tim: "        <div className=\"fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm\">",
-    thay: "        <div className=\"mb-6\">",
+    tim: "          onDong={() => setMatKhauTam(null)}\n          dongKhiBamNgoai={false}",
+    thay: "          onDong={() => setMatKhauTam(null)}",
   },
   {
     ten: "nhà cung cấp kênh không trả lời thì giấu chi tiết",
@@ -185,7 +185,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "bỏ đường kẻ giữa các dòng mục con",
     tep: "src/components/ChiPhiHeThong.tsx",
-    tim: "border-t border-outline-variant/60 divide-y divide-outline-variant/40';",
+    tim: "border-t border-outline-variant/60 divide-y divide-outline-variant/60';",
     thay: "border-t border-outline-variant/60';",
   },
   {
@@ -199,6 +199,60 @@ const DUC: PhepDuc[] = [
     tep: "src/components/ChiPhiHeThong.tsx",
     tim: " before:w-px before:bg-outline-variant\";",
     thay: "\";",
+  },
+  {
+    ten: "nền lại tối om như cũ (thẻ chìm vào nền)",
+    tep: "src/index.css",
+    tim: "  --color-surface-container: #213256;",
+    thay: "  --color-surface-container: #0f172a;",
+  },
+  {
+    ten: "chữ phụ lại tối",
+    tep: "src/index.css",
+    tim: "  --color-on-surface-variant: #c3cee0;",
+    thay: "  --color-on-surface-variant: #64748b;",
+  },
+  {
+    ten: "thẻ trong suốt quay lại",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "<div className=\"rounded-2xl border border-outline-variant bg-surface-container",
+    thay: "<div className=\"rounded-2xl border border-outline-variant bg-surface-container/40",
+  },
+  {
+    ten: "chữ phụ bị làm mờ quay lại",
+    tep: "src/components/HopThoai.tsx",
+    tim: "{phuDe && <p className=\"text-sm text-on-surface-variant mt-1\">",
+    thay: "{phuDe && <p className=\"text-sm text-on-surface-variant/60 mt-1\">",
+  },
+  {
+    ten: "hộp thoại tự dựng khung riêng, hẹp",
+    tep: "src/pages/Admin.tsx",
+    tim: "      {dangSua && (\n        <HopThoai",
+    thay: "      {dangSua && (\n        <div className=\"fixed inset-0\" />\n        <HopThoai",
+  },
+  {
+    ten: "hộp thoại co hẹp lại",
+    tep: "src/components/HopThoai.tsx",
+    tim: "  vua: 'w-[min(880px,94vw)] max-h-[90vh]',",
+    thay: "  vua: 'w-full max-w-[460px] max-h-[90vh]',",
+  },
+  {
+    ten: "bỏ thanh cuộn thân hộp thoại",
+    tep: "src/components/HopThoai.tsx",
+    tim: "<div className=\"flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6\">{children}</div>",
+    thay: "<div className=\"flex-1 min-h-0 px-6 sm:px-8 py-6\">{children}</div>",
+  },
+  {
+    ten: "chữ gợi ý ô nhập lại mờ",
+    tep: "src/index.css",
+    tim: "  color: color-mix(in srgb, var(--color-on-surface-variant) 70%, transparent);",
+    thay: "  color: color-mix(in srgb, var(--color-on-surface-variant) 40%, transparent);",
+  },
+  {
+    ten: "tiêu đề mục lại cùng màu xanh với nút",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "<h2 className=\"tieu-de-muc\">Chi phí tháng này</h2>",
+    thay: "<h2 className=\"font-mono text-[11px] font-bold text-primary tracking-wider uppercase\">Chi phí tháng này</h2>",
   },
   {
     ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",
@@ -1402,9 +1456,9 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "quay lại dùng max-w-md cho hộp thoại, bóp còn 24px",
-    tep: "src/pages/Admin.tsx",
-    tim: "w-full max-w-[520px] p-6 space-y-4",
-    thay: "w-full max-w-md p-6 space-y-4",
+    tep: "src/components/HopThoai.tsx",
+    tim: "  vua: 'w-[min(880px,94vw)] max-h-[90vh]',",
+    thay: "  vua: 'w-full max-w-md max-h-[90vh]',",
   },
   /*
    * Bốn điểm bảo mật do một bộ soát ngoài chỉ ra. Đục lại đúng cái lỗ cũ.

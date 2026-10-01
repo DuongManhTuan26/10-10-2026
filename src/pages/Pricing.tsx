@@ -224,7 +224,7 @@ export default function Pricing() {
               key={plan.id} 
               className={`rounded-xl p-md flex flex-col relative overflow-hidden border ${
                 plan.isCurrent 
-                  ? 'border-primary shadow-[0_0_20px_rgba(0,229,255,0.15)] bg-surface-container/50 z-10' 
+                  ? 'border-primary shadow-[0_0_20px_rgba(0,229,255,0.15)] bg-surface-container z-10' 
                   : 'bg-surface-container border-outline-variant transition-transform hover:-translate-y-1 duration-300'
               }`}
             >
@@ -307,7 +307,7 @@ export default function Pricing() {
           </div>
 
           {safety?.blockRateNote && (
-            <p className="text-xs text-on-surface-variant/70 mb-4 flex items-start gap-1.5">
+            <p className="text-xs text-on-surface-variant mb-4 flex items-start gap-1.5">
               <span className="material-symbols-outlined text-[14px] mt-0.5">info</span>
               <span>{safety.blockRateNote}</span>
             </p>
@@ -328,7 +328,7 @@ export default function Pricing() {
                   <div className="flex-1">
                     <p className="font-body-md text-on-surface font-bold">{kenh.display_name}</p>
                     <p className="text-sm text-on-surface-variant mt-0.5">{kenh.ai_pause_reason}</p>
-                    <p className="text-xs text-on-surface-variant/70 mt-1">
+                    <p className="text-xs text-on-surface-variant mt-1">
                       Tự mở lại lúc {new Date(kenh.ai_paused_until).toLocaleString('vi-VN')}
                     </p>
                   </div>
@@ -363,7 +363,7 @@ export default function Pricing() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-on-surface-variant/70 mt-3 pt-3 border-t border-outline-variant/50">
+              <p className="text-xs text-on-surface-variant mt-3 pt-3 border-t border-outline-variant/50">
                 Bị chặn là hệ thống đang bảo vệ Trang của bạn khỏi vi phạm chính sách,
                 không phải lỗi. Hạn mức đang áp dụng: {guardrails.rateLimit.perMinute} tin/phút
                 {guardrails.rateLimit.source === 'live' ? ' (đọc trực tiếp từ nền tảng)' : ''}.
@@ -375,7 +375,7 @@ export default function Pricing() {
           {guardrails && (
             <div className="mb-md bg-surface-container-high rounded-xl border border-outline-variant p-4">
               <h4 className="font-body-md font-bold text-on-surface mb-1">Giới hạn đang áp dụng</h4>
-              <p className="text-xs text-on-surface-variant/70 mb-4 leading-relaxed">
+              <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
                 Trần tốc độ là quy định của nền tảng, hệ thống không cho vượt. Bạn chỉ
                 có thể đặt chặt hơn nếu muốn thận trọng.
               </p>
@@ -415,7 +415,7 @@ export default function Pricing() {
                     />
                     <span className="text-xs text-on-surface-variant">0 = không giới hạn</span>
                   </div>
-                  <p className="text-xs text-on-surface-variant/70 mt-2 leading-relaxed">
+                  <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
                     Đây KHÔNG phải quy định nền tảng, chỉ là chốt an toàn của riêng bạn
                     để AI không phát tán hàng loạt khi có sự cố.
                   </p>

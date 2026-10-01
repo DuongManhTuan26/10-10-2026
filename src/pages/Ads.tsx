@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import HopThoai, { NHAN_O, NUT_CHINH, NUT_PHU, O_NHAP } from '../components/HopThoai';
 import { clsx } from 'clsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import AITrainingModal from '../components/AITrainingModal';
@@ -694,7 +695,7 @@ export default function Ads() {
 
       {/* Row 1: Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full group-hover:bg-blue-500/20 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">TỔNG CHI TIÊU</h3>
@@ -707,7 +708,7 @@ export default function Ads() {
           <p className="text-xs text-on-surface-variant mt-auto font-medium">{ghiChuKy}</p>
         </div>
 
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-purple-500/10 blur-2xl rounded-full group-hover:bg-purple-500/20 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">LƯỢT TIẾP CẬN</h3>
@@ -720,7 +721,7 @@ export default function Ads() {
           <p className="text-xs text-on-surface-variant mt-auto font-medium">Số người khác nhau đã thấy quảng cáo</p>
         </div>
 
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-orange-500/10 blur-2xl rounded-full group-hover:bg-orange-500/20 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">BÌNH LUẬN THU ĐƯỢC</h3>
@@ -741,7 +742,7 @@ export default function Ads() {
         <div className="bg-primary/10 border border-primary/30 rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/60 transition-colors h-[140px] shadow-[0_0_20px_rgba(0,229,255,0.1)]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 blur-2xl rounded-full group-hover:bg-primary/30 transition-colors"></div>
           <div>
-            <h3 className="font-mono text-[11px] font-bold tracking-wider text-primary uppercase mb-1">ĐƠN CHỐT TỪ QUẢNG CÁO</h3>
+            <h3 className="tieu-de-muc mb-1">ĐƠN CHỐT TỪ QUẢNG CÁO</h3>
             <div className="flex items-baseline gap-2">
               {/*
                 * Ô này KHÔNG bịa được cũng không đoán được.
@@ -765,7 +766,7 @@ export default function Ads() {
 
       {/* Row 2: Selection Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <button onClick={openFlow} className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6 text-left flex gap-5 items-start group hover:border-primary/50 transition-colors hover:bg-surface-container/50">
+        <button onClick={openFlow} className="bg-surface-container border border-outline-variant rounded-2xl p-6 text-left flex gap-5 items-start group hover:border-primary/50 transition-colors hover:bg-surface-container/50">
           <div className="w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
             <span className="material-symbols-outlined text-3xl text-blue-400">rocket_launch</span>
           </div>
@@ -777,7 +778,7 @@ export default function Ads() {
           </div>
         </button>
 
-        <button onClick={openFlow} className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6 text-left flex gap-5 items-start group hover:border-primary/50 transition-colors hover:bg-surface-container/50">
+        <button onClick={openFlow} className="bg-surface-container border border-outline-variant rounded-2xl p-6 text-left flex gap-5 items-start group hover:border-primary/50 transition-colors hover:bg-surface-container/50">
           <div className="w-14 h-14 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
             <span className="material-symbols-outlined text-3xl text-purple-400">stars</span>
           </div>
@@ -791,7 +792,7 @@ export default function Ads() {
       </div>
 
       {/* Row 3: Performance Chart */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6 mb-8 flex flex-col">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6 mb-8 flex flex-col">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-on-surface">Hiệu quả chiến dịch</h2>
           <button onClick={handleAnalyze} disabled={busy || !connected} className="font-mono text-xs font-bold text-primary hover:brightness-110 uppercase tracking-wider disabled:opacity-50">
@@ -828,7 +829,7 @@ export default function Ads() {
       </div>
 
       {/* Row 4: Campaigns List */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl overflow-hidden mb-8">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl overflow-hidden mb-8">
         <div className="p-6 border-b border-outline-variant/50">
           <div className="flex flex-wrap gap-2">
             {['Tất cả', 'Đang chạy', 'Tạm dừng', 'Đã kết thúc'].map(opt => (
@@ -851,7 +852,7 @@ export default function Ads() {
         <div className="overflow-x-auto ">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-surface-container/20 border-b border-outline-variant/50">
+              <tr className="bg-surface-container border-b border-outline-variant/50">
                 <th className="p-4 font-mono text-[11px] font-bold text-on-surface-variant tracking-wider whitespace-nowrap uppercase">Tên chiến dịch</th>
                 <th className="p-4 font-mono text-[11px] font-bold text-on-surface-variant tracking-wider whitespace-nowrap uppercase">Loại</th>
                 <th className="p-4 font-mono text-[11px] font-bold text-on-surface-variant tracking-wider whitespace-nowrap uppercase">Ngân sách</th>
@@ -953,7 +954,7 @@ export default function Ads() {
       </div>
 
       {/* Row 5: Audiences */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-on-surface">Tệp đối tượng đã lưu</h2>
           <button onClick={() => setIsAudienceFlowOpen(true)} className="px-3 py-1.5 border border-outline-variant text-on-surface font-bold text-sm rounded-lg hover:bg-surface-variant transition-colors flex items-center gap-1">
@@ -964,7 +965,7 @@ export default function Ads() {
         
         <div className="flex overflow-x-auto gap-4 pb-2 ">
           {displayAudiences.map(aud => (
-            <div key={aud.id} className="bg-surface-container/50 border border-outline-variant/50 rounded-xl p-4 flex flex-col justify-between group hover:border-primary/30 transition-colors min-w-[250px] flex-shrink-0 h-[100px]">
+            <div key={aud.id} className="bg-surface-container border border-outline-variant/50 rounded-xl p-4 flex flex-col justify-between group hover:border-primary/30 transition-colors min-w-[250px] flex-shrink-0 h-[100px]">
               <div className="flex items-start justify-between mb-2">
                 <span className="px-2 py-0.5 bg-surface-variant text-on-surface-variant font-medium text-[11px] uppercase tracking-wider rounded">
                   {aud.type}
@@ -987,17 +988,16 @@ export default function Ads() {
 
       {/* Ad Creation Flow Modal */}
       {isFlowOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeFlow}></div>
-          <div className="relative w-full max-w-[900px] max-h-[90vh] bg-surface-container-high border border-primary/30 rounded-2xl shadow-[0_0_40px_rgba(0,229,255,0.1)] flex flex-col animate-in zoom-in-95 duration-300 overflow-hidden">
-            
-            <button onClick={closeFlow} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-variant text-on-surface-variant hover:text-on-surface transition-colors z-20">
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
-
+        <HopThoai
+          bieuTuong="campaign"
+          tieuDe="Tạo quảng cáo"
+          onDong={closeFlow}
+          dongKhiBamNgoai={false}
+          dauPhu={!isSuccess ? (
+            <>
             {/* Progress Bar */}
             {!isSuccess && (
-              <div className="px-8 pt-8 pb-4 border-b border-outline-variant/50 relative z-10 bg-surface-container-low">
+              <div className="relative z-10">
                 <div className="flex justify-between items-center relative max-w-[600px] mx-auto">
                   <div className="absolute top-4 left-0 w-full h-0.5 bg-surface-variant -z-10"></div>
                   <div 
@@ -1013,25 +1013,26 @@ export default function Ads() {
                   ].map((s) => (
                     <div key={s.step} className="flex flex-col items-center gap-2">
                       <div className={clsx(
-                        "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors shadow-sm",
+                        "w-9 h-9 rounded-full flex items-center justify-center text-base font-bold transition-colors shadow-sm",
                         currentStep === s.step ? "bg-primary text-on-primary ring-4 ring-primary/20" :
                         currentStep > s.step ? "bg-green-500 text-white" :
-                        "bg-surface-variant text-on-surface-variant"
+                        "bg-surface-container-highest text-on-surface"
                       )}>
                         {currentStep > s.step ? <span className="material-symbols-outlined text-[16px]">check</span> : s.step}
                       </div>
                       <span className={clsx(
-                        "text-[11px] font-bold uppercase tracking-wider",
-                        currentStep === s.step ? "text-primary" : "text-on-surface-variant"
+                        "text-xs font-bold uppercase tracking-wider",
+                        currentStep === s.step ? "text-primary" : currentStep > s.step ? "text-green-400" : "text-on-surface-variant"
                       )}>{s.label}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Content Area */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 relative">
+            </>
+          ) : undefined}
+        >
+            <div className="relative">
               {isSuccess ? (
                 <div className="flex flex-col items-center justify-center h-full text-center w-full max-w-[480px] mx-auto py-12 animate-in zoom-in-95 duration-500">
                   <div className="w-24 h-24 rounded-full bg-green-500/10 border-2 border-green-500/30 flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(34,197,94,0.2)]">
@@ -1063,7 +1064,7 @@ export default function Ads() {
                         key={post.id}
                         onClick={() => setSelectedPostId(post.id)}
                         className={clsx(
-                          "text-left p-4 rounded-xl border transition-all duration-200 bg-surface-container/30 hover:bg-surface-container group flex gap-4",
+                          "text-left p-4 rounded-xl border transition-all duration-200 bg-surface-container hover:bg-surface-container group flex gap-4",
                           selectedPostId === post.id 
                             ? "border-primary bg-primary/5 shadow-[0_0_15px_rgba(0,229,255,0.1)]" 
                             : "border-outline-variant hover:border-primary/50"
@@ -1071,9 +1072,9 @@ export default function Ads() {
                       >
                         <div className="w-20 h-20 bg-surface-variant rounded-lg shrink-0 flex items-center justify-center overflow-hidden">
                           {post.hasImage ? (
-                            <span className="material-symbols-outlined text-on-surface-variant/50 text-[32px]">image</span>
+                            <span className="material-symbols-outlined text-on-surface-variant text-[32px]">image</span>
                           ) : (
-                            <span className="material-symbols-outlined text-on-surface-variant/50 text-[32px]">article</span>
+                            <span className="material-symbols-outlined text-on-surface-variant text-[32px]">article</span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col">
@@ -1096,7 +1097,7 @@ export default function Ads() {
                     <button 
                       onClick={() => setCurrentStep(2)}
                       disabled={!selectedPostId}
-                      className="px-6 py-2.5 bg-primary text-on-primary font-bold rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+                      className={NUT_CHINH}
                     >
                       Tiếp tục <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                     </button>
@@ -1108,7 +1109,7 @@ export default function Ads() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-8">
                     <div className="md:col-span-3 space-y-6">
-                      <div className="bg-surface-container/30 border border-outline-variant p-6 rounded-2xl">
+                      <div className="bg-surface-container border border-outline-variant p-6 rounded-2xl">
                         <label className="block text-sm font-bold text-on-surface mb-3">Ngân sách mỗi ngày</label>
                         <div className="relative mb-4">
                           <input 
@@ -1140,7 +1141,7 @@ export default function Ads() {
                         </div>
                       </div>
 
-                      <div className="bg-surface-container/30 border border-outline-variant p-6 rounded-2xl">
+                      <div className="bg-surface-container border border-outline-variant p-6 rounded-2xl">
                         <label className="block text-sm font-bold text-on-surface mb-3">Chạy trong bao nhiêu ngày</label>
                         <div className="flex items-center gap-4 mb-4">
                           <button onClick={() => setDuration(Math.max(1, duration - 1))} className="w-10 h-10 rounded-full bg-surface-variant hover:bg-surface-variant-high text-on-surface flex items-center justify-center transition-colors">
@@ -1168,7 +1169,7 @@ export default function Ads() {
 
                     <div className="md:col-span-2">
                       <div className="sticky top-0 bg-primary/10 border-2 border-primary/40 rounded-2xl p-6 shadow-[0_0_30px_rgba(0,229,255,0.15)] h-full flex flex-col justify-center overflow-hidden">
-                        <h3 className="font-mono text-xs font-bold tracking-wider text-primary uppercase mb-4 opacity-80">
+                        <h3 className="tieu-de-muc mb-4">
                           TỔNG CHI TIÊU TỐI ĐA
                         </h3>
                         <div className={clsx(
@@ -1188,13 +1189,13 @@ export default function Ads() {
                   <div className="flex justify-between pt-6 border-t border-outline-variant/50">
                     <button 
                       onClick={() => setCurrentStep(1)}
-                      className="px-6 py-2.5 bg-surface-container border border-outline-variant text-on-surface font-bold rounded-xl hover:bg-surface-variant transition-colors flex items-center gap-2"
+                      className={NUT_PHU}
                     >
                       <span className="material-symbols-outlined text-[18px]">arrow_back</span> Quay lại
                     </button>
                     <button 
                       onClick={() => setCurrentStep(3)}
-                      className="px-6 py-2.5 bg-primary text-on-primary font-bold rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform flex items-center gap-2"
+                      className={NUT_CHINH}
                     >
                       Tiếp tục <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                     </button>
@@ -1210,7 +1211,7 @@ export default function Ads() {
                       <div 
                         onClick={() => setAudienceType('saved')}
                         className={clsx(
-                          "w-full text-left p-5 rounded-2xl border transition-all duration-200 bg-surface-container/30 cursor-pointer",
+                          "w-full text-left p-5 rounded-2xl border transition-all duration-200 bg-surface-container cursor-pointer",
                           audienceType === 'saved' ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary/50"
                         )}
                       >
@@ -1234,7 +1235,7 @@ export default function Ads() {
                       <div 
                         onClick={() => setAudienceType('custom')}
                         className={clsx(
-                          "w-full text-left p-5 rounded-2xl border transition-all duration-200 bg-surface-container/30 cursor-pointer",
+                          "w-full text-left p-5 rounded-2xl border transition-all duration-200 bg-surface-container cursor-pointer",
                           audienceType === 'custom' ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary/50"
                         )}
                       >
@@ -1274,7 +1275,7 @@ export default function Ads() {
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Sở thích</label>
-                              <input type="text" placeholder="Thêm sở thích..." className="w-full bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-on-surface-variant/50" />
+                              <input type="text" placeholder="Thêm sở thích..." className="w-full bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-on-surface-variant/70" />
                             </div>
                           </div>
                         )}
@@ -1283,7 +1284,7 @@ export default function Ads() {
                       <div 
                         onClick={() => setAudienceType('auto')}
                         className={clsx(
-                          "w-full text-left p-5 rounded-2xl border transition-all duration-200 bg-surface-container/30 cursor-pointer",
+                          "w-full text-left p-5 rounded-2xl border transition-all duration-200 bg-surface-container cursor-pointer",
                           audienceType === 'auto' ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary/50"
                         )}
                       >
@@ -1300,7 +1301,7 @@ export default function Ads() {
                     </div>
 
                     <div className="md:col-span-1">
-                      <div className="sticky top-0 bg-surface-container/50 border border-outline-variant rounded-2xl p-6 h-full flex flex-col justify-center text-center">
+                      <div className="sticky top-0 bg-surface-container border border-outline-variant rounded-2xl p-6 h-full flex flex-col justify-center text-center">
                         <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-4">
                           ƯỚC TÍNH TIẾP CẬN
                         </h3>
@@ -1322,13 +1323,13 @@ export default function Ads() {
                   <div className="flex justify-between pt-6 border-t border-outline-variant/50">
                     <button 
                       onClick={() => setCurrentStep(2)}
-                      className="px-6 py-2.5 bg-surface-container border border-outline-variant text-on-surface font-bold rounded-xl hover:bg-surface-variant transition-colors flex items-center gap-2"
+                      className={NUT_PHU}
                     >
                       <span className="material-symbols-outlined text-[18px]">arrow_back</span> Quay lại
                     </button>
                     <button 
                       onClick={() => setCurrentStep(4)}
-                      className="px-6 py-2.5 bg-primary text-on-primary font-bold rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform flex items-center gap-2"
+                      className={NUT_CHINH}
                     >
                       Tiếp tục <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                     </button>
@@ -1341,7 +1342,7 @@ export default function Ads() {
                     Kiểm tra lại một lần nữa trước khi tiền bắt đầu được trừ
                   </p>
 
-                  <div className="bg-surface-container/30 border border-outline-variant rounded-2xl overflow-hidden mb-6">
+                  <div className="bg-surface-container border border-outline-variant rounded-2xl overflow-hidden mb-6">
                     <div className="flex items-center justify-between p-4 border-b border-outline-variant/50">
                       <span className="text-sm font-bold text-on-surface-variant">Bài đăng</span>
                       <div className="flex items-center gap-3 max-w-[60%] text-right">
@@ -1350,9 +1351,9 @@ export default function Ads() {
                         </span>
                         <div className="w-10 h-10 bg-surface-variant rounded shrink-0 flex items-center justify-center">
                           {displayPosts.find(p => p.id === selectedPostId)?.hasImage ? (
-                            <span className="material-symbols-outlined text-on-surface-variant/50 text-[20px]">image</span>
+                            <span className="material-symbols-outlined text-on-surface-variant text-[20px]">image</span>
                           ) : (
-                            <span className="material-symbols-outlined text-on-surface-variant/50 text-[20px]">article</span>
+                            <span className="material-symbols-outlined text-on-surface-variant text-[20px]">article</span>
                           )}
                         </div>
                       </div>
@@ -1386,7 +1387,7 @@ export default function Ads() {
                   </div>
 
                   <div className="bg-surface-container-highest border-2 border-primary/30 rounded-2xl p-6 text-center shadow-[0_0_40px_rgba(0,229,255,0.08)] mb-8 overflow-hidden">
-                    <h3 className="font-mono text-xs font-bold tracking-wider text-primary uppercase mb-2">TỔNG CHI TIÊU TỐI ĐA</h3>
+                    <h3 className="tieu-de-muc mb-2">TỔNG CHI TIÊU TỐI ĐA</h3>
                     <div className={clsx(
                       "font-black text-on-surface mb-3 tracking-tight whitespace-nowrap",
                       (dailyBudget * duration).toLocaleString('vi-VN').length >= 12 ? "text-3xl lg:text-4xl" : "text-5xl"
@@ -1414,26 +1415,29 @@ export default function Ads() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+        </HopThoai>
       )}
 
       {/* Centered Create Audience Modal */}
       {isAudienceFlowOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setIsAudienceFlowOpen(false)}></div>
-          <div className="relative w-full max-w-[640px] max-h-[90vh] bg-surface-container-high border border-primary/30 rounded-2xl shadow-[0_0_40px_rgba(0,229,255,0.1)] flex flex-col animate-in zoom-in-95 duration-300 overflow-hidden">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-outline-variant/50 shrink-0">
-              <h2 className="text-xl font-bold text-on-surface">Tạo tệp đối tượng</h2>
-              <button onClick={() => setIsAudienceFlowOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-variant text-on-surface-variant hover:text-on-surface transition-colors">
-                <span className="material-symbols-outlined text-[20px]">close</span>
+        <HopThoai
+          co="vua"
+          bieuTuong="group_add"
+          tieuDe="Tạo tệp đối tượng"
+          onDong={() => setIsAudienceFlowOpen(false)}
+          dongKhiBamNgoai={false}
+          chan={
+            <>
+              <button type="button" onClick={() => setIsAudienceFlowOpen(false)} className={NUT_PHU}>
+                Huỷ
               </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
+              <button type="button" onClick={handleCreateAudience} disabled={busy} className={NUT_CHINH}>
+                {busy ? 'Đang tạo…' : 'Tạo tệp'}
+              </button>
+            </>
+          }
+        >
+            <div className="space-y-8">
               
               {/* Block 1 */}
               <div>
@@ -1443,7 +1447,7 @@ export default function Ads() {
                   value={audName}
                   onChange={e => setAudName(e.target.value)}
                   placeholder="Ví dụ: Khách đã mua"
-                  className="w-full bg-surface-container-high border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-on-surface-variant/50"
+                  className="w-full bg-surface-container-high border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-on-surface-variant/70"
                 />
               </div>
 
@@ -1571,68 +1575,40 @@ export default function Ads() {
               </div>
 
             </div>
-
-            {/* Block 5: Footer */}
-            <div className="p-6 border-t border-outline-variant/50 bg-surface-container-low flex gap-3 shrink-0">
-              <button 
-                onClick={() => setIsAudienceFlowOpen(false)}
-                className="flex-1 py-3 px-4 border border-outline-variant bg-transparent text-on-surface font-bold rounded-xl hover:bg-surface-variant transition-colors"
-              >
-                Hủy
-              </button>
-              <button 
-                onClick={handleCreateAudience}
-                disabled={busy}
-                className="flex-1 py-3 px-4 bg-primary text-on-primary font-bold rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform disabled:opacity-60 disabled:hover:scale-100"
-              >
-                {busy ? 'Đang tạo…' : 'Tạo tệp'}
-              </button>
-            </div>
-
-          </div>
-        </div>
+        </HopThoai>
       )}
 
       <AITrainingModal kind="ads" isOpen={isTrainingOpen} onClose={() => setIsTrainingOpen(false)} aiName="AI Quảng Cáo" />
 
       {/* Sửa tệp đối tượng — thay cho nút mở sang Facebook trước đây */}
       {suaTepId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSuaTepId(null)} />
-          <div className="relative w-full max-w-[460px] bg-surface-container-high border border-primary/30 rounded-2xl shadow-[0_0_40px_rgba(0,229,255,0.1)] p-6">
-            <h2 className="text-lg font-bold text-on-surface mb-1">Đổi tên tệp đối tượng</h2>
-            <p className="text-sm text-on-surface-variant mb-5 leading-relaxed">
-              Quy tắc nhắm chọn của tệp là bất biến — nền tảng không cho sửa sau khi tạo.
-              Muốn nhắm khác thì tạo tệp mới.
-            </p>
-
-            <label className="font-mono text-[11px] font-bold text-on-surface-variant tracking-wider uppercase mb-2 block">
-              Tên tệp
-            </label>
+        <HopThoai
+          co="vua"
+          bieuTuong="edit"
+          tieuDe="Đổi tên tệp đối tượng"
+          phuDe="Quy tắc nhắm chọn của tệp là bất biến — nền tảng không cho sửa sau khi tạo. Muốn nhắm khác thì tạo tệp mới."
+          onDong={() => setSuaTepId(null)}
+          chan={
+            <>
+              <button type="button" onClick={() => setSuaTepId(null)} className={NUT_PHU}>
+                Huỷ
+              </button>
+              <button type="button" onClick={luuTepDoiTuong} disabled={dangLuuTep} className={NUT_CHINH}>
+                {dangLuuTep ? 'Đang lưu…' : 'Lưu'}
+              </button>
+            </>
+          }
+        >
+          <label className="block">
+            <span className={NHAN_O}>Tên tệp</span>
             <input
               value={suaTepTen}
               onChange={(e) => setSuaTepTen(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') luuTepDoiTuong(); }}
-              className="w-full bg-surface-container border border-outline-variant focus:border-primary rounded-xl px-4 py-3 text-sm text-on-surface outline-none transition-colors mb-6"
+              className={O_NHAP}
             />
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setSuaTepId(null)}
-                className="px-5 py-2.5 font-bold text-sm text-on-surface-variant hover:text-on-surface transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={luuTepDoiTuong}
-                disabled={dangLuuTep}
-                className="px-5 py-2.5 bg-primary text-on-primary font-bold text-sm rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform disabled:opacity-60 disabled:hover:scale-100"
-              >
-                {dangLuuTep ? 'Đang lưu…' : 'Lưu'}
-              </button>
-            </div>
-          </div>
-        </div>
+          </label>
+        </HopThoai>
       )}
 
     </main>

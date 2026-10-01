@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import HopThoai, { NUT_CHINH, NUT_PHU } from '../components/HopThoai';
 import { clsx } from 'clsx';
 import { api, ApiError, type Platform, type SocialAccount } from '../lib/api';
 import { useActivePage } from '../lib/ActivePage';
@@ -554,14 +555,19 @@ export default function Connections() {
         * nhận: đổi Trang là tắt hộp thư của Trang cũ.
         */}
       {doiTrangMo && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-surface-container-high border border-outline-variant rounded-2xl w-full max-w-[560px] max-h-[85vh] overflow-y-auto p-6">
-            <h3 className="text-lg font-bold text-on-surface mb-1">Đổi Trang bán hàng</h3>
-            <p className="text-sm text-on-surface-variant mb-4">
-              Tài khoản <span className="text-on-surface font-bold">{kenhDangDoi?.ten}</span> chỉ bán hàng được trên
-              {' '}<span className="text-on-surface font-bold">một Trang</span> tại một thời điểm.
-            </p>
-
+        <HopThoai
+          co="vua"
+          bieuTuong="swap_horiz"
+          tieuDe="Đổi Trang bán hàng"
+          phuDe={<>Tài khoản <span className="text-on-surface font-bold">{kenhDangDoi?.ten}</span> chỉ bán hàng được trên <span className="text-on-surface font-bold">một Trang</span> tại một thời điểm.</>}
+          onDong={() => setDoiTrangMo(false)}
+          chan={
+            <button type="button" onClick={() => setDoiTrangMo(false)} className={NUT_PHU}>
+              Đóng
+            </button>
+          }
+        >
+          <div className="space-y-5">
             <div className="flex items-start gap-2.5 p-3 rounded-lg bg-orange-400/10 border border-orange-400/30 mb-5">
               <span className="material-symbols-outlined text-orange-400 text-[20px] shrink-0">warning</span>
               <p className="text-sm text-on-surface leading-relaxed">
@@ -573,7 +579,7 @@ export default function Connections() {
             {dangTaiTrang ? (
               <p className="text-sm text-on-surface-variant py-8 text-center">Đang đọc danh sách Trang…</p>
             ) : (
-              <div className="flex flex-col gap-2 mb-6">
+              <div className="flex flex-col gap-3">
                 {dsTrang.map((t) => {
                   const dangGan = t.id === trangDangGan;
                   return (
@@ -604,16 +610,8 @@ export default function Connections() {
               </div>
             )}
 
-            <div className="flex justify-end">
-              <button
-                onClick={() => setDoiTrangMo(false)}
-                className="px-5 py-2.5 bg-surface-container border border-outline-variant text-on-surface font-bold rounded-xl hover:bg-surface-variant transition-colors"
-              >
-                Đóng
-              </button>
-            </div>
           </div>
-        </div>
+        </HopThoai>
       )}
 
       {/* Header */}
@@ -641,7 +639,7 @@ export default function Connections() {
       {/* Row 1: Status Banners */}
       <div className="mb-8">
         {bannerState === 'normal' && !taiThatBai && (
-          <div className="bg-surface-container/30 border border-primary/30 shadow-[0_0_20px_rgba(0,229,255,0.05)] rounded-2xl p-5 flex items-center gap-4 relative overflow-hidden">
+          <div className="bg-surface-container border border-primary/30 shadow-[0_0_20px_rgba(0,229,255,0.05)] rounded-2xl p-5 flex items-center gap-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -z-10 rounded-full"></div>
             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center shrink-0 border border-primary/20">
               <span className="material-symbols-outlined text-primary text-[24px]">shield</span>
@@ -763,7 +761,7 @@ export default function Connections() {
                   {channel.connected ? (
                      <span className="material-symbols-outlined text-green-500 text-[20px] shrink-0">check_circle</span>
                   ) : (
-                     <span className="material-symbols-outlined text-on-surface-variant/40 group-hover:text-on-surface transition-colors text-[20px] shrink-0">add_circle</span>
+                     <span className="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors text-[20px] shrink-0">add_circle</span>
                   )}
                 </button>
               ))}
@@ -821,12 +819,12 @@ export default function Connections() {
                   {channel.connected ? (
                      <span className="material-symbols-outlined text-green-500 text-[20px] shrink-0">check_circle</span>
                   ) : (
-                     <span className="material-symbols-outlined text-on-surface-variant/40 group-hover:text-on-surface transition-colors text-[20px] shrink-0">add_circle</span>
+                     <span className="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors text-[20px] shrink-0">add_circle</span>
                   )}
                 </button>
               ))}
             </div>
-            <p className="text-sm font-medium text-on-surface-variant/70">Kết nối tài khoản quảng cáo để chạy và theo dõi chiến dịch ngay trong app, không cần mở trình quản lý quảng cáo riêng.</p>
+            <p className="text-sm font-medium text-on-surface-variant">Kết nối tài khoản quảng cáo để chạy và theo dõi chiến dịch ngay trong app, không cần mở trình quản lý quảng cáo riêng.</p>
           </div>
 
           {/* Group 3 */}
@@ -880,12 +878,12 @@ export default function Connections() {
                   {channel.connected ? (
                      <span className="material-symbols-outlined text-green-500 text-[20px] shrink-0">check_circle</span>
                   ) : (
-                     <span className="material-symbols-outlined text-on-surface-variant/40 group-hover:text-on-surface transition-colors text-[20px] shrink-0">add_circle</span>
+                     <span className="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors text-[20px] shrink-0">add_circle</span>
                   )}
                 </button>
               ))}
             </div>
-            <p className="text-sm font-medium text-on-surface-variant/70">Dùng để nhắn tin hoặc gọi trực tiếp cho khách sau khi AI đã lấy được số điện thoại.</p>
+            <p className="text-sm font-medium text-on-surface-variant">Dùng để nhắn tin hoặc gọi trực tiếp cho khách sau khi AI đã lấy được số điện thoại.</p>
           </div>
         </div>
       </div>
@@ -899,7 +897,7 @@ export default function Connections() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
         
         {liveConnectedAccounts.map(account => (
-          <div key={account.id} className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6 flex flex-col hover:border-primary/30 transition-colors group relative overflow-hidden">
+          <div key={account.id} className="bg-surface-container border border-outline-variant rounded-2xl p-6 flex flex-col hover:border-primary/30 transition-colors group relative overflow-hidden">
             {/* Header */}
             <div className="flex items-start justify-between mb-6 pb-6 border-b border-outline-variant/50">
               <div className="flex items-center gap-4">
@@ -1042,13 +1040,15 @@ export default function Connections() {
 
       {/* Connect Modal */}
       {connectStep > 0 && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setConnectStep(0)}></div>
-          <div className={clsx("bg-surface-container-high border border-primary/30 rounded-2xl shadow-[0_0_40px_rgba(0,229,255,0.1)] relative z-10 animate-in zoom-in-95 duration-300 flex flex-col overflow-hidden transition-all max-h-[90vh]", connectStep === 1 ? "w-full max-w-4xl" : "w-full max-w-[560px]")}>
-            
-            {errorBanner && <div className="px-6 pt-6">{errorBanner}</div>}
-
-            <div className="flex items-center justify-between p-6 border-b border-outline-variant/50 shrink-0">
+        <HopThoai
+          co="lon"
+          bieuTuong="cable"
+          tieuDe={connectStep > 1 && selectedPlatform ? `Kết nối ${selectedPlatform.name}` : 'Kết nối kênh bán hàng'}
+          onDong={() => setConnectStep(0)}
+          dongKhiBamNgoai={false}
+          dauPhu={
+            <div className="space-y-3">
+              {errorBanner}
               <div className="flex gap-2">
                 {connectStep === 1 ? (
                   <div className="h-1.5 rounded-full bg-primary w-12 shadow-[0_0_8px_rgba(0,229,255,0.4)]"></div>
@@ -1071,12 +1071,10 @@ export default function Connections() {
                   </>
                 ) : null}
               </div>
-              <button onClick={() => setConnectStep(0)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-variant text-on-surface-variant hover:text-on-surface transition-colors">
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
             </div>
-
-            <div className={clsx("p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar", connectStep === 1 ? "max-h-[70vh]" : "")}>
+          }
+        >
+            <div>
               {/*
                 Lưới an toàn: từ bước 2 trở đi mọi nhánh đều cần selectedPlatform.
                 Thiếu nó thì trước đây hộp thoại hiện ra TRẮNG TRƠN, không chữ
@@ -1407,7 +1405,7 @@ export default function Connections() {
 
                   <div className="space-y-3 mb-6">
                     {newlyConnectedPages.map(page => (
-                      <label key={page.id} className={clsx("flex items-center gap-4 p-4 rounded-xl border transition-colors cursor-pointer", page.connected ? "bg-surface-variant/50 border-outline-variant/30 opacity-70" : selectedPages.includes(page.id) ? "bg-primary/5 border-primary shadow-[0_0_10px_rgba(0,229,255,0.1)]" : "bg-surface-container border-outline-variant hover:border-outline")}>
+                      <label key={page.id} className={clsx("flex items-center gap-4 p-4 rounded-xl border transition-colors cursor-pointer", page.connected ? "bg-surface-variant border-outline-variant/60 opacity-70" : selectedPages.includes(page.id) ? "bg-primary/5 border-primary shadow-[0_0_10px_rgba(0,229,255,0.1)]" : "bg-surface-container border-outline-variant hover:border-outline")}>
                         <div className="flex-1 flex items-center gap-4">
                           <img src={page.avatar} alt={page.name} className="w-12 h-12 rounded-full object-cover border border-outline-variant/50" />
                           <div>
@@ -1541,8 +1539,7 @@ export default function Connections() {
                 </>
               )}
             </div>
-          </div>
-        </div>
+        </HopThoai>
       )}
     </main>
   );

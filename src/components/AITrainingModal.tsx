@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import HopThoai, { NUT_CHINH, NUT_PHU } from './HopThoai';
 import { clsx } from 'clsx';
 import { api, ApiError, type AiDocument } from '../lib/api';
 import { useActivePage } from '../lib/ActivePage';
@@ -161,27 +162,27 @@ export default function AITrainingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity duration-300" onClick={onClose}></div>
-      <div className="relative w-full max-w-[720px] max-h-[90vh] bg-surface-container-high border border-primary/30 rounded-2xl shadow-[0_0_40px_rgba(0,229,255,0.1)] flex flex-col animate-in zoom-in-95 duration-300 overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-outline-variant flex items-center justify-between bg-surface-container/50 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-[24px]">badge</span>
-            </div>
-            <div>
-              <h2 className="font-headline-sm text-xl font-bold text-on-surface">Vai trò: {aiName}</h2>
-              <p className="text-sm text-on-surface-variant">Cấu hình vai trò và nguồn kiến thức riêng cho AI này</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-variant text-on-surface-variant transition-colors">
-            <span className="material-symbols-outlined text-[20px]">close</span>
+    <HopThoai
+      bieuTuong="badge"
+      tieuDe={`Vai trò: ${aiName}`}
+      phuDe="Cấu hình vai trò và nguồn kiến thức riêng cho AI này"
+      onDong={onClose}
+      dongKhiBamNgoai={false}
+      chan={
+        <>
+          <button type="button" onClick={onClose} className={NUT_PHU}>
+            Huỷ
           </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
+          <button type="button" onClick={handleSave} disabled={dangLuu || dangTai} className={NUT_CHINH}>
+            <span className={clsx("material-symbols-outlined text-[20px]", dangLuu && "animate-spin")}>
+              {dangLuu ? 'progress_activity' : 'save'}
+            </span>
+            {dangLuu ? 'Đang lưu…' : 'Lưu cấu hình AI'}
+          </button>
+        </>
+      }
+    >
+        <div className="space-y-6">
           {/* Vai trò và tài liệu của AI này thuộc về Trang đang chọn, không dùng chung. */}
           <TrangDangHuanLuyen />
           {loi && (
@@ -209,7 +210,7 @@ export default function AITrainingModal({
           <div>
             <label className="block text-sm font-bold text-on-surface mb-2">Vai trò & Định hướng (System Prompt)</label>
             <textarea 
-              className="w-full h-32 bg-surface-container-lowest border border-outline-variant rounded-xl p-4 text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none"
+              className="w-full h-32 bg-surface-container-lowest border border-outline-variant rounded-xl p-4 text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none"
               placeholder={`Ví dụ: Bạn là một chuyên gia đảm nhiệm ${aiName}. Nhiệm vụ của bạn là...`}
               value={role}
               onChange={(e) => setRole(e.target.value)}
@@ -291,9 +292,9 @@ export default function AITrainingModal({
               */}
               <div
                 title="Cần chuyển giọng nói thành văn bản. Tính năng này chưa có."
-                className="flex flex-col items-center justify-center gap-2 p-4 border border-dashed border-outline-variant/50 rounded-xl bg-surface-container/40 text-on-surface-variant/50 cursor-not-allowed"
+                className="flex flex-col items-center justify-center gap-2 p-4 border border-dashed border-outline-variant/50 rounded-xl bg-surface-container text-on-surface-variant cursor-not-allowed"
               >
-                <div className="w-12 h-12 rounded-full bg-surface-variant/50 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center">
                   <span className="material-symbols-outlined text-[24px]">movie</span>
                 </div>
                 <div className="text-center">
@@ -338,24 +339,6 @@ export default function AITrainingModal({
             )}
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="p-6 border-t border-outline-variant/50 bg-surface-container/30 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} className="px-6 py-2.5 rounded-full text-sm font-bold text-on-surface hover:bg-surface-variant transition-colors">
-            Hủy bỏ
-          </button>
-          <button 
-            onClick={handleSave}
-            disabled={dangLuu || dangTai}
-            className="px-6 py-2.5 rounded-full bg-primary text-on-primary font-bold text-sm hover:brightness-110 shadow-[0_0_15px_rgba(0,229,255,0.4)] transition-all flex items-center gap-2 disabled:opacity-60"
-          >
-            <span className={clsx("material-symbols-outlined text-[18px]", dangLuu && "animate-spin")}>
-              {dangLuu ? 'progress_activity' : 'save'}
-            </span>
-            {dangLuu ? 'Đang lưu…' : 'Lưu cấu hình AI'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </HopThoai>
   );
 }

@@ -65,7 +65,7 @@ export default function ChonKenhDang({
 
   return (
     <div>
-      <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">
+      <h3 className="tieu-de-muc mb-3">
         {nhan}
       </h3>
       <div className="bg-surface-container rounded-xl p-4 border-2 border-primary/50 shadow-[0_0_18px_rgba(0,229,255,0.12)] space-y-4">
@@ -156,7 +156,7 @@ export default function ChonKenhDang({
                   các kênh còn lại cũng không đăng được.
                 </p>
                 {!gioiHan.daKiemChung && (
-                  <p className="text-xs text-on-surface-variant/70 mt-1.5">
+                  <p className="text-xs text-on-surface-variant mt-1.5">
                     Số liệu tham khảo từ tài liệu của nền tảng, có thể thay đổi.
                   </p>
                 )}

@@ -16,22 +16,29 @@
   --color-tertiary-container: #581c87;
   --color-on-tertiary-container: #f3e8ff;
   
-  --color-background: #030014;
+  /*
+   * Bảng màu nền/thẻ/chữ — chọn theo SỐ ĐO tương phản, không theo cảm tính.
+   * Đã bị chê 01/10/2026: "nền tối om, ô bảng thẻ tối om, chữ tối om". Đo bảng
+   * cũ: nền ↔ thẻ 1,16 (thẻ mờ 40%: 1,05 — không thấy khối), chữ phụ mờ 4,04,
+   * chữ gợi ý ô nhập 2,69. Bảng này: nền ↔ thẻ 1,56, chữ phụ ≥ 5,9, chữ gợi ý
+   * 11,3, viền ô nhập 4,9. scripts/kiem-tra.mts tính lại mỗi lần chạy.
+   */
+  --color-background: #060a14;
   --color-on-background: #e2e8f0;
   
-  --color-surface: #0b0f19;
+  --color-surface: #111c33;
   --color-on-surface: #f1f5f9;
-  --color-surface-variant: #1e293b;
-  --color-on-surface-variant: #94a3b8;
+  --color-surface-variant: #30466f;
+  --color-on-surface-variant: #c3cee0;
   
-  --color-surface-container-lowest: #020617;
-  --color-surface-container-low: #080f25;
-  --color-surface-container: #0f172a;
-  --color-surface-container-high: #1e293b;
-  --color-surface-container-highest: #334155;
+  --color-surface-container-lowest: #0e1729;
+  --color-surface-container-low: #18243f;
+  --color-surface-container: #213256;
+  --color-surface-container-high: #30466f;
+  --color-surface-container-highest: #3d5686;
   
-  --color-outline: #475569;
-  --color-outline-variant: #334155;
+  --color-outline: #7487a8;
+  --color-outline-variant: #4a5d82;
   
   --color-error: #ef4444;
   --color-on-error: #450a0a;
@@ -157,6 +164,43 @@
 
 body {
   font-family: var(--font-body-md);
+}
+
+/* Chữ gợi ý trong ô nhập: nhạt hơn chữ thật để phân biệt, nhưng vẫn đọc được
+   (đã đo: kiểu cũ 2,69:1 — gần như không thấy; nay khoảng 6,8:1). */
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--color-on-surface-variant) 70%, transparent);
+}
+
+/*
+ * Tiêu đề mục: chữ TRẮNG đậm + vạch nhấn bên trái.
+ *
+ * Đã bị chê: "màu sắc đều cùng một màu, không biết đâu là phần chính đâu là
+ * phần phụ" — tiêu đề mục, nút bấm, chip đang chọn, đường dẫn đều cùng màu
+ * xanh. Nay màu xanh CHỈ dành cho thứ bấm được; tiêu đề nổi bằng chữ trắng
+ * đậm và vạch nhấn.
+ */
+@layer components {
+  .tieu-de-muc {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-on-surface);
+  }
+  .tieu-de-muc::before {
+    content: "";
+    flex: none;
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--color-primary);
+  }
 }
 
 /* Hide scrollbar for elements with no-scrollbar class */

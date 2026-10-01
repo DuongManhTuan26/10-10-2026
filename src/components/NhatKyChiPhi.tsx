@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import HopThoai from './HopThoai';
 import clsx from 'clsx';
 import { api, ApiError, type LocLuot, type LuotChiPhi } from '../lib/api';
 import { chiDu, mauChi } from '../lib/tien-chi';
@@ -53,35 +54,41 @@ export default function NhatKyChiPhi({ loc, tieuDe, onDong }: { loc: LocLuot; ti
   }, [loc, trang]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onDong} />
-      <div className="relative w-full max-w-3xl max-h-[90vh] bg-surface-container-high border border-outline-variant rounded-2xl flex flex-col overflow-hidden">
-        <div className="px-5 py-4 border-b border-outline-variant flex items-center gap-3 shrink-0">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-on-surface truncate">{tieuDe}</p>
-            <p className="text-xs text-on-surface-variant mt-0.5 tabular-nums">
-              {du ? (
-                <>
-                  {du.tongLan.toLocaleString('vi-VN')} lượt · <span className={mauChi(du.tongUsd)}>{chiDu(du.tongUsd)}</span> · tháng này
-                </>
-              ) : (
-                'Đang tải…'
-              )}
-            </p>
+    <HopThoai
+      bieuTuong="receipt_long"
+      tieuDe={tieuDe}
+      phuDe={
+        du ? (
+          <span className="tabular-nums">
+            {du.tongLan.toLocaleString('vi-VN')} lượt · <span className={mauChi(du.tongUsd)}>{chiDu(du.tongUsd)}</span> · tháng này
+          </span>
+        ) : (
+          'Đang tải…'
+        )
+      }
+      onDong={onDong}
+      chan={du && du.soTrang > 1 ? (
+          <div className="w-full flex items-center justify-between text-sm">
+            <button type="button" disabled={trang <= 1} onClick={() => setTrang(trang - 1)} className="text-primary disabled:text-on-surface-variant/40">
+              ‹ Mới hơn
+            </button>
+            <span className="text-on-surface-variant tabular-nums">
+              Trang {trang}/{du.soTrang}
+            </span>
+            <button type="button" disabled={du.soTrang <= trang} onClick={() => setTrang(trang + 1)} className="text-primary disabled:text-on-surface-variant/40">
+              Cũ hơn ›
+            </button>
           </div>
-          <button type="button" onClick={onDong} className="material-symbols-outlined text-on-surface-variant hover:text-on-surface">
-            close
-          </button>
-        </div>
-
-        <div className="overflow-y-auto divide-y divide-outline-variant/50">
-          {loi && <p className="p-5 text-xs text-red-400">{loi}</p>}
-          {du && du.luot.length === 0 && <p className="p-5 text-xs text-on-surface-variant">Chưa có lượt nào.</p>}
+      ) : undefined}
+    >
+        <div className="-mx-6 sm:-mx-8 -my-6 divide-y divide-outline-variant/60">
+          {loi && <p className="px-8 py-5 text-sm text-red-400">{loi}</p>}
+          {du && du.luot.length === 0 && <p className="px-8 py-5 text-sm text-on-surface-variant">Chưa có lượt nào.</p>}
           {du?.luot.map((l) => {
             const dc = NHAN_DOI_CHIEU[l.doiChieu];
             return (
-              <div key={l.id} className="px-5 py-2.5 flex items-start gap-3 text-xs">
-                <span className="w-[7.5rem] shrink-0 text-on-surface-variant tabular-nums pt-px">{gio(l.luc)}</span>
+              <div key={l.id} className="px-6 sm:px-8 py-3 flex items-start gap-4 text-sm">
+                <span className="w-[9.5rem] shrink-0 text-on-surface-variant tabular-nums pt-px">{gio(l.luc)}</span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-on-surface font-medium truncate">{l.tenViec}</span>
                   <span className="block text-on-surface-variant truncate">
@@ -94,28 +101,13 @@ export default function NhatKyChiPhi({ loc, tieuDe, onDong }: { loc: LocLuot; ti
                   )}
                 </span>
                 <span className={clsx('shrink-0 font-bold tabular-nums', mauChi(l.usd))}>{chiDu(l.usd)}</span>
-                <span title={dc.giai} className={clsx('material-symbols-outlined text-[16px] shrink-0', dc.mau)}>
+                <span title={dc.giai} className={clsx('material-symbols-outlined text-[20px] shrink-0', dc.mau)}>
                   {dc.ky}
                 </span>
               </div>
             );
           })}
         </div>
-
-        {du && du.soTrang > 1 && (
-          <div className="px-5 py-3 border-t border-outline-variant flex items-center justify-between text-xs shrink-0">
-            <button type="button" disabled={trang <= 1} onClick={() => setTrang(trang - 1)} className="text-primary disabled:text-on-surface-variant/40">
-              ‹ Mới hơn
-            </button>
-            <span className="text-on-surface-variant tabular-nums">
-              Trang {trang}/{du.soTrang}
-            </span>
-            <button type="button" disabled={du.soTrang <= trang} onClick={() => setTrang(trang + 1)} className="text-primary disabled:text-on-surface-variant/40">
-              Cũ hơn ›
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    </HopThoai>
   );
 }

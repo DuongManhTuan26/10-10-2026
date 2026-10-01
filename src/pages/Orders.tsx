@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import HopThoai, { NUT_PHU } from '../components/HopThoai';
 import { clsx } from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError, formatCurrency, type Order } from '../lib/api';
@@ -273,7 +274,7 @@ export default function Orders() {
           <p className="text-on-surface-variant text-sm">Tất cả đơn hàng AI chốt được và bạn chốt tay</p>
         </div>
         
-        <div className="flex items-center gap-2 bg-surface-container/50 border border-outline-variant rounded-lg px-3 py-2 cursor-pointer hover:bg-surface-container transition-colors">
+        <div className="flex items-center gap-2 bg-surface-container border border-outline-variant rounded-lg px-3 py-2 cursor-pointer hover:bg-surface-container transition-colors">
           <span className="material-symbols-outlined text-[18px] text-on-surface-variant">calendar_today</span>
           <span className="text-sm font-medium text-on-surface">30 ngày qua</span>
           <span className="material-symbols-outlined text-[18px] text-on-surface-variant">arrow_drop_down</span>
@@ -283,7 +284,7 @@ export default function Orders() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {/* Card 1 */}
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 blur-2xl rounded-full group-hover:bg-primary/30 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">ĐƠN HÔM NAY</h3>
@@ -301,7 +302,7 @@ export default function Orders() {
         </div>
 
         {/* Card 2 */}
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 blur-2xl rounded-full group-hover:bg-primary/30 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">CHỜ XÁC NHẬN</h3>
@@ -319,7 +320,7 @@ export default function Orders() {
         </div>
 
         {/* Card 3 */}
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 blur-2xl rounded-full group-hover:bg-primary/30 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">ĐANG GIAO</h3>
@@ -331,7 +332,7 @@ export default function Orders() {
         </div>
 
         {/* Card 4 */}
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 blur-2xl rounded-full group-hover:bg-primary/30 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">DOANH THU THÁNG</h3>
@@ -357,7 +358,7 @@ export default function Orders() {
             placeholder="Tìm theo tên khách hoặc số điện thoại..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-surface-container/30 border border-outline-variant rounded-lg pl-10 pr-4 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+            className="w-full bg-surface-container border border-outline-variant rounded-lg pl-10 pr-4 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
           />
         </div>
         
@@ -372,7 +373,7 @@ export default function Orders() {
                   "px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors border",
                   isActive 
                     ? "bg-primary text-on-primary border-primary shadow-[0_0_10px_rgba(0,229,255,0.2)]" 
-                    : "bg-surface-container/30 text-on-surface-variant border-outline-variant hover:bg-surface-container hover:text-on-surface"
+                    : "bg-surface-container text-on-surface-variant border-outline-variant hover:bg-surface-container hover:text-on-surface"
                 )}
               >
                 {filter}
@@ -388,11 +389,11 @@ export default function Orders() {
       </div>
 
       {/* Table */}
-      <div className="bg-surface-container/20 border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto ">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
-              <tr className="border-b border-outline-variant bg-surface-container/40">
+              <tr className="border-b border-outline-variant bg-surface-container">
                 <th className="py-4 px-5 font-mono text-[11px] font-bold text-on-surface-variant tracking-wider uppercase whitespace-nowrap">MÃ ĐƠN</th>
                 <th className="py-4 px-5 font-mono text-[11px] font-bold text-on-surface-variant tracking-wider uppercase whitespace-nowrap">THỜI GIAN</th>
                 <th className="py-4 px-5 font-mono text-[11px] font-bold text-on-surface-variant tracking-wider uppercase whitespace-nowrap">KHÁCH HÀNG</th>
@@ -534,7 +535,7 @@ export default function Orders() {
         </div>
         
         {/* Pagination */}
-        <div className="border-t border-outline-variant px-5 py-4 flex items-center justify-between bg-surface-container/20">
+        <div className="border-t border-outline-variant px-5 py-4 flex items-center justify-between bg-surface-container">
           <span className="text-sm text-on-surface-variant font-medium">
             {filteredOrders.length === 0
               ? 'Chưa có đơn hàng nào'
@@ -545,35 +546,48 @@ export default function Orders() {
 
       {/* Centered Detail Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          <div 
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity duration-300"
-            onClick={() => setSelectedOrder(null)}
-          ></div>
-          <div className="relative w-full max-w-[640px] max-h-[90vh] bg-surface-container-high border border-primary/30 rounded-2xl shadow-[0_0_40px_rgba(0,229,255,0.1)] flex flex-col animate-in zoom-in-95 duration-300 overflow-hidden">
-            {/* Panel Header */}
-            <div className="px-6 py-5 border-b border-outline-variant flex items-start justify-between bg-surface-container/50">
-              <div>
-                <h2 className="font-mono text-2xl font-bold text-on-surface mb-2 tracking-tight">{selectedOrder.id}</h2>
-                <div className={clsx("inline-flex items-center gap-2 px-3 py-1.5 rounded-full", getStatusBgColor(selectedOrder.status))}>
-                  <div className={clsx("w-2 h-2 rounded-full", getStatusColor(selectedOrder.status))}></div>
-                  <span className="text-xs font-bold">{selectedOrder.status}</span>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedOrder(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-variant text-on-surface hover:bg-outline-variant transition-colors"
+        <HopThoai
+          bieuTuong="receipt_long"
+          tieuDe={<span className="font-mono">{selectedOrder.id}</span>}
+          phuDe={
+            <span className={clsx("inline-flex items-center gap-2 px-3 py-1 rounded-full", getStatusBgColor(selectedOrder.status))}>
+              <span className={clsx("w-2 h-2 rounded-full", getStatusColor(selectedOrder.status))}></span>
+              <span className="text-xs font-bold">{selectedOrder.status}</span>
+            </span>
+          }
+          onDong={() => setSelectedOrder(null)}
+          chan={
+            <div className="w-full flex flex-wrap items-center gap-3">
+              <span className="text-sm font-semibold text-on-surface">Chuyển sang:</span>
+              {FILTERS.filter((f) => f !== 'Tất cả' && f !== selectedOrder.status).map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => handleChangeStatus(selectedOrder, label)}
+                  disabled={busyId === selectedOrder.raw.id}
+                  className="h-10 px-4 text-sm font-bold text-on-surface bg-surface-container-highest border border-outline rounded-xl hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
+                >
+                  {label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => selectedOrder.conversationId
+                  ? navigate('/inbox')
+                  : setErrorMessage('Đơn này không được tạo từ hội thoại nào.')}
+                className={clsx(NUT_PHU, 'ml-auto')}
               >
-                <span className="material-symbols-outlined text-[20px]">close</span>
+                <span className="material-symbols-outlined text-[20px]">forum</span>
+                Mở đoạn chat gốc
               </button>
             </div>
-
-            {/* Panel Content */}
-            <div className="flex-1  p-6 space-y-8 ">
+          }
+        >
+            <div className="space-y-8">
               
               {/* Block 1: Customer Info */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-4">THÔNG TIN KHÁCH HÀNG</h3>
+                <h3 className="tieu-de-muc mb-4">THÔNG TIN KHÁCH HÀNG</h3>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <div className="flex justify-between items-start gap-4">
                     <span className="text-sm font-medium text-on-surface-variant shrink-0">Họ tên</span>
@@ -605,7 +619,7 @@ export default function Orders() {
 
               {/* Block 2: Products */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-4">SẢN PHẨM</h3>
+                <h3 className="tieu-de-muc mb-4">SẢN PHẨM</h3>
                 <div className="bg-surface-container rounded-xl border border-outline-variant overflow-hidden">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -642,9 +656,9 @@ export default function Orders() {
 
               {/* Block 3: Timeline */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-4">DÒNG THỜI GIAN</h3>
+                <h3 className="tieu-de-muc mb-4">DÒNG THỜI GIAN</h3>
                 <div className="bg-surface-container rounded-xl p-5 border border-outline-variant">
-                  <div className="relative border-l-2 border-outline-variant/30 ml-2 space-y-6">
+                  <div className="relative border-l-2 border-outline-variant/60 ml-2 space-y-6">
                     {selectedOrder.timeline.map((event, idx) => (
                       <div key={idx} className="relative pl-6">
                         <div className={clsx(
@@ -663,36 +677,8 @@ export default function Orders() {
                 </div>
               </div>
               
-              {/* Padding to allow scrolling past bottom buttons */}
-              <div className="h-10"></div>
             </div>
-
-            {/* Panel Footer Actions */}
-            <div className="p-5 border-t border-outline-variant bg-surface-container/50 flex flex-col gap-3">
-              <div className="flex flex-wrap gap-2">
-                {FILTERS.filter((f) => f !== 'Tất cả' && f !== selectedOrder.status).map((label) => (
-                  <button
-                    key={label}
-                    onClick={() => handleChangeStatus(selectedOrder, label)}
-                    disabled={busyId === selectedOrder.raw.id}
-                    className="px-3 py-2 text-xs font-bold text-on-surface bg-surface-container border border-outline-variant rounded-lg hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => selectedOrder.conversationId
-                  ? navigate('/inbox')
-                  : setErrorMessage('Đơn này không được tạo từ hội thoại nào.')}
-                className="px-4 py-3 text-sm font-bold text-on-surface bg-surface-container border border-outline-variant rounded-xl hover:bg-surface-variant transition-colors flex items-center justify-center gap-2"
-              >
-                <span className="material-symbols-outlined text-[18px]">forum</span>
-                Mở đoạn chat gốc
-              </button>
-            </div>
-          </div>
-        </div>
+        </HopThoai>
       )}
     </main>
   );

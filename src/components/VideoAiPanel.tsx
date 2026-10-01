@@ -194,7 +194,7 @@ export default function VideoAiPanel({
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-3">
-        <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase">AI TẠO VIDEO</h3>
+        <h3 className="tieu-de-muc">AI TẠO VIDEO</h3>
         <button
           type="button"
           onClick={doiBat}

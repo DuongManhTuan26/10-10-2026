@@ -110,7 +110,7 @@ export default function Auth({ onLogin, onRegister }: {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
 
       {/* Logo Placeholder */}
-      <div className="w-16 h-16 border border-outline-variant rounded-xl flex items-center justify-center mb-8 bg-surface-container/50 relative z-10">
+      <div className="w-16 h-16 border border-outline-variant rounded-xl flex items-center justify-center mb-8 bg-surface-container relative z-10">
         <span className="font-label-sm text-on-surface-variant uppercase tracking-widest text-[10px]">Logo</span>
       </div>
 

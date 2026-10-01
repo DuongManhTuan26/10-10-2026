@@ -23,7 +23,7 @@ type CachXem = 'viec' | 'taiKhoan';
  *   Cấp 2 — mục con: khung nền tối hơn, kẻ dòng, chữ vừa, không đậm.
  *   Cấp 3 — chi tiết của mục con: thụt sâu hơn, vạch dọc bên trái, chữ nhỏ, nhạt.
  */
-const KHUNG_CON = 'bg-surface-container-lowest/80 border-t border-outline-variant/60 divide-y divide-outline-variant/40';
+const KHUNG_CON = 'bg-surface-container-lowest border-t border-outline-variant/60 divide-y divide-outline-variant/60';
 const LE_CAP2 = 'pl-[2.6rem] pr-5';
 const LE_CAP3 =
   "relative pl-[3.6rem] pr-5 before:content-[''] before:absolute before:left-[2.95rem] before:top-0 before:bottom-0 before:w-px before:bg-outline-variant";
@@ -169,7 +169,7 @@ export default function ChiPhiHeThong() {
     const noiDung = (
       <>
         <span className={clsx('flex-1 min-w-0', cap === 2 ? 'text-sm text-on-surface' : 'text-xs text-on-surface-variant')}>{h.nhan}</span>
-        {h.phu && <span className="text-[11px] text-on-surface-variant/70 tabular-nums whitespace-nowrap">{h.phu}</span>}
+        {h.phu && <span className="text-[11px] text-on-surface-variant tabular-nums whitespace-nowrap">{h.phu}</span>}
         {h.giaTri !== undefined && (
           <span
             className={clsx(
@@ -240,7 +240,7 @@ export default function ChiPhiHeThong() {
   return (
     <section className="mb-10 max-w-2xl">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase">Chi phí tháng này</h2>
+        <h2 className="tieu-de-muc">Chi phí tháng này</h2>
         <button
           type="button"
           onClick={() => setMoCaiDat(!moCaiDat)}
@@ -253,7 +253,7 @@ export default function ChiPhiHeThong() {
 
       {loi && <p className="mb-3 text-xs text-error">{loi}</p>}
 
-      <div className="rounded-2xl border border-outline-variant bg-surface-container/40 divide-y divide-outline-variant/60 overflow-hidden">
+      <div className="rounded-2xl border border-outline-variant bg-surface-container divide-y divide-outline-variant/60 overflow-hidden">
         {dong('ai', 'AI', tienAi)}
         {/*
          * Sổ của app vẫn hiện khi nhà cung cấp tạm không trả lời. Đã thấy: điều
@@ -454,7 +454,7 @@ export default function ChiPhiHeThong() {
           </div>
         )}
 
-        <div className="px-5 py-4 flex items-center gap-3 bg-surface-container-high/30">
+        <div className="px-5 py-4 flex items-center gap-3 bg-surface-container-high">
           <span className="w-2.5 shrink-0" />
           <span className="flex-1 text-base font-bold text-on-surface">Tổng</span>
           <span className="text-right">
@@ -470,7 +470,7 @@ export default function ChiPhiHeThong() {
       </div>
 
       {moCaiDat && nguong && (
-        <div className="mt-3 rounded-2xl border border-outline-variant bg-surface-container/40 p-5 space-y-3">
+        <div className="mt-3 rounded-2xl border border-outline-variant bg-surface-container p-5 space-y-3">
           <p className="text-xs text-on-surface-variant">Nhắn Telegram khi:</p>
           {(
             [

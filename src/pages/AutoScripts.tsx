@@ -3,6 +3,7 @@ import { clsx } from 'clsx';
 import { api, ApiError, type AiDocument, type SalesStage, type TuChuConfig } from '../lib/api';
 import { useActivePage } from '../lib/ActivePage';
 import TrangDangHuanLuyen from '../components/TrangDangHuanLuyen';
+import HopThoai, { NUT_CHINH, NUT_PHU } from '../components/HopThoai';
 import {
   toFileArray, doiCoTep, napTepChu, napTepAnh, NHAN_VAN_BAN, NHAN_ANH,
 } from '../lib/aiDocuments';
@@ -592,7 +593,7 @@ export default function AutoScripts() {
       </div>
 
       {/* Cách làm việc: lời dặn và giọng điệu */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
         <h2 className="text-lg font-bold text-on-surface mb-1">Cách nói chuyện với khách</h2>
         <p className="text-sm text-on-surface-variant mb-5">
           AI dùng đúng những gì bạn viết ở đây, cộng với tài liệu đã nạp. Không tự bịa thêm.
@@ -642,7 +643,7 @@ export default function AutoScripts() {
                 'text-left p-4 rounded-xl border transition-all',
                 tone === option.id
                   ? 'bg-primary/10 border-primary shadow-[0_0_15px_rgba(0,229,255,0.2)]'
-                  : 'bg-surface-container/50 border-outline-variant hover:border-primary/50'
+                  : 'bg-surface-container border-outline-variant hover:border-primary/50'
               )}
             >
               <div className="flex items-center justify-between mb-2">
@@ -684,7 +685,7 @@ export default function AutoScripts() {
         hiện đúng danh sách này cộng đúng ô lời dặn ở khối trên — trùng hoàn toàn
         với trang này.
       */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-lg font-bold text-on-surface mb-1">Tài liệu AI được dùng</h2>
@@ -748,7 +749,7 @@ export default function AutoScripts() {
             {documents.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center gap-3 p-3 bg-surface-container/50 border border-outline-variant rounded-xl"
+                className="flex items-center gap-3 p-3 bg-surface-container border border-outline-variant rounded-xl"
               >
                 <span className="material-symbols-outlined text-primary text-[20px]">
                   {doc.mime_type?.startsWith('image/') ? 'image' : 'description'}
@@ -785,7 +786,7 @@ export default function AutoScripts() {
           'relative rounded-2xl overflow-hidden border-2 transition-colors',
           tuChu.bat
             ? 'bg-primary/[0.07] border-primary shadow-[0_0_40px_rgba(0,229,255,0.18)]'
-            : 'bg-surface-container/40 border-primary/45'
+            : 'bg-surface-container border-primary/45'
         )}
       >
         <div className="absolute top-0 right-0 w-72 h-72 bg-primary/10 rounded-bl-full -mr-24 -mt-24 blur-3xl pointer-events-none" />
@@ -804,7 +805,7 @@ export default function AutoScripts() {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase">
+                  <span className="tieu-de-muc">
                     Tự chủ
                   </span>
                   <span
@@ -967,7 +968,7 @@ export default function AutoScripts() {
         Khác hẳn kịch bản trả lời bình luận ở tab bên: bình luận chỉ là một câu
         nói ra rồi thôi, còn đây là cả một cuộc bán hàng có trước có sau.
       */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
         <h2 className="text-lg font-bold text-on-surface mb-1">Các bước bán hàng qua Messenger</h2>
         <p className="text-sm text-on-surface-variant mb-5 leading-relaxed">
           AI đi lần lượt từng bước và nhớ đang ở đâu, nên không nhảy thẳng vào xin số
@@ -982,8 +983,8 @@ export default function AutoScripts() {
               className={clsx(
                 'rounded-xl border p-4 transition-colors',
                 b.enabled
-                  ? 'bg-surface-container/50 border-outline-variant'
-                  : 'bg-surface-container/20 border-outline-variant/50'
+                  ? 'bg-surface-container border-outline-variant'
+                  : 'bg-surface-container border-outline-variant/50'
               )}
             >
               <div className="flex items-start gap-3">
@@ -1090,7 +1091,7 @@ export default function AutoScripts() {
       </div>
 
       {/* Thông tin AI phải thu thập */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
         <h2 className="text-lg font-bold text-on-surface mb-1">Thông tin AI phải thu thập</h2>
         <p className="text-sm text-on-surface-variant mb-4">
           Đủ năm thông tin này thì mới lên được đơn hàng. AI hỏi tự nhiên trong lúc tư vấn.
@@ -1109,7 +1110,7 @@ export default function AutoScripts() {
       </div>
 
       {/* Quy tắc nhường quyền */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
         <h2 className="text-lg font-bold text-on-surface mb-1">Khi nào AI chuyển cho người thật</h2>
         <p className="text-sm text-on-surface-variant mb-5">
           Thà để khách chờ nhân viên vài phút, còn hơn để AI trả lời sai rồi mất khách.
@@ -1124,7 +1125,7 @@ export default function AutoScripts() {
             return (
               <div
                 key={rule.id}
-                className="flex items-center gap-4 p-4 bg-surface-container/50 border border-outline-variant rounded-xl"
+                className="flex items-center gap-4 p-4 bg-surface-container border border-outline-variant rounded-xl"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
@@ -1180,7 +1181,7 @@ export default function AutoScripts() {
       </div>
 
       {/* Thử AI trước khi đưa vào sử dụng thật */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
         <h2 className="text-lg font-bold text-on-surface mb-1">Thử AI trước khi đưa vào sử dụng</h2>
         <p className="text-sm text-on-surface-variant mb-5">
           Đặt câu hỏi như một khách hàng để xem AI trả lời thế nào.
@@ -1221,7 +1222,7 @@ export default function AutoScripts() {
           <div className="bg-surface-container-high border border-primary/30 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="material-symbols-outlined text-primary text-[18px]">smart_toy</span>
-              <span className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase">AI trả lời</span>
+              <span className="tieu-de-muc">AI trả lời</span>
             </div>
             <p className="text-sm text-on-surface leading-relaxed whitespace-pre-line mb-3">{testReply.reply}</p>
             <p className="font-mono text-[10px] text-on-surface-variant">
@@ -1330,7 +1331,7 @@ export default function AutoScripts() {
         Ba số còn lại là một phễu, đọc được thành câu: nhắn → trả lời → chốt.
       */}
       {tab === 'dm' && scriptsDm.length > 0 && (
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl px-5 py-4 mb-6 flex flex-wrap items-center gap-x-2 gap-y-3">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl px-5 py-4 mb-6 flex flex-wrap items-center gap-x-2 gap-y-3">
           {[
             {
               nhan: 'Đã nhắn tin đầu',
@@ -1356,7 +1357,7 @@ export default function AutoScripts() {
           ].map((o, i) => (
             <React.Fragment key={o.nhan}>
               {i > 0 && (
-                <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px] mx-1">
+                <span className="material-symbols-outlined text-on-surface-variant text-[18px] mx-1">
                   arrow_forward
                 </span>
               )}
@@ -1388,7 +1389,7 @@ export default function AutoScripts() {
         một cuộc bán hàng mà kịch bản chỉ lo đúng khúc mở lời.
       */}
       {tab === 'cmt' && dsHienThi.length === 0 && (
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-8 flex flex-col items-center text-center">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-8 flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
             <span className="material-symbols-outlined text-primary text-[28px]">chat_bubble</span>
           </div>
@@ -1402,7 +1403,7 @@ export default function AutoScripts() {
             <span className="px-3 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface">
               Khách bình luận
             </span>
-            <span className="material-symbols-outlined text-on-surface-variant/50 text-[18px]">arrow_forward</span>
+            <span className="material-symbols-outlined text-on-surface-variant text-[18px]">arrow_forward</span>
             <span className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary font-bold">
               Trả lời công khai
             </span>
@@ -1419,7 +1420,7 @@ export default function AutoScripts() {
       )}
 
       {tab === 'dm' && dsHienThi.length === 0 && (
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-8">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-8">
           <h2 className="text-lg font-bold text-on-surface mb-1">Diễn biến một cuộc bán hàng</h2>
           <p className="text-sm text-on-surface-variant mb-7 leading-relaxed max-w-[560px]">
             Phần AI đã dựng sẵn ở dưới và chạy được ngay. Thứ còn thiếu chỉ là{' '}
@@ -1518,9 +1519,9 @@ export default function AutoScripts() {
       {/* Row 3: List of Scripts */}
       <div className="flex flex-col gap-4">
         {dsHienThi.map(script => (
-          <div key={script.id} className="w-full bg-surface-container/30 border border-outline-variant rounded-2xl flex flex-col overflow-hidden group hover:border-primary/30 transition-colors shadow-sm">
+          <div key={script.id} className="w-full bg-surface-container border border-outline-variant rounded-2xl flex flex-col overflow-hidden group hover:border-primary/30 transition-colors shadow-sm">
             {/* Header */}
-            <div className="p-5 flex items-center justify-between border-b border-outline-variant/50 bg-surface-container/20">
+            <div className="p-5 flex items-center justify-between border-b border-outline-variant/50 bg-surface-container">
               <div className="flex items-center gap-4">
                 <h2 className="text-lg font-bold text-on-surface">{script.name}</h2>
                 {/* Nhìn danh sách là biết ngay cái nào chỉ nói một câu, cái nào
@@ -1582,7 +1583,7 @@ export default function AutoScripts() {
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-on-surface-variant/80">{(script.match_type === 'word' ? 'Khớp nguyên từ' : script.match_type === 'exact' ? 'Khớp chính xác' : 'Chứa từ khoá') + (script.ignore_typo ? ' · Có bỏ qua lỗi chính tả' : '')}</p>
+                <p className="text-xs text-on-surface-variant">{(script.match_type === 'word' ? 'Khớp nguyên từ' : script.match_type === 'exact' ? 'Khớp chính xác' : 'Chứa từ khoá') + (script.ignore_typo ? ' · Có bỏ qua lỗi chính tả' : '')}</p>
               </div>
 
               {/* Col 2 */}
@@ -1593,7 +1594,7 @@ export default function AutoScripts() {
                 <p className="text-sm text-on-surface leading-relaxed line-clamp-3 mb-3">
                   "{script.send_dm === false ? (script.public_reply_text ?? '') : script.message}"
                 </p>
-                <p className="text-xs text-on-surface-variant/80">
+                <p className="text-xs text-on-surface-variant">
                   {script.send_dm === false
                     ? `Trả lời sau ${script.public_reply_delay_seconds ?? 0} giây`
                     : `Gửi sau ${script.delay_seconds} giây`}
@@ -1621,7 +1622,7 @@ export default function AutoScripts() {
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-3 bg-surface-container/20 border-t border-outline-variant/50 text-xs text-on-surface-variant">
+            <div className="px-5 py-3 bg-surface-container border-t border-outline-variant/50 text-xs text-on-surface-variant">
               Áp dụng cho: <span className="font-medium text-on-surface">{script.apply_to === 'all' ? 'Tất cả bài đăng' : script.apply_to}{script.account_name ? ` · ${script.account_name}` : ''}</span>
             </div>
           </div>
@@ -1661,25 +1662,23 @@ export default function AutoScripts() {
 
       {/* Centered Composer Modal */}
       {isComposerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          <div 
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity duration-300"
-            onClick={() => setIsComposerOpen(false)}
-          ></div>
-          <div className="relative w-full max-w-[640px] max-h-[90vh] bg-surface-container-high border border-primary/30 rounded-2xl shadow-[0_0_40px_rgba(0,229,255,0.1)] flex flex-col animate-in zoom-in-95 duration-300 overflow-hidden">
-            {/* Header */}
-            <div className="px-6 py-5 border-b border-outline-variant flex items-center justify-between bg-surface-container/50 shrink-0">
-              <h2 className="font-headline-sm text-xl font-bold text-on-surface">{editingId ? 'Sửa kịch bản tự động' : 'Tạo kịch bản tự động'}</h2>
-              <button 
-                onClick={() => setIsComposerOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-variant text-on-surface hover:bg-outline-variant transition-colors"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
+        <HopThoai
+          bieuTuong="bolt"
+          tieuDe={editingId ? 'Sửa kịch bản tự động' : 'Tạo kịch bản tự động'}
+          onDong={() => setIsComposerOpen(false)}
+          dongKhiBamNgoai={false}
+          chan={
+            <>
+              <button type="button" onClick={() => setIsComposerOpen(false)} className={NUT_PHU}>
+                Huỷ
               </button>
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
+              <button type="button" onClick={handleSaveScript} disabled={busy} className={clsx(NUT_CHINH, 'min-w-[220px]')}>
+                {busy ? 'Đang lưu…' : editingId ? 'Lưu thay đổi' : 'Tạo kịch bản'}
+              </button>
+            </>
+          }
+        >
+            <div className="space-y-8">
               
               {/*
                 Không còn nút chọn loại ở đây.
@@ -1704,7 +1703,7 @@ export default function AutoScripts() {
 
               {/* Block 1: TÊN KỊCH BẢN */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">TÊN KỊCH BẢN</h3>
+                <h3 className="tieu-de-muc mb-3">TÊN KỊCH BẢN</h3>
                 <input 
                   type="text" 
                   value={scriptName}
@@ -1716,7 +1715,7 @@ export default function AutoScripts() {
 
               {/* Block 2: TỪ KHÓA KÍCH HOẠT */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">TỪ KHÓA KÍCH HOẠT</h3>
+                <h3 className="tieu-de-muc mb-3">TỪ KHÓA KÍCH HOẠT</h3>
                 
                 <div className="bg-surface-container rounded-xl border border-outline-variant p-4 md:p-5 space-y-6">
                   {/* Keywords input */}
@@ -1736,7 +1735,7 @@ export default function AutoScripts() {
                         onChange={(e) => setNewKeyword(e.target.value)}
                         onKeyDown={handleAddKeyword}
                         placeholder="Gõ từ khóa và nhấn Enter..."
-                        className="flex-1 min-w-[150px] bg-transparent border-none outline-none text-sm text-on-surface px-1 placeholder:text-on-surface-variant/50"
+                        className="flex-1 min-w-[150px] bg-transparent border-none outline-none text-sm text-on-surface px-1 placeholder:text-on-surface-variant/70"
                       />
                     </div>
                     {matchType === 'all' && (
@@ -1859,7 +1858,7 @@ export default function AutoScripts() {
                         onChange={(e) => setNewExcludeKeyword(e.target.value)}
                         onKeyDown={handleAddExcludeKeyword}
                         placeholder="Gõ từ loại trừ và nhấn Enter..."
-                        className="flex-1 min-w-[150px] bg-transparent border-none outline-none text-sm text-on-surface px-1 placeholder:text-on-surface-variant/50"
+                        className="flex-1 min-w-[150px] bg-transparent border-none outline-none text-sm text-on-surface px-1 placeholder:text-on-surface-variant/70"
                       />
                     </div>
                     <p className="text-xs text-on-surface-variant">Nếu bình luận chứa những từ này thì KHÔNG kích hoạt kịch bản</p>
@@ -1870,14 +1869,14 @@ export default function AutoScripts() {
               {/* Block 3: TIN NHẮN RIÊNG SẼ GỬI */}
               {loaiKichBan === 'dm' && (
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">TIN NHẮN RIÊNG SẼ GỬI</h3>
+                <h3 className="tieu-de-muc mb-3">TIN NHẮN RIÊNG SẼ GỬI</h3>
                 <textarea 
                   rows={5}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   className="w-full bg-surface-container-high rounded-xl border border-outline-variant p-4 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none  mb-3"
                 ></textarea>
-                <div className="flex gap-2 items-start text-xs text-on-surface-variant/80 mb-4">
+                <div className="flex gap-2 items-start text-xs text-on-surface-variant mb-4">
                   <span className="material-symbols-outlined text-[14px] shrink-0 mt-0.5">shield</span>
                   <p className="leading-relaxed">Tin nhắn phải bắt đầu bằng câu cho khách biết đây là trợ lý tự động. Đây là yêu cầu bắt buộc của Facebook.</p>
                 </div>
@@ -1904,7 +1903,7 @@ export default function AutoScripts() {
 
               {/* Block 4: TRẢ LỜI CÔNG KHAI DƯỚI BÌNH LUẬN */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">
+                <h3 className="tieu-de-muc mb-3">
                   {loaiKichBan === 'cmt' ? 'CÂU TRẢ LỜI CÔNG KHAI' : 'TRẢ LỜI CÔNG KHAI DƯỚI BÌNH LUẬN'}
                 </h3>
                 <div className="p-4 bg-surface-container rounded-xl border border-outline-variant">
@@ -1953,7 +1952,7 @@ export default function AutoScripts() {
 
               {/* Block 5: THỜI ĐIỂM GỬI */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">THỜI ĐIỂM GỬI</h3>
+                <h3 className="tieu-de-muc mb-3">THỜI ĐIỂM GỬI</h3>
                 <div className="p-4 bg-surface-container rounded-xl border border-outline-variant">
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-sm font-bold text-on-surface">Gửi sau {delay} giây</span>
@@ -1997,7 +1996,7 @@ export default function AutoScripts() {
 
               {/* Block 6: ÁP DỤNG CHO BÀI NÀO */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">ÁP DỤNG CHO BÀI NÀO</h3>
+                <h3 className="tieu-de-muc mb-3">ÁP DỤNG CHO BÀI NÀO</h3>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
@@ -2025,7 +2024,7 @@ export default function AutoScripts() {
 
                   {applyTo === 'specific' && (
                     <div className="pl-8 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="p-3 border border-dashed border-outline-variant rounded-lg bg-surface-container-high/50 text-center">
+                      <div className="p-3 border border-dashed border-outline-variant rounded-lg bg-surface-container-high text-center">
                         <span className="text-xs text-on-surface-variant">Chọn bài đăng...</span>
                       </div>
                     </div>
@@ -2034,25 +2033,7 @@ export default function AutoScripts() {
               </div>
 
             </div>
-
-            {/* Footer */}
-            <div className="p-6 border-t border-outline-variant bg-surface-container/50 flex gap-3 shrink-0">
-              <button 
-                onClick={() => setIsComposerOpen(false)}
-                className="flex-1 py-3 rounded-xl border border-outline-variant text-on-surface font-bold text-sm hover:bg-surface-variant transition-colors"
-              >
-                Hủy
-              </button>
-              <button 
-                onClick={handleSaveScript}
-                disabled={busy}
-                className="flex-[2] py-3 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {busy ? 'Đang lưu…' : editingId ? 'Lưu thay đổi' : 'Tạo kịch bản'}
-              </button>
-            </div>
-          </div>
-        </div>
+        </HopThoai>
       )}
 
       </>

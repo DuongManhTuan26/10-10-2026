@@ -7,6 +7,7 @@ import {
 import { useActivePage } from '../lib/ActivePage';
 import { useNavigate } from 'react-router-dom';
 import BangLoi from '../components/BangLoi';
+import HopThoai, { NHAN_O, NUT_CHINH, NUT_PHU, O_NHAP } from '../components/HopThoai';
 
 /** Trạng thái hiển thị mà giao diện đang dùng cho chấm màu và nhãn. */
 type DisplayStatus = 'waiting' | 'ai' | 'expiring' | 'expired' | 'done';
@@ -510,7 +511,7 @@ export default function Inbox() {
                 "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all border shrink-0 group",
                 isActive 
                   ? "bg-primary/10 border-primary/30 text-primary shadow-[0_0_10px_rgba(0,229,255,0.05)]" 
-                  : "bg-surface-container-lowest border-outline-variant/30 hover:bg-surface-container hover:border-outline-variant/50 text-on-surface-variant hover:text-on-surface"
+                  : "bg-surface-container-lowest border-outline-variant/60 hover:bg-surface-container hover:border-outline-variant/50 text-on-surface-variant hover:text-on-surface"
               )}
             >
               <div className={clsx(
@@ -534,8 +535,8 @@ export default function Inbox() {
       <div className="flex-1 flex flex-row w-full h-full overflow-hidden">
         
         {/* Pane 1: Conversation List */}
-        <aside className={`w-full lg:w-[320px] bg-surface-container-lowest border-r border-outline-variant/30 flex-col h-full lg:flex-shrink-0 z-0 ${xemChiTietDiDong ? 'hidden lg:flex' : 'flex'}`}>
-          <div className="p-3 border-b border-outline-variant/30 shrink-0">
+        <aside className={`w-full lg:w-[320px] bg-surface-container-lowest border-r border-outline-variant/60 flex-col h-full lg:flex-shrink-0 z-0 ${xemChiTietDiDong ? 'hidden lg:flex' : 'flex'}`}>
+          <div className="p-3 border-b border-outline-variant/60 shrink-0">
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
               <input 
@@ -549,7 +550,7 @@ export default function Inbox() {
           </div>
           
           {/* Tabs */}
-          <div className="flex overflow-x-auto border-b border-outline-variant/30 no-scrollbar shrink-0">
+          <div className="flex overflow-x-auto border-b border-outline-variant/60 no-scrollbar shrink-0">
             {TABS.map(tab => (
               <button 
                 key={tab}
@@ -599,7 +600,7 @@ export default function Inbox() {
                 </div>
               )
             }) : (
-              <div className="flex flex-col items-center justify-center h-full text-on-surface-variant/50 p-6 text-center space-y-2">
+              <div className="flex flex-col items-center justify-center h-full text-on-surface-variant p-6 text-center space-y-2">
                   <span className="material-symbols-outlined text-4xl opacity-50">forum</span>
                   <p className="text-sm">Chưa có tin nhắn nào</p>
               </div>
@@ -627,7 +628,7 @@ export default function Inbox() {
         {selectedConv ? (
           <section className={`flex-1 flex-col h-full min-w-0 lg:min-w-[350px] bg-background ${xemChiTietDiDong ? 'flex' : 'hidden lg:flex'}`}>
             {/* Header */}
-            <div className="h-16 border-b border-outline-variant/30 bg-surface-container-lowest px-4 flex items-center justify-between shrink-0">
+            <div className="h-16 border-b border-outline-variant/60 bg-surface-container-lowest px-4 flex items-center justify-between shrink-0">
               {/* Customer Info */}
               <div className="flex items-center gap-3 overflow-hidden pr-4">
                 <button
@@ -693,7 +694,7 @@ export default function Inbox() {
               )}
 
               <div className="text-center">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container-low px-3 py-1 rounded-full border border-outline-variant/30">Hôm nay</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container-low px-3 py-1 rounded-full border border-outline-variant/60">Hôm nay</span>
               </div>
               
               {selectedConv.messages.map((msg: any) => {
@@ -724,7 +725,7 @@ export default function Inbox() {
                           <p className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap">
                             {msg.text}
                           </p>
-                          <p className="text-[10px] text-on-surface-variant/60 mt-0.5">
+                          <p className="text-[10px] text-on-surface-variant mt-0.5">
                             Ghi chú hệ thống · chỉ mình bạn thấy, khách không nhận được
                           </p>
                         </div>
@@ -754,7 +755,7 @@ export default function Inbox() {
                         ? isAI 
                           ? "bg-surface-container-highest text-on-surface rounded-tr-sm border border-primary/20 before:absolute before:inset-0 before:rounded-2xl before:border before:border-primary/10 before:pointer-events-none before:shadow-[inset_0_0_15px_rgba(0,229,255,0.05)]" 
                           : "bg-primary text-on-primary rounded-tr-sm"
-                        : "bg-surface-variant text-on-surface rounded-tl-sm border border-outline-variant/30"
+                        : "bg-surface-variant text-on-surface rounded-tl-sm border border-outline-variant/60"
                     )}>
                       {isAI && <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary shadow-[0_0_5px_rgba(0,229,255,0.8)]"></div>}
                       <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{msg.text}</p>
@@ -765,7 +766,7 @@ export default function Inbox() {
             </div>
 
             {/* Composer */}
-            <div className="p-4 bg-surface-container-lowest border-t border-outline-variant/30 z-10 shrink-0">
+            <div className="p-4 bg-surface-container-lowest border-t border-outline-variant/60 z-10 shrink-0">
               {selectedConv.status === 'ai' && (
                 <div className="mb-3 px-3 py-2 bg-primary/10 border border-primary/20 rounded-md flex items-center gap-2 text-xs text-primary">
                   <span className="material-symbols-outlined text-[16px]">smart_toy</span>
@@ -799,7 +800,7 @@ export default function Inbox() {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                   }}
                   disabled={!selectedConv.canSend || sending}
-                  className="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/50 resize-none py-2 px-2 text-sm max-h-24 min-h-[40px] focus:outline-none custom-scrollbar disabled:cursor-not-allowed" 
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/70 resize-none py-2 px-2 text-sm max-h-24 min-h-[40px] focus:outline-none custom-scrollbar disabled:cursor-not-allowed" 
                   placeholder={selectedConv.canSend ? 'Nhập tin nhắn…' : 'Đã quá 24 giờ, nền tảng không cho gửi tin nữa'} 
                   rows={1}
                 ></textarea>
@@ -822,7 +823,7 @@ export default function Inbox() {
             </div>
           </section>
         ) : (
-          <section className={`flex-1 flex-col h-full bg-background items-center justify-center text-on-surface-variant/50 min-w-0 lg:min-w-[350px] ${xemChiTietDiDong ? 'flex' : 'hidden lg:flex'}`}>
+          <section className={`flex-1 flex-col h-full bg-background items-center justify-center text-on-surface-variant min-w-0 lg:min-w-[350px] ${xemChiTietDiDong ? 'flex' : 'hidden lg:flex'}`}>
             <span className="material-symbols-outlined text-6xl mb-4 opacity-50">forum</span>
             <p className="text-sm font-medium">Chọn một cuộc trò chuyện để xem</p>
           </section>
@@ -830,7 +831,7 @@ export default function Inbox() {
 
         {/* Pane 3: Customer Info (Right Panel) */}
         {selectedConv && (
-          <aside className="w-[300px] bg-surface-container-lowest border-l border-outline-variant/30 hidden xl:flex flex-col h-full flex-shrink-0 z-0 overflow-y-auto no-scrollbar">
+          <aside className="w-[300px] bg-surface-container-lowest border-l border-outline-variant/60 hidden xl:flex flex-col h-full flex-shrink-0 z-0 overflow-y-auto no-scrollbar">
             <div className="flex-1 p-4 space-y-6">
               
               <div className="flex flex-col items-center text-center mt-2">
@@ -846,7 +847,7 @@ export default function Inbox() {
               {/* Block 1: AI Collected Info */}
               <div>
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <h4 className="font-mono text-[10px] font-bold text-primary tracking-wider uppercase">Thu thập bởi AI</h4>
+                  <h4 className="tieu-de-muc">Thu thập bởi AI</h4>
                   <button 
                     onClick={handleExtractInfo}
                     disabled={isExtracting}
@@ -860,15 +861,15 @@ export default function Inbox() {
                     {isExtracting ? 'Đang đọc...' : 'Quét lại'}
                   </button>
                 </div>
-                <div className="bg-surface-container/50 rounded-xl border border-outline-variant/30 p-3 space-y-3">
+                <div className="bg-surface-container rounded-xl border border-outline-variant/60 p-3 space-y-3">
                   <div className="flex flex-col gap-1">
                     <span className="text-[11px] font-medium text-on-surface-variant">Họ tên</span>
-                    <span className={clsx("text-sm font-medium", !activeInfo.name || activeInfo.name === 'Chưa có' ? 'text-on-surface-variant/40' : 'text-on-surface')}>{activeInfo.name || 'Chưa có'}</span>
+                    <span className={clsx("text-sm font-medium", !activeInfo.name || activeInfo.name === 'Chưa có' ? 'text-on-surface-variant' : 'text-on-surface')}>{activeInfo.name || 'Chưa có'}</span>
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[11px] font-medium text-on-surface-variant">Số điện thoại</span>
                     <div className="flex items-center gap-2">
-                      <span className={clsx("text-sm font-medium", !activeInfo.phone || activeInfo.phone === 'Chưa có' ? 'text-on-surface-variant/40' : 'text-on-surface')}>
+                      <span className={clsx("text-sm font-medium", !activeInfo.phone || activeInfo.phone === 'Chưa có' ? 'text-on-surface-variant' : 'text-on-surface')}>
                         {activeInfo.phone || 'Chưa có'}
                       </span>
                       {activeInfo.phone && activeInfo.phone !== 'Chưa có' && (
@@ -880,10 +881,10 @@ export default function Inbox() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[11px] font-medium text-on-surface-variant">Địa chỉ</span>
-                    <span className={clsx("text-sm font-medium", !activeInfo.address || activeInfo.address === 'Chưa có' ? 'text-on-surface-variant/40' : 'text-on-surface')}>{activeInfo.address || 'Chưa có'}</span>
+                    <span className={clsx("text-sm font-medium", !activeInfo.address || activeInfo.address === 'Chưa có' ? 'text-on-surface-variant' : 'text-on-surface')}>{activeInfo.address || 'Chưa có'}</span>
                   </div>
                   
-                  <div className="pt-3 border-t border-outline-variant/30">
+                  <div className="pt-3 border-t border-outline-variant/60">
                     <div className="flex justify-between text-[10px] font-bold text-on-surface mb-1.5">
                       <span>Tiến độ thu thập</span>
                       <span className="text-primary">{collectedCount}/5</span>
@@ -911,7 +912,7 @@ export default function Inbox() {
                   onClick={() => selectedConv?.externalUrl
                     ? window.open(selectedConv.externalUrl, '_blank', 'noopener,noreferrer')
                     : setErrorMessage('Nền tảng chưa cung cấp đường dẫn cho hội thoại này.')}
-                  className="w-full py-2.5 text-xs font-bold text-on-surface-variant bg-surface-container/50 border border-outline-variant/30 hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-2.5 text-xs font-bold text-on-surface-variant bg-surface-container border border-outline-variant/60 hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined text-[16px]">open_in_new</span>
                   Xem trên nền tảng
@@ -924,98 +925,90 @@ export default function Inbox() {
 
       {/* Auto-fill Order Modal */}
       {isOrderModalOpen && selectedConv && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-[600px] bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="px-5 py-4 border-b border-outline-variant/30 flex items-center justify-between bg-surface-container-lowest">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">receipt_long</span>
-                <h3 className="font-bold text-on-surface text-lg">Tạo Đơn Hàng Mới</h3>
-              </div>
-              <button onClick={() => setIsOrderModalOpen(false)} className="text-on-surface-variant hover:text-on-surface p-1 rounded-md hover:bg-surface-variant transition-colors">
-                <span className="material-symbols-outlined text-[20px]">close</span>
+        <HopThoai
+          co="vua"
+          bieuTuong="receipt_long"
+          tieuDe="Tạo đơn hàng mới"
+          phuDe="Đơn hàng sẽ được chuyển sang mục Đơn hàng."
+          onDong={() => setIsOrderModalOpen(false)}
+          dongKhiBamNgoai={false}
+          chan={
+            <>
+              <button type="button" onClick={() => setIsOrderModalOpen(false)} className={NUT_PHU}>
+                Huỷ
               </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-5 space-y-5 bg-background">
-              <div className="flex items-center gap-3 px-4 py-3 bg-primary/10 border border-primary/20 rounded-lg text-primary">
-                <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
-                <div>
-                  <p className="text-sm font-bold mb-0.5">AI đã tự động điền thông tin</p>
-                  <p className="text-xs text-primary/80">Dữ liệu được trích xuất từ cuộc trò chuyện với {selectedConv.customerName}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Họ tên khách hàng <span className="text-error">*</span></label>
-                  <input type="text" value={orderForm.customerName} onChange={(e) => setOrderForm({ ...orderForm, customerName: e.target.value })} className="w-full bg-surface-container border border-outline-variant/50 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="Nhập họ tên..." />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Số điện thoại <span className="text-error">*</span></label>
-                  <input type="text" value={orderForm.phone} onChange={(e) => setOrderForm({ ...orderForm, phone: e.target.value })} className="w-full bg-surface-container border border-outline-variant/50 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="Nhập SĐT..." />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Địa chỉ giao hàng <span className="text-error">*</span></label>
-                <input type="text" value={orderForm.address} onChange={(e) => setOrderForm({ ...orderForm, address: e.target.value })} className="w-full bg-surface-container border border-outline-variant/50 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="Nhập địa chỉ chi tiết..." />
-              </div>
-
-              <div className="grid grid-cols-4 gap-4">
-                <div className="col-span-3 space-y-1.5">
-                  <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Sản phẩm <span className="text-error">*</span></label>
-                  <input type="text" value={orderForm.product} onChange={(e) => setOrderForm({ ...orderForm, product: e.target.value })} className="w-full bg-surface-container border border-outline-variant/50 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all" placeholder="Tên hoặc mã sản phẩm..." />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Số lượng</label>
-                  <input type="number" min={1} value={orderForm.quantity} onChange={(e) => setOrderForm({ ...orderForm, quantity: Math.max(1, Number(e.target.value) || 1) })} className="w-full bg-surface-container border border-outline-variant/50 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all text-center" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Đơn giá (đ)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1000}
-                    value={orderForm.unitPrice}
-                    onChange={(e) => setOrderForm({ ...orderForm, unitPrice: Math.max(0, Number(e.target.value) || 0) })}
-                    className="w-full bg-surface-container border border-outline-variant/50 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all text-right"
-                    placeholder="0"
-                  />
-                  <p className="text-[10px] text-on-surface-variant/70">
-                    Tổng: {formatCurrency(orderForm.quantity * orderForm.unitPrice)}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Ghi chú đơn hàng</label>
-                <textarea rows={2} className="w-full bg-surface-container border border-outline-variant/50 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all custom-scrollbar" value={orderForm.note} onChange={(e) => setOrderForm({ ...orderForm, note: e.target.value })} placeholder="Ghi chú cho đơn vị vận chuyển hoặc dặn dò của khách..."></textarea>
+              <button type="button" onClick={handleCreateOrder} disabled={creatingOrder} className={NUT_CHINH}>
+                <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                {creatingOrder ? 'Đang lưu…' : 'Lưu đơn & báo cáo'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 px-4 py-3 bg-primary/10 border border-primary/40 rounded-xl">
+              <span className="material-symbols-outlined text-[22px] text-primary">auto_awesome</span>
+              <div>
+                <p className="text-base font-bold text-on-surface">AI đã tự động điền thông tin</p>
+                <p className="text-sm text-on-surface-variant">Trích từ cuộc trò chuyện với {selectedConv.customerName}</p>
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="p-4 border-t border-outline-variant/30 flex justify-between items-center bg-surface-container-lowest">
-              <div className="text-xs text-on-surface-variant font-medium">
-                Đơn hàng sẽ được chuyển sang tab Đơn Hàng
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => setIsOrderModalOpen(false)} className="px-4 py-2 text-sm font-bold text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors">
-                  Hủy
-                </button>
-                <button
-                  onClick={handleCreateOrder}
-                  disabled={creatingOrder}
-                  className="px-6 py-2 text-sm font-bold bg-primary text-on-primary rounded-lg shadow-[0_4px_10px_rgba(0,229,255,0.2)] hover:brightness-110 transition-all flex items-center gap-2 disabled:opacity-60"
-                >
-                  <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                  {creatingOrder ? 'Đang lưu…' : 'Lưu Đơn & Báo Cáo'}
-                </button>
-              </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className="block">
+                <span className={NHAN_O}>Họ tên khách hàng <span className="text-red-400">*</span></span>
+                <input type="text" value={orderForm.customerName} onChange={(e) => setOrderForm({ ...orderForm, customerName: e.target.value })} className={O_NHAP} placeholder="Nhập họ tên..." />
+              </label>
+              <label className="block">
+                <span className={NHAN_O}>Số điện thoại <span className="text-red-400">*</span></span>
+                <input type="text" value={orderForm.phone} onChange={(e) => setOrderForm({ ...orderForm, phone: e.target.value })} className={O_NHAP} placeholder="Nhập SĐT..." />
+              </label>
             </div>
+
+            <label className="block">
+              <span className={NHAN_O}>Địa chỉ giao hàng <span className="text-red-400">*</span></span>
+              <input type="text" value={orderForm.address} onChange={(e) => setOrderForm({ ...orderForm, address: e.target.value })} className={O_NHAP} placeholder="Nhập địa chỉ chi tiết..." />
+            </label>
+
+            {/* Một hàng đủ 4 phần: sản phẩm (2 phần), số lượng, đơn giá. Bản cũ chia 4 cột mà xếp 5 → ô đơn giá rơi lẻ xuống dòng dưới. */}
+            <div className="grid gap-5 sm:grid-cols-4">
+              <label className="block sm:col-span-2">
+                <span className={NHAN_O}>Sản phẩm <span className="text-red-400">*</span></span>
+                <input type="text" value={orderForm.product} onChange={(e) => setOrderForm({ ...orderForm, product: e.target.value })} className={O_NHAP} placeholder="Tên hoặc mã sản phẩm..." />
+              </label>
+              <label className="block">
+                <span className={NHAN_O}>Số lượng</span>
+                <input type="number" min={1} value={orderForm.quantity} onChange={(e) => setOrderForm({ ...orderForm, quantity: Math.max(1, Number(e.target.value) || 1) })} className={`${O_NHAP} text-center`} />
+              </label>
+              <label className="block">
+                <span className={NHAN_O}>Đơn giá (đ)</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={orderForm.unitPrice}
+                  onChange={(e) => setOrderForm({ ...orderForm, unitPrice: Math.max(0, Number(e.target.value) || 0) })}
+                  className={`${O_NHAP} text-right`}
+                  placeholder="0"
+                />
+              </label>
+            </div>
+            <div className="flex justify-end items-baseline gap-3 -mt-2">
+              <span className="text-sm text-on-surface-variant">Tổng tiền</span>
+              <span className="text-xl font-bold text-on-surface tabular-nums">{formatCurrency(orderForm.quantity * orderForm.unitPrice)}</span>
+            </div>
+
+            <label className="block">
+              <span className={NHAN_O}>Ghi chú đơn hàng</span>
+              <textarea
+                rows={3}
+                className={`${O_NHAP} h-auto py-3 custom-scrollbar`}
+                value={orderForm.note}
+                onChange={(e) => setOrderForm({ ...orderForm, note: e.target.value })}
+                placeholder="Ghi chú cho đơn vị vận chuyển hoặc dặn dò của khách..."
+              />
+            </label>
           </div>
-        </div>
+        </HopThoai>
       )}
     </main>
   );

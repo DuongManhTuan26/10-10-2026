@@ -10,6 +10,7 @@ import { api, ApiError, type TaiKhoanQuanTri, type NhatKyQuanTri } from '../lib/
 import BangLoi from '../components/BangLoi';
 import ChiPhiHeThong from '../components/ChiPhiHeThong';
 import DoiMatKhau from '../components/DoiMatKhau';
+import HopThoai, { NHAN_O, NUT_CHINH, NUT_PHU, O_NHAP } from '../components/HopThoai';
 
 const TEN_VIEC: Record<string, string> = {
   tao_tai_khoan: 'Tạo tài khoản',
@@ -225,31 +226,29 @@ export default function Admin() {
         mà mật khẩu tạm chỉ hiện đúng một lần.
       */}
       {matKhauTam && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-        <div className="w-full max-w-[440px] bg-surface-container rounded-xl border-2 border-primary/50 p-4">
-          <p className="text-sm font-bold text-on-surface mb-1">
-            Mật khẩu tạm cho {matKhauTam.email}
-          </p>
-          <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
-            Chỉ hiện đúng một lần, hệ thống không lưu lại. Chép gửi cho chủ shop và dặn họ đổi
-            ngay sau lần đăng nhập đầu tiên.
-          </p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-sm font-mono bg-surface px-3 py-2 rounded-lg border border-outline-variant text-on-surface select-all">
-              {matKhauTam.mk}
-            </code>
-            <button
-              onClick={() => setMatKhauTam(null)}
-              className="px-3 py-2 rounded-lg border border-outline text-on-surface text-xs font-bold hover:border-primary transition-colors"
-            >
+        <HopThoai
+          co="vua"
+          bieuTuong="key"
+          tieuDe="Mật khẩu tạm"
+          phuDe={`Cho ${matKhauTam.email} — chỉ hiện đúng một lần, hệ thống không lưu lại.`}
+          onDong={() => setMatKhauTam(null)}
+          dongKhiBamNgoai={false}
+          chan={
+            <button type="button" onClick={() => setMatKhauTam(null)} className={NUT_CHINH}>
               Đã chép, đóng
             </button>
-          </div>
-        </div>
-        </div>
+          }
+        >
+          <p className="text-base text-on-surface-variant mb-4">
+            Chép gửi cho chủ shop và dặn họ đổi ngay sau lần đăng nhập đầu tiên.
+          </p>
+          <code className="block text-2xl font-mono font-bold tracking-wide bg-surface-container-lowest px-5 py-4 rounded-xl border border-outline text-on-surface select-all">
+            {matKhauTam.mk}
+          </code>
+        </HopThoai>
       )}
 
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl overflow-hidden mb-8">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl overflow-hidden mb-8">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -268,7 +267,7 @@ export default function Admin() {
             </thead>
             <tbody>
               {danhSach.map((t) => (
-                <tr key={t.id} className="border-b border-outline-variant/40 last:border-0">
+                <tr key={t.id} className="border-b border-outline-variant/60 last:border-0">
                   <td className="px-4 py-3">
                     <div className="font-bold text-on-surface flex items-center gap-2">
                       {t.name || '(chưa đặt tên)'}
@@ -373,10 +372,10 @@ export default function Admin() {
       </div>
 
       <div>
-        <h2 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">
+        <h2 className="tieu-de-muc mb-3">
           Nhật ký quản trị
         </h2>
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-4 space-y-2">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-4 space-y-2">
           {nhatKy.length === 0 ? (
             <p className="text-sm text-on-surface-variant">Chưa có thao tác nào.</p>
           ) : (
@@ -398,16 +397,28 @@ export default function Admin() {
       </div>
 
       {moTao && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="bg-surface-container-high rounded-2xl border border-outline-variant w-full max-w-[520px] p-6 space-y-4">
-            <h2 className="font-headline-sm text-xl font-bold text-on-surface">Tạo tài khoản mới</h2>
-            <p className="text-xs text-on-surface-variant leading-relaxed">
-              Tài khoản tạo ra hoàn toàn độc lập, ở trạng thái mặc định để chủ shop tự cài theo
-              mục đích của họ. Hệ thống sinh một mật khẩu tạm, hiện đúng một lần cho bạn chép lại.
-            </p>
+        <HopThoai
+          co="vua"
+          bieuTuong="person_add"
+          tieuDe="Tạo tài khoản mới"
+          phuDe="Tài khoản độc lập, ở trạng thái mặc định để chủ shop tự cài. Mật khẩu tạm hiện đúng một lần cho bạn chép lại."
+          onDong={() => setMoTao(false)}
+          dongKhiBamNgoai={false}
+          chan={
+            <>
+              <button type="button" onClick={() => setMoTao(false)} className={NUT_PHU}>
+                Huỷ
+              </button>
+              <button type="button" onClick={taoTaiKhoan} disabled={dangTao || !emailMoi.trim()} className={NUT_CHINH}>
+                {dangTao ? 'Đang tạo…' : 'Tạo tài khoản'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-6">
             <div>
-              <label className="block text-xs font-bold text-on-surface mb-1.5">Loại tài khoản</label>
-              <div className="grid gap-2">
+              <span className={NHAN_O}>Loại tài khoản</span>
+              <div className="grid gap-3 sm:grid-cols-2">
                 {[
                   {
                     id: 'admin_con' as const,
@@ -422,96 +433,80 @@ export default function Admin() {
                 ].map((o) => (
                   <button
                     key={o.id}
+                    type="button"
                     onClick={() => setVaiTroMoi(o.id)}
-                    className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                    className={`text-left p-4 rounded-xl border-2 transition-colors ${
                       vaiTroMoi === o.id
                         ? 'border-primary bg-primary/10'
-                        : 'border-outline-variant hover:border-primary/50'
+                        : 'border-outline-variant bg-surface-container-low hover:border-outline'
                     }`}
                   >
-                    <div className="text-sm font-bold text-on-surface">{o.ten}</div>
-                    <div className="text-xs text-on-surface-variant mt-0.5">{o.mo}</div>
+                    <div className="flex items-center gap-2 text-base font-bold text-on-surface">
+                      <span className={`material-symbols-outlined text-[20px] ${vaiTroMoi === o.id ? 'text-primary' : 'text-on-surface-variant'}`}>
+                        {vaiTroMoi === o.id ? 'radio_button_checked' : 'radio_button_unchecked'}
+                      </span>
+                      {o.ten}
+                    </div>
+                    <div className="text-sm text-on-surface-variant mt-1.5 pl-7">{o.mo}</div>
                   </button>
                 ))}
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-on-surface mb-1.5">Email đăng nhập</label>
-              <input
-                type="email"
-                value={emailMoi}
-                onChange={(e) => setEmailMoi(e.target.value)}
-                placeholder="chushop@email.com"
-                className="w-full bg-surface rounded-lg border border-outline-variant px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-on-surface mb-1.5">Tên shop</label>
-              <input
-                type="text"
-                value={tenMoi}
-                onChange={(e) => setTenMoi(e.target.value)}
-                placeholder="Ví dụ: Chạm Tay Vạn Điều Hay"
-                className="w-full bg-surface rounded-lg border border-outline-variant px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setMoTao(false)}
-                className="flex-1 py-2.5 rounded-xl border border-outline-variant text-on-surface font-bold text-sm hover:bg-surface-variant transition-colors"
-              >
-                Huỷ
-              </button>
-              <button
-                onClick={taoTaiKhoan}
-                disabled={dangTao || !emailMoi.trim()}
-                className="flex-[2] py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm hover:brightness-110 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {dangTao ? 'Đang tạo…' : 'Tạo tài khoản'}
-              </button>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className="block">
+                <span className={NHAN_O}>Email đăng nhập</span>
+                <input
+                  type="email"
+                  value={emailMoi}
+                  onChange={(e) => setEmailMoi(e.target.value)}
+                  placeholder="chushop@email.com"
+                  className={O_NHAP}
+                />
+              </label>
+              <label className="block">
+                <span className={NHAN_O}>Tên shop</span>
+                <input
+                  type="text"
+                  value={tenMoi}
+                  onChange={(e) => setTenMoi(e.target.value)}
+                  placeholder="Ví dụ: Chạm Tay Vạn Điều Hay"
+                  className={O_NHAP}
+                />
+              </label>
             </div>
           </div>
-        </div>
+        </HopThoai>
       )}
 
       {dangSua && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="bg-surface-container-high rounded-2xl border border-outline-variant w-full max-w-[520px] p-6 space-y-4">
-            <h2 className="font-headline-sm text-xl font-bold text-on-surface">Sửa tài khoản</h2>
-            <div>
-              <label className="block text-xs font-bold text-on-surface mb-1.5">Tên shop</label>
-              <input
-                type="text"
-                value={suaTen}
-                onChange={(e) => setSuaTen(e.target.value)}
-                className="w-full bg-surface rounded-lg border border-outline-variant px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-on-surface mb-1.5">Email đăng nhập</label>
-              <input
-                type="email"
-                value={suaEmail}
-                onChange={(e) => setSuaEmail(e.target.value)}
-                className="w-full bg-surface rounded-lg border border-outline-variant px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setDangSua(null)}
-                className="flex-1 py-2.5 rounded-xl border border-outline-variant text-on-surface font-bold text-sm hover:bg-surface-variant transition-colors"
-              >
+        <HopThoai
+          co="vua"
+          bieuTuong="edit"
+          tieuDe="Sửa tài khoản"
+          phuDe={dangSua.email}
+          onDong={() => setDangSua(null)}
+          chan={
+            <>
+              <button type="button" onClick={() => setDangSua(null)} className={NUT_PHU}>
                 Huỷ
               </button>
-              <button
-                onClick={luuSua}
-                className="flex-[2] py-2.5 rounded-xl bg-primary text-on-primary font-bold text-sm hover:brightness-110 transition-all"
-              >
+              <button type="button" onClick={luuSua} className={NUT_CHINH}>
                 Lưu
               </button>
-            </div>
+            </>
+          }
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="block">
+              <span className={NHAN_O}>Tên shop</span>
+              <input type="text" value={suaTen} onChange={(e) => setSuaTen(e.target.value)} className={O_NHAP} />
+            </label>
+            <label className="block">
+              <span className={NHAN_O}>Email đăng nhập</span>
+              <input type="email" value={suaEmail} onChange={(e) => setSuaEmail(e.target.value)} className={O_NHAP} />
+            </label>
           </div>
-        </div>
+        </HopThoai>
       )}
     </main>
   );

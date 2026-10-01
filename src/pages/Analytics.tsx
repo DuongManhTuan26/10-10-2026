@@ -126,7 +126,7 @@ export default function Analytics() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-lg">
           <div>
             <h2 className="text-on-surface-variant font-body-lg">AI Thống Kê - Phân Tích</h2>
-            <p className="text-sm font-medium text-on-surface-variant/80 mt-1">Đánh giá hiệu suất tổng thể và nhận đề xuất từ AI</p>
+            <p className="text-sm font-medium text-on-surface-variant mt-1">Đánh giá hiệu suất tổng thể và nhận đề xuất từ AI</p>
           </div>
           <div className="flex items-center gap-3">
             <button 
@@ -189,7 +189,7 @@ export default function Analytics() {
               )}
 
               {aiReport && (
-                <div className="mt-3 p-4 bg-surface-container-lowest/50 border border-outline-variant rounded-xl">
+                <div className="mt-3 p-4 bg-surface-container-lowest border border-outline-variant rounded-xl">
                   <p className="text-sm text-on-surface leading-relaxed whitespace-pre-line">{aiReport}</p>
                   {aiActions.length > 0 && (
                     <ul className="mt-3 pt-3 border-t border-outline-variant/50 space-y-1.5">
@@ -243,7 +243,7 @@ export default function Analytics() {
                   )}
                 </div>
                 {card.hint && (
-                  <p className="text-[11px] text-on-surface-variant/70 mt-0.5">{card.hint}</p>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">{card.hint}</p>
                 )}
               </div>
             </div>
@@ -258,7 +258,7 @@ export default function Analytics() {
             <div className="h-[300px] w-full">
               {stats.revenue === 0 && stats.ordersCount === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center gap-2">
-                  <span className="material-symbols-outlined text-[40px] text-on-surface-variant/40">show_chart</span>
+                  <span className="material-symbols-outlined text-[40px] text-on-surface-variant">show_chart</span>
                   <p className="text-sm text-on-surface-variant">Chưa có doanh thu trong kỳ này</p>
                 </div>
               ) : (
@@ -292,7 +292,7 @@ export default function Analytics() {
             <div className="h-[300px] w-full flex-1">
               {trafficSourceData.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center gap-2">
-                  <span className="material-symbols-outlined text-[40px] text-on-surface-variant/40">pie_chart</span>
+                  <span className="material-symbols-outlined text-[40px] text-on-surface-variant">pie_chart</span>
                   <p className="text-sm text-on-surface-variant">Chưa có khách hàng nào</p>
                 </div>
               ) : (

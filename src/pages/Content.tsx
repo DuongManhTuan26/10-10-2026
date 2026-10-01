@@ -11,6 +11,7 @@ import { gioiHanChatNhat, kenhMacDinh, tinhKenhSeDang, type CheDoKenh } from '..
 import ChonKenhDang from '../components/ChonKenhDang';
 import { MAU_PHONG_CACH } from '../lib/phong-cach-anh';
 import VideoAiPanel from '../components/VideoAiPanel';
+import HopThoai, { NUT_CANH_BAO, NUT_CHINH, NUT_PHU } from '../components/HopThoai';
 
 /** Nhãn tab -> trạng thái trong database. */
 const FILTER_TO_STATUS: Record<string, PostStatus> = {
@@ -774,11 +775,11 @@ export default function Content() {
       </div>
 
       {/* Row 1: Mode Selection Card */}
-      <div className="bg-surface-container/30 border-2 border-primary/40 rounded-2xl p-6 mb-8 relative overflow-hidden group hover:border-primary/60 transition-colors shadow-[0_0_30px_rgba(0,229,255,0.05)]">
+      <div className="bg-surface-container border-2 border-primary/40 rounded-2xl p-6 mb-8 relative overflow-hidden group hover:border-primary/60 transition-colors shadow-[0_0_30px_rgba(0,229,255,0.05)]">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-bl-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
         <div className="flex flex-col lg:flex-row lg:items-center gap-8 relative z-10">
           <div className="flex-1">
-            <span className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-2 block">CHẾ ĐỘ ĐĂNG BÀI</span>
+            <span className="tieu-de-muc mb-2 block">CHẾ ĐỘ ĐĂNG BÀI</span>
             <h2 className="text-xl font-bold text-on-surface mb-2">{postMode === 'manual' ? 'AI đang chờ bạn duyệt' : 'AI đang tự động đăng bài'}</h2>
             <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-line">
               {postMode === 'manual' 
@@ -793,7 +794,7 @@ export default function Content() {
                 "flex-1 p-4 rounded-xl border cursor-pointer transition-all",
                 postMode === 'manual' 
                   ? "bg-primary/10 border-primary text-primary shadow-[0_0_15px_rgba(0,229,255,0.2)]" 
-                  : "bg-surface-container/50 border-outline-variant hover:border-primary/50 text-on-surface-variant"
+                  : "bg-surface-container border-outline-variant hover:border-primary/50 text-on-surface-variant"
               )}
             >
               <div className="flex items-center justify-between mb-2">
@@ -810,7 +811,7 @@ export default function Content() {
                 "flex-1 p-4 rounded-xl border cursor-pointer transition-all",
                 postMode === 'auto' 
                   ? "bg-primary/10 border-primary text-primary shadow-[0_0_15px_rgba(0,229,255,0.2)]" 
-                  : "bg-surface-container/50 border-outline-variant hover:border-primary/50 text-on-surface-variant"
+                  : "bg-surface-container border-outline-variant hover:border-primary/50 text-on-surface-variant"
               )}
             >
               <div className="flex items-center justify-between mb-2">
@@ -831,7 +832,7 @@ export default function Content() {
 
       {/* Row 2: Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-yellow-500/10 blur-2xl rounded-full group-hover:bg-yellow-500/20 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">CHỜ DUYỆT</h3>
@@ -842,7 +843,7 @@ export default function Content() {
           </div>
         </div>
 
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full group-hover:bg-blue-500/20 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">ĐÃ LÊN LỊCH</h3>
@@ -853,7 +854,7 @@ export default function Content() {
           </div>
         </div>
 
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 blur-2xl rounded-full group-hover:bg-primary/20 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">ĐÃ ĐĂNG TUẦN NÀY</h3>
@@ -869,7 +870,7 @@ export default function Content() {
           )}
         </div>
 
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-purple-500/10 blur-2xl rounded-full group-hover:bg-purple-500/20 transition-colors"></div>
           <div>
             <h3 className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-1">TƯƠNG TÁC TRUNG BÌNH</h3>
@@ -895,7 +896,7 @@ export default function Content() {
                 "px-4 py-2 rounded-full text-sm font-medium transition-colors border",
                 isActive 
                   ? "bg-primary text-on-primary border-primary shadow-[0_0_10px_rgba(0,229,255,0.2)]" 
-                  : "bg-surface-container/30 text-on-surface-variant border-outline-variant hover:bg-surface-container hover:text-on-surface"
+                  : "bg-surface-container text-on-surface-variant border-outline-variant hover:bg-surface-container hover:text-on-surface"
               )}
             >
               {filter}
@@ -907,7 +908,7 @@ export default function Content() {
       {/* Row 4: Posts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredPosts.map(post => (
-          <div key={post.id} className="bg-surface-container/30 border border-outline-variant rounded-2xl overflow-hidden flex flex-col group hover:border-primary/30 transition-colors shadow-sm h-full">
+          <div key={post.id} className="bg-surface-container border border-outline-variant rounded-2xl overflow-hidden flex flex-col group hover:border-primary/30 transition-colors shadow-sm h-full">
             {/* Top Bar */}
             <div className="p-4 flex items-center justify-between border-b border-outline-variant/50">
               <span className={clsx("px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider border", getStatusColor(post.status))}>
@@ -945,7 +946,7 @@ export default function Content() {
               </p>
               
               <div className="space-y-3">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-on-surface-variant/80">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-on-surface-variant">
                   <span className="material-symbols-outlined text-[14px] text-primary/80">auto_awesome</span>
                   {`AI viết lúc ${new Date(post.created_at).toLocaleTimeString('vi-VN')} ngày ${new Date(post.created_at).toLocaleDateString('vi-VN')}`}
                 </div>
@@ -966,7 +967,7 @@ export default function Content() {
             </div>
 
             {/* Footer Buttons */}
-            <div className="p-4 bg-surface-container/50 border-t border-outline-variant/50 flex gap-2 shrink-0 mt-auto">
+            <div className="p-4 bg-surface-container border-t border-outline-variant/50 flex gap-2 shrink-0 mt-auto">
               {post.status === 'pending_approval' && (
                 <>
                   <button onClick={() => handleApprove(post.id)} disabled={busyPostId === post.id} className="flex-1 py-2 bg-primary text-on-primary font-bold text-xs rounded-lg hover:brightness-110 transition-all shadow-sm disabled:opacity-60">{busyPostId === post.id ? 'Đang đăng…' : 'Duyệt và đăng'}</button>
@@ -1038,7 +1039,7 @@ export default function Content() {
       </div>
 
       {filteredPosts.length === 0 && (
-        <div className="py-20 text-center flex flex-col items-center border border-dashed border-outline-variant rounded-2xl bg-surface-container/10">
+        <div className="py-20 text-center flex flex-col items-center border border-dashed border-outline-variant rounded-2xl bg-surface-container">
           <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-3 opacity-50">article</span>
           <p className="text-on-surface-variant font-medium">Không có bài đăng nào trong mục này</p>
         </div>
@@ -1046,27 +1047,78 @@ export default function Content() {
 
       {/* Centered Composer Panel */}
       {isComposerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          <div 
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity duration-300"
-            onClick={() => { setIsComposerOpen(false); setAiOptions([]); }}
-          ></div>
-          <div className="relative w-full max-w-[640px] max-h-[90vh] bg-surface-container-high border border-primary/30 rounded-2xl shadow-[0_0_40px_rgba(0,229,255,0.1)] flex flex-col animate-in zoom-in-95 duration-300 overflow-hidden">
-            {/* Header */}
-            <div className="px-6 py-5 border-b border-outline-variant flex items-center justify-between bg-surface-container/50 shrink-0">
-              <h2 className="font-headline-sm text-xl font-bold text-on-surface">
-                {baiDangSua?.status === 'published' ? 'Sửa bài đã đăng' : 'Soạn bài đăng'}
-              </h2>
-              <button 
-                onClick={() => setIsComposerOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-variant text-on-surface hover:bg-outline-variant transition-colors"
+        <HopThoai
+          bieuTuong="edit_note"
+          tieuDe={baiDangSua?.status === 'published' ? 'Sửa bài đã đăng' : 'Soạn bài đăng'}
+          onDong={() => { setIsComposerOpen(false); setAiOptions([]); }}
+          dongKhiBamNgoai={false}
+          chan={
+            <div className="w-full flex flex-col gap-3">
+            {/* Footer */}
+            {/*
+              Báo lỗi phải nằm SÁT hai cái nút.
+
+              Trước đây setErrorMessage được gọi ở 19 chỗ trong trang này mà
+              không có một chỗ nào hiển thị ra. Chủ shop bấm "Đăng bài", nền
+              tảng từ chối, bài ghi 'failed' trong database — còn màn hình thì
+              không đổi gì cả, trông y như nút không ăn. Đã xảy ra thật với bài
+              40 và 41: TikTok từ chối vì nội dung 648 ký tự quá mức 90.
+            */}
+            {errorMessage && (
+              <div className="w-full">
+                <div className="flex items-start gap-2 text-sm text-error bg-error/10 border border-error/30 rounded-xl px-4 py-3">
+                  <span className="material-symbols-outlined text-[18px] mt-0.5 shrink-0">error</span>
+                  <span className="leading-relaxed">{errorMessage}</span>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-3">
+              {/*
+                Bài đã đăng thì không có khái niệm lưu nháp.
+
+                Đừng dùng thuộc tính hidden: lớp flex-1 đặt display:flex và ghi
+                đè luôn hidden, nút vẫn hiện ra như thường.
+              */}
+              {baiDangSua?.status !== 'published' && (
+              <button
+                onClick={() => luuBaiTuOSoan(false)}
+                disabled={dangGuiBai}
+                className={NUT_PHU}
               >
-                <span className="material-symbols-outlined text-[20px]">close</span>
+                Lưu nháp
+              </button>
+              )}
+              <button 
+                onClick={() => luuBaiTuOSoan(true)}
+                // Khoá khi chưa chọn kênh hoặc nội dung vượt giới hạn của kênh
+                // khó tính nhất — gửi đi cũng chỉ hỏng cả lệnh.
+                disabled={
+                  dangGuiBai ||
+                  (baiDangSua?.status !== 'published' && (!daChonKenh || vuotGioiHan))
+                }
+                title={
+                  !daChonKenh
+                    ? 'Chọn kênh ở Bước 1 trước khi đăng'
+                    : vuotGioiHan && gioiHan
+                      ? `Nội dung vượt giới hạn ${gioiHan.soKyTu.toLocaleString('vi-VN')} ký tự của ${gioiHan.ten}`
+                      : undefined
+                }
+                className={clsx(NUT_CHINH, "min-w-[220px]")}
+              >
+                <span className={clsx("material-symbols-outlined text-[20px]", dangGuiBai && "animate-spin")}>
+                  {dangGuiBai ? 'progress_activity' : 'send'}
+                </span>
+                {dangGuiBai
+                  ? 'Đang gửi lên Fanpage…'
+                  : baiDangSua?.status === 'published'
+                    ? 'Cập nhật bài đã đăng'
+                    : composerMode === 'schedule' ? 'Hẹn giờ đăng' : 'Đăng bài'}
               </button>
             </div>
-
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
+            </div>
+          }
+        >
+            <div className="space-y-8">
               
               {/*
                 Bài đã đăng thì không chọn lại kênh được nữa, và nền tảng chỉ
@@ -1120,7 +1172,7 @@ export default function Content() {
               <>
               {/* Block 1: NHỜ AI VIẾT */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">NHỜ AI VIẾT</h3>
+                <h3 className="tieu-de-muc mb-3">NHỜ AI VIẾT</h3>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-on-surface-variant mb-2">Bạn muốn viết về gì?</label>
@@ -1184,7 +1236,7 @@ export default function Content() {
 
               {/* Block 2: NỘI DUNG BÀI ĐĂNG */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">NỘI DUNG BÀI ĐĂNG</h3>
+                <h3 className="tieu-de-muc mb-3">NỘI DUNG BÀI ĐĂNG</h3>
                 <div className="relative">
                   <textarea 
                     rows={10}
@@ -1222,7 +1274,7 @@ export default function Content() {
               */}
               {/* Block 3A: ảnh và video sẽ ĐĂNG LÊN cùng bài */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">ẢNH VÀ VIDEO ĐĂNG KÈM BÀI</h3>
+                <h3 className="tieu-de-muc mb-3">ẢNH VÀ VIDEO ĐĂNG KÈM BÀI</h3>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1242,7 +1294,7 @@ export default function Content() {
                     e.preventDefault();
                     if (e.dataTransfer.files.length > 0) handleFilesChosen(e.dataTransfer.files);
                   }}
-                  className="border-2 border-dashed border-outline-variant rounded-xl p-8 flex flex-col items-center justify-center bg-surface-container/30 hover:bg-surface-container/50 hover:border-primary/50 transition-colors cursor-pointer group"
+                  className="border-2 border-dashed border-outline-variant rounded-xl p-8 flex flex-col items-center justify-center bg-surface-container hover:bg-surface-container/50 hover:border-primary/50 transition-colors cursor-pointer group"
                 >
                   <div className="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-on-surface-variant">
@@ -1272,7 +1324,7 @@ export default function Content() {
                         )}
                         <button
                           onClick={() => setComposerMedia((current) => current.filter((_, i) => i !== index))}
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-surface-container-high/90 border border-outline-variant flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:border-error hover:text-error"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:border-error hover:text-error"
                           title="Bỏ tệp này"
                         >
                           <span className="material-symbols-outlined text-[14px]">close</span>
@@ -1286,7 +1338,7 @@ export default function Content() {
               {/* Block 3B: AI vẽ ảnh — không có gì ở đây tự lên nền tảng */}
               <div>
                 <div className="flex items-center justify-between gap-3 mb-3">
-                  <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase">AI VẼ ẢNH MINH HOẠ</h3>
+                  <h3 className="tieu-de-muc">AI VẼ ẢNH MINH HOẠ</h3>
                   <button
                     type="button"
                     onClick={nhoAiVeAnh}
@@ -1444,7 +1496,7 @@ export default function Content() {
 
               {/* Block 4: THỜI GIAN ĐĂNG */}
               <div>
-                <h3 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase mb-3">THỜI GIAN ĐĂNG</h3>
+                <h3 className="tieu-de-muc mb-3">THỜI GIAN ĐĂNG</h3>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <div className="relative flex items-center justify-center w-5 h-5">
@@ -1500,101 +1552,32 @@ export default function Content() {
               )}
 
             </div>
-
-            {/* Footer */}
-            {/*
-              Báo lỗi phải nằm SÁT hai cái nút.
-
-              Trước đây setErrorMessage được gọi ở 19 chỗ trong trang này mà
-              không có một chỗ nào hiển thị ra. Chủ shop bấm "Đăng bài", nền
-              tảng từ chối, bài ghi 'failed' trong database — còn màn hình thì
-              không đổi gì cả, trông y như nút không ăn. Đã xảy ra thật với bài
-              40 và 41: TikTok từ chối vì nội dung 648 ký tự quá mức 90.
-            */}
-            {errorMessage && (
-              <div className="px-6 pt-4 shrink-0">
-                <div className="flex items-start gap-2 text-sm text-error bg-error/10 border border-error/30 rounded-xl px-4 py-3">
-                  <span className="material-symbols-outlined text-[18px] mt-0.5 shrink-0">error</span>
-                  <span className="leading-relaxed">{errorMessage}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="p-6 border-t border-outline-variant bg-surface-container/50 flex gap-3 shrink-0">
-              {/*
-                Bài đã đăng thì không có khái niệm lưu nháp.
-
-                Đừng dùng thuộc tính hidden: lớp flex-1 đặt display:flex và ghi
-                đè luôn hidden, nút vẫn hiện ra như thường.
-              */}
-              {baiDangSua?.status !== 'published' && (
-              <button
-                onClick={() => luuBaiTuOSoan(false)}
-                disabled={dangGuiBai}
-                className="flex-1 py-3 rounded-xl border border-outline-variant text-on-surface font-bold text-sm hover:bg-surface-variant transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Lưu nháp
-              </button>
-              )}
-              <button 
-                onClick={() => luuBaiTuOSoan(true)}
-                // Khoá khi chưa chọn kênh hoặc nội dung vượt giới hạn của kênh
-                // khó tính nhất — gửi đi cũng chỉ hỏng cả lệnh.
-                disabled={
-                  dangGuiBai ||
-                  (baiDangSua?.status !== 'published' && (!daChonKenh || vuotGioiHan))
-                }
-                title={
-                  !daChonKenh
-                    ? 'Chọn kênh ở Bước 1 trước khi đăng'
-                    : vuotGioiHan && gioiHan
-                      ? `Nội dung vượt giới hạn ${gioiHan.soKyTu.toLocaleString('vi-VN')} ký tự của ${gioiHan.ten}`
-                      : undefined
-                }
-                className="flex-[2] py-3 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none"
-              >
-                <span className={clsx("material-symbols-outlined text-[20px]", dangGuiBai && "animate-spin")}>
-                  {dangGuiBai ? 'progress_activity' : 'send'}
-                </span>
-                {dangGuiBai
-                  ? 'Đang gửi lên Fanpage…'
-                  : baiDangSua?.status === 'published'
-                    ? 'Cập nhật bài đã đăng'
-                    : composerMode === 'schedule' ? 'Hẹn giờ đăng' : 'Đăng bài'}
-              </button>
-            </div>
-          </div>
-        </div>
+        </HopThoai>
       )}
 
       {/* Auto Mode Confirmation Dialog */}
       {showAutoConfirm && (
-        <>
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60]"></div>
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface-container-high border border-yellow-500/50 rounded-2xl p-6 shadow-2xl z-[70] w-[400px] max-w-[90vw] animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center mb-4 mx-auto">
-              <span className="material-symbols-outlined text-yellow-500 text-2xl">warning</span>
-            </div>
-            <h3 className="text-lg font-bold text-on-surface text-center mb-2">Bật chế độ AI tự đăng?</h3>
-            <p className="text-sm text-on-surface-variant text-center mb-6 leading-relaxed">
-              AI sẽ tự viết và đăng bài lên Fanpage của bạn mà không cần bạn duyệt trước. Bạn vẫn xem lại và xóa bài sau khi đã đăng.
-            </p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowAutoConfirm(false)}
-                className="flex-1 py-2.5 rounded-lg border border-outline-variant text-on-surface font-bold text-sm hover:bg-surface-variant transition-colors"
-              >
-                Hủy
+        <HopThoai
+          co="vua"
+          bieuTuong="warning"
+          tieuDe="Bật chế độ AI tự đăng?"
+          onDong={() => setShowAutoConfirm(false)}
+          chan={
+            <>
+              <button type="button" onClick={() => setShowAutoConfirm(false)} className={NUT_PHU}>
+                Huỷ
               </button>
-              <button 
-                onClick={confirmAutoMode}
-                className="flex-1 py-2.5 rounded-lg bg-yellow-500 text-black font-bold text-sm shadow-lg hover:brightness-110 transition-all"
-              >
+              {/* Việc có rủi ro → nút chính màu vàng cảnh báo, không lẫn với nút thường. */}
+              <button type="button" onClick={confirmAutoMode} className={NUT_CANH_BAO}>
                 Tôi hiểu, bật chế độ này
               </button>
-            </div>
-          </div>
-        </>
+            </>
+          }
+        >
+          <p className="text-base text-on-surface leading-relaxed">
+            AI sẽ tự viết và đăng bài lên Fanpage của bạn mà <b>không cần bạn duyệt trước</b>. Bạn vẫn xem lại và xoá bài sau khi đã đăng.
+          </p>
+        </HopThoai>
       )}
 
       <AITrainingModal kind="content" isOpen={isTrainingOpen} onClose={() => setIsTrainingOpen(false)} aiName="AI Viết - Đăng Bài" />

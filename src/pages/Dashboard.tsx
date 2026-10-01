@@ -164,7 +164,7 @@ export default function Dashboard() {
                     </div>
                     
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-body-sm text-sm text-on-surface-variant/80 truncate">{card.subtext}</p>
+                      <p className="font-body-sm text-sm text-on-surface-variant truncate">{card.subtext}</p>
                       {card.trend && (
                         <span className="text-secondary font-bold text-xs flex items-center bg-secondary/20 px-2 py-0.5 rounded border border-secondary/30 shrink-0">
                           <span className="material-symbols-outlined text-[14px]">arrow_upward</span> 
@@ -196,7 +196,7 @@ export default function Dashboard() {
                 <div key={chart.id} className="bg-surface-container rounded-xl p-4 border border-outline-variant shadow flex flex-col h-32 relative overflow-hidden group hover:border-primary/50 transition-colors">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110 pointer-events-none z-0"></div>
                   <div className="z-10 flex flex-col relative">
-                    <p className="font-mono text-xs font-bold text-on-surface-variant/80 tracking-wide mb-1">{chart.label}</p>
+                    <p className="font-mono text-xs font-bold text-on-surface-variant tracking-wide mb-1">{chart.label}</p>
                     <p className="font-headline-md text-2xl font-bold text-on-surface">{chart.value}</p>
                   </div>
                   {/* Recharts AreaChart at bottom */}
@@ -219,7 +219,7 @@ export default function Dashboard() {
 
             {/* ROW 3: Recent Orders Table */}
             <div className="bg-surface-container rounded-xl border border-outline-variant shadow-lg flex flex-col overflow-hidden">
-              <div className="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high/50">
+              <div className="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high">
                 <h3 className="font-headline-sm text-lg font-bold text-on-surface">Đơn hàng mới nhất</h3>
                 <button onClick={() => navigate('/orders')} className="text-primary text-sm font-bold hover:underline flex items-center gap-1">
                   XEM TẤT CẢ <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
@@ -228,7 +228,7 @@ export default function Dashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-outline-variant text-on-surface-variant font-label-sm text-xs uppercase tracking-wider bg-surface-container-lowest/50">
+                    <tr className="border-b border-outline-variant text-on-surface-variant font-label-sm text-xs uppercase tracking-wider bg-surface-container-lowest">
                       <th className="py-3 px-4 font-medium">KHÁCH HÀNG</th>
                       <th className="py-3 px-4 font-medium">SẢN PHẨM</th>
                       <th className="py-3 px-4 font-medium">GIÁ TRỊ</th>
@@ -306,12 +306,12 @@ export default function Dashboard() {
                   <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>tips_and_updates</span>
                   <h3 className="font-headline-sm text-lg font-bold text-on-surface">Phân tích của Trợ lý AI</h3>
                 </div>
-                <span className="font-mono text-xs font-bold text-primary tracking-wider uppercase text-left">Phát hiện cơ hội chốt đơn</span>
+                <span className="tieu-de-muc text-left">Phát hiện cơ hội chốt đơn</span>
               </div>
               
               <div className="mb-4 relative z-10">
                 <p className="text-xs font-bold text-on-surface-variant mb-1 uppercase">Dữ liệu thô:</p>
-                <p className="text-sm text-on-surface/90 leading-relaxed bg-surface-container-highest/50 p-2 rounded border border-outline-variant">{aiInsight.rawData}</p>
+                <p className="text-sm text-on-surface/90 leading-relaxed bg-surface-container-highest p-2 rounded border border-outline-variant">{aiInsight.rawData}</p>
               </div>
               
               <div className="mb-5 relative z-10">

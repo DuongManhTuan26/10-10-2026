@@ -274,7 +274,7 @@ export default function TelegramAlerts() {
       {/* HÀNG 1: THẺ TRẠNG THÁI KẾT NỐI */}
       <div className="space-y-4">
         {isConnected && (
-        <div className="bg-surface-container/30 border border-primary/50 shadow-[0_0_20px_rgba(0,229,255,0.1)] rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="bg-surface-container border border-primary/50 shadow-[0_0_20px_rgba(0,229,255,0.1)] rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -z-10 rounded-full"></div>
           
           <div className="flex items-center gap-5">
@@ -295,7 +295,7 @@ export default function TelegramAlerts() {
                   <>Chat ID: <span className="text-on-surface font-bold">{chatId || '(chưa có)'}</span></>
                 )}
               </p>
-              <p className="text-xs text-on-surface-variant/70">{verifiedAt ? `Đã xác nhận ${new Date(verifiedAt).toLocaleDateString('vi-VN')}` : 'Chưa gửi tin thử để xác nhận'}</p>
+              <p className="text-xs text-on-surface-variant">{verifiedAt ? `Đã xác nhận ${new Date(verifiedAt).toLocaleDateString('vi-VN')}` : 'Chưa gửi tin thử để xác nhận'}</p>
             </div>
           </div>
 
@@ -312,7 +312,7 @@ export default function TelegramAlerts() {
         )}
 
         {!isConnected && (
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6 flex flex-col gap-5">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-6 flex flex-col gap-5">
           <div className="flex items-center gap-5 flex-1">
             <div className="w-16 h-16 bg-surface-variant rounded-full flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-on-surface-variant text-[32px]">send</span>
@@ -392,7 +392,7 @@ export default function TelegramAlerts() {
                 </p>
               </div>
 
-              <p className="text-xs text-on-surface-variant/70 pt-1 border-t border-outline-variant/50">
+              <p className="text-xs text-on-surface-variant pt-1 border-t border-outline-variant/50">
                 Hoặc mở lại{' '}
                 <a href={linkUrl} target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline break-all">
                   liên kết gốc
@@ -458,7 +458,7 @@ export default function TelegramAlerts() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Cột trái */}
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6 flex flex-col">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-6 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-on-surface">Thông báo quan trọng</h2>
             <span className="font-mono text-[10px] font-bold tracking-wider text-error bg-error/10 border border-error/20 px-2 py-0.5 rounded uppercase">LUÔN GỬI NGAY LẬP TỨC</span>
@@ -511,13 +511,13 @@ export default function TelegramAlerts() {
               </div>
             </div>
           </div>
-          <p className="text-xs text-on-surface-variant/70 mt-6 pt-4 border-t border-outline-variant/50">
+          <p className="text-xs text-on-surface-variant mt-6 pt-4 border-t border-outline-variant/50">
             Ba mục bị khóa là những việc bạn buộc phải biết ngay, nếu bỏ lỡ có thể mất khách hoặc mất tiền.
           </p>
         </div>
 
         {/* Cột phải */}
-        <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6 flex flex-col">
+        <div className="bg-surface-container border border-outline-variant rounded-2xl p-6 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-on-surface">Thông báo thường</h2>
             <span className="font-mono text-[10px] font-bold tracking-wider text-on-surface-variant bg-surface-variant border border-outline-variant px-2 py-0.5 rounded uppercase">CÓ THỂ TẮT NẾU THẤY PHIỀN</span>
@@ -585,13 +585,13 @@ export default function TelegramAlerts() {
       </div>
 
       {/* HÀNG 3: XEM TRƯỚC TIN NHẮN */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl p-6">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
         <h2 className="text-lg font-bold text-on-surface mb-6">Tin nhắn Telegram sẽ trông thế nào</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           {/* Khung 1 */}
-          <div className="bg-[#18222d] border border-outline-variant/30 rounded-2xl rounded-tl-sm p-4 text-[#e4e4e5] font-mono text-sm leading-relaxed shadow-lg relative">
-            <div className="absolute -left-2 top-0 w-4 h-4 bg-[#18222d] border-l border-t border-outline-variant/30 rotate-[-45deg] translate-y-1 translate-x-1 -z-10"></div>
+          <div className="bg-[#18222d] border border-outline-variant/60 rounded-2xl rounded-tl-sm p-4 text-[#e4e4e5] font-mono text-sm leading-relaxed shadow-lg relative">
+            <div className="absolute -left-2 top-0 w-4 h-4 bg-[#18222d] border-l border-t border-outline-variant/60 rotate-[-45deg] translate-y-1 translate-x-1 -z-10"></div>
             <div>
               <span className="text-xl leading-none mr-2">🎉</span><span className="font-bold text-white text-base">ĐƠN HÀNG MỚI</span><br/><br/>
               Khách: <span className="text-white font-medium">Nguyễn Thị Hoa</span><br/>
@@ -612,8 +612,8 @@ export default function TelegramAlerts() {
             như bấm được mà bấm vào chỉ nhảy lên đầu trang.
           */}
           {/* Khung 2 */}
-          <div className="bg-[#18222d] border border-outline-variant/30 rounded-2xl rounded-tl-sm p-4 text-[#e4e4e5] font-mono text-sm leading-relaxed shadow-lg relative">
-            <div className="absolute -left-2 top-0 w-4 h-4 bg-[#18222d] border-l border-t border-outline-variant/30 rotate-[-45deg] translate-y-1 translate-x-1 -z-10"></div>
+          <div className="bg-[#18222d] border border-outline-variant/60 rounded-2xl rounded-tl-sm p-4 text-[#e4e4e5] font-mono text-sm leading-relaxed shadow-lg relative">
+            <div className="absolute -left-2 top-0 w-4 h-4 bg-[#18222d] border-l border-t border-outline-variant/60 rotate-[-45deg] translate-y-1 translate-x-1 -z-10"></div>
             <div>
               <span className="text-xl leading-none mr-2">🔔</span><span className="font-bold text-white text-base">CẦN BẠN XỬ LÝ</span><br/><br/>
               Khách: <span className="text-white font-medium">Trần Thị Mai</span><br/>
@@ -625,25 +625,25 @@ export default function TelegramAlerts() {
           </div>
         </div>
         
-        <p className="text-xs text-on-surface-variant/70 text-center">Bấm vào liên kết trong tin nhắn sẽ mở thẳng đúng đơn hàng hoặc đoạn chat đó</p>
+        <p className="text-xs text-on-surface-variant text-center">Bấm vào liên kết trong tin nhắn sẽ mở thẳng đúng đơn hàng hoặc đoạn chat đó</p>
       </div>
 
       {/* HÀNG 4: LỊCH SỬ THÔNG BÁO */}
-      <div className="bg-surface-container/30 border border-outline-variant rounded-2xl overflow-hidden flex flex-col">
+      <div className="bg-surface-container border border-outline-variant rounded-2xl overflow-hidden flex flex-col">
         <div className="p-6 border-b border-outline-variant/50">
           <h2 className="text-lg font-bold text-on-surface">Thông báo gần đây</h2>
         </div>
         <div className="overflow-x-auto ">
           <table className="w-full min-w-[700px] text-left border-collapse">
             <thead>
-              <tr className="bg-surface-container-high/50 border-b border-outline-variant/50 text-xs font-bold font-mono text-on-surface-variant uppercase tracking-wider">
+              <tr className="bg-surface-container-high border-b border-outline-variant/50 text-xs font-bold font-mono text-on-surface-variant uppercase tracking-wider">
                 <th className="p-4 w-40 font-bold">Thời gian</th>
                 <th className="p-4 w-32 font-bold">Loại</th>
                 <th className="p-4 font-bold">Nội dung</th>
                 <th className="p-4 w-32 font-bold">Trạng thái</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/30">
+            <tbody className="divide-y divide-outline-variant/60">
               {displayLogs.map((item) => (
                 <tr key={item.id} className="hover:bg-surface-container/50 transition-colors group">
                   <td className="p-4 text-sm text-on-surface-variant font-medium whitespace-nowrap">{item.time}</td>

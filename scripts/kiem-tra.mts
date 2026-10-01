@@ -4091,7 +4091,70 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     /onClick=\{\(\) => \(t\.la_toi \? setDoiMatKhauMo\(true\) : capLaiMatKhau\(t\)\)\}/.test(nguonTrangQT) &&
       /\{doiMatKhauMo && <DoiMatKhau onClose=/.test(nguonTrangQT), true);
   kiem("tự khoá", "mật khẩu tạm hiện ở cửa sổ nổi, không lẫn phía trên trang",
-    /\{matKhauTam && \(\s*<div className="fixed inset-0/.test(nguonTrangQT), true);
+    /\{matKhauTam && \(\s*<HopThoai[\s\S]{0,500}?dongKhiBamNgoai=\{false\}/.test(nguonTrangQT), true);
+}
+
+// ---------------------------------------------------------------------------
+// Giao diện: độ tương phản, khung cửa sổ chung, màu theo vai trò
+// ---------------------------------------------------------------------------
+{
+  // Đã bị chê 01/10/2026: "nền tối om, thẻ tối om, chữ tối om", "cùng một màu, không biết
+  // đâu chính đâu phụ", "không đồng nhất kích thước, thu hẹp bé lại". Đo bảng cũ: nền ↔ thẻ
+  // 1,16 (thẻ mờ 40%: 1,05), chữ phụ mờ 4,04, chữ gợi ý 2,69; 15 hộp thoại, 9 kiểu rộng.
+  const nguonCss = fs.readFileSync(path.join(GOC, "src/index.css"), "utf8");
+  const mau = Object.fromEntries([...nguonCss.matchAll(/--color-([a-z-]+):\s*(#[0-9a-fA-F]{6});/g)].map((m) => [m[1], m[2]]));
+  const kenh = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const sang = (h: string) => {
+    const [r, g, b] = kenh(h).map((c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const tp = (a: string, b: string) => { const [x, y] = [sang(a), sang(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const tron = (a: string, b: string, t: number) => "#" + kenh(a).map((c, i) => Math.round(c * t + kenh(b)[i] * (1 - t)).toString(16).padStart(2, "0")).join("");
+  const datChuan = [
+    ["nền ↔ thẻ (thấy rõ từng khối)", tp(mau.background, mau["surface-container"]), 1.5],
+    ["chữ phụ trên thẻ", tp(mau["on-surface-variant"], mau["surface-container"]), 4.5],
+    ["chữ phụ trên hộp thoại", tp(mau["on-surface-variant"], mau["surface-container-high"]), 4.5],
+    ["chữ chính trên hộp thoại", tp(mau["on-surface"], mau["surface-container-high"]), 7],
+    ["chữ gợi ý (70%) trên ô nhập", tp(tron(mau["on-surface-variant"], mau["surface-container-lowest"], 0.7), mau["surface-container-lowest"]), 4.5],
+    ["viền ô nhập", tp(mau.outline, mau["surface-container-lowest"]), 3],
+    ["ô nhập ↔ hộp thoại", tp(mau["surface-container-lowest"], mau["surface-container-high"]), 1.5],
+  ] as const;
+  kiem("giao diện", "mọi cặp màu đạt độ tương phản tối thiểu",
+    datChuan.filter(([, v, min]) => !(v >= min)).map(([ten, v, min]) => `${ten}: ${v.toFixed(2)} < ${min}`), []);
+  kiem("giao diện", "chữ gợi ý trong ô nhập có quy tắc chung đủ sáng",
+    /input::placeholder,\s*textarea::placeholder \{\s*color: color-mix\(in srgb, var\(--color-on-surface-variant\) 70%, transparent\);/.test(nguonCss), true);
+
+  const tepGiaoDien = moiTrang(path.join(GOC, "src"));
+  const timLop = (re: RegExp) => tepGiaoDien.flatMap((tep) =>
+    dongNgoaiChuThich(fs.readFileSync(tep, "utf8")).filter(({ d }) => re.test(d)).map((x) => `${path.basename(tep)}:${x.dong}`));
+  kiem("giao diện", "không có thẻ nền trong suốt chìm vào nền (bg-surface…/NN)",
+    timLop(/(^|[\s"'`])bg-surface[a-z-]*\/\d+/).join(", "), "");
+  kiem("giao diện", "không làm mờ chữ phụ (text-on-surface-variant/NN)",
+    timLop(/(^|[\s"'`])text-on-surface-variant\/\d+/).join(", "), "");
+  // Nhãn hiệu (có nền/viền/bo góc) và nút bấm được giữ màu xanh — chỉ tiêu đề thuần bị cấm.
+  const tieuDeXanh = tepGiaoDien.flatMap((tep) =>
+    dongNgoaiChuThich(fs.readFileSync(tep, "utf8"))
+      .filter(({ d }) => [...d.matchAll(/className="([^"]*)"/g)].some(([, lop]) =>
+        /\bfont-mono\b/.test(lop) && /\bfont-bold\b/.test(lop) && /\btext-primary\b/.test(lop) &&
+        /\btracking-wider\b/.test(lop) && /\buppercase\b/.test(lop) && !/bg-|border|rounded|hover:/.test(lop)))
+      .map((x) => `${path.basename(tep)}:${x.dong}`));
+  kiem("giao diện", "tiêu đề mục không dùng màu xanh của nút bấm", tieuDeXanh.join(", "), "");
+
+  // Mọi hộp thoại đi qua khung chung. Chỉ còn lớp phủ của menu/thanh bên được dùng fixed inset-0.
+  const DUOC_PHEP = ["HopThoai.tsx", "Sidebar.tsx", "TopNavBar.tsx", "Orders.tsx"];
+  kiem("giao diện", "mọi hộp thoại dùng khung chung HopThoai",
+    tepGiaoDien.filter((tep) => !DUOC_PHEP.includes(path.basename(tep)))
+      .filter((tep) => /fixed inset-0/.test(fs.readFileSync(tep, "utf8"))).map((t) => path.basename(t)), []);
+  kiem("giao diện", "lớp phủ ở Đơn hàng chỉ là chỗ bấm ra ngoài đóng menu, không phải hộp thoại",
+    (fs.readFileSync(path.join(GOC, "src/pages/Orders.tsx"), "utf8").match(/fixed inset-0/g) ?? []).length, 1);
+  const nguonHop = fs.readFileSync(path.join(GOC, "src/components/HopThoai.tsx"), "utf8");
+  kiem("giao diện", "khung hộp thoại chỉ có đúng hai cỡ, rộng gần trọn màn hình",
+    /lon: 'w-\[min\(1240px,96vw\)\] h-\[min\(92vh,1100px\)\]',\s*vua: 'w-\[min\(880px,94vw\)\] max-h-\[90vh\]',\s*\};/.test(nguonHop), true);
+  kiem("giao diện", "hộp thoại đóng được bằng phím Esc", /if \(e\.key === 'Escape'\) onDong\(\);/.test(nguonHop), true);
+  kiem("giao diện", "thân hộp thoại cuộn được (đã thấy: chi tiết đơn hàng bị cắt, không cuộn)",
+    /<div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6">\{children\}<\/div>/.test(nguonHop), true);
+  const nguonHopTp = tepGiaoDien.filter((t) => /<HopThoai\b/.test(fs.readFileSync(t, "utf8"))).length;
+  kiem("giao diện", "15 hộp thoại đều đã dùng khung chung (đếm số tệp dùng)", nguonHopTp >= 10, true);
 }
 
 // ---------------------------------------------------------------------------
