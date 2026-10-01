@@ -16,6 +16,7 @@
 
 import { env } from "../env.js";
 import { query, queryOne } from "../db.js";
+import { DAU_THANG_VN } from "../moc-thoi-gian.js";
 import { banGhi, optionalString } from "./ai.js";
 import { escapeHtml } from "./telegram.js";
 
@@ -173,27 +174,37 @@ export const TEN_VIEC: Record<string, string> = {
   video: "Tạo video",
 };
 
+/**
+ * Sổ chi phí AI của app. soNgay = 0 nghĩa là "từ đầu tháng này" — cùng kỳ với
+ * con số "tháng này" nhà cung cấp AI báo, để dòng chính và phần chi tiết bên
+ * trong không lệch kỳ nhau.
+ */
 export async function soChiPhiApp(soNgay: number) {
-  const n = Math.min(90, Math.max(1, Math.round(soNgay)));
+  const tuDauThang = soNgay === 0;
+  const n = tuDauThang ? 0 : Math.min(90, Math.max(1, Math.round(soNgay)));
+  // Mốc tháng theo GIỜ VIỆT NAM (hàm dùng chung) — cắt theo giờ database thì
+  // chi phí từ 0h tới 7h sáng ngày đầu tháng bị tính sang tháng trước.
+  const ky = tuDauThang ? `created_at >= ${DAU_THANG_VN}` : "created_at > now() - ($1 || ' days')::interval";
+  const thamSo = tuDauThang ? [] : [String(n)];
   const [theoViec, theoShop, theoNgay, tong] = await Promise.all([
     query<{ task: string; lan: number; usd: string }>(
       `SELECT task, count(*)::int AS lan, coalesce(sum(cost_usd), 0)::text AS usd FROM ai_usage
-        WHERE created_at > now() - ($1 || ' days')::interval GROUP BY task ORDER BY sum(cost_usd) DESC`,
-      [String(n)]
+        WHERE ${ky} GROUP BY task ORDER BY sum(cost_usd) DESC`,
+      thamSo
     ),
     query<{ user_id: number | null; email: string | null; ten: string | null; lan: number; usd: string }>(
       `SELECT a.user_id, u.email, u.name AS ten, count(*)::int AS lan, coalesce(sum(a.cost_usd), 0)::text AS usd
          FROM ai_usage a LEFT JOIN users u ON u.id = a.user_id
-        WHERE a.created_at > now() - ($1 || ' days')::interval
+        WHERE a.${ky}
         GROUP BY a.user_id, u.email, u.name ORDER BY sum(a.cost_usd) DESC LIMIT 50`,
-      [String(n)]
+      thamSo
     ),
     query<{ ngay: string; usd: string }>(
       `SELECT to_char(date_trunc('day', created_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-MM-DD') AS ngay,
               coalesce(sum(cost_usd), 0)::text AS usd
-         FROM ai_usage WHERE created_at > now() - ($1 || ' days')::interval
+         FROM ai_usage WHERE ${ky}
         GROUP BY 1 ORDER BY 1`,
-      [String(n)]
+      thamSo
     ),
     queryOne<{ usd: string }>("SELECT coalesce(sum(cost_usd), 0)::text AS usd FROM ai_usage"),
   ]);

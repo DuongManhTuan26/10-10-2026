@@ -1,303 +1,235 @@
 import { useCallback, useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { api, ApiError, type NguongCanhBao, type SaoKeChiPhi } from '../lib/api';
+import { chi, daChi, mauChi, so, vnd } from '../lib/tien-chi';
 
 /**
- * Sao kê chi phí trả cho các bên thứ ba — chỉ quản trị tổng thấy.
+ * Chi phí hệ thống — BẢN MẪU cho cách trình bày chung của cả app.
  *
- * Số dư AI và tình hình nhà cung cấp kênh đọc SỐNG mỗi lần mở; chi tiết theo
- * việc, theo shop, theo ngày lấy từ sổ của app. Nạp tiền mở thẳng trang thanh
- * toán của từng bên (thẻ chỉ nhập ở trang của họ, app không bao giờ giữ số thẻ).
+ * Nguyên tắc (chủ dự án đặt): bên ngoài CHỈ có phần chính, ngắn và nổi bật —
+ * mỗi bên thứ ba một dòng số tiền đã chi, cộng một dòng tổng. Chi tiết chỉ hiện
+ * khi bấm vào đúng dòng đó; cài đặt cất sau biểu tượng bánh răng. Không bao giờ
+ * để phần chính và phần con cùng nằm ngoài.
  */
 
-const TY_GIA = 25_500;
-const usd = (n: number | null | undefined) => (n === null || n === undefined ? '—' : `${n.toFixed(2)} USD`);
-const vnd = (n: number | null | undefined) =>
-  n === null || n === undefined ? '' : `~${(Math.round((n * TY_GIA) / 1000) * 1000).toLocaleString('vi-VN')}đ`;
+type Dong = 'ai' | 'kenh';
+/** [nhãn, giá trị, màu chữ của giá trị]. Giá trị rỗng = tiêu đề nhóm. */
+type Hang = [string, string, string?];
 
 export default function ChiPhiHeThong() {
   const [du, setDu] = useState<SaoKeChiPhi | null>(null);
-  const [soNgay, setSoNgay] = useState(30);
-  const [dangTai, setDangTai] = useState(false);
+  const [mo, setMo] = useState<Dong | null>(null);
+  const [moCaiDat, setMoCaiDat] = useState(false);
+  const [xemTheoShop, setXemTheoShop] = useState(false);
   const [nguong, setNguong] = useState<NguongCanhBao | null>(null);
-  const [dangLuu, setDangLuu] = useState(false);
   const [thongBao, setThongBao] = useState('');
   const [loi, setLoi] = useState('');
 
   const tai = useCallback(async () => {
-    setDangTai(true);
-    setLoi('');
     try {
-      const { data } = await api.admin.chiPhi(soNgay);
+      const { data } = await api.admin.chiPhi(0);
       setDu(data);
       setNguong(data.nguong);
     } catch (error) {
-      setLoi(error instanceof ApiError ? error.message : 'Chưa tải được sao kê chi phí');
-    } finally {
-      setDangTai(false);
+      setLoi(error instanceof ApiError ? error.message : 'Chưa tải được chi phí');
     }
-  }, [soNgay]);
+  }, []);
 
   useEffect(() => {
     void tai();
   }, [tai]);
 
-  const luuNguong = async () => {
-    if (!nguong || dangLuu) return;
-    setDangLuu(true);
-    setThongBao('');
-    try {
-      const { data } = await api.admin.luuNguongChiPhi(nguong);
-      setNguong(data);
-      setThongBao('Đã lưu ngưỡng cảnh báo.');
-      void tai();
-    } catch (error) {
-      setLoi(error instanceof ApiError ? error.message : 'Chưa lưu được ngưỡng');
-    } finally {
-      setDangLuu(false);
-    }
+  const canhBao = (nhom: Dong) =>
+    du?.canhBao.filter((c) => c.mucDo !== 'luu_y' && c.ma.startsWith(nhom === 'ai' ? 'ai_' : 'kenh_')) ?? [];
+
+  /*
+   * Dòng AI = TỔNG các khoản chi tiết bên trong (sổ của app, tháng theo giờ
+   * Việt Nam). Đã thấy: lấy số "tháng này" của nhà cung cấp (tháng theo giờ
+   * quốc tế, bắt đầu 7h sáng ngày 1 giờ VN) thì dòng chính ghi 0,04 mà mở ra
+   * lại thấy 0,85 — hai con số khác kỳ đặt cạnh nhau là rối.
+   */
+  const tienAi = du ? du.so.theoViec.reduce((t, v) => t + v.usd, 0) : null;
+  const tienKenh = du?.kenh.ok ? du.kenh.tieuKyNayUsd ?? 0 : null;
+  const tong = (tienAi ?? 0) + (tienKenh ?? 0);
+
+  const dong = (id: Dong, ten: string, tien: number | null) => {
+    const cb = canhBao(id);
+    const mucDo = cb.some((c) => c.mucDo === 'nguy_cap') ? 'do' : cb.length ? 'cam' : 'xanh';
+    return (
+      <button
+        type="button"
+        onClick={() => setMo(mo === id ? null : id)}
+        className="w-full text-left px-5 py-4 flex items-center gap-3 hover:bg-surface-container-high/40 transition-colors"
+        aria-expanded={mo === id}
+      >
+        <span
+          className={clsx(
+            'w-2.5 h-2.5 rounded-full shrink-0',
+            mucDo === 'do' ? 'bg-red-500' : mucDo === 'cam' ? 'bg-amber-400' : 'bg-green-400'
+          )}
+        />
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-bold text-on-surface">{ten}</span>
+          {cb[0] && (
+            <span className={clsx('block text-xs mt-0.5', mucDo === 'do' ? 'text-red-400' : 'text-amber-400')}>
+              {cb[0].noiDung.split('.')[0]}
+            </span>
+          )}
+        </span>
+        <span className={clsx('text-lg font-bold tabular-nums', mauChi(tien))}>{chi(tien)}</span>
+        <span className={clsx('material-symbols-outlined text-on-surface-variant transition-transform', mo === id && 'rotate-90')}>
+          chevron_right
+        </span>
+      </button>
+    );
   };
 
-  const guiThu = async () => {
-    setThongBao('');
-    setLoi('');
-    try {
-      await api.admin.thuCanhBaoChiPhi();
-      setThongBao('Đã gửi thử cảnh báo tới Telegram của bạn.');
-    } catch (error) {
-      setLoi(error instanceof ApiError ? error.message : 'Chưa gửi được');
-    }
-  };
+  const chiTiet = (hang: Hang[], nut?: { ten: string; link?: string }) => (
+    <div className="px-5 pb-4 pl-[2.6rem] space-y-1.5">
+      {hang.map(([k, v, mau]) => (
+        <div key={k} className={clsx('flex justify-between gap-4 text-xs', !v && 'pt-2')}>
+          <span className={v ? 'text-on-surface-variant' : 'text-[11px] font-bold text-primary'}>{k}</span>
+          <span className={clsx('tabular-nums text-right', mau ?? 'text-on-surface')}>{v}</span>
+        </div>
+      ))}
+      {nut?.link && (
+        <a href={nut.link} target="_blank" rel="noreferrer" className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold">
+          {nut.ten}
+        </a>
+      )}
+    </div>
+  );
 
   const ai = du?.ai;
   const kenh = du?.kenh;
   const tbNgay = ai?.tuanNayUsd ? ai.tuanNayUsd / 7 : 0;
-  const soNgayCon = ai?.conLaiUsd !== undefined && tbNgay > 0 ? Math.floor(ai.conLaiUsd / tbNgay) : null;
-  const maxNgay = Math.max(0.0001, ...(du?.so.theoNgay.map((x) => x.usd) ?? [0]));
-  const tongKy = du?.so.theoViec.reduce((t, x) => t + x.usd, 0) ?? 0;
+  const theoViec = du?.so.theoViec.filter((v) => v.usd >= 0.005) ?? [];
+  const theoShop = du?.so.theoShop.slice(0, 5) ?? [];
 
   return (
-    <section className="mb-10">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase">Chi phí hệ thống</h2>
+    <section className="mb-10 max-w-2xl">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-mono text-[11px] font-bold text-primary tracking-wider uppercase">Chi phí tháng này</h2>
         <button
           type="button"
-          onClick={() => void tai()}
-          disabled={dangTai}
-          className="px-3 py-1.5 rounded-lg border border-outline text-on-surface text-xs font-bold hover:border-primary disabled:opacity-50"
+          onClick={() => setMoCaiDat(!moCaiDat)}
+          title="Cài đặt cảnh báo"
+          className={clsx('material-symbols-outlined text-[20px]', moCaiDat ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface')}
         >
-          {dangTai ? 'Đang cập nhật…' : 'Cập nhật'}
+          settings
         </button>
       </div>
 
-      {loi && <div className="mb-3 text-xs text-error bg-error/10 border border-error/30 rounded-lg px-3 py-2">{loi}</div>}
-      {thongBao && <div className="mb-3 text-xs text-primary bg-primary/10 border border-primary/30 rounded-lg px-3 py-2">{thongBao}</div>}
+      {loi && <p className="mb-3 text-xs text-error">{loi}</p>}
 
-      {/* Cảnh báo */}
-      {du && (
-        <div className="mb-4 space-y-2">
-          {du.canhBao.length === 0 ? (
-            <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-on-surface">
-              ✅ Mọi khoản đang ổn — không có gì cần nạp hay trả lúc này.
-            </div>
-          ) : (
-            du.canhBao.map((c) => (
-              <div
-                key={c.ma}
-                className={clsx(
-                  'rounded-xl border px-4 py-3 text-sm flex flex-col md:flex-row md:items-center gap-3 justify-between',
-                  c.mucDo === 'nguy_cap'
-                    ? 'border-error bg-error/10 text-error'
-                    : c.mucDo === 'can_lam'
-                      ? 'border-tertiary/50 bg-tertiary/10 text-on-surface'
-                      : 'border-outline-variant bg-surface-container text-on-surface-variant'
-                )}
-              >
-                <span>{c.mucDo === 'nguy_cap' ? '🔴 ' : c.mucDo === 'can_lam' ? '🟠 ' : 'ℹ️ '}{c.noiDung}</span>
-                {c.link && (
-                  <a href={c.link} target="_blank" rel="noreferrer" className="shrink-0 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold">
-                    Xử lý ngay
-                  </a>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Từng bên thứ ba */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="bg-surface-container rounded-2xl p-4 border border-outline-variant space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-on-surface">Tiền AI (OpenRouter)</span>
-            <span className={clsx('text-[11px] font-bold', ai?.ok ? 'text-primary' : 'text-error')}>{ai?.ok ? 'Đọc sống' : 'Lỗi'}</span>
-          </div>
-          {ai?.ok ? (
-            <>
-              <p className="text-2xl font-bold text-on-surface">{usd(ai.conLaiUsd)}</p>
-              <p className="text-[11px] text-on-surface-variant">
-                còn lại {vnd(ai.conLaiUsd)}{soNgayCon !== null && ` · đủ khoảng ${soNgayCon} ngày`}
-              </p>
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-on-surface-variant pt-1">
-                <dt>Đã nạp</dt><dd className="text-right text-on-surface">{usd(ai.daNapUsd)}</dd>
-                <dt>Đã tiêu</dt><dd className="text-right text-on-surface">{usd(ai.daTieuUsd)}</dd>
-                <dt>Hôm nay</dt><dd className="text-right text-on-surface">{usd(ai.homNayUsd)}</dd>
-                <dt>7 ngày qua</dt><dd className="text-right text-on-surface">{usd(ai.tuanNayUsd)}</dd>
-                <dt>Tháng này</dt><dd className="text-right text-on-surface">{usd(ai.thangNayUsd)}</dd>
-              </dl>
-            </>
-          ) : (
-            <p className="text-xs text-error">{ai?.loi}</p>
-          )}
-          <a href={du?.linkNap.openrouter} target="_blank" rel="noreferrer" className="block text-center px-3 py-2 rounded-lg bg-primary text-on-primary text-xs font-bold">
-            Nạp tiền AI
-          </a>
-        </div>
-
-        <div className="bg-surface-container rounded-2xl p-4 border border-outline-variant space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-on-surface">Nhà cung cấp kết nối kênh</span>
-            <span className={clsx('text-[11px] font-bold', kenh?.ok && kenh.conHoatDong ? 'text-primary' : 'text-error')}>
-              {!kenh?.ok ? 'Lỗi' : kenh.conHoatDong ? 'Đang hoạt động' : 'ĐANG TẠM DỪNG'}
-            </span>
-          </div>
-          {kenh?.ok ? (
-            <>
-              <p className="text-2xl font-bold text-on-surface">{usd(kenh.tieuKyNayUsd)}</p>
-              <p className="text-[11px] text-on-surface-variant">tiêu trong kỳ này {vnd(kenh.tieuKyNayUsd)} · gói {kenh.goi ?? '—'}</p>
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-on-surface-variant pt-1">
-                <dt>Tín dụng còn</dt><dd className="text-right text-on-surface">{usd(kenh.tinDungConUsd)}</dd>
-                <dt>Cần trả</dt><dd className={clsx('text-right', (kenh.canTraUsd ?? 0) > 0 ? 'text-error font-bold' : 'text-on-surface')}>{kenh.canTraUsd ? usd(kenh.canTraUsd) : 'Không'}</dd>
-                {kenh.lyDoTuChoiThe && (<><dt>Thẻ bị từ chối</dt><dd className="text-right text-error">{kenh.lyDoTuChoiThe}</dd></>)}
-                {kenh.lyDoTamDung && (<><dt>Lý do dừng</dt><dd className="text-right text-error">{kenh.lyDoTamDung}</dd></>)}
-              </dl>
-            </>
-          ) : (
-            <p className="text-xs text-error">{kenh?.loi}</p>
-          )}
-          <a href={kenh?.linkHoaDon ?? du?.linkNap.kenh} target="_blank" rel="noreferrer" className="block text-center px-3 py-2 rounded-lg bg-primary text-on-primary text-xs font-bold">
-            {kenh?.linkHoaDon ? 'Trả hoá đơn ngay' : 'Trang thanh toán'}
-          </a>
-        </div>
-
-        <div className="bg-surface-container rounded-2xl p-4 border border-outline-variant space-y-2">
-          <span className="text-xs font-bold text-on-surface">Các bên khác</span>
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] text-on-surface-variant">
-            <dt>Database (Neon)</dt><dd className="text-right text-on-surface">Xem trên trang Neon</dd>
-            <dt>Gửi email (Gmail)</dt><dd className="text-right text-on-surface">Miễn phí</dd>
-            <dt>Telegram</dt><dd className="text-right text-on-surface">Miễn phí</dd>
-          </dl>
-          <a href={du?.linkNap.database} target="_blank" rel="noreferrer" className="block text-center px-3 py-2 rounded-lg border border-outline text-on-surface text-xs font-bold hover:border-primary">
-            Trang thanh toán Neon
-          </a>
-        </div>
-      </div>
-
-      {/* Chi tiết từ sổ của app */}
-      <div className="bg-surface-container rounded-2xl p-4 border border-outline-variant mb-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <span className="text-xs font-bold text-on-surface">Tiền AI tiêu vào đâu — {soNgay} ngày qua: {usd(tongKy)} {vnd(tongKy)}</span>
-          <div className="flex gap-1">
-            {[1, 7, 30, 90].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setSoNgay(n)}
-                className={clsx('px-2.5 py-1 rounded-lg text-[11px] font-bold border', soNgay === n ? 'border-primary bg-primary/15 text-primary' : 'border-outline-variant text-on-surface-variant')}
-              >
-                {n === 1 ? 'Hôm nay' : `${n} ngày`}
+      <div className="rounded-2xl border border-outline-variant bg-surface-container/40 divide-y divide-outline-variant/60 overflow-hidden">
+        {dong('ai', 'AI', tienAi)}
+        {mo === 'ai' && ai?.ok && (
+          <div>
+            {chiTiet(
+              [
+                [
+                  'Còn lại',
+                  `${so(ai.conLaiUsd ?? 0)} USD${tbNgay > 0 ? ` · đủ ~${Math.floor((ai.conLaiUsd ?? 0) / tbNgay)} ngày` : ''}`,
+                  canhBao('ai').length ? 'text-amber-400' : 'text-green-400',
+                ],
+                ['Đã nạp / đã tiêu từ trước tới nay', `${so(ai.daNapUsd ?? 0)} / ${so(ai.daTieuUsd ?? 0)} USD`],
+                [xemTheoShop ? 'Tháng này — theo shop' : 'Tháng này — theo việc', ''],
+                ...(xemTheoShop
+                  ? theoShop.map((s): Hang => [s.ten, chi(s.usd), mauChi(s.usd)])
+                  : theoViec.map((v): Hang => [v.ten, chi(v.usd), mauChi(v.usd)])),
+              ],
+              { ten: 'Nạp tiền AI', link: du?.linkNap.openrouter }
+            )}
+            <div className="px-5 pb-4 pl-[2.6rem] -mt-2">
+              <button type="button" onClick={() => setXemTheoShop(!xemTheoShop)} className="text-[11px] text-primary hover:underline">
+                {xemTheoShop ? '‹ Xem theo việc' : 'Xem theo shop ›'}
               </button>
-            ))}
-          </div>
-        </div>
-
-        {du && du.so.theoNgay.length > 0 && (
-          <div className="flex items-end gap-1 h-24 mb-4" aria-label="Chi phí AI theo ngày">
-            {du.so.theoNgay.map((d) => (
-              <div key={d.ngay} className="flex-1 min-w-[6px] h-full flex flex-col justify-end" title={`${d.ngay}: ${usd(d.usd)}`}>
-                <div className="bg-primary/70 rounded-t" style={{ height: `${Math.max(2, (d.usd / maxNgay) * 100)}%` }} />
-              </div>
-            ))}
+            </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p className="text-[11px] font-bold text-on-surface-variant mb-1.5">Theo việc</p>
-            <table className="w-full text-xs">
-              <tbody>
-                {du?.so.theoViec.map((v) => (
-                  <tr key={v.viec} className="border-t border-outline-variant/50">
-                    <td className="py-1.5 text-on-surface">{v.ten}</td>
-                    <td className="py-1.5 text-right text-on-surface-variant">{v.lan} lượt</td>
-                    <td className="py-1.5 text-right text-on-surface font-bold">{usd(v.usd)}</td>
-                  </tr>
-                ))}
-                {du && du.so.theoViec.length === 0 && (
-                  <tr><td className="py-2 text-on-surface-variant">Chưa có khoản nào trong khoảng này.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-on-surface-variant mb-1.5">Theo shop</p>
-            <table className="w-full text-xs">
-              <tbody>
-                {du?.so.theoShop.map((s) => (
-                  <tr key={String(s.userId)} className="border-t border-outline-variant/50">
-                    <td className="py-1.5 text-on-surface truncate max-w-[180px]">{s.ten}</td>
-                    <td className="py-1.5 text-right text-on-surface-variant">{s.lan} lượt</td>
-                    <td className="py-1.5 text-right text-on-surface font-bold">{usd(s.usd)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {dong('kenh', 'Kết nối kênh', tienKenh)}
+        {mo === 'kenh' &&
+          kenh?.ok &&
+          chiTiet(
+            [
+              [
+                'Trạng thái',
+                kenh.conHoatDong ? 'Đang hoạt động' : `Tạm dừng — ${kenh.lyDoTamDung ?? 'chưa thanh toán'}`,
+                kenh.conHoatDong ? 'text-green-400' : 'text-red-400',
+              ],
+              ['Cần trả', kenh.canTraUsd ? chi(kenh.canTraUsd) : 'Không', mauChi(kenh.canTraUsd)],
+              ['Gói', kenh.goi ?? '—'],
+            ],
+            { ten: kenh.linkHoaDon ? 'Trả hoá đơn' : 'Trang thanh toán', link: kenh.linkHoaDon ?? du?.linkNap.kenh }
+          )}
 
-        {du?.doiChieu && (
-          <p className="text-[11px] text-on-surface-variant mt-3 leading-relaxed">
-            Đối chiếu từ trước tới nay: nhà cung cấp AI đã trừ <b className="text-on-surface">{usd(du.doiChieu.nhaCungCapTruUsd)}</b>, sổ của
-            app ghi <b className="text-on-surface">{usd(du.doiChieu.appGhiUsd)}</b>. Khoản chênh gồm tiền tiêu trước khi app có sổ chi phí
-            và các lượt dùng khoá AI ngoài app.
-          </p>
-        )}
+        <div className="px-5 py-4 flex items-center gap-3 bg-surface-container-high/30">
+          <span className="w-2.5 shrink-0" />
+          <span className="flex-1 text-sm font-bold text-on-surface">Tổng</span>
+          <span className="text-right">
+            <span className={clsx('block text-xl font-bold tabular-nums', du ? mauChi(tong) : 'text-on-surface-variant')}>
+              {du ? chi(tong) : '—'}
+            </span>
+            {du && <span className={clsx('block text-[11px] tabular-nums', daChi(tong) ? 'text-red-400/70' : 'text-on-surface-variant')}>{vnd(tong)}</span>}
+          </span>
+          <span className="w-6 shrink-0" />
+        </div>
       </div>
 
-      {/* Ngưỡng cảnh báo */}
-      {nguong && (
-        <div className="bg-surface-container rounded-2xl p-4 border border-outline-variant">
-          <p className="text-xs font-bold text-on-surface mb-1">Cảnh báo tự động qua Telegram</p>
-          <p className="text-[11px] text-on-surface-variant mb-3">
-            Hệ thống tự soát mỗi giờ. Gặp một trong các điều dưới đây thì nhắn Telegram cho mọi quản trị tổng (mỗi loại tối đa 12 giờ một lần).
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-            <label className="text-[11px] text-on-surface-variant">
-              Tiền AI còn dưới (USD)
-              <input type="number" min={0} step={0.5} value={nguong.soDuToiThieuUsd}
-                onChange={(e) => setNguong({ ...nguong, soDuToiThieuUsd: Number(e.target.value) })}
-                className="mt-1 w-full bg-surface rounded-lg border border-outline-variant px-2 py-1.5 text-sm text-on-surface" />
+      {moCaiDat && nguong && (
+        <div className="mt-3 rounded-2xl border border-outline-variant bg-surface-container/40 p-5 space-y-3">
+          <p className="text-xs text-on-surface-variant">Nhắn Telegram khi:</p>
+          {(
+            [
+              ['soDuToiThieuUsd', 'Tiền AI còn dưới (USD)', 0.5],
+              ['soNgayToiThieu', 'Hoặc chỉ còn đủ dưới (ngày)', 1],
+              ['heSoTieuQua', 'Tiêu trong ngày gấp (lần) mức thường', 0.5],
+            ] as const
+          ).map(([khoa, ten, buoc]) => (
+            <label key={khoa} className="flex items-center justify-between gap-3 text-xs text-on-surface">
+              {ten}
+              <input
+                type="number"
+                step={buoc}
+                value={nguong[khoa]}
+                onChange={(e) => setNguong({ ...nguong, [khoa]: Number(e.target.value) })}
+                className="w-24 bg-surface rounded-lg border border-outline-variant px-2 py-1 text-right text-on-surface"
+              />
             </label>
-            <label className="text-[11px] text-on-surface-variant">
-              Hoặc chỉ còn đủ dưới (ngày)
-              <input type="number" min={0} step={1} value={nguong.soNgayToiThieu}
-                onChange={(e) => setNguong({ ...nguong, soNgayToiThieu: Number(e.target.value) })}
-                className="mt-1 w-full bg-surface rounded-lg border border-outline-variant px-2 py-1.5 text-sm text-on-surface" />
-            </label>
-            <label className="text-[11px] text-on-surface-variant">
-              Tiêu trong ngày gấp (lần) trung bình
-              <input type="number" min={1.1} step={0.5} value={nguong.heSoTieuQua}
-                onChange={(e) => setNguong({ ...nguong, heSoTieuQua: Number(e.target.value) })}
-                className="mt-1 w-full bg-surface rounded-lg border border-outline-variant px-2 py-1.5 text-sm text-on-surface" />
-            </label>
-          </div>
-          <p className="text-[11px] text-on-surface-variant mb-3">Nhà cung cấp kênh tạm dừng hoặc có hoá đơn cần trả thì luôn cảnh báo, không cần ngưỡng.</p>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={luuNguong} disabled={dangLuu} className="px-3 py-2 rounded-lg bg-primary text-on-primary text-xs font-bold disabled:opacity-50">
-              {dangLuu ? 'Đang lưu…' : 'Lưu ngưỡng'}
+          ))}
+          <p className="text-[11px] text-on-surface-variant">Kết nối kênh bị dừng hoặc có hoá đơn thì luôn nhắn.</p>
+          {thongBao && <p className="text-[11px] text-primary">{thongBao}</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  setNguong((await api.admin.luuNguongChiPhi(nguong)).data);
+                  setThongBao('Đã lưu.');
+                  void tai();
+                } catch (error) {
+                  setThongBao(error instanceof ApiError ? error.message : 'Chưa lưu được');
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold"
+            >
+              Lưu
             </button>
-            <button type="button" onClick={guiThu} className="px-3 py-2 rounded-lg border border-outline text-on-surface text-xs font-bold hover:border-primary">
-              Gửi thử cảnh báo tới Telegram của tôi
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await api.admin.thuCanhBaoChiPhi();
+                  setThongBao('Đã gửi thử tới Telegram của bạn.');
+                } catch (error) {
+                  setThongBao(error instanceof ApiError ? error.message : 'Chưa gửi được');
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg border border-outline text-on-surface text-xs font-bold"
+            >
+              Gửi thử
             </button>
           </div>
         </div>

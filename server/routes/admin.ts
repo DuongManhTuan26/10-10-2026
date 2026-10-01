@@ -395,7 +395,9 @@ adminRouter.delete(
 adminRouter.get(
   "/chi-phi",
   route(async (req, res) => {
-    const soNgay = Number(req.query.ngay) || 30;
+    // ngay=0: từ đầu tháng này (cùng kỳ với số "tháng này" nhà cung cấp báo).
+    const ngay = Number(req.query.ngay);
+    const soNgay = Number.isFinite(ngay) && ngay >= 0 ? ngay : 30;
     res.json({ success: true, data: await saoKe(soNgay) });
   })
 );

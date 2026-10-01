@@ -194,8 +194,6 @@ export default function Admin() {
     <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full bg-background">
       <BangLoi noiDung={errorMessage} onDong={() => setErrorMessage('')} className="mb-6" />
 
-      <ChiPhiHeThong />
-
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
         <div>
           <h1 className="font-headline-sm text-3xl font-bold text-on-surface tracking-tight mb-2">
@@ -213,6 +211,8 @@ export default function Admin() {
           Tạo tài khoản
         </button>
       </div>
+
+      <ChiPhiHeThong />
 
       {matKhauTam && (
         <div className="mb-6 bg-surface-container rounded-xl border-2 border-primary/50 p-4">

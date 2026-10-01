@@ -16,10 +16,37 @@
 
 import { execSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const GOC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const DU_AN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/*
+ * Đục trên BẢN SAO, không đục trên mã thật.
+ *
+ * Bản trước sửa thẳng tệp trong dự án. Máy chủ dev thấy tệp đổi là tự khởi
+ * động lại, nên suốt ~25 phút chạy, máy chủ gần như luôn đang khởi động lại —
+ * chủ dự án mở app lên toàn gặp "không kết nối được". Dừng giữa chừng thì còn
+ * để lại một tệp đang bị đục (đã xảy ra hai lần).
+ *
+ * Nay: chép mã sang thư mục tạm (thư viện dùng chung qua liên kết, không chép),
+ * đục và kiểm ở đó, xong thì xoá. Mã thật không bao giờ bị đụng tới.
+ */
+const BO_QUA = new Set(["node_modules", "dist", ".git", "tam", "backup"]);
+// Dọn bản sao của lần chạy trước bị dừng ngang (tín hiệu dừng không tới kịp phần dọn).
+for (const ten of fs.readdirSync(os.tmpdir())) {
+  if (ten.startsWith("kiem-tra-nguoc-")) fs.rmSync(path.join(os.tmpdir(), ten), { recursive: true, force: true });
+}
+const GOC = fs.mkdtempSync(path.join(os.tmpdir(), "kiem-tra-nguoc-"));
+fs.cpSync(DU_AN, GOC, {
+  recursive: true,
+  filter: (nguon) => !BO_QUA.has(path.basename(nguon)),
+});
+fs.symlinkSync(path.join(DU_AN, "node_modules"), path.join(GOC, "node_modules"), "dir");
+const donBanSao = () => fs.rmSync(GOC, { recursive: true, force: true });
+process.on("exit", donBanSao);
+for (const tinHieu of ["SIGINT", "SIGTERM"] as const) process.on(tinHieu, () => process.exit(1));
 
 interface PhepDuc {
   ten: string;
@@ -30,10 +57,40 @@ interface PhepDuc {
 
 const DUC: PhepDuc[] = [
   {
+    ten: "dòng AI lấy số nhà cung cấp, lệch kỳ với chi tiết",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "const tienAi = du ? du.so.theoViec.reduce((t, v) => t + v.usd, 0) : null;",
+    thay: "const tienAi = du?.ai.ok ? du.ai.thangNayUsd ?? 0 : null;",
+  },
+  {
+    ten: "sổ tháng này cắt mốc theo giờ database",
+    tep: "server/services/chi-phi.ts",
+    tim: "tuDauThang ? `created_at >= ${DAU_THANG_VN}`",
+    thay: "tuDauThang ? `created_at >= date_trunc('month', now())`",
+  },
+  {
     ten: "tạo ảnh không ghi sổ chi phí",
     tep: "server/services/image-ai.ts",
     tim: "`INSERT INTO ai_usage (user_id, task, model, cost_usd) VALUES ($1, 'image', $2, $3)`,",
     thay: "`SELECT $1::bigint, $2::text, $3::numeric`,",
+  },
+  {
+    ten: "không tiêu đồng nào vẫn ghi −0,00",
+    tep: "src/lib/tien-chi.ts",
+    tim: "daChi(n) ? `−${so(n)} USD` : `${so(0)} USD`",
+    thay: "`−${so(n)} USD`",
+  },
+  {
+    ten: "tiền đã chi không tô đỏ",
+    tep: "src/lib/tien-chi.ts",
+    tim: "(daChi(n) ? 'text-red-400' : 'text-on-surface-variant')",
+    thay: "'text-on-surface'",
+  },
+  {
+    ten: "dòng chính bỏ màu số tiền",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "clsx('text-lg font-bold tabular-nums', mauChi(tien))",
+    thay: "clsx('text-lg font-bold tabular-nums', 'text-on-surface')",
   },
   {
     ten: "bỏ cảnh báo khi nhà cung cấp kênh tạm dừng",
@@ -2126,8 +2183,7 @@ function traLai(): void {
   for (const [tep, noi] of goc) fs.writeFileSync(path.join(GOC, tep), noi);
 }
 
-process.on("exit", traLai);
-process.on("SIGINT", () => { traLai(); process.exit(130); });
+// Không cần trả lại khi thoát: mọi lỗ đều đục trên bản sao, bản sao bị xoá cả.
 
 console.log("Kiểm tra ngược: đục lỗ rồi xem bộ kiểm tra có kêu không.\n");
 
@@ -2137,7 +2193,9 @@ if (!chayKiemTra()) {
 }
 
 let dởm = 0;
-for (const d of DUC) {
+// GIOI_HAN=5 npm run kiem-tra-nguoc: chỉ đục vài lỗ đầu, để thử nhanh cơ chế.
+const GIOI_HAN = Number(process.env.GIOI_HAN) || DUC.length;
+for (const d of DUC.slice(0, GIOI_HAN)) {
   luu(d.tep);
   const duong = path.join(GOC, d.tep);
   const truoc = goc.get(d.tep)!;
@@ -2162,7 +2220,7 @@ for (const d of DUC) {
 }
 
 traLai();
-console.log(`\nĐã đục ${DUC.length} lỗ.`);
+console.log(`\nĐã đục ${Math.min(GIOI_HAN, DUC.length)} lỗ.`);
 if (dởm > 0) {
   console.log(`${dởm} phép kiểm không đáng tin. Sửa phép kiểm, đừng sửa phép thử.\n`);
   process.exit(1);

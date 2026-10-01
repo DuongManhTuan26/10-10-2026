@@ -44,6 +44,7 @@ import { laModelSuaVideo, giaSuaVideo } from "../server/services/video-sua.js";
 import { cheEmail, SAI_TOI_DA, MA_MOI_GIO_TOI_DA, SONG_PHUT } from "../server/services/xac-thuc-email.js";
 import { danhGia, chuanHoaNguong, NGUONG_MAC_DINH } from "../server/services/chi-phi.js";
 import { banGhi } from "../server/services/ai.js";
+import { chi, mauChi } from "../src/lib/tien-chi.js";
 import {
   xinSuat,
   xinSuatDocAnh,
@@ -3854,6 +3855,13 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("chi phí", "sao kê nằm trong router quản trị (đã chặn người không phải quản trị)",
     nguonQuanTriCP.indexOf('if (req.user?.role !== "admin")') > 0 && nguonQuanTriCP.indexOf('"/chi-phi",') > nguonQuanTriCP.indexOf('if (req.user?.role !== "admin")'), true);
 
+  // Bản mẫu trình bày: dòng chính = tổng chi tiết bên trong, cùng kỳ tháng giờ VN.
+  const nguonKhoiChiPhi = fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8");
+  kiem("chi phí", "dòng AI bằng tổng các khoản chi tiết (không lệch kỳ)",
+    /const tienAi = du \? du\.so\.theoViec\.reduce\(\(t, v\) => t \+ v\.usd, 0\) : null;/.test(nguonKhoiChiPhi), true);
+  kiem("chi phí", "khối chi phí lấy sổ từ đầu tháng (ngay=0)", nguonKhoiChiPhi.includes("api.admin.chiPhi(0)"), true);
+  kiem("chi phí", "sổ 'tháng này' cắt mốc theo giờ Việt Nam", /tuDauThang \? `created_at >= \$\{DAU_THANG_VN\}`/.test(nguonChiPhi), true);
+
   // Đã đo: Range 0-99 lên /media trả 200 cả tệp, không Accept-Ranges — Safari
   // không phát được video. Nay chuyển tiếp Range, trả 206 và gửi dạng dòng chảy.
   kiem("xem video", "chuyển tiếp yêu cầu tua sang kho",
@@ -3868,6 +3876,20 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("bảo mật", "dọn bảng đếm đăng ký", /DELETE FROM dang_ky_theo_ip WHERE created_at </.test(nguonPhien), true);
   kiem("bảo mật", "việc dọn thật sự được gọi định kỳ",
     /setInterval\(\s*\(\) => \{\s*donDuLieuHetHan\(\)/.test(nguonKhoiDong), true);
+}
+
+// Đã thấy: dòng "Kết nối kênh" chưa tiêu đồng nào lại ghi "−0,00 USD"; tiền âm không có màu đỏ.
+kiem("hiển thị chi phí", "đã chi thì có dấu âm", chi(0.85), "−0,85 USD");
+kiem("hiển thị chi phí", "không tiêu thì không có dấu âm", chi(0), "0,00 USD");
+kiem("hiển thị chi phí", "khoản lẻ dưới nửa xu không thành −0,00", chi(0.004), "0,00 USD");
+kiem("hiển thị chi phí", "chưa có số thì ghi gạch", chi(null), "—");
+kiem("hiển thị chi phí", "đã chi thì tô đỏ", mauChi(0.85), "text-red-400");
+kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "text-on-surface-variant");
+{
+  const nguonKhoi = fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8");
+  kiem("hiển thị chi phí", "dòng chính tô số tiền theo mauChi",
+    /className=\{clsx\('text-lg font-bold tabular-nums', mauChi\(tien\)\)\}>\{chi\(tien\)\}/.test(nguonKhoi), true);
+  kiem("hiển thị chi phí", "dòng tổng tô số tiền theo mauChi", /mauChi\(tong\)/.test(nguonKhoi), true);
 }
 
 // ---------------------------------------------------------------------------
