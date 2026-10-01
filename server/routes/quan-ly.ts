@@ -245,7 +245,8 @@ quanLyRouter.get(
                * Trang bán được 2 triệu mà đốt 1 triệu tiền AI thì đó không
                * phải trang tốt — nhìn mỗi doanh thu là không thấy được điều đó.
                */
-              (SELECT COALESCE(SUM(a.cost_usd), 0)::text FROM ai_usage a
+              -- Cùng cách tính với sao kê: số nhà cung cấp đã chốt, chưa chốt thì số lúc gọi.
+              (SELECT COALESCE(SUM(coalesce(a.cost_ncc, a.cost_usd)), 0)::text FROM ai_usage a
                 WHERE a.user_id = u.id AND a.created_at >= ${DAU_THANG_VN}) AS tien_ai_thang
          FROM users u
         WHERE u.parent_id = $1

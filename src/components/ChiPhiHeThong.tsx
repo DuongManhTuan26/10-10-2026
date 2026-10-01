@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { api, ApiError, type NguongCanhBao, type SaoKeChiPhi } from '../lib/api';
-import { chi, daChi, mauChi, so, vnd } from '../lib/tien-chi';
+import { api, ApiError, type LocLuot, type NguongCanhBao, type SaoKeChiPhi } from '../lib/api';
+import { chi, chiDu, daChi, mauChi, so, vnd } from '../lib/tien-chi';
+import NhatKyChiPhi from './NhatKyChiPhi';
 
 /**
  * Chi phí hệ thống — BẢN MẪU cho cách trình bày chung của cả app.
@@ -13,14 +14,44 @@ import { chi, daChi, mauChi, so, vnd } from '../lib/tien-chi';
  */
 
 type Dong = 'ai' | 'kenh';
+type CachXem = 'viec' | 'taiKhoan';
 /** [nhãn, giá trị, màu chữ của giá trị]. Giá trị rỗng = tiêu đề nhóm. */
 type Hang = [string, string, string?];
+type TaiKhoan = SaoKeChiPhi['so']['theoTaiKhoan'][number];
+
+const ngayVN = (iso: string) => new Date(iso).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit' });
+
+/**
+ * Cây tài khoản: tài khoản cha (admin con) đứng trên, tài khoản trang của nó
+ * thụt vào dưới. Mỗi tài khoản giữ tiền RIÊNG; dòng cha có thêm tổng cả chuỗi.
+ */
+function dungCay(ds: TaiKhoan[]) {
+  // Chỉ có hai tầng: admin con không có cha, tài khoản trang trỏ về admin con.
+  const con = new Map<number, TaiKhoan[]>();
+  for (const t of ds) if (t.chaId !== null) con.set(t.chaId, [...(con.get(t.chaId) ?? []), t]);
+  const goc = ds.filter((t) => t.chaId === null);
+  // Cha chưa tiêu gì nhưng con có tiêu: vẫn dựng dòng cha (tiền riêng = 0).
+  for (const [chaId, dsCon] of con) {
+    if (!goc.some((t) => t.userId === chaId)) {
+      goc.push({ userId: chaId, ten: dsCon[0].chaTen ?? `Tài khoản #${chaId}`, email: null, vaiTro: 'admin_con', chaId: null, chaTen: null, lan: 0, usd: 0 });
+    }
+  }
+  return goc
+    .map((t) => {
+      const cacCon = t.userId !== null ? (con.get(t.userId) ?? []).sort((a, b) => b.usd - a.usd) : [];
+      return { ...t, con: cacCon, tongChuoi: t.usd + cacCon.reduce((tong, c) => tong + c.usd, 0) };
+    })
+    .sort((a, b) => b.tongChuoi - a.tongChuoi);
+}
 
 export default function ChiPhiHeThong() {
   const [du, setDu] = useState<SaoKeChiPhi | null>(null);
   const [mo, setMo] = useState<Dong | null>(null);
   const [moCaiDat, setMoCaiDat] = useState(false);
-  const [xemTheoShop, setXemTheoShop] = useState(false);
+  const [cachXem, setCachXem] = useState<CachXem>('viec');
+  const [moNhom, setMoNhom] = useState<string | null>(null);
+  const [moDoiChieu, setMoDoiChieu] = useState(false);
+  const [nhatKy, setNhatKy] = useState<{ loc: LocLuot; tieuDe: string } | null>(null);
   const [nguong, setNguong] = useState<NguongCanhBao | null>(null);
   const [thongBao, setThongBao] = useState('');
   const [loi, setLoi] = useState('');
@@ -48,7 +79,8 @@ export default function ChiPhiHeThong() {
    * quốc tế, bắt đầu 7h sáng ngày 1 giờ VN) thì dòng chính ghi 0,04 mà mở ra
    * lại thấy 0,85 — hai con số khác kỳ đặt cạnh nhau là rối.
    */
-  const tienAi = du ? du.so.theoViec.reduce((t, v) => t + v.usd, 0) : null;
+  const tienAi = du ? du.so.theoNhom.reduce((t, v) => t + v.usd, 0) : null;
+  const cay = useMemo(() => dungCay(du?.so.theoTaiKhoan ?? []), [du]);
   const tienKenh = du?.kenh.ok ? du.kenh.tieuKyNayUsd ?? 0 : null;
   const tong = (tienAi ?? 0) + (tienKenh ?? 0);
 
@@ -102,9 +134,63 @@ export default function ChiPhiHeThong() {
 
   const ai = du?.ai;
   const kenh = du?.kenh;
+  const dc = du?.doiChieu ?? null;
   const tbNgay = ai?.tuanNayUsd ? ai.tuanNayUsd / 7 : 0;
-  const theoViec = du?.so.theoViec.filter((v) => v.usd >= 0.005) ?? [];
-  const theoShop = du?.so.theoShop.slice(0, 5) ?? [];
+
+  const moNhatKy = (loc: LocLuot, tieuDe: string) => setNhatKy({ loc, tieuDe });
+
+  /** Một dòng bấm được trong phần con: tên, số lượt, số tiền. */
+  const dongCon = (khoa: string, ten: string, lan: number, usd: number, onClick: () => void, thut = false, dam = false) => (
+    <button
+      key={khoa}
+      type="button"
+      onClick={onClick}
+      className={clsx('w-full flex items-center gap-3 py-1.5 text-xs text-left hover:bg-surface-container-high/40 rounded', thut && 'pl-4')}
+    >
+      <span className={clsx('flex-1 min-w-0 truncate', dam ? 'font-bold text-on-surface' : 'text-on-surface-variant')}>{ten}</span>
+      <span className="text-on-surface-variant/70 tabular-nums">{lan.toLocaleString('vi-VN')} lượt</span>
+      <span className={clsx('w-32 text-right tabular-nums', dam && 'font-bold', mauChi(usd))}>{chiDu(usd)}</span>
+    </button>
+  );
+
+  const dongDoiChieu = () => {
+    const kieu = !dc
+      ? { ky: 'help', mau: 'text-on-surface-variant', chu: 'Chưa đối chiếu được với nhà cung cấp' }
+      : dc.trangThai === 'khop'
+        ? { ky: 'check_circle', mau: 'text-green-400', chu: 'Khớp tuyệt đối với nhà cung cấp' }
+        : dc.trangThai === 'dang_cho'
+          ? { ky: 'schedule', mau: 'text-amber-400', chu: `Đang chờ nhà cung cấp chốt ${dc.sauMoc.soLuotCho} lượt` }
+          : { ky: 'error', mau: 'text-red-400', chu: `Lệch ${so(Math.abs(dc.sauMoc.chenhUsd))} USD so với nhà cung cấp` };
+    return (
+      <div>
+        <button type="button" onClick={() => setMoDoiChieu(!moDoiChieu)} className={clsx('w-full flex items-center gap-2 text-xs text-left', kieu.mau)}>
+          <span className="material-symbols-outlined text-[16px]">{kieu.ky}</span>
+          <span className="flex-1 font-bold">{kieu.chu}</span>
+          <span className={clsx('material-symbols-outlined text-[16px] transition-transform', moDoiChieu && 'rotate-90')}>chevron_right</span>
+        </button>
+        {moDoiChieu && dc && (
+          <div className="mt-1.5 pl-6 space-y-1 text-xs">
+            {(
+              [
+                ['Nhà cung cấp đã trừ, từ trước tới nay', chiDu(dc.nhaCungCapUsd)],
+                ['Sổ của app ghi, từ trước tới nay', chiDu(dc.soAppUsd)],
+                ...(daChi(dc.ngoaiSoTruocMocUsd)
+                  ? [[`Ngoài sổ, trước ${ngayVN(dc.mocLuc)} (chạy thử, sổ cũ ghi thiếu)`, chiDu(dc.ngoaiSoTruocMocUsd)]]
+                  : []),
+                [`Từ ${ngayVN(dc.mocLuc)}: nhà cung cấp trừ`, chiDu(dc.sauMoc.nhaCungCapUsd)],
+                [`Từ ${ngayVN(dc.mocLuc)}: sổ ghi`, chiDu(dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd)],
+              ] as [string, string][]
+            ).map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-4">
+                <span className="text-on-surface-variant">{k}</span>
+                <span className="text-on-surface tabular-nums text-right">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <section className="mb-10 max-w-2xl">
@@ -124,26 +210,82 @@ export default function ChiPhiHeThong() {
 
       <div className="rounded-2xl border border-outline-variant bg-surface-container/40 divide-y divide-outline-variant/60 overflow-hidden">
         {dong('ai', 'AI', tienAi)}
-        {mo === 'ai' && ai?.ok && (
-          <div>
-            {chiTiet(
-              [
-                [
-                  'Còn lại',
-                  `${so(ai.conLaiUsd ?? 0)} USD${tbNgay > 0 ? ` · đủ ~${Math.floor((ai.conLaiUsd ?? 0) / tbNgay)} ngày` : ''}`,
-                  canhBao('ai').length ? 'text-amber-400' : 'text-green-400',
-                ],
-                ['Đã nạp / đã tiêu từ trước tới nay', `${so(ai.daNapUsd ?? 0)} / ${so(ai.daTieuUsd ?? 0)} USD`],
-                [xemTheoShop ? 'Tháng này — theo shop' : 'Tháng này — theo việc', ''],
-                ...(xemTheoShop
-                  ? theoShop.map((s): Hang => [s.ten, chi(s.usd), mauChi(s.usd)])
-                  : theoViec.map((v): Hang => [v.ten, chi(v.usd), mauChi(v.usd)])),
-              ],
-              { ten: 'Nạp tiền AI', link: du?.linkNap.openrouter }
-            )}
-            <div className="px-5 pb-4 pl-[2.6rem] -mt-2">
-              <button type="button" onClick={() => setXemTheoShop(!xemTheoShop)} className="text-[11px] text-primary hover:underline">
-                {xemTheoShop ? '‹ Xem theo việc' : 'Xem theo shop ›'}
+        {mo === 'ai' && ai?.ok && du && (
+          <div className="px-5 pb-4 pl-[2.6rem] space-y-3">
+            {dongDoiChieu()}
+
+            <div className="flex justify-between gap-4 text-xs">
+              <span className="text-on-surface-variant">Còn lại</span>
+              <span className={clsx('tabular-nums', canhBao('ai').length ? 'text-amber-400' : 'text-green-400')}>
+                {so(ai.conLaiUsd ?? 0)} USD{tbNgay > 0 ? ` · đủ ~${Math.floor((ai.conLaiUsd ?? 0) / tbNgay)} ngày` : ''}
+              </span>
+            </div>
+
+            <div>
+              <div className="flex gap-1 mb-1.5">
+                {(
+                  [
+                    ['viec', 'Theo việc'],
+                    ['taiKhoan', 'Theo tài khoản'],
+                  ] as const
+                ).map(([k, ten]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setCachXem(k)}
+                    className={clsx(
+                      'px-2.5 py-1 rounded-md text-[11px] font-bold',
+                      cachXem === k ? 'bg-primary/15 text-primary' : 'text-on-surface-variant hover:text-on-surface'
+                    )}
+                  >
+                    {ten}
+                  </button>
+                ))}
+              </div>
+
+              {cachXem === 'viec' &&
+                du.so.theoNhom.map((g) => (
+                  <div key={g.nhom}>
+                    {dongCon(`n-${g.nhom}`, g.ten, g.lan, g.usd, () => setMoNhom(moNhom === g.nhom ? null : g.nhom), false, true)}
+                    {moNhom === g.nhom &&
+                      g.viec.map((v) =>
+                        dongCon(`v-${v.viec}`, v.ten, v.lan, v.usd, () => moNhatKy({ viec: v.viec ?? 'chua_phan_loai' }, v.ten), true)
+                      )}
+                  </div>
+                ))}
+
+              {cachXem === 'taiKhoan' &&
+                cay.map((t) => (
+                  <div key={`t-${t.userId}`}>
+                    {dongCon(
+                      `t-${t.userId}`,
+                      t.con.length ? `${t.ten} — cả chuỗi` : t.ten,
+                      t.lan + t.con.reduce((s2, c) => s2 + c.lan, 0),
+                      t.tongChuoi,
+                      () => moNhatKy({ tk: t.userId ?? 'chung', kemCon: t.con.length > 0 }, t.con.length ? `${t.ten} — cả chuỗi` : t.ten),
+                      false,
+                      true
+                    )}
+                    {t.con.length > 0 && daChi(t.usd) &&
+                      dongCon(`r-${t.userId}`, `${t.ten} — riêng`, t.lan, t.usd, () => moNhatKy({ tk: t.userId ?? 'chung' }, `${t.ten} — riêng`), true)}
+                    {t.con.map((c) => dongCon(`c-${c.userId}`, c.ten, c.lan, c.usd, () => moNhatKy({ tk: c.userId ?? 'chung' }, c.ten), true))}
+                  </div>
+                ))}
+
+              {du.so.theoNhom.length === 0 && <p className="text-xs text-on-surface-variant py-1.5">Tháng này chưa dùng AI.</p>}
+            </div>
+
+            <div className="flex items-center gap-4">
+              <a
+                href={du.linkNap.openrouter}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold"
+              >
+                Nạp tiền AI
+              </a>
+              <button type="button" onClick={() => moNhatKy({}, 'Từng lượt dùng AI')} className="text-xs text-primary hover:underline">
+                Xem từng lượt ›
               </button>
             </div>
           </div>
@@ -234,6 +376,7 @@ export default function ChiPhiHeThong() {
           </div>
         </div>
       )}
+      {nhatKy && <NhatKyChiPhi loc={nhatKy.loc} tieuDe={nhatKy.tieuDe} onDong={() => setNhatKy(null)} />}
     </section>
   );
 }

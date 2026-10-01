@@ -1,6 +1,7 @@
 import { env } from "../env.js";
 import { query } from "../db.js";
 import { AppError } from "../http.js";
+import { ghiLuotAi, type Viec } from "./so-ai.js";
 
 /**
  * Cổng gọi AI qua OpenRouter (giao thức tương thích OpenAI).
@@ -57,6 +58,8 @@ export interface AiResult<T = string> {
 }
 
 interface CompletionResponse {
+  /** Mã giao dịch của nhà cung cấp — để tra lại đúng lượt này. */
+  id?: string;
   choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
   usage?: {
     prompt_tokens?: number;
@@ -104,6 +107,8 @@ interface CompleteOptions {
    * Để null CHỈ khi lượt gọi thật sự không thuộc shop nào (việc nội bộ).
    */
   userId: number | null;
+  /** Tính năng nào gọi — để sao kê ghi đúng "dùng vào việc gì". Bắt buộc. */
+  viec: Viec;
   model?: string;
   temperature?: number;
   maxTokens?: number;
@@ -118,6 +123,7 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
   const {
     task,
     userId,
+    viec,
     messages,
     model = DEFAULT_MODELS[task],
     temperature = 0.7,
@@ -148,6 +154,9 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
           max_tokens: maxTokens,
           ...(json ? { response_format: { type: "json_object" } } : {}),
           usage: { include: true },
+          // Nhà cung cấp ghi lượt này của tài khoản nào (external_user) — để
+          // đối chiếu theo từng tài khoản ngay ở phía họ. Chỉ là mã số, không lộ tên.
+          user: userId === null ? "he-thong" : `tk-${userId}`,
         }),
         signal: AbortSignal.timeout(60_000),
       });
@@ -192,7 +201,35 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
     }
 
     const content = data.choices?.[0]?.message?.content;
-    if (typeof content !== "string" || content.trim() === "") {
+    const usage = {
+      promptTokens: data.usage?.prompt_tokens ?? 0,
+      completionTokens: data.usage?.completion_tokens ?? 0,
+      totalTokens: data.usage?.total_tokens ?? 0,
+      costUsd: data.usage?.cost ?? 0,
+    };
+    const rong = typeof content !== "string" || content.trim() === "";
+
+    /*
+     * Ghi tiền NGAY TẠI ĐÂY, chỗ duy nhất mọi lượt chat đi qua, và ghi cả lượt
+     * AI trả rỗng: nhà cung cấp vẫn tính tiền lượt đó (đã đọc hết lời nhắc).
+     * Trước đây lượt rỗng bị bỏ qua rồi gọi lại — sổ thiếu đúng lượt ấy.
+     *
+     * Ghi ở từng nơi gọi thì chỉ cần thêm một tính năng mới mà quên ghi là
+     * shop đó tiêu tiền không ai đếm.
+     */
+    void ghiLuotAi({
+      userId,
+      task,
+      viec,
+      model: data.model ?? model,
+      maNcc: data.id ?? null,
+      promptTokens: usage.promptTokens,
+      completionTokens: usage.completionTokens,
+      costUsd: usage.costUsd,
+      loi: rong ? "AI trả về nội dung rỗng" : null,
+    });
+
+    if (typeof content !== "string" || rong) {
       // Model trả rỗng thường do bị cắt hoặc bị lọc nội dung — thử lại một lượt.
       lastError = new AiError("AI trả về nội dung rỗng", 502, true);
       if (attempt < retries) {
@@ -201,30 +238,6 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
       }
       throw lastError;
     }
-
-    const usage = {
-      promptTokens: data.usage?.prompt_tokens ?? 0,
-      completionTokens: data.usage?.completion_tokens ?? 0,
-      totalTokens: data.usage?.total_tokens ?? 0,
-      costUsd: data.usage?.cost ?? 0,
-    };
-
-    /*
-     * Ghi tiền NGAY TẠI ĐÂY, chỗ duy nhất mọi lượt gọi AI đi qua.
-     *
-     * Ghi ở từng nơi gọi thì chỉ cần thêm một tính năng mới mà quên ghi là
-     * shop đó tiêu tiền không ai đếm — và phải mất cả tháng mới phát hiện.
-     *
-     * Ghi hỏng thì KHÔNG được làm hỏng câu trả lời cho khách: khách đang chờ
-     * tin nhắn, không thể vì một dòng thống kê mà để họ chờ tiếp.
-     */
-    void query(
-      `INSERT INTO ai_usage (user_id, task, model, prompt_tokens, completion_tokens, cost_usd)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [userId, task, data.model ?? model, usage.promptTokens, usage.completionTokens, usage.costUsd]
-    ).catch((error) => {
-      console.error("[ai] Không ghi được tiền AI:", error);
-    });
 
     return { output: content, model: data.model ?? model, usage };
   }

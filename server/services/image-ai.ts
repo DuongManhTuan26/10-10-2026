@@ -17,6 +17,7 @@ import { query, queryOne } from "../db.js";
 import { env } from "../env.js";
 import { AppError } from "../http.js";
 import { hoanDiaChiKho } from "./media-proxy.js";
+import { ghiLuotAi } from "./so-ai.js";
 import * as zernio from "./zernio.js";
 
 /** Model mặc định: rẻ nhất trong nhóm sinh ảnh mà chất lượng đủ dùng. */
@@ -172,6 +173,7 @@ export async function taoAnhChoBai(params: {
         ],
         modalities: ["image", "text"],
         usage: { include: true },
+        user: `tk-${params.userId}`,
       }),
       // Sinh ảnh lâu hơn sinh chữ nhiều.
       signal: AbortSignal.timeout(120_000),
@@ -184,6 +186,7 @@ export async function taoAnhChoBai(params: {
   }
 
   const data = (await response.json()) as {
+    id?: string;
     error?: { message?: string };
     model?: string;
     usage?: { cost?: number };
@@ -207,6 +210,22 @@ export async function taoAnhChoBai(params: {
   }
 
   const duLieu = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+  /*
+   * Ghi sổ NGAY khi nhà cung cấp đã tính tiền — trước mọi bước có thể hỏng
+   * phía sau. Đã thấy: ghi sau bước đưa lên kho thì kho hỏng là ảnh đã mất
+   * tiền mà sổ không có dòng nào.
+   */
+  await ghiLuotAi({
+    userId: params.userId,
+    task: "image",
+    viec: "tao_anh",
+    model: data.model ?? MODEL_ANH,
+    maNcc: data.id ?? null,
+    costUsd: data.usage?.cost ?? 0,
+    loi: duLieu?.startsWith("data:") ? null : "Không trả về ảnh nào",
+  });
+
   if (!duLieu?.startsWith("data:")) {
     throw new AppError(
       "Dịch vụ tạo ảnh không trả về ảnh nào. Thử lại, hoặc đổi cách mô tả.",
@@ -237,18 +256,6 @@ export async function taoAnhChoBai(params: {
   if (!dua.ok) {
     throw new AppError(`Không tải được ảnh vừa tạo lên kho (HTTP ${dua.status}).`, 502);
   }
-
-  /*
-   * Ghi sổ chi phí như mọi lượt gọi AI khác.
-   *
-   * Đã đo: sổ ai_usage không có dòng nào cho ảnh dù đã tạo ảnh thật nhiều lần —
-   * sổ của app ghi 1,49 USD trong khi nhà cung cấp trừ thật 2,62 USD. Thiếu dòng
-   * này thì bảng sao kê chi phí báo thấp hơn thực tế, lỗ mà không biết.
-   */
-  await query(
-    `INSERT INTO ai_usage (user_id, task, model, cost_usd) VALUES ($1, 'image', $2, $3)`,
-    [params.userId, data.model ?? MODEL_ANH, data.usage?.cost ?? 0]
-  ).catch((error) => console.error("[ảnh AI] Không ghi được tiền AI:", error));
 
   return {
     url: presign.publicUrl,

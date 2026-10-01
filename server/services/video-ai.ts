@@ -17,6 +17,7 @@ import { query, queryOne } from "../db.js";
 import { env } from "../env.js";
 import { AppError } from "../http.js";
 import { chatJson, asRecord, banGhi, optionalString } from "./ai.js";
+import { ghiLuotAi, type Viec } from "./so-ai.js";
 import { hoanDiaChiKho, laDiaChiKho } from "./media-proxy.js";
 import * as zernio from "./zernio.js";
 import { anhTheoKhung } from "./video-cong-cu.js";
@@ -254,6 +255,7 @@ export async function vietLoiMoTaVideo(params: {
 
   const kq = await chatJson({
     task: "content",
+    viec: "mo_ta_video",
     validate: (v) => {
       const o = asRecord(v);
       return { loiMoTa: optionalString(o.loiMoTa), tomTat: optionalString(o.tomTat) };
@@ -451,7 +453,46 @@ async function ketThuc(id: number, loi: string): Promise<void> {
   );
 }
 
-async function xuLyMotViec(v: { id: number; user_id: number; ma_viec: string; model: string; qua_han: boolean }): Promise<void> {
+export interface ViecDangTao {
+  id: number;
+  user_id: number;
+  ma_viec: string;
+  model: string;
+  qua_han: boolean;
+  du_an_id: number | null;
+  la_sua: boolean;
+}
+
+/** Video này sinh ra từ tính năng nào — để sao kê ghi đúng việc. */
+export function viecCua(v: Pick<ViecDangTao, "la_sua" | "du_an_id">): Viec {
+  if (v.la_sua) return "sua_video";
+  if (v.du_an_id !== null) return "tao_canh_video_dai";
+  return "tao_video";
+}
+
+/**
+ * Ghi sổ ngay khi nhà cung cấp chốt việc — TRƯỚC bước tải về và đưa lên kho.
+ * Đã thấy: ghi sau hai bước đó thì kho hỏng là video đã mất tiền mà sổ không
+ * có dòng nào. Mã việc là duy nhất nên lần hỏi lại sau không ghi trùng.
+ */
+async function ghiTienVideo(v: ViecDangTao, j: Record<string, unknown>, loi: string | null): Promise<number | null> {
+  const gia = Number(banGhi(j.usage).cost);
+  const giaThuc = Number.isFinite(gia) ? gia : null;
+  if (giaThuc !== null || !loi) {
+    await ghiLuotAi({
+      userId: v.user_id,
+      task: "video",
+      viec: viecCua(v),
+      model: v.model,
+      maNcc: v.ma_viec,
+      costUsd: giaThuc ?? 0,
+      loi,
+    });
+  }
+  return giaThuc;
+}
+
+async function xuLyMotViec(v: ViecDangTao): Promise<void> {
   const r = await fetch(`${GOC_API}/videos/${encodeURIComponent(v.ma_viec)}`, {
     headers: { Authorization: `Bearer ${env.openrouter.apiKey}` },
     signal: AbortSignal.timeout(30_000),
@@ -461,6 +502,8 @@ async function xuLyMotViec(v: { id: number; user_id: number; ma_viec: string; mo
 
   if (trangThai === "failed" || trangThai === "cancelled" || trangThai === "expired") {
     const loi = optionalString(j.error) ?? optionalString(banGhi(j.error).message) ?? trangThai;
+    // Việc hỏng mà nhà cung cấp vẫn báo có tính tiền thì vẫn phải vào sổ.
+    await ghiTienVideo(v, j, `Nhà cung cấp báo hỏng: ${loi}`.slice(0, 300));
     await ketThuc(v.id, `Nhà cung cấp AI báo lỗi: ${loi}`);
     return;
   }
@@ -468,6 +511,8 @@ async function xuLyMotViec(v: { id: number; user_id: number; ma_viec: string; mo
     if (v.qua_han) await ketThuc(v.id, `Quá ${TOI_DA_PHUT} phút vẫn chưa tạo xong.`);
     return;
   }
+
+  const giaThuc = await ghiTienVideo(v, j, null);
 
   const dsUrl = Array.isArray(j.unsigned_urls) ? j.unsigned_urls : [];
   const nguon = typeof dsUrl[0] === "string" ? dsUrl[0] : `${GOC_API}/videos/${encodeURIComponent(v.ma_viec)}/content?index=0`;
@@ -492,17 +537,11 @@ async function xuLyMotViec(v: { id: number; user_id: number; ma_viec: string; mo
   });
   if (!dua.ok) throw new Error(`đưa video lên kho hỏng: HTTP ${dua.status}`);
 
-  const gia = Number(banGhi(j.usage).cost);
-  const giaThuc = Number.isFinite(gia) ? gia : null;
   await query(
     `UPDATE video_ai SET trang_thai = 'xong', url = $2, gia_thuc = $3, dang_xu_ly_tu = NULL,
             updated_at = now(), xong_at = now() WHERE id = $1`,
     [v.id, presign.publicUrl, giaThuc]
   );
-  await query(
-    `INSERT INTO ai_usage (user_id, task, model, cost_usd) VALUES ($1, 'video', $2, $3)`,
-    [v.user_id, v.model, giaThuc ?? 0]
-  ).catch((error) => console.error("[video AI] Không ghi được tiền AI:", error));
 }
 
 /** Gọi định kỳ từ worker. Trả về số việc đã chốt (xong hoặc hỏng). */
@@ -513,7 +552,7 @@ export async function runDueVideoJobs(): Promise<number> {
    * thật chung database) không bao giờ cùng tải một video. Việc bỏ dở quá 10
    * phút được nhận lại.
    */
-  const viec = await query<{ id: number; user_id: number; ma_viec: string; model: string; qua_han: boolean }>(
+  const viec = await query<ViecDangTao>(
     `UPDATE video_ai SET dang_xu_ly_tu = now()
       WHERE id IN (
         SELECT id FROM video_ai
@@ -521,7 +560,8 @@ export async function runDueVideoJobs(): Promise<number> {
            AND updated_at < now() - interval '15 seconds'
            AND (dang_xu_ly_tu IS NULL OR dang_xu_ly_tu < now() - interval '10 minutes')
          ORDER BY created_at LIMIT 5)
-     RETURNING id, user_id, ma_viec, model, created_at < now() - interval '${TOI_DA_PHUT} minutes' AS qua_han`
+     RETURNING id, user_id, ma_viec, model, created_at < now() - interval '${TOI_DA_PHUT} minutes' AS qua_han,
+               du_an_id, video_nguon IS NOT NULL AS la_sua`
   );
   let daChot = 0;
   for (const v of viec.rows) {

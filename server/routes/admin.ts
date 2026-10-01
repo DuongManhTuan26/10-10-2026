@@ -24,7 +24,8 @@ import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
 import { chuyenThanhChuChuoi } from "../services/chuyen-chu-chuoi.js";
 import * as zernio from "../services/zernio.js";
 import { hashPassword } from "../auth.js";
-import { luuNguong, saoKe } from "../services/chi-phi.js";
+import { luuNguong, nhatKyLuot, saoKe } from "../services/chi-phi.js";
+import { NHOM_VIEC, VIEC } from "../services/so-ai.js";
 import { sendTelegramMessage } from "../services/telegram.js";
 
 export const adminRouter = Router();
@@ -399,6 +400,34 @@ adminRouter.get(
     const ngay = Number(req.query.ngay);
     const soNgay = Number.isFinite(ngay) && ngay >= 0 ? ngay : 30;
     res.json({ success: true, data: await saoKe(soNgay) });
+  })
+);
+
+/**
+ * Nhật ký từng lượt AI bị tính tiền: lúc nào, tài khoản nào, việc gì, bao
+ * nhiêu tiền, đã khớp với nhà cung cấp chưa. Lọc theo tài khoản / nhóm / việc.
+ */
+adminRouter.get(
+  "/chi-phi/luot",
+  route(async (req, res) => {
+    const ngay = Number(req.query.ngay);
+    const q = (k: string) => (typeof req.query[k] === "string" ? (req.query[k] as string) : "");
+    const tk = q("tk");
+    const nhom = q("nhom");
+    const viec = q("viec");
+    res.json({
+      success: true,
+      data: await nhatKyLuot({
+        soNgay: Number.isFinite(ngay) && ngay >= 0 ? ngay : 0,
+        // "chung" = việc không thuộc tài khoản nào; bỏ trống = mọi tài khoản.
+        taiKhoan: tk === "" ? undefined : tk === "chung" ? null : Number(tk) || undefined,
+        kemCon: q("kemCon") === "1",
+        // Chỉ nhận đúng tên nhóm/việc đã khai — không nhét chuỗi lạ vào truy vấn.
+        nhom: nhom in NHOM_VIEC || nhom === "chua_phan_loai" ? nhom : undefined,
+        viec: viec in VIEC || viec === "chua_phan_loai" ? viec : undefined,
+        trang: Number(q("trang")) || 1,
+      }),
+    });
   })
 );
 

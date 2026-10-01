@@ -11,6 +11,7 @@ import { layNhatKyWebhook, type LanGiaoWebhook } from "./services/zernio.js";
 import { runDueVideoJobs } from "./services/video-ai.js";
 import { runDueVideoProjects } from "./services/video-dai.js";
 import { runDueCanhBaoChiPhi } from "./services/chi-phi.js";
+import { doiChieuLuotAi } from "./services/so-ai.js";
 
 /**
  * Worker xử lý hàng đợi sự kiện.
@@ -48,6 +49,10 @@ let dangXuLyVideo = false;
 let lanChiPhiCuoi = 0;
 /** Soát chi phí bên thứ ba mỗi giờ: tiền AI sắp hết, tiêu bất thường, nhà cung cấp tạm dừng. */
 const CHI_PHI_INTERVAL_MS = 60 * 60_000;
+/** Tra lại từng lượt AI với nhà cung cấp (họ chốt số chậm vài phút). */
+const DOI_CHIEU_INTERVAL_MS = 2 * 60_000;
+let lanDoiChieuCuoi = 0;
+let dangDoiChieu = false;
 /** Video AI thường xong trong 30 giây tới vài phút, hỏi thăm mỗi 15 giây. */
 const VIDEO_INTERVAL_MS = 15_000;
 let lanNhipTimCuoi = 0;
@@ -462,6 +467,20 @@ export function startWorker(): void {
           )
           .finally(() => {
             dangXuLyVideo = false;
+          });
+      }
+
+      // Song song, không await: mỗi lượt tra là một lần gọi mạng.
+      if (!dangDoiChieu && Date.now() - lanDoiChieuCuoi >= DOI_CHIEU_INTERVAL_MS) {
+        lanDoiChieuCuoi = Date.now();
+        dangDoiChieu = true;
+        void doiChieuLuotAi()
+          .then((n) => {
+            if (n > 0) console.log(`[sổ AI] Đã đối chiếu ${n} lượt với nhà cung cấp.`);
+          })
+          .catch((error) => console.error("[sổ AI] Lỗi đối chiếu:", error instanceof Error ? error.message : error))
+          .finally(() => {
+            dangDoiChieu = false;
           });
       }
 

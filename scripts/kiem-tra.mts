@@ -37,12 +37,13 @@ import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
 import { errorHandler, chiNhanMaSo } from "../server/http.js";
-import { chuanHoaModel, giaMoiGiay, lyDoKhongHop, kichThuocKhop } from "../server/services/video-ai.js";
+import { chuanHoaModel, giaMoiGiay, lyDoKhongHop, kichThuocKhop, viecCua } from "../server/services/video-ai.js";
 import { chuanHoaCanh, giaDuAn, giayGanNhat, TOI_DA_CANH, TOI_DA_GIAY_DU_AN } from "../server/services/video-dai.js";
 import { docThongTinVideo } from "../server/services/video-cong-cu.js";
 import { laModelSuaVideo, giaSuaVideo } from "../server/services/video-sua.js";
 import { cheEmail, SAI_TOI_DA, MA_MOI_GIO_TOI_DA, SONG_PHUT } from "../server/services/xac-thuc-email.js";
-import { danhGia, chuanHoaNguong, NGUONG_MAC_DINH } from "../server/services/chi-phi.js";
+import { danhGia, chuanHoaNguong, NGUONG_MAC_DINH, trangThaiLuot, trangThaiTong } from "../server/services/chi-phi.js";
+import { VIEC, NHOM_VIEC, tenViec, nhomCua, TEN_CHUA_PHAN_LOAI } from "../server/services/so-ai.js";
 import { banGhi } from "../server/services/ai.js";
 import { chi, mauChi } from "../src/lib/tien-chi.js";
 import {
@@ -3244,8 +3245,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * không ai đếm, và phải mất cả tháng mới phát hiện.
    */
   kiem("tiền AI", "ghi tiền tại chỗ duy nhất mọi lượt gọi đi qua",
-    /INSERT INTO ai_usage \(user_id, task, model, prompt_tokens, completion_tokens, cost_usd\)/
-      .test(nguonAi), true);
+    /void ghiLuotAi\(\{[\s\S]{0,300}?maNcc: data\.id \?\? null,/.test(nguonAi), true);
 
   /*
    * userId BẮT BUỘC, không để tuỳ chọn: tsc đã chỉ ra đúng 10 chỗ gọi khi đổi
@@ -3256,15 +3256,18 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /userId: number \| null;/.test(nguonAi) && !/userId\?: number/.test(nguonAi), true);
 
   // Ghi hỏng thì không được làm hỏng câu trả lời cho khách — khách đang chờ.
+  const nguonSoAi = fs.readFileSync(path.join(GOC, "server/services/so-ai.ts"), "utf8");
   kiem("tiền AI", "ghi tiền hỏng không làm hỏng câu trả lời cho khách",
-    /void query\(\s*\n\s*`INSERT INTO ai_usage[\s\S]{0,400}?\.catch\(/.test(nguonAi), true);
+    /\]\s*\)\.catch\(\(error\) => console\.error\("\[sổ AI\] Không ghi được lượt AI:"/.test(nguonSoAi), true);
 
   const nguonMig023 = fs.readFileSync(
     path.join(GOC, "server/migrations/023_tien_ai_theo_shop.sql"), "utf8"
   );
   // Một lượt trả lời chỉ tốn vài phần nghìn đô — làm tròn về 0 là mất sạch.
-  kiem("tiền AI", "giữ đủ số lẻ, không làm tròn mất tiền",
-    /cost_usd      NUMERIC\(14,6\)/.test(nguonMig023), true);
+  const nguonMig031 = fs.readFileSync(path.join(GOC, "server/migrations/031_so_ai_tung_luot.sql"), "utf8");
+  // Đã đo: một lượt chat rẻ tới 0,00000825 USD — 6 chữ số thập phân làm tròn mất.
+  kiem("tiền AI", "giữ đủ 8 số lẻ, không làm tròn mất tiền",
+    /ALTER COLUMN cost_usd TYPE NUMERIC\(14,8\)/.test(nguonMig031) && /cost_ncc NUMERIC\(14,8\)/.test(nguonMig031), true);
   // Xoá tài khoản rồi thì tiền đã tiêu vẫn phải còn để đối chiếu hoá đơn.
   kiem("tiền AI", "xoá tài khoản không xoá mất lịch sử tiền đã tiêu",
     /user_id       BIGINT,/.test(nguonMig023) &&
@@ -3274,7 +3277,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   // Trang bán 2 triệu mà đốt 1 triệu tiền AI thì không phải trang tốt — nhìn
   // mỗi doanh thu là không thấy được điều đó.
   kiem("tiền AI", "bảng điều hành hiện tiền AI từng trang",
-    /SUM\(a\.cost_usd\), 0\)::text FROM ai_usage a/.test(nguonQL3), true);
+    /SUM\(coalesce\(a\.cost_ncc, a\.cost_usd\)\), 0\)::text FROM ai_usage a/.test(nguonQL3), true);
 }
 
 // ---------------------------------------------------------------------------
@@ -3704,7 +3707,13 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("video AI", "địa chỉ kho được kiểm trước khi chuyển cho bên AI",
     /const that = hoanDiaChiKho\(u\);\s*if \(!laDiaChiKho\(that\)\) throw/.test(nguonVideo) &&
       /diaChiKhoHopLe\(params\.anhMoDau, "Ảnh mở đầu"\)/.test(hamTaoVideo), true);
-  kiem("video AI", "mỗi video đều ghi vào sổ tiền AI", /INSERT INTO ai_usage \(user_id, task, model, cost_usd\) VALUES \(\$1, 'video'/.test(nguonVideo), true);
+  // Đã thấy: ghi sau bước tải về/đưa lên kho thì kho hỏng là video mất tiền mà sổ trống.
+  kiem("video AI", "mỗi video ghi sổ NGAY khi nhà cung cấp chốt, trước khi tải về",
+    nguonVideo.indexOf("const giaThuc = await ghiTienVideo(v, j, null);") > 0 &&
+      nguonVideo.indexOf("const giaThuc = await ghiTienVideo(v, j, null);") < nguonVideo.indexOf("const tai = await fetch(nguon,"), true);
+  kiem("video AI", "video hỏng mà vẫn bị tính tiền cũng vào sổ",
+    /await ghiTienVideo\(v, j, `Nhà cung cấp báo hỏng: \$\{loi\}`/.test(nguonVideo), true);
+  kiem("video AI", "sổ video lưu mã việc để tra lại và không ghi trùng", /maNcc: v\.ma_viec,/.test(nguonVideo), true);
   const nguonWorker = boChuThichTS(fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8"));
   kiem("video AI", "theo dõi video không chặn vòng trả lời khách", /void runDueVideoJobs\(\)/.test(nguonWorker), true);
 
@@ -3845,7 +3854,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("chi phí", "ngưỡng rác về mặc định", chuanHoaNguong({ soDuToiThieuUsd: "abc", soNgayToiThieu: -3, heSoTieuQua: 0 }), NGUONG_MAC_DINH);
   kiem("chi phí", "đọc mềm: không phải đối tượng thì ra rỗng, không vỡ", [banGhi(undefined), banGhi(null), banGhi("x"), banGhi([1])], [{}, {}, {}, {}]);
   const nguonAnhAi = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/image-ai.ts"), "utf8"));
-  kiem("chi phí", "tạo ảnh ghi vào sổ chi phí AI", /INSERT INTO ai_usage \(user_id, task, model, cost_usd\) VALUES \(\$1, 'image'/.test(nguonAnhAi), true);
+  kiem("chi phí", "tạo ảnh ghi sổ NGAY khi nhà cung cấp tính tiền, trước khi đưa lên kho",
+    (/\n  await ghiLuotAi\(\{\s*userId: params\.userId,\s*task: "image",\s*viec: "tao_anh",/.exec(nguonAnhAi)?.index ?? Infinity) <
+      nguonAnhAi.indexOf("zernio.presignMedia("), true);
+  kiem("chi phí", "sổ ảnh lưu mã giao dịch", /viec: "tao_anh",[\s\S]{0,120}?maNcc: data\.id \?\? null,/.test(nguonAnhAi), true);
   const nguonChiPhi = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8"));
   kiem("chi phí", "đọc dữ liệu nhà cung cấp bằng cách mềm, không ném lỗi", /asRecord\(/.test(nguonChiPhi), false);
   kiem("chi phí", "nội dung cảnh báo được thoát ký tự trước khi gửi Telegram", /escapeHtml\(c\.noiDung\)/.test(nguonChiPhi), true);
@@ -3858,9 +3870,9 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   // Bản mẫu trình bày: dòng chính = tổng chi tiết bên trong, cùng kỳ tháng giờ VN.
   const nguonKhoiChiPhi = fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8");
   kiem("chi phí", "dòng AI bằng tổng các khoản chi tiết (không lệch kỳ)",
-    /const tienAi = du \? du\.so\.theoViec\.reduce\(\(t, v\) => t \+ v\.usd, 0\) : null;/.test(nguonKhoiChiPhi), true);
+    /const tienAi = du \? du\.so\.theoNhom\.reduce\(\(t, v\) => t \+ v\.usd, 0\) : null;/.test(nguonKhoiChiPhi), true);
   kiem("chi phí", "khối chi phí lấy sổ từ đầu tháng (ngay=0)", nguonKhoiChiPhi.includes("api.admin.chiPhi(0)"), true);
-  kiem("chi phí", "sổ 'tháng này' cắt mốc theo giờ Việt Nam", /tuDauThang \? `created_at >= \$\{DAU_THANG_VN\}`/.test(nguonChiPhi), true);
+  kiem("chi phí", "sổ 'tháng này' cắt mốc theo giờ Việt Nam", /if \(soNgay === 0\) return \{ dk: `a\.created_at >= \$\{DAU_THANG_VN\}`/.test(nguonChiPhi), true);
 
   // Đã đo: Range 0-99 lên /media trả 200 cả tệp, không Accept-Ranges — Safari
   // không phát được video. Nay chuyển tiếp Range, trả 206 và gửi dạng dòng chảy.
@@ -3881,7 +3893,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 // Đã thấy: dòng "Kết nối kênh" chưa tiêu đồng nào lại ghi "−0,00 USD"; tiền âm không có màu đỏ.
 kiem("hiển thị chi phí", "đã chi thì có dấu âm", chi(0.85), "−0,85 USD");
 kiem("hiển thị chi phí", "không tiêu thì không có dấu âm", chi(0), "0,00 USD");
-kiem("hiển thị chi phí", "khoản lẻ dưới nửa xu không thành −0,00", chi(0.004), "0,00 USD");
+// Đã thấy: làm tròn 2 số lẻ thì lượt tốn 0,003536 USD hiện thành 0,00 — giấu tiền thật.
+kiem("hiển thị chi phí", "khoản dưới 1 xu hiện đủ số, không làm tròn thành 0",
+  [chi(0.003536), chi(0.00000825), chi(0.007508000000000070)], ["−0,003536 USD", "−0,00000825 USD", "−0,007508 USD"]);
+kiem("hiển thị chi phí", "sai số máy không thành tiền đã chi", [chi(7.0e-17), mauChi(7.0e-17)], ["0,00 USD", "text-on-surface-variant"]);
 kiem("hiển thị chi phí", "chưa có số thì ghi gạch", chi(null), "—");
 kiem("hiển thị chi phí", "đã chi thì tô đỏ", mauChi(0.85), "text-red-400");
 kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "text-on-surface-variant");
@@ -3890,6 +3905,60 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("hiển thị chi phí", "dòng chính tô số tiền theo mauChi",
     /className=\{clsx\('text-lg font-bold tabular-nums', mauChi\(tien\)\)\}>\{chi\(tien\)\}/.test(nguonKhoi), true);
   kiem("hiển thị chi phí", "dòng tổng tô số tiền theo mauChi", /mauChi\(tong\)/.test(nguonKhoi), true);
+}
+
+// ---------------------------------------------------------------------------
+// Sổ AI từng lượt: khớp tuyệt đối với nhà cung cấp, đúng tài khoản, đúng việc
+// ---------------------------------------------------------------------------
+{
+  // Đã đo 01/10/2026: sổ 1,53 USD, nhà cung cấp trừ 2,66 USD, không truy được lệch ở đâu.
+  kiem("sổ AI", "lượt không có mã giao dịch thì không giả vờ đã khớp", trangThaiLuot(null, null, 0.01, null), "khong_ma");
+  kiem("sổ AI", "nhà cung cấp chưa chốt thì là đang chờ", trangThaiLuot("gen-1", null, 0.01, null), "cho");
+  kiem("sổ AI", "số chốt bằng số lúc gọi thì khớp", trangThaiLuot("gen-1", "2026-10-01", 0.00000825, 0.00000825), "khop");
+  kiem("sổ AI", "lệch dù chỉ một phần triệu đô vẫn là lệch", trangThaiLuot("gen-1", "2026-10-01", 0.000008, 0.000009), "lech");
+  kiem("sổ AI", "tổng: bằng nhau thì khớp", trangThaiTong(0, 0), "khop");
+  kiem("sổ AI", "tổng: phần chênh nằm trong các lượt đang chờ thì là đang chờ", trangThaiTong(0.003, 0.005), "dang_cho");
+  kiem("sổ AI", "tổng: nhà cung cấp trừ nhiều hơn cả phần đang chờ thì lệch (có lượt lọt sổ)", trangThaiTong(0.01, 0.005), "lech");
+  kiem("sổ AI", "tổng: sổ ghi nhiều hơn nhà cung cấp trừ thì lệch", trangThaiTong(-0.001, 0), "lech");
+  kiem("sổ AI", "mọi việc đều thuộc một nhóm có thật",
+    Object.entries(VIEC).filter(([, v]) => !(v.nhom in NHOM_VIEC)).map(([k]) => k), []);
+  kiem("sổ AI", "dòng cũ không có việc thì gọi đúng là chưa phân loại, không đoán",
+    [tenViec(null), nhomCua(null), tenViec("viec_la")], [TEN_CHUA_PHAN_LOAI, TEN_CHUA_PHAN_LOAI, TEN_CHUA_PHAN_LOAI]);
+  kiem("sổ AI", "video ghi đúng tính năng sinh ra nó",
+    [viecCua({ la_sua: false, du_an_id: null }), viecCua({ la_sua: false, du_an_id: 7 }), viecCua({ la_sua: true, du_an_id: null })],
+    ["tao_video", "tao_canh_video_dai", "sua_video"]);
+  kiem("sổ AI", "sổ video ghi theo tính năng, không gộp chung",
+    /viec: viecCua\(v\),/.test(fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8")), true);
+  kiem("sổ AI", "tên việc đúng tính năng", [tenViec("tra_loi_khach"), nhomCua("tao_anh")], ["Trả lời khách", "Tạo ảnh"]);
+
+  const nguonAi2 = fs.readFileSync(path.join(GOC, "server/services/ai.ts"), "utf8");
+  kiem("sổ AI", "mọi lượt gọi BẮT BUỘC khai việc gì", /\n  viec: Viec;/.test(nguonAi2) && !/viec\?: Viec/.test(nguonAi2), true);
+  // Nhà cung cấp vẫn tính tiền lượt AI trả rỗng — trước đây lượt đó bị bỏ qua rồi gọi lại.
+  kiem("sổ AI", "lượt AI trả rỗng vẫn vào sổ",
+    nguonAi2.indexOf("\n    void ghiLuotAi({") > 0 &&
+      nguonAi2.indexOf("\n    void ghiLuotAi({") < nguonAi2.indexOf('if (typeof content !== "string" || rong) {'), true);
+  kiem("sổ AI", "báo cho nhà cung cấp lượt này của tài khoản nào",
+    /user: userId === null \? "he-thong" : `tk-\$\{userId\}`,/.test(nguonAi2) &&
+      /user: `tk-\$\{params\.userId\}`,/.test(fs.readFileSync(path.join(GOC, "server/services/image-ai.ts"), "utf8")), true);
+
+  const nguonSoAi2 = fs.readFileSync(path.join(GOC, "server/services/so-ai.ts"), "utf8");
+  kiem("sổ AI", "một mã giao dịch chỉ ghi một lần", /ON CONFLICT \(ma_ncc\) WHERE ma_ncc IS NOT NULL DO NOTHING/.test(nguonSoAi2), true);
+  kiem("sổ AI", "chỉ tra lại lượt đã qua vài phút (nhà cung cấp chốt chậm)", /created_at < now\(\) - interval '\$\{CHO_TOI_THIEU\}'/.test(nguonSoAi2), true);
+  kiem("sổ AI", "chưa tra được thì để lần sau, không ghi bừa", /if \(tien === null\) continue;/.test(nguonSoAi2), true);
+  kiem("sổ AI", "mã giao dịch trùng bị cấm ở database",
+    /CREATE UNIQUE INDEX IF NOT EXISTS ai_usage_ma_ncc_idx ON ai_usage \(ma_ncc\) WHERE ma_ncc IS NOT NULL/.test(
+      fs.readFileSync(path.join(GOC, "server/migrations/031_so_ai_tung_luot.sql"), "utf8")), true);
+
+  const boChuThich = (ma: string) => ma.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+  const nguonCP2 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8"));
+  kiem("sổ AI", "báo cáo cộng số nhà cung cấp đã chốt, không cộng thẳng số lúc gọi",
+    /sum\(cost_usd\)|sum\(a\.cost_usd\)/i.test(nguonCP2) === false && /const TIEN = "coalesce\(a\.cost_ncc, a\.cost_usd\)";/.test(nguonCP2), true);
+  const nguonWorker2 = boChuThich(fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8"));
+  kiem("sổ AI", "worker tự đối chiếu định kỳ, không chặn vòng trả lời khách", /void doiChieuLuotAi\(\)/.test(nguonWorker2), true);
+  const nguonQT2 = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8"));
+  kiem("sổ AI", "lọc nhật ký chỉ nhận đúng nhóm/việc đã khai",
+    /nhom: nhom in NHOM_VIEC \|\| nhom === "chua_phan_loai" \? nhom : undefined,/.test(nguonQT2) &&
+      /viec: viec in VIEC \|\| viec === "chua_phan_loai" \? viec : undefined,/.test(nguonQT2), true);
 }
 
 // ---------------------------------------------------------------------------

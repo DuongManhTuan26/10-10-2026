@@ -553,6 +553,7 @@ adsRouter.post(
 
     const result = await chatJson({
       task: "ads",
+      viec: "phan_tich_qc",
       userId: req.user!.id,
       messages: [
         {

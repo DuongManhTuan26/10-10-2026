@@ -33,6 +33,7 @@ export async function phanTichTrend(p: {
 
   const kq = await chatJson({
     task: "extract",
+    viec: "phan_tich_trend",
     model: MODEL_XEM_VIDEO,
     userId: p.userId,
     temperature: 0.2,

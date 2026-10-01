@@ -882,6 +882,7 @@ const CHUA_CO_TAI_LIEU = [
 
   const result = await chatJson<SalesDecision>({
     task: "sales",
+    viec: "tra_loi_khach",
     userId: conversation.user_id,
     messages: [
       { role: "system", content: systemPrompt },
@@ -1209,6 +1210,7 @@ export async function extractOrderInfo(conversationId: string): Promise<{
 
   const result = await chatJson({
     task: "extract",
+    viec: "boc_don",
     userId: chuHoiThoai?.user_id ?? null,
     messages: [
       {
@@ -1264,6 +1266,7 @@ export async function suggestReply(conversationId: string): Promise<string> {
 
   const result = await chat({
     task: "sales",
+    viec: "goi_y_tra_loi",
     userId: conversation.user_id,
     messages: [
       {
@@ -1453,6 +1456,7 @@ export async function soanCauNhac(
 
   const result = await chat({
     task: "sales",
+    viec: "nhac_khach",
     userId: conversation.user_id,
     temperature: 0.7,
     maxTokens: 300,

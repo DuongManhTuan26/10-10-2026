@@ -765,6 +765,7 @@ aiRouter.post(
       topic,
       goal: typeof req.body?.goal === "string" ? req.body.goal : "sales",
       count: Number(req.body?.count ?? 3),
+      viec: "viet_bai",
     });
 
     res.json({ success: true, options: result.options, usage: result.usage });
@@ -873,6 +874,7 @@ aiRouter.post(
 
     const result = await chat({
       task: kind === "sales" ? "sales" : "content",
+      viec: "thu_ai",
       userId: req.user!.id,
       messages: [
         {

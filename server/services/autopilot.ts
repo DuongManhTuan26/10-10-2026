@@ -282,6 +282,7 @@ async function lamMotO(
     topic: chuDe,
     goal: cau.goal,
     count: 1,
+    viec: "viet_bai_tu_dong",
     tranhLap: ganDay.rows.map((r) => r.content),
     gioiHanKyTu: gioiHan?.soKyTu,
   });

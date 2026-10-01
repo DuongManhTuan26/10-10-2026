@@ -446,7 +446,7 @@ export interface SaoKeChiPhi {
   luc: string;
   ai: {
     ok: boolean; loi?: string; daNapUsd?: number; daTieuUsd?: number; conLaiUsd?: number;
-    homNayUsd?: number; tuanNayUsd?: number; thangNayUsd?: number;
+    homNayUsd?: number; tuanNayUsd?: number; thangNayUsd?: number; khoaDaTieuUsd?: number;
   };
   kenh: {
     ok: boolean; loi?: string; goi?: string; conHoatDong?: boolean; tieuKyNayUsd?: number; tinDungConUsd?: number;
@@ -457,13 +457,57 @@ export interface SaoKeChiPhi {
   canhBao: { ma: string; mucDo: 'nguy_cap' | 'can_lam' | 'luu_y'; noiDung: string; link?: string }[];
   so: {
     soNgay: number;
-    theoViec: { viec: string; ten: string; lan: number; usd: number }[];
-    theoShop: { userId: number | null; ten: string; lan: number; usd: number }[];
-    theoNgay: { ngay: string; usd: number }[];
+    /** Nhóm việc (Chatbot bán hàng, Marketing...), mỗi nhóm kèm từng việc cụ thể. */
+    theoNhom: {
+      nhom: string; ten: string; lan: number; usd: number;
+      viec: { viec: string | null; ten: string; lan: number; usd: number }[];
+    }[];
+    /** Mỗi tài khoản một dòng, tiền của RIÊNG tài khoản đó (không cộng con). */
+    theoTaiKhoan: {
+      userId: number | null; ten: string; email: string | null; vaiTro: string | null;
+      chaId: number | null; chaTen: string | null; lan: number; usd: number;
+    }[];
     tongTuTruocUsd: number;
   };
-  doiChieu: { nhaCungCapTruUsd: number; appGhiUsd: number } | null;
+  /** Đối chiếu tổng với nhà cung cấp; null khi chưa đọc được nhà cung cấp. */
+  doiChieu: {
+    trangThai: 'khop' | 'dang_cho' | 'lech';
+    nhaCungCapUsd: number;
+    soAppUsd: number;
+    ngoaiSoTruocMocUsd: number;
+    mocLuc: string;
+    sauMoc: { nhaCungCapUsd: number; soDaChotUsd: number; soChoUsd: number; soLuotCho: number; chenhUsd: number };
+  } | null;
   linkNap: { openrouter: string; kenh: string; database: string };
+}
+
+/** Một lượt AI bị tính tiền trong sổ. */
+export interface LuotChiPhi {
+  id: number;
+  luc: string;
+  userId: number | null;
+  taiKhoan: string;
+  viec: string | null;
+  tenViec: string;
+  nhom: string;
+  model: string;
+  tokenVao: number;
+  tokenRa: number;
+  usd: number;
+  usdLucGoi: number;
+  usdNhaCungCap: number | null;
+  doiChieu: 'khop' | 'lech' | 'cho' | 'khong_ma';
+  loi: string | null;
+}
+
+export interface LocLuot {
+  ngay?: number;
+  /** Mã tài khoản, hoặc 'chung' cho việc không thuộc tài khoản nào. */
+  tk?: number | 'chung';
+  kemCon?: boolean;
+  nhom?: string;
+  viec?: string;
+  trang?: number;
 }
 
 export interface MediaItem {
@@ -621,6 +665,16 @@ export const api = {
   admin: {
     /** Sao kê chi phí trả cho các bên thứ ba: đọc sống + sổ của app. */
     chiPhi: (ngay = 30) => get<{ data: SaoKeChiPhi }>(`/admin/chi-phi?ngay=${ngay}`),
+    luotChiPhi: (loc: LocLuot) => {
+      const q = new URLSearchParams({ ngay: String(loc.ngay ?? 0), trang: String(loc.trang ?? 1) });
+      if (loc.tk !== undefined) q.set('tk', String(loc.tk));
+      if (loc.kemCon) q.set('kemCon', '1');
+      if (loc.nhom) q.set('nhom', loc.nhom);
+      if (loc.viec) q.set('viec', loc.viec);
+      return get<{ data: { luot: LuotChiPhi[]; tongLan: number; tongUsd: number; trang: number; soTrang: number } }>(
+        `/admin/chi-phi/luot?${q}`
+      );
+    },
     luuNguongChiPhi: (nguong: NguongCanhBao) =>
       request<{ data: NguongCanhBao }>('/admin/chi-phi/nguong', { method: 'PUT', body: nguong }),
     /** Gửi thử một cảnh báo tới Telegram của chính quản trị đang bấm. */

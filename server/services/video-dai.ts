@@ -79,6 +79,7 @@ export async function chiaCanh(p: {
   const soCanh = Math.max(1, Math.min(TOI_DA_CANH, Math.ceil(p.tongGiay / toiDaMoiCanh)));
   const kq = await chatJson({
     task: "content",
+    viec: "chia_canh",
     userId: p.userId,
     temperature: 0.7,
     maxTokens: 2_500,

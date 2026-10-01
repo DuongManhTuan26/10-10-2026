@@ -45,6 +45,8 @@ export async function generatePostContent(params: {
   goal?: string;
   count?: number;
   tranhLap?: string[];
+  /** Viết tay hay viết tự động theo lịch — sao kê tách riêng hai khoản. */
+  viec: "viet_bai" | "viet_bai_tu_dong";
   /**
    * Trần độ dài của kênh khó tính nhất trong số sẽ đăng.
    *
@@ -101,6 +103,7 @@ export async function generatePostContent(params: {
 
   const result = await chatJson<string[]>({
     task: "content",
+    viec: params.viec,
     userId: params.userId,
     messages: [
       { role: "system", content: systemPrompt },

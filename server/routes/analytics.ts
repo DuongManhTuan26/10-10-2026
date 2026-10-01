@@ -266,6 +266,7 @@ analyticsRouter.post(
 
     const result = await chatJson({
       task: "analytics",
+      viec: "phan_tich_so_lieu",
       userId,
       messages: [
         {

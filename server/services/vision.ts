@@ -44,6 +44,7 @@ export async function docChuTuAnh(params: {
 }): Promise<{ text: string; costUsd: number }> {
   const result = await chat({
     task: "extract",
+    viec: "doc_tai_lieu",
     userId: params.userId,
     temperature: 0,
     maxTokens: 4_000,
@@ -123,6 +124,7 @@ export async function docTepKhachGui(params: {
 
   const result = await chat({
     task: "extract",
+    viec: "doc_tep_khach",
     userId: params.userId,
     temperature: 0,
     maxTokens: 600,
