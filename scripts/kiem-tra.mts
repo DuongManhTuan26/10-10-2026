@@ -4220,6 +4220,17 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     tepGiaoDien.flatMap((tep) => dongNgoaiChuThich(fs.readFileSync(tep, "utf8"))
       .filter(({ d }) => /"(w-1[0-2]|w-9) h-[56] [^"]*rounded-full relative/.test(d) && !/shrink-0/.test(d))
       .map((x) => `${path.basename(tep)}:${x.dong}`)).join(", "), "");
+  // Đã bị chê 02/10/2026: các phần cùng một màu, không có viền riêng — không phân biệt được.
+  // Mỗi phần là một khung viền màu riêng; hai phần liền nhau không cùng màu.
+  for (const [tep, toiThieu] of [["src/pages/Content.tsx", 4], ["src/pages/AutoScripts.tsx", 6], ["src/pages/Orders.tsx", 3]] as const) {
+    const mauLanLuot = [...fs.readFileSync(path.join(GOC, tep), "utf8").matchAll(/className="khung-muc mau-([a-z]+)"/g)].map((m) => m[1]);
+    kiem("phân tách phần", `${path.basename(tep)}: các phần có khung viền màu riêng`, mauLanLuot.length >= toiThieu, true);
+    kiem("phân tách phần", `${path.basename(tep)}: hai phần liền nhau không cùng màu`,
+      mauLanLuot.filter((m, i) => i > 0 && m === mauLanLuot[i - 1]).length, 0);
+  }
+  kiem("phân tách phần", "khung phần có viền màu và dải tiêu đề ám màu",
+    /\.khung-muc \{[\s\S]{0,200}?border: 1px solid color-mix\(in srgb, var\(--mau\) 55%, transparent\);/.test(nguonCss) &&
+      /\.khung-muc > \.dau-muc \{[\s\S]{0,250}?background: color-mix\(in srgb, var\(--mau\) 14%, transparent\);/.test(nguonCss), true);
   kiem("giao diện", "mọi hộp thoại dùng khung chung HopThoai",
     tepGiaoDien.filter((tep) => !DUOC_PHEP.includes(path.basename(tep)))
       .filter((tep) => /fixed inset-0/.test(fs.readFileSync(tep, "utf8"))).map((t) => path.basename(t)), []);

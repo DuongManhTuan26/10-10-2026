@@ -64,11 +64,11 @@ export default function ChonKenhDang({
   };
 
   return (
-    <div>
-      <h3 className="tieu-de-muc mb-3">
+    <div className="khung-muc mau-xanh">
+      <h3 className="tieu-de-muc dau-muc">
         {nhan}
       </h3>
-      <div className="bg-surface-container rounded-xl p-4 border-2 border-primary/50 shadow-[0_0_18px_rgba(0,229,255,0.12)] space-y-4">
+      <div className="space-y-4">
         {kenhKetNoi.length === 0 ? (
           <p className="text-sm text-error">
             Chưa có kênh nào được kết nối. Vui lòng kết nối kênh tại mục Kết Nối Đa Nền Tảng.

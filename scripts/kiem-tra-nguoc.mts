@@ -303,6 +303,18 @@ const DUC: PhepDuc[] = [
     thay: "\"w-11 h-6 rounded-full relative transition-colors",
   },
   {
+    ten: "hai phần liền nhau cùng một màu",
+    tep: "src/pages/Content.tsx",
+    tim: "<div className=\"khung-muc mau-lam\">",
+    thay: "<div className=\"khung-muc mau-tim\">",
+  },
+  {
+    ten: "khung phần mất viền màu",
+    tep: "src/index.css",
+    tim: "    border: 1px solid color-mix(in srgb, var(--mau) 55%, transparent);\n",
+    thay: "",
+  },
+  {
     ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",
     tep: "server/services/so-ai.ts",
     tim: "      ORDER BY tra_luc NULLS FIRST, created_at LIMIT $1`,",

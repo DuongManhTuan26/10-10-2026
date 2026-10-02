@@ -192,8 +192,8 @@ export default function VideoAiPanel({
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3 mb-3">
+    <div className="khung-muc mau-xanh">
+      <div className="dau-muc flex items-center justify-between gap-3">
         <h3 className="tieu-de-muc">AI TẠO VIDEO</h3>
         <button
           type="button"

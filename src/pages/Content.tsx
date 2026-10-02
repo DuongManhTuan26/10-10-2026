@@ -1171,8 +1171,8 @@ export default function Content() {
               {(baiDangSua?.status === 'published' || daChonKenh) && (
               <>
               {/* Block 1: NHỜ AI VIẾT */}
-              <div>
-                <h3 className="tieu-de-muc mb-3">NHỜ AI VIẾT</h3>
+              <div className="khung-muc mau-tim">
+                <h3 className="tieu-de-muc dau-muc">NHỜ AI VIẾT</h3>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-on-surface-variant mb-2">Bạn muốn viết về gì?</label>
@@ -1235,8 +1235,8 @@ export default function Content() {
               </div>
 
               {/* Block 2: NỘI DUNG BÀI ĐĂNG */}
-              <div>
-                <h3 className="tieu-de-muc mb-3">NỘI DUNG BÀI ĐĂNG</h3>
+              <div className="khung-muc mau-lam">
+                <h3 className="tieu-de-muc dau-muc">NỘI DUNG BÀI ĐĂNG</h3>
                 <div className="relative">
                   <textarea 
                     rows={10}
@@ -1273,8 +1273,8 @@ export default function Content() {
                 loạn.
               */}
               {/* Block 3A: ảnh và video sẽ ĐĂNG LÊN cùng bài */}
-              <div>
-                <h3 className="tieu-de-muc mb-3">ẢNH VÀ VIDEO ĐĂNG KÈM BÀI</h3>
+              <div className="khung-muc mau-cam">
+                <h3 className="tieu-de-muc dau-muc">ẢNH VÀ VIDEO ĐĂNG KÈM BÀI</h3>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1336,8 +1336,8 @@ export default function Content() {
               </div>
 
               {/* Block 3B: AI vẽ ảnh — không có gì ở đây tự lên nền tảng */}
-              <div>
-                <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="khung-muc mau-hong">
+                <div className="dau-muc flex items-center justify-between gap-3">
                   <h3 className="tieu-de-muc">AI VẼ ẢNH MINH HOẠ</h3>
                   <button
                     type="button"
@@ -1495,8 +1495,8 @@ export default function Content() {
               />
 
               {/* Block 4: THỜI GIAN ĐĂNG */}
-              <div>
-                <h3 className="tieu-de-muc mb-3">THỜI GIAN ĐĂNG</h3>
+              <div className="khung-muc mau-luc">
+                <h3 className="tieu-de-muc dau-muc">THỜI GIAN ĐĂNG</h3>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <div className="relative flex items-center justify-center w-5 h-5">

@@ -201,6 +201,48 @@ textarea::placeholder {
  */
 @layer components {
   /*
+   * KHUNG PHẦN — mỗi phần của một biểu mẫu là một vùng riêng, bao trọn bằng viền
+   * MÀU RIÊNG, tiêu đề nằm trong dải đầu khung ám đúng màu đó.
+   *
+   * Đã bị chê 02/10/2026: "chia phần ra phải phân tách cụ thể: vùng A bao phủ bằng
+   * đường viền màu sắc khác biệt, sang phần B cũng vậy, phải khác phần A để nhìn
+   * qua là biết hai phần khác nhau" — trước đó các phần chỉ có một dòng tiêu đề
+   * nằm ngoài và khung cùng một màu, cùng một viền.
+   *
+   * Dùng: <div className="khung-muc mau-tim"><h3 className="tieu-de-muc dau-muc">…</h3>…</div>
+   * Hai phần liền nhau KHÔNG được cùng màu.
+   */
+  .khung-muc {
+    --mau: var(--color-primary);
+    border: 1px solid color-mix(in srgb, var(--mau) 55%, transparent);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--mau) 5%, transparent);
+    padding: 0 18px 18px;
+    box-shadow: 0 0 22px color-mix(in srgb, var(--mau) 10%, transparent);
+  }
+  .khung-muc > .dau-muc {
+    margin: 0 -18px 16px;
+    padding: 13px 18px;
+    border-radius: 17px 17px 0 0;
+    background: color-mix(in srgb, var(--mau) 14%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--mau) 40%, transparent);
+  }
+  .khung-muc .dau-muc.tieu-de-muc,
+  .khung-muc .dau-muc .tieu-de-muc {
+    color: var(--mau);
+  }
+  .khung-muc .dau-muc.tieu-de-muc::before,
+  .khung-muc .dau-muc .tieu-de-muc::before {
+    background: var(--mau);
+  }
+  .mau-xanh { --mau: #22d3ee; }
+  .mau-tim { --mau: #a78bfa; }
+  .mau-cam { --mau: #fbbf24; }
+  .mau-luc { --mau: #34d399; }
+  .mau-hong { --mau: #f472b6; }
+  .mau-lam { --mau: #60a5fa; }
+
+  /*
    * Nền chung của app — cùng một chất liệu với thanh menu (chủ dự án chọn):
    * nền gần đen ánh xanh ngọc, quầng sáng xanh mờ, lưới ô 24px rất nhạt.
    */

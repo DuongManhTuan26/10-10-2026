@@ -586,8 +586,8 @@ export default function Orders() {
             <div className="space-y-8">
               
               {/* Block 1: Customer Info */}
-              <div>
-                <h3 className="tieu-de-muc mb-4">THÔNG TIN KHÁCH HÀNG</h3>
+              <div className="khung-muc mau-xanh">
+                <h3 className="tieu-de-muc dau-muc">THÔNG TIN KHÁCH HÀNG</h3>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <div className="flex justify-between items-start gap-4">
                     <span className="text-sm font-medium text-on-surface-variant shrink-0">Họ tên</span>
@@ -618,8 +618,8 @@ export default function Orders() {
               </div>
 
               {/* Block 2: Products */}
-              <div>
-                <h3 className="tieu-de-muc mb-4">SẢN PHẨM</h3>
+              <div className="khung-muc mau-tim">
+                <h3 className="tieu-de-muc dau-muc">SẢN PHẨM</h3>
                 <div className="bg-surface-container rounded-xl border border-outline-variant overflow-hidden">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -655,8 +655,8 @@ export default function Orders() {
               </div>
 
               {/* Block 3: Timeline */}
-              <div>
-                <h3 className="tieu-de-muc mb-4">DÒNG THỜI GIAN</h3>
+              <div className="khung-muc mau-cam">
+                <h3 className="tieu-de-muc dau-muc">DÒNG THỜI GIAN</h3>
                 <div className="bg-surface-container rounded-xl p-5 border border-outline-variant">
                   <div className="relative border-l-2 border-outline-variant/60 ml-2 space-y-6">
                     {selectedOrder.timeline.map((event, idx) => (

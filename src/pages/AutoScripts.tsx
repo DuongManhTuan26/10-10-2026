@@ -1702,8 +1702,8 @@ export default function AutoScripts() {
               </div>
 
               {/* Block 1: TÊN KỊCH BẢN */}
-              <div>
-                <h3 className="tieu-de-muc mb-3">TÊN KỊCH BẢN</h3>
+              <div className="khung-muc mau-xanh">
+                <h3 className="tieu-de-muc dau-muc">TÊN KỊCH BẢN</h3>
                 <input 
                   type="text" 
                   value={scriptName}
@@ -1714,8 +1714,8 @@ export default function AutoScripts() {
               </div>
 
               {/* Block 2: TỪ KHÓA KÍCH HOẠT */}
-              <div>
-                <h3 className="tieu-de-muc mb-3">TỪ KHÓA KÍCH HOẠT</h3>
+              <div className="khung-muc mau-tim">
+                <h3 className="tieu-de-muc dau-muc">TỪ KHÓA KÍCH HOẠT</h3>
                 
                 <div className="bg-surface-container rounded-xl border border-outline-variant p-4 md:p-5 space-y-6">
                   {/* Keywords input */}
@@ -1868,8 +1868,8 @@ export default function AutoScripts() {
 
               {/* Block 3: TIN NHẮN RIÊNG SẼ GỬI */}
               {loaiKichBan === 'dm' && (
-              <div>
-                <h3 className="tieu-de-muc mb-3">TIN NHẮN RIÊNG SẼ GỬI</h3>
+              <div className="khung-muc mau-cam">
+                <h3 className="tieu-de-muc dau-muc">TIN NHẮN RIÊNG SẼ GỬI</h3>
                 <textarea 
                   rows={5}
                   value={message}
@@ -1902,8 +1902,8 @@ export default function AutoScripts() {
               )}
 
               {/* Block 4: TRẢ LỜI CÔNG KHAI DƯỚI BÌNH LUẬN */}
-              <div>
-                <h3 className="tieu-de-muc mb-3">
+              <div className="khung-muc mau-lam">
+                <h3 className="tieu-de-muc dau-muc">
                   {loaiKichBan === 'cmt' ? 'CÂU TRẢ LỜI CÔNG KHAI' : 'TRẢ LỜI CÔNG KHAI DƯỚI BÌNH LUẬN'}
                 </h3>
                 <div className="p-4 bg-surface-container rounded-xl border border-outline-variant">
@@ -1951,8 +1951,8 @@ export default function AutoScripts() {
               </div>
 
               {/* Block 5: THỜI ĐIỂM GỬI */}
-              <div>
-                <h3 className="tieu-de-muc mb-3">THỜI ĐIỂM GỬI</h3>
+              <div className="khung-muc mau-luc">
+                <h3 className="tieu-de-muc dau-muc">THỜI ĐIỂM GỬI</h3>
                 <div className="p-4 bg-surface-container rounded-xl border border-outline-variant">
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-sm font-bold text-on-surface">Gửi sau {delay} giây</span>
@@ -1995,8 +1995,8 @@ export default function AutoScripts() {
               </div>
 
               {/* Block 6: ÁP DỤNG CHO BÀI NÀO */}
-              <div>
-                <h3 className="tieu-de-muc mb-3">ÁP DỤNG CHO BÀI NÀO</h3>
+              <div className="khung-muc mau-hong">
+                <h3 className="tieu-de-muc dau-muc">ÁP DỤNG CHO BÀI NÀO</h3>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
