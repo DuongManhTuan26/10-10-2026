@@ -40,7 +40,8 @@ import { errorHandler, chiNhanMaSo } from "../server/http.js";
 import { chuanHoaModel, giaMoiGiay, lyDoKhongHop, kichThuocKhop, viecCua } from "../server/services/video-ai.js";
 import { chuanHoaCanh, giaDuAn, giayGanNhat, TOI_DA_CANH, TOI_DA_GIAY_DU_AN } from "../server/services/video-dai.js";
 import { docThongTinVideo } from "../server/services/video-cong-cu.js";
-import { laModelSuaVideo, giaSuaVideo } from "../server/services/video-sua.js";
+import { giaSuaVideo } from "../server/services/video-sua.js";
+import { MODEL_VIDEO_DUOC_CHON, MODEL_SUA_VIDEO_DUOC_CHON } from "../server/services/model-duoc-chon.js";
 import { cheEmail, SAI_TOI_DA, MA_MOI_GIO_TOI_DA, SONG_PHUT } from "../server/services/xac-thuc-email.js";
 import { danhGia, chuanHoaNguong, NGUONG_MAC_DINH, trangThaiLuot, trangThaiTong, phanLech } from "../server/services/chi-phi.js";
 import { VIEC, NHOM_VIEC, tenViec, nhomCua, TEN_CHUA_PHAN_LOAI } from "../server/services/so-ai.js";
@@ -3793,16 +3794,30 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("video dài", "worker chạy video dài trong chuỗi không chặn",
     /void runDueVideoJobs\(\)[\s\S]{0,300}?await runDueVideoProjects\(\)/.test(nguonWorker), true);
 
-  // Video → video. Đã đo: lọc theo kiểu tính giá lẫn cả 2 model TẠO video.
-  kiem("sửa video", "FLUX Video Edit là model sửa", laModelSuaVideo("black-forest-labs/flux-video-edit", "FLUX Video Edit [fast] takes a source video"), true);
-  kiem("sửa video", "Runway Aleph là model sửa", laModelSuaVideo("runway/aleph-2", "an in-context video editing model"), true);
-  kiem("sửa video", "Runway Gen-4.5 KHÔNG phải model sửa",
-    laModelSuaVideo("runway/gen-4.5", "Runway Gen-4.5 is a video generation model for text-to-video and image-to-video"), false);
-  kiem("sửa video", "FLUX 3 Video KHÔNG phải model sửa",
-    laModelSuaVideo("black-forest-labs/flux-3-video", "FLUX.3 Video generates videos from text prompts"), false);
-  const aleph = { id: "runway/aleph-2", ten: "", moTa: "", giaMoiGiay: 0.28, toiThieu: 0.56 };
+  // Chỉ mô hình xếp top theo phân khúc (Artificial Analysis Video Arena 02/10/2026).
+  // Đã thấy: app hiện cả Sora 2 Pro (OpenAI tắt API 24/09/2026) và mô hình hạng bét.
+  kiem("chọn mô hình", "tạo video: đúng ba mô hình top theo phân khúc",
+    MODEL_VIDEO_DUOC_CHON.map((m) => m.id), ["minimax/hailuo-3-max", "alibaba/wan-3.0", "minimax/hailuo-3"]);
+  kiem("chọn mô hình", "không mô hình đã ngừng hay hạng bét",
+    MODEL_VIDEO_DUOC_CHON.filter((m) => /sora|seedance-1-5|veo-3\.1|wan-2\.[67]|hailuo-2/.test(m.id)).length, 0);
+  kiem("chọn mô hình", "mô hình nào cũng ghi phân khúc và thứ hạng",
+    [...MODEL_VIDEO_DUOC_CHON, ...MODEL_SUA_VIDEO_DUOC_CHON].filter((m) => !m.phanKhuc || !/Hạng \d/.test(m.xepHang)).length, 0);
+  // Wan 3.0 (hạng 1 sửa video) từ chối video đầu vào qua nhà cung cấp; H3 đã thử thật sửa đúng.
+  kiem("chọn mô hình", "sửa video: chỉ mô hình đã thử thật nhận video đầu vào", MODEL_SUA_VIDEO_DUOC_CHON.map((m) => m.id), ["minimax/hailuo-3"]);
+  const nguonChonVideo = fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8");
+  kiem("chọn mô hình", "danh sách tạo video lọc theo mô hình đã chọn",
+    /const ds = MODEL_VIDEO_DUOC_CHON\.flatMap\(/.test(nguonChonVideo), true);
+  kiem("chọn mô hình", "danh sách sửa video lọc theo mô hình đã chọn",
+    /for \(const chon of MODEL_SUA_VIDEO_DUOC_CHON\)/.test(fs.readFileSync(path.join(GOC, "server/services/video-sua.ts"), "utf8")), true);
+  const h3Sua = { id: "minimax/hailuo-3", ten: "", moTa: "", giaMoiGiay: 0.13, toiThieu: 0, giayToiThieu: 5 };
+  // Đã đo thật 02/10/2026: nguồn 4 giây, H3 trừ 0,65 USD (tính 5 giây).
+  kiem("sửa video", "báo giá theo số giây tối thiểu bị tính", giaSuaVideo(h3Sua, 4), 0.65);
+  kiem("sửa video", "dài hơn tối thiểu thì tính theo giây thật", giaSuaVideo(h3Sua, 10), 1.3);
+  const nguonSuaUi = fs.readFileSync(path.join(GOC, "src/components/VideoSuaPanel.tsx"), "utf8");
+  kiem("sửa video", "giao diện báo giá cũng theo số giây tối thiểu (khớp máy chủ)",
+    (nguonSuaUi.match(/Math\.max\(soGiayNguon, m(odel)?\.giayToiThieu \?\? 0\)/g) ?? []).length, 2);
+  const aleph = { id: "runway/aleph-2", ten: "", moTa: "", giaMoiGiay: 0.28, toiThieu: 0.56, giayToiThieu: 0 };
   kiem("sửa video", "áp mức tối thiểu mỗi lượt", giaSuaVideo(aleph, 1), 0.56);
-  kiem("sửa video", "trên mức tối thiểu thì tính theo giây", giaSuaVideo(aleph, 10), 2.8);
   const nguonSua = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-sua.ts"), "utf8"));
   const nguonTrend = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-trend.ts"), "utf8"));
   for (const [ten, ma] of [["sửa video", nguonSua], ["trend", nguonTrend]] as const) {

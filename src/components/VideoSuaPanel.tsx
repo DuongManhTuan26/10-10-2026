@@ -87,7 +87,8 @@ export default function VideoSuaPanel({
   };
 
   const model = models.find((m) => m.id === modelChon);
-  const gia = model && soGiayNguon !== null ? Math.max(model.toiThieu, model.giaMoiGiay * soGiayNguon) : null;
+  // Theo số giây BỊ TÍNH (giây tối thiểu của mô hình), đúng như máy chủ báo giá.
+  const gia = model && soGiayNguon !== null ? Math.max(model.toiThieu, model.giaMoiGiay * Math.max(soGiayNguon, model.giayToiThieu ?? 0)) : null;
 
   const gui = async () => {
     if (dangGui || !model || !nguon) return;
@@ -196,9 +197,15 @@ export default function VideoSuaPanel({
             <input type="radio" name="model-sua" className="mt-0.5" checked={modelChon === m.id} onChange={() => setModelChon(m.id)} />
             <span className="flex-1 min-w-0">
               <span className="block font-bold text-on-surface">{m.ten}</span>
+              {m.phanKhuc && (
+                <span className="block text-primary">
+                  {m.phanKhuc} · {m.xepHang}
+                </span>
+              )}
               <span className="block text-on-surface-variant">
+                {/* Theo số giây BỊ TÍNH: H3 tính tối thiểu 5 giây (đã đo: nguồn 4 giây trừ 0,65 USD). */}
                 {soGiayNguon !== null
-                  ? tien(Math.max(m.toiThieu, m.giaMoiGiay * soGiayNguon))
+                  ? tien(Math.max(m.toiThieu, m.giaMoiGiay * Math.max(soGiayNguon, m.giayToiThieu ?? 0)))
                   : `${(m.giaMoiGiay * TY_GIA).toLocaleString('vi-VN')}đ mỗi giây`}
               </span>
             </span>

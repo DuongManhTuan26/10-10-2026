@@ -512,6 +512,8 @@ aiRouter.get(
           anhMoDau: m.anhMoDau,
           giaUocTinh: moiGiay === null ? null : Math.round(moiGiay * lc.soGiay * 10_000) / 10_000,
           lyDo,
+          phanKhuc: m.phanKhuc ?? null,
+          xepHang: m.xepHang ?? null,
         };
       })
       .sort((a, b) => {

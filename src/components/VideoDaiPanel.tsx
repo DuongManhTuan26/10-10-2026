@@ -294,7 +294,7 @@ export default function VideoDaiPanel({
               >
                 {models.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.ten} — {m.giaUocTinh === null ? 'chưa rõ giá' : `~${(Math.round(((m.giaUocTinh / 8) * tongGiay * TY_GIA) / 500) * 500).toLocaleString('vi-VN')}đ cho ${tongGiay}s`}
+                    {m.ten}{m.phanKhuc ? ` (${m.phanKhuc})` : ''} — {m.giaUocTinh === null ? 'chưa rõ giá' : `~${(Math.round(((m.giaUocTinh / 8) * tongGiay * TY_GIA) / 500) * 500).toLocaleString('vi-VN')}đ cho ${tongGiay}s`}
                   </option>
                 ))}
               </select>

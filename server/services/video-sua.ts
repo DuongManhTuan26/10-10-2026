@@ -13,6 +13,7 @@ import { banGhi, optionalString } from "./ai.js";
 import { thongTin, taiVe, voiThuMucTam } from "./video-cong-cu.js";
 import { COT_VIEC, diaChiKhoHopLe, goiTaoViec, LUAT_VIDEO, videoDangBat, type ViecVideo } from "./video-ai.js";
 import path from "node:path";
+import { MODEL_SUA_VIDEO_DUOC_CHON } from "./model-duoc-chon.js";
 
 export interface ModelSuaVideo {
   id: string;
@@ -22,6 +23,10 @@ export interface ModelSuaVideo {
   giaMoiGiay: number;
   /** USD tối thiểu mỗi lượt. */
   toiThieu: number;
+  /** Số giây tối thiểu bị tính (H3: 5 giây — video nguồn 4 giây vẫn tính 5). */
+  giayToiThieu: number;
+  phanKhuc?: string;
+  xepHang?: string;
 }
 
 let boNho: { luc: number; ds: ModelSuaVideo[] } | null = null;
@@ -40,39 +45,41 @@ export async function layModelSuaVideo(): Promise<ModelSuaVideo[]> {
   }
   const j = (await r.json()) as { data?: unknown[] } | unknown[];
   const tho = Array.isArray(j) ? j : (j.data ?? []);
+  /*
+   * CHỈ mô hình sửa video đã chọn theo xếp hạng VÀ đã thử thật nhận video đầu
+   * vào (model-duoc-chon.ts). Trước đây lọc theo chữ trong mô tả nên lẫn mô hình
+   * hạng thấp (Aleph 2 hạng 7) và mô hình không có trên bảng xếp hạng.
+   */
   const ds: ModelSuaVideo[] = [];
-  for (const m of tho.map(banGhi)) {
+  const tatCa = tho.map(banGhi);
+  for (const chon of MODEL_SUA_VIDEO_DUOC_CHON) {
+    const m = tatCa.find((x) => optionalString(x.id) === chon.id);
+    if (!m) continue;
     const gia = banGhi(m.pricing_skus);
+    // Hai kiểu giá: "xu mỗi giây đầu ra" hoặc "USD mỗi giây" (H3 dùng kiểu sau).
     const cent = Number(gia.cents_per_second_output);
-    const id = optionalString(m.id);
-    if (!id || !Number.isFinite(cent) || cent <= 0) continue;
-    /*
-     * Tính giá theo giây đầu ra KHÔNG có nghĩa là model sửa được video: đã đo,
-     * danh sách lọc theo giá lẫn cả Runway Gen-4.5 và FLUX 3 Video — hai model
-     * TẠO video. Chọn nhầm là mất tiền mà không ra video sửa. Chỉ giữ model mà
-     * chính mô tả của nhà cung cấp nói là sửa/nâng cấp video.
-     */
-    if (!laModelSuaVideo(id, optionalString(m.description) ?? "")) continue;
+    const usd = Number.isFinite(cent) && cent > 0 ? cent / 100 : Number(gia.duration_seconds);
+    if (!Number.isFinite(usd) || usd <= 0) continue;
+    const giay = Array.isArray(m.supported_durations) ? m.supported_durations.map(Number).filter((n) => n > 0) : [];
     ds.push({
-      id,
-      ten: optionalString(m.name) ?? id,
+      id: chon.id,
+      ten: optionalString(m.name) ?? chon.id,
       moTa: (optionalString(m.description) ?? "").slice(0, 240),
-      giaMoiGiay: cent / 100,
+      giaMoiGiay: usd,
       toiThieu: (Number(gia.minimum_cents_per_generation) || 0) / 100,
+      giayToiThieu: giay.length ? Math.min(...giay) : 0,
+      phanKhuc: chon.phanKhuc,
+      xepHang: chon.xepHang,
     });
   }
-  ds.sort((a, b) => a.giaMoiGiay - b.giaMoiGiay);
   boNho = { luc: Date.now(), ds };
   return ds;
 }
 
-/** Model nhận video đầu vào để SỬA (không phải model tạo video mới). */
-export function laModelSuaVideo(id: string, moTa: string): boolean {
-  return /video[- ]?edit|editing|aleph|upscal/i.test(`${id} ${moTa}`);
-}
-
 export function giaSuaVideo(m: ModelSuaVideo, soGiay: number): number {
-  return Math.round(Math.max(m.toiThieu, m.giaMoiGiay * soGiay) * 1_000_000) / 1_000_000;
+  // Đã đo: nguồn 4 giây, H3 tính 5 giây (0,65 USD). Báo giá phải theo số giây bị tính.
+  const giayTinh = Math.max(soGiay, m.giayToiThieu ?? 0);
+  return Math.round(Math.max(m.toiThieu, m.giaMoiGiay * giayTinh) * 1_000_000) / 1_000_000;
 }
 
 /** Độ dài video nguồn (giây), đo thật bằng ffmpeg. */

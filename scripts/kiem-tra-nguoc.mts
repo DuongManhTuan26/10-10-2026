@@ -315,6 +315,24 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
+    ten: "đưa lại Sora 2 Pro đã ngừng vào danh sách",
+    tep: "server/services/model-duoc-chon.ts",
+    tim: "  { id: \"alibaba/wan-3.0\", phanKhuc: \"Cân bằng\"",
+    thay: "  { id: \"openai/sora-2-pro\", phanKhuc: \"Cao cấp\", xepHang: \"Hạng 1\" },\n  { id: \"alibaba/wan-3.0\", phanKhuc: \"Cân bằng\"",
+  },
+  {
+    ten: "hiện cả 30 mô hình như cũ",
+    tep: "server/services/video-ai.ts",
+    tim: "    const ds = MODEL_VIDEO_DUOC_CHON.flatMap((c) => {",
+    thay: "    const ds = tatCa.length ? tatCa : MODEL_VIDEO_DUOC_CHON.flatMap((c) => {",
+  },
+  {
+    ten: "báo giá sửa video bỏ qua số giây tối thiểu",
+    tep: "server/services/video-sua.ts",
+    tim: "  const giayTinh = Math.max(soGiay, m.giayToiThieu ?? 0);",
+    thay: "  const giayTinh = soGiay;",
+  },
+  {
     ten: "lượt kẹt chặn đầu hàng đợi đối chiếu",
     tep: "server/services/so-ai.ts",
     tim: "      ORDER BY tra_luc NULLS FIRST, created_at LIMIT $1`,",
@@ -607,12 +625,6 @@ const DUC: PhepDuc[] = [
     tep: "server/env.ts",
     tim: ': nodeEnv === "production",\n    smtpHost',
     thay: ": false,\n    smtpHost",
-  },
-  {
-    ten: "danh sách sửa video lẫn model tạo video",
-    tep: "server/services/video-sua.ts",
-    tim: "return /video[- ]?edit|editing|aleph|upscal/i.test(",
-    thay: "return /./i.test(",
   },
   {
     ten: "sửa video khi công tắc đang tắt",

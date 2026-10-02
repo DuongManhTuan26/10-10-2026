@@ -18,6 +18,7 @@ import { env } from "../env.js";
 import { AppError } from "../http.js";
 import { chatJson, asRecord, banGhi, optionalString } from "./ai.js";
 import { ghiLuotAi, type Viec } from "./so-ai.js";
+import { MODEL_VIDEO_DUOC_CHON } from "./model-duoc-chon.js";
 import { hoanDiaChiKho, laDiaChiKho } from "./media-proxy.js";
 import * as zernio from "./zernio.js";
 import { anhTheoKhung } from "./video-cong-cu.js";
@@ -35,6 +36,9 @@ export interface ModelVideo {
   coTieng: boolean;
   anhMoDau: boolean;
   giaSku: Record<string, number>;
+  /** Phân khúc và thứ hạng — để khách thấy vì sao mô hình này được chọn. */
+  phanKhuc?: string;
+  xepHang?: string;
 }
 
 export interface LuaChonVideo {
@@ -93,9 +97,17 @@ export async function layDanhSachModel(): Promise<ModelVideo[]> {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = (await r.json()) as { data?: unknown[] } | unknown[];
     const tho = Array.isArray(j) ? j : (j.data ?? []);
-    const ds = tho
-      .map((m) => chuanHoaModel(banGhi(m)))
-      .filter((m): m is ModelVideo => m !== null && m.soGiay.length > 0);
+    /*
+     * CHỈ những mô hình đã chọn theo xếp hạng (model-duoc-chon.ts), theo đúng
+     * thứ tự phân khúc. Nhà cung cấp gỡ mô hình nào thì nó tự biến khỏi danh sách.
+     * Đã thấy: hiện cả 30 mô hình, gồm Sora 2 Pro đã bị OpenAI tắt và nhiều mô
+     * hình hạng bét.
+     */
+    const tatCa = tho.map((m) => chuanHoaModel(banGhi(m))).filter((m): m is ModelVideo => m !== null && m.soGiay.length > 0);
+    const ds = MODEL_VIDEO_DUOC_CHON.flatMap((c) => {
+      const m = tatCa.find((x) => x.id === c.id);
+      return m ? [{ ...m, phanKhuc: c.phanKhuc, xepHang: c.xepHang }] : [];
+    });
     boNho = { luc: Date.now(), ds };
     return ds;
   } catch (error) {

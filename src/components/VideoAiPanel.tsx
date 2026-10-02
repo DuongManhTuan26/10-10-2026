@@ -495,6 +495,11 @@ export default function VideoAiPanel({
                   />
                   <span className="flex-1 min-w-0">
                     <span className="block font-bold text-on-surface">{m.ten}</span>
+                    {m.phanKhuc && (
+                      <span className="block text-primary">
+                        {m.phanKhuc} · {m.xepHang}
+                      </span>
+                    )}
                     <span className="block text-on-surface-variant">
                       {m.lyDo ? `Không chọn được: ${m.lyDo}` : tien(m.giaUocTinh)}
                     </span>

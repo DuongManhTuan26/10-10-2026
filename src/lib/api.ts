@@ -541,6 +541,9 @@ export interface ModelVideo {
   giaUocTinh: number | null;
   /** Vì sao model không làm được lựa chọn này; null nếu làm được. */
   lyDo: string | null;
+  /** Phân khúc giá và thứ hạng — vì sao mô hình này được chọn. */
+  phanKhuc: string | null;
+  xepHang: string | null;
 }
 
 export interface CanhVideo {
@@ -577,6 +580,10 @@ export interface ModelSuaVideo {
   giaMoiGiay: number;
   /** USD tối thiểu mỗi lượt. */
   toiThieu: number;
+  /** Số giây tối thiểu bị tính (video ngắn hơn vẫn tính chừng này). */
+  giayToiThieu: number;
+  phanKhuc?: string;
+  xepHang?: string;
 }
 
 export interface ViecVideo {
