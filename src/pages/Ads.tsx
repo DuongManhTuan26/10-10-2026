@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import AITrainingModal from '../components/AITrainingModal';
 import { api, ApiError, formatCurrency, type Post } from '../lib/api';
 import BangLoi from '../components/BangLoi';
+import { hoiNhap, hoiXacNhan } from '../components/HopHoi';
 
 /** Trạng thái Meta -> nhãn tiếng Việt mà giao diện đang dùng. */
 function statusLabel(metaStatus: string): string {
@@ -285,8 +286,8 @@ export default function Ads() {
     runCampaignAction(() => api.ads.setCampaignStatus([id], 'PAUSED'));
   const handleResumeCampaign = (id: string) =>
     runCampaignAction(() => api.ads.setCampaignStatus([id], 'ACTIVE'));
-  const handleEndCampaign = (id: string) => {
-    if (!confirm('Kết thúc chiến dịch này? Thao tác này không thể hoàn tác.')) return;
+  const handleEndCampaign = async (id: string) => {
+    if (!(await hoiXacNhan({ tieuDe: 'Kết thúc chiến dịch này?', noiDung: 'Thao tác này không thể hoàn tác.', nutDongY: 'Kết thúc', nguyHiem: true }))) return;
     return runCampaignAction(() => api.ads.setCampaignStatus([id], 'ARCHIVED'));
   };
   const handleDuplicateCampaign = (id: string) =>
@@ -355,10 +356,13 @@ export default function Ads() {
    * khỏi phải đụng vào.
    */
   const handleEditBudget = async (campaignId: string, currentDaily: number) => {
-    const input = prompt(
-      'Ngân sách mỗi ngày (đồng):',
-      currentDaily > 0 ? String(currentDaily) : ''
-    );
+    const input = await hoiNhap({
+      tieuDe: 'Sửa ngân sách mỗi ngày',
+      nhan: 'Ngân sách mỗi ngày (đồng)',
+      macDinh: currentDaily > 0 ? String(currentDaily) : '',
+      nutDongY: 'Lưu ngân sách',
+      bieuTuong: 'payments',
+    });
     if (input === null) return;
 
     const amount = Number(input.replace(/[^\d]/g, ''));
@@ -411,11 +415,16 @@ export default function Ads() {
       const ten = (n: Record<string, unknown>) => String(n.name ?? n.id ?? '?');
       let nhom = data[0];
       if (data.length > 1) {
-        const chon = window.prompt(
-          'Chiến dịch này đặt ngân sách theo từng nhóm quảng cáo.\n\n' +
-            data.map((n, i) => `${i + 1}. ${ten(n)}`).join('\n') +
-            '\n\nGõ số thứ tự của nhóm muốn sửa:'
-        );
+        const chon = await hoiNhap({
+          tieuDe: 'Chọn nhóm quảng cáo',
+          noiDung: 'Chiến dịch này đặt ngân sách theo từng nhóm quảng cáo.\n\n' + data.map((n, i) => `${i + 1}. ${ten(n)}`).join('\n'),
+          nhan: 'Số thứ tự của nhóm muốn sửa',
+          nutDongY: 'Chọn nhóm',
+          kiemTra: (v) => {
+            const so = Number(v.trim());
+            return Number.isInteger(so) && so >= 1 && so <= data.length ? null : `Gõ một số từ 1 đến ${data.length}.`;
+          },
+        });
         if (chon === null) return;
         const i = Number(chon) - 1;
         if (!Number.isInteger(i) || i < 0 || i >= data.length) {

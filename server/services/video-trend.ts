@@ -11,7 +11,7 @@
 
 import { AppError } from "../http.js";
 import { chatJson, asRecord, optionalString, stringArray } from "./ai.js";
-import { diaChiKhoHopLe, videoDangBat } from "./video-ai.js";
+import { diaChiKhoHopLe } from "./video-ai.js";
 import { doDaiVideo, TOI_DA_GIAY_NGUON } from "./video-sua.js";
 
 export const MODEL_XEM_VIDEO = "qwen/qwen3.8-omni-flash";
@@ -21,9 +21,6 @@ export async function phanTichTrend(p: {
   trangId: number;
   videoNguon: string;
 }): Promise<{ congThuc: string; tomTat: string[] }> {
-  if (!(await videoDangBat(p.trangId))) {
-    throw new AppError("Tạo video AI đang tắt. Bật trong phần soạn bài trước khi tạo.", 409);
-  }
   // Chỉ nhận video trong kho của mình — không đưa địa chỉ lạ cho bên AI tải.
   const nguon = diaChiKhoHopLe(p.videoNguon, "Video trend");
   const soGiay = await doDaiVideo(nguon);
@@ -47,8 +44,9 @@ export async function phanTichTrend(p: {
           'Return JSON: {"congThuc": string, "tomTat": string[]}.',
           "- congThuc (English, max 180 words): the reusable FORMULA — hook in the first seconds, shot-by-shot",
           "  structure with approximate timings, shot types and camera movement, pacing and transitions,",
-          "  mood, lighting, music/sound style. Describe the formula only; do not describe the specific",
-          "  people, faces, brands or logos in the video.",
+          // Công thức phải dùng lại được cho SẢN PHẨM KHÁC — đó là định nghĩa của tính năng, không phải luật cấm.
+          // Có vẽ người thật / nhãn hiệu hay không là lựa chọn "Giới hạn nội dung" của người dùng ở bước tạo video.
+          "  mood, lighting, music/sound style. Describe the formula so it can be reused for a different product.",
           "- tomTat: 3–6 short Vietnamese bullet points explaining to the shop owner why this video works.",
           "No markdown.",
         ].join("\n"),

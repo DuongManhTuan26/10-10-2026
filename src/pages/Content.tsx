@@ -1,4 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { XuongAi, type KeHoachDang } from '../components/XuongAi';
+import { vndAnh } from '../components/ChonMoHinhAnh';
+import { hoiNhap, hoiXacNhan } from '../components/HopHoi';
+
+/** Giá video làm tròn 500đ — khớp đúng số hiện ở phần video của Xưởng AI. */
+const vndVideo = (usd: number | null) =>
+  usd === null ? 'chưa rõ giá' : `~${(Math.round((usd * 25_500) / 500) * 500).toLocaleString('vi-VN')}đ`;
 import { clsx } from 'clsx';
 import AITrainingModal from '../components/AITrainingModal';
 import AutoPilotPanel from '../components/AutoPilotPanel';
@@ -9,8 +16,6 @@ import {
 import { useActivePage } from '../lib/ActivePage';
 import { gioiHanChatNhat, kenhMacDinh, tinhKenhSeDang, type CheDoKenh } from '../lib/gioi-han-kenh';
 import ChonKenhDang from '../components/ChonKenhDang';
-import { MAU_PHONG_CACH } from '../lib/phong-cach-anh';
-import VideoAiPanel from '../components/VideoAiPanel';
 import HopThoai, { NUT_CANH_BAO, NUT_CHINH, NUT_PHU } from '../components/HopThoai';
 
 /** Nhãn tab -> trạng thái trong database. */
@@ -51,7 +56,6 @@ export default function Content() {
    * không hề biết bài sẽ bay đi đâu. Bài 40 và 41 vì thế gửi sang TikTok trong
    * khi chủ shop tưởng đang đăng lên Fanpage.
    */
-  const [dangTaoAnh, setDangTaoAnh] = useState(false);
   /*
    * Phong cách vẽ ảnh do chủ shop điều khiển, đổi lúc nào cũng được.
    *
@@ -59,15 +63,8 @@ export default function Content() {
    * ảnh ra phẳng lì không hút mắt. Phong cách là việc của người bán, không
    * phải của người viết mã.
    */
-  const [phongCachAnh, setPhongCachAnh] = useState('');
-  const [phongCachDaLuu, setPhongCachDaLuu] = useState('');
-  const [dangLuuPhongCach, setDangLuuPhongCach] = useState(false);
+  // Chữ trong ảnh do người dùng chọn — không cố định (chủ dự án 03/10/2026).
   /** Ảnh mẫu: AI vẽ lại chính ảnh đó theo phong cách mới, giữ nguyên chủ thể. */
-  const [anhMauChon, setAnhMauChon] = useState('');
-  const [dangTaiAnhMau, setDangTaiAnhMau] = useState(false);
-  const oPhongCachRef = useRef<HTMLTextAreaElement>(null);
-  const anhMauInputRef = useRef<HTMLInputElement>(null);
-  const [tienAnh, setTienAnh] = useState(0);
   const [cheDoKenh, setCheDoKenh] = useState<CheDoKenh>('tu-chon');
   const [kenhTuChon, setKenhTuChon] = useState<string[]>([]);
   const [composerMode, setComposerMode] = useState<'now' | 'schedule'>('now');
@@ -101,6 +98,9 @@ export default function Content() {
    * bấm tạo một bài mới. Kết quả: 18 bài trong hai giây, 17 bài lỗi.
    */
   const [dangGuiBai, setDangGuiBai] = useState(false);
+  // Xưởng AI báo: đăng bài thì tự tạo ảnh / video theo bài (bên nào đang đi theo bài) và giá.
+  const [keHoachXuong, setKeHoachXuong] = useState<KeHoachDang | null>(null);
+  const [buocDang, setBuocDang] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [dbPosts, setDbPosts] = useState<Post[]>([]);
@@ -118,27 +118,6 @@ export default function Content() {
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
-  // Nạp phong cách vẽ ảnh đã lưu, để ô trong hộp soạn bài có sẵn nội dung.
-  useEffect(() => {
-    api.ai
-      .imageStyle()
-      .then(({ data }) => {
-        setPhongCachAnh(data.phongCach);
-        setPhongCachDaLuu(data.phongCach);
-      })
-      .catch(() => {
-        /* Không nạp được thì để trống, máy chủ vẫn có phong cách mặc định. */
-      });
-  /*
-   * Phụ thuộc activeAccountId dù thân hàm không nhắc tới nó: bộ não AI gắn
-   * theo Trang, và lớp gọi API tự đính Trang đang chọn vào từng lệnh. Đổi
-   * Trang mà không nạp lại thì màn hình vẫn vẽ não của Trang cũ, chủ shop gõ
-   * tiếp lên đó là ghi nhầm sang Trang khác.
-   *
-   * Kèm cả activeTrangId vì đổi Fanpage cho một kênh thì mã kênh GIỮ NGUYÊN,
-   * chỉ trang_id đổi — trông mỗi activeAccountId là không thấy gì thay đổi.
-   */
-  }, [activeAccountId, activeTrangId]);
 
   /**
    * Chế độ đăng bài được lưu vào cấu hình AI, không giữ trong bộ nhớ trang.
@@ -190,12 +169,13 @@ export default function Content() {
   const kenhKetNoi = accounts.filter((a) => a.connected);
 
   /** Đang gõ phong cách của riêng mình, không phải một mẫu dựng sẵn. */
-  const laPhongCachRieng = !MAU_PHONG_CACH.some((m) => m.mota === phongCachAnh);
 
   /* Kênh mà bài trong hộp soạn sẽ thật sự lên — do chính hộp soạn quyết định. */
   const kenhSeDang = tinhKenhSeDang(kenhKetNoi, cheDoKenh, kenhTuChon);
   const targetAccountIdsSoanBai = kenhSeDang.map((a) => a.id);
   const daChonKenh = kenhSeDang.length > 0;
+  // Xưởng AI chỉ có ở bài chưa đăng, sau khi đã chọn kênh (bài đã đăng chỉ sửa được chữ).
+  const coXuong = daChonKenh && baiDangSua?.status !== 'published';
 
   /*
    * Giới hạn lấy theo kênh KHÓ TÍNH NHẤT trong số đang chọn.
@@ -230,14 +210,23 @@ export default function Content() {
       await api.posts.publish(id);
     });
 
-  const handleSchedule = (id: number, current?: string | null) => {
-    const suggestion = current
-      ? new Date(current).toISOString().slice(0, 16)
-      : new Date(Date.now() + 3600000).toISOString().slice(0, 16);
-    const input = prompt(
-      'Nhập thời gian đăng theo định dạng YYYY-MM-DDTHH:mm (theo giờ trên máy bạn):',
-      suggestion
-    );
+  const handleSchedule = async (id: number, current?: string | null) => {
+    // Gợi ý theo GIỜ MÁY (bản cũ dùng toISOString → giờ UTC, lệch 7 tiếng so với câu hỏi "theo giờ trên máy bạn").
+    const goc = current ? new Date(current) : new Date(Date.now() + 3600000);
+    const suggestion = new Date(goc.getTime() - goc.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const input = await hoiNhap({
+      tieuDe: 'Hẹn giờ đăng bài',
+      noiDung: 'Nhập thời gian đăng theo dạng NĂM-THÁNG-NGÀYTGIỜ:PHÚT, theo giờ trên máy bạn.',
+      nhan: 'Thời gian đăng',
+      macDinh: suggestion,
+      nutDongY: 'Hẹn giờ',
+      bieuTuong: 'schedule',
+      kiemTra: (v) => {
+        const t = new Date(v.trim());
+        if (Number.isNaN(t.getTime())) return 'Thời gian không hợp lệ (vd. 2026-10-05T09:30).';
+        return t.getTime() <= Date.now() ? 'Thời gian hẹn đăng phải ở tương lai.' : null;
+      },
+    });
     if (!input) return;
     const when = new Date(input);
     if (Number.isNaN(when.getTime())) {
@@ -263,8 +252,8 @@ export default function Content() {
       api.posts.update(id, { status: 'pending_approval', scheduledFor: null })
     );
 
-  const handleDelete = (id: number) => {
-    if (!confirm('Bạn có chắc muốn xoá bài này?')) return;
+  const handleDelete = async (id: number) => {
+    if (!(await hoiXacNhan({ tieuDe: 'Xoá bài này?', nutDongY: 'Xoá', nguyHiem: true }))) return;
     return runAction(id, () => api.posts.remove(id));
   };
 
@@ -414,8 +403,6 @@ export default function Content() {
         setBaiDangSua(null);
         setComposerContent('');
         setComposerMedia([]);
-        setTienAnh(0);
-        setAnhMauChon('');
         await fetchPosts();
         return;
       }
@@ -438,26 +425,73 @@ export default function Content() {
         return;
       }
 
+      /*
+       * Xưởng AI: bên nào đang đi theo bài thì tạo ngay lúc đăng (chủ dự án 04/10/2026).
+       * Ảnh vẽ xong trong vài giây → gắn vào bài rồi đăng. Video mất 1–5 phút → bài lưu lại, máy chủ chờ video
+       * xong rồi tự đăng (giữ giờ hẹn). Video tốn tiền nên hỏi lại kèm giá trước khi làm bất cứ gì.
+       */
+      const kh = dang ? keHoachXuong : null;
+      if (kh?.loi) {
+        setErrorMessage(kh.loi);
+        return;
+      }
+      if (
+        kh?.video &&
+        !(await hoiXacNhan({
+          tieuDe: `Đăng bài kèm video AI (${kh.video.ten}) — ${vndVideo(kh.video.gia)}${kh.anh ? ` và ảnh AI ${vndAnh(kh.anh.gia)}` : ''}?`,
+          noiDung:
+            `AI tạo video từ nội dung bài, mất khoảng 1–5 phút. Bài tự đăng ngay khi video xong` +
+            `${scheduledFor ? ' (vẫn theo giờ đã hẹn)' : ''}. Video lỗi thì bài đăng kèm ảnh thay thế.\n` +
+            `Tiền bị trừ kể cả khi bạn không dùng video.`,
+          nutDongY: 'Đăng bài kèm video',
+          bieuTuong: 'movie',
+        }))
+      ) {
+        return;
+      }
+      let media = composerMedia;
+      if (kh?.anh) {
+        setBuocDang('AI đang vẽ ảnh theo bài…');
+        const anh = await kh.taoAnh();
+        media = [...media, anh];
+        setComposerMedia(media);
+      }
+
       const { data: post } = editingPostId
         ? await api.posts.update(editingPostId, {
             content: noiDung,
             targetAccountIds: targetAccountIdsSoanBai,
-            media: composerMedia,
+            media,
             scheduledFor,
-            status: dang ? (scheduledFor ? 'scheduled' : 'pending_approval') : 'draft',
+            status: kh?.video ? 'draft' : dang ? (scheduledFor ? 'scheduled' : 'pending_approval') : 'draft',
           })
         : await api.posts.create({
             content: noiDung,
-            status: dang ? (scheduledFor ? 'scheduled' : 'pending_approval') : 'draft',
+            status: kh?.video ? 'draft' : dang ? (scheduledFor ? 'scheduled' : 'pending_approval') : 'draft',
             scheduledFor,
             targetAccountIds: targetAccountIdsSoanBai,
-            media: composerMedia,
+            media,
             aiGenerated: aiOptions.includes(noiDung),
             aiPrompt: composerTopic.trim() || undefined,
           });
 
-      // Gửi sang Zernio: đăng ngay, hoặc giao lịch cho Zernio tự đăng đúng giờ.
-      if (dang) await api.posts.publish(post.id);
+      if (kh?.video) {
+        // Bài đã lưu (bản nháp) — gửi video không được thì giữ hộp soạn mở, bấm lại sẽ sửa đúng bài này.
+        setBuocDang('Đang gửi yêu cầu tạo video…');
+        try {
+          await kh.guiVideo(post.id);
+        } catch (error) {
+          setEditingPostId(post.id);
+          setBaiDangSua(post);
+          setErrorMessage(
+            `Đã lưu bài vào Bản nháp nhưng chưa gửi được video: ${error instanceof ApiError ? error.message : 'lỗi không rõ'}`
+          );
+          return;
+        }
+      } else if (dang) {
+        // Gửi sang Zernio: đăng ngay, hoặc giao lịch cho Zernio tự đăng đúng giờ.
+        await api.posts.publish(post.id);
+      }
 
       setIsComposerOpen(false);
       setAiOptions([]);
@@ -468,8 +502,6 @@ export default function Content() {
       setScheduleTime('');
       setEditingPostId(null);
       setBaiDangSua(null);
-      setTienAnh(0);
-      setAnhMauChon('');
       await fetchPosts();
     } catch (error) {
       setErrorMessage(
@@ -477,39 +509,10 @@ export default function Content() {
       );
     } finally {
       setDangGuiBai(false);
+      setBuocDang('');
     }
   };
 
-  /*
-   * Nhờ AI vẽ ảnh minh hoạ cho bài.
-   *
-   * Mỗi ảnh tốn tiền thật (khoảng 0,04 USD một lượt) nên chỉ chạy khi chủ shop
-   * bấm, không bao giờ tự chạy ngầm. Ảnh vẽ xong nằm chung danh sách với ảnh
-   * chủ shop tự tải lên, xoá được như nhau.
-   */
-  const nhoAiVeAnh = async () => {
-    if (dangTaoAnh) return;
-    const noiDung = composerContent.trim();
-    if (!noiDung && !anhMauChon) {
-      setErrorMessage('Cần nội dung bài viết hoặc ảnh mẫu để AI biết vẽ gì.');
-      return;
-    }
-    setErrorMessage('');
-    setDangTaoAnh(true);
-    try {
-      const { data } = await api.ai.generateImage({
-        content: noiDung,
-        style: phongCachAnh.trim() || undefined,
-        sample: anhMauChon || undefined,
-      });
-      setComposerMedia((truoc) => [...truoc, { url: data.url, type: data.type }]);
-      setTienAnh((truoc) => truoc + (data.costUsd ?? 0));
-    } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : 'AI chưa tạo được ảnh');
-    } finally {
-      setDangTaoAnh(false);
-    }
-  };
 
   /*
    * Gỡ bài khỏi nền tảng để sửa lại rồi đăng mới.
@@ -520,11 +523,14 @@ export default function Content() {
   const goBaiVeNhap = async (post: Post) => {
     if (dangGoBai) return;
     if (
-      !confirm(
-        'Gỡ bài này khỏi nền tảng để sửa lại?\n\n' +
+      !(await hoiXacNhan({
+        tieuDe: 'Gỡ bài này khỏi nền tảng để sửa lại?',
+        noiDung:
           'Bài sẽ biến mất khỏi trang, mất hết lượt thích và bình luận đã có. ' +
-          'Nội dung và ảnh vẫn giữ lại trong ứng dụng để bạn sửa rồi đăng mới.'
-      )
+          'Nội dung và ảnh vẫn giữ lại trong ứng dụng để bạn sửa rồi đăng mới.',
+        nutDongY: 'Gỡ bài',
+        nguyHiem: true,
+      }))
     ) {
       return;
     }
@@ -541,39 +547,7 @@ export default function Content() {
     }
   };
 
-  /*
-   * Tải ảnh mẫu cho AI — RIÊNG hẳn với ảnh đăng kèm bài.
-   *
-   * Hai việc khác nhau hoàn toàn: ảnh mẫu chỉ để AI nhìn rồi vẽ lại, KHÔNG bao
-   * giờ lên nền tảng. Bản trước tôi bắt dùng chung danh sách ảnh của bài, tức
-   * là muốn cho AI xem ảnh thì buộc phải đăng luôn ảnh đó.
-   */
-  const taiAnhMau = async (file: File) => {
-    setErrorMessage('');
-    setDangTaiAnhMau(true);
-    try {
-      const item = await api.posts.uploadMedia(file);
-      setAnhMauChon(item.url);
-    } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : 'Không tải được ảnh mẫu lên');
-    } finally {
-      setDangTaiAnhMau(false);
-    }
-  };
 
-  const luuPhongCachAnh = async () => {
-    if (dangLuuPhongCach) return;
-    setDangLuuPhongCach(true);
-    setErrorMessage('');
-    try {
-      await api.ai.saveImageStyle(phongCachAnh.trim());
-      setPhongCachDaLuu(phongCachAnh.trim());
-    } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : 'Không lưu được phong cách ảnh');
-    } finally {
-      setDangLuuPhongCach(false);
-    }
-  };
 
   const handleGenerate = async () => {
     if (!composerTopic.trim()) {
@@ -583,8 +557,14 @@ export default function Content() {
     setIsGenerating(true);
     setErrorMessage('');
     try {
-      const { options } = await api.ai.generatePost(composerTopic.trim(), composerGoal);
-      setAiOptions(options);
+      // Một bài hiệu quả nhất, đổ thẳng vào ô nội dung (chủ dự án 03/10/2026). Ô đang có chữ thì hỏi trước.
+      const { options } = await api.ai.generatePost(composerTopic.trim(), composerGoal, 1);
+      const bai = options[0]?.trim();
+      if (!bai) throw new ApiError('AI chưa viết được bài, thử lại.', 502);
+      if (composerContent.trim() && composerContent.trim() !== bai && !(await hoiXacNhan({ tieuDe: 'Thay nội dung đang có bằng bài AI vừa viết?', nutDongY: 'Thay nội dung' }))) return;
+      setComposerContent(bai);
+      // Giữ để đánh dấu "bài do AI viết" khi lưu.
+      setAiOptions([bai]);
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'AI chưa viết được bài');
     } finally {
@@ -643,8 +623,6 @@ export default function Content() {
       setComposerMedia([]);
       setEditingPostId(null);
       setBaiDangSua(null);
-      setTienAnh(0);
-      setAnhMauChon('');
       await fetchPosts();
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'Không lưu được bài');
@@ -912,10 +890,11 @@ export default function Content() {
             {/* Top Bar */}
             <div className="p-4 flex items-center justify-between border-b border-outline-variant/50">
               <span className={clsx("px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider border", getStatusColor(post.status))}>
-                {POST_STATUS_LABELS[post.status].toUpperCase()}
+                {/* Bài chờ video AI xong rồi máy chủ tự đăng — duyệt tay lúc này sẽ đăng thiếu video nên ẩn nút duyệt. */}
+                {post.cho_video_id ? 'ĐANG TẠO VIDEO AI · XONG TỰ ĐĂNG' : POST_STATUS_LABELS[post.status].toUpperCase()}
               </span>
               <div className="flex gap-2">
-                {post.status === 'pending_approval' && (
+                {post.status === 'pending_approval' && !post.cho_video_id && (
                   <>
                     <button onClick={() => handleApprove(post.id)} className="text-green-500 hover:bg-green-500/10 p-1 rounded-md transition-colors" title="Duyệt đăng">
                       <span className="material-symbols-outlined text-[18px]">check_circle</span>
@@ -1083,7 +1062,7 @@ export default function Content() {
               <button
                 onClick={() => luuBaiTuOSoan(false)}
                 disabled={dangGuiBai}
-                className={NUT_PHU}
+                className={clsx(NUT_PHU, 'shrink-0 whitespace-nowrap')}
               >
                 Lưu nháp
               </button>
@@ -1103,22 +1082,45 @@ export default function Content() {
                       ? `Nội dung vượt giới hạn ${gioiHan.soKyTu.toLocaleString('vi-VN')} ký tự của ${gioiHan.ten}`
                       : undefined
                 }
-                className={clsx(NUT_CHINH, "min-w-[220px]")}
+                // Điện thoại: nút Đăng bài co lại lấp chỗ còn lại (không ép 220px — làm nút Lưu nháp bị đẩy ra ngoài khung).
+                className={clsx(NUT_CHINH.replace('h-12 px-8 ', ''), 'min-h-12 py-1.5 px-3 sm:px-8 min-w-0 flex-1 sm:flex-none sm:min-w-[220px] text-center')}
               >
-                <span className={clsx("material-symbols-outlined text-[20px]", dangGuiBai && "animate-spin")}>
+                {/* Điện thoại: bỏ biểu tượng cho chữ đủ chỗ (lớp của bộ biểu tượng tự đặt display nên phải ẩn ở khung bọc). */}
+                <span className="hidden sm:inline-flex">
+                  <span className={clsx("material-symbols-outlined text-[20px]", dangGuiBai && "animate-spin")}>
                   {dangGuiBai ? 'progress_activity' : 'send'}
                 </span>
-                {dangGuiBai
-                  ? 'Đang gửi lên Fanpage…'
-                  : baiDangSua?.status === 'published'
-                    ? 'Cập nhật bài đã đăng'
-                    : composerMode === 'schedule' ? 'Hẹn giờ đăng' : 'Đăng bài'}
+                </span>
+                {/* Giá ảnh / video tự tạo ở dòng nhỏ bên dưới — điện thoại không bị tràn chữ khỏi nút. */}
+                <span className="flex flex-col items-center leading-tight">
+                  <span>
+                    {dangGuiBai
+                      ? buocDang || 'Đang gửi lên Fanpage…'
+                      : baiDangSua?.status === 'published'
+                        ? 'Cập nhật bài đã đăng'
+                        : composerMode === 'schedule' ? 'Hẹn giờ đăng' : 'Đăng bài'}
+                  </span>
+                  {!dangGuiBai && baiDangSua?.status !== 'published' && (keHoachXuong?.anh || keHoachXuong?.video) && (
+                    <span className="text-xs font-semibold">
+                      {[
+                        keHoachXuong?.anh && `+ ảnh ${vndAnh(keHoachXuong.anh.gia)}`,
+                        keHoachXuong?.video && `+ video ${vndVideo(keHoachXuong.video.gia)}`,
+                      ].filter(Boolean).join(' ')}
+                    </span>
+                  )}
+                </span>
               </button>
             </div>
             </div>
           }
         >
-            <div className="space-y-8">
+            {/*
+              Màn hình rộng (≥1280px): chia đôi — trái là BÀI ĐĂNG (kênh, nhờ AI viết, nội dung, giờ đăng), phải là XƯỞNG AI —
+              nhìn được cả bài lẫn ảnh/video, không phải cuộn qua lại (chủ dự án 04/10/2026: cửa sổ dài 5,3 màn hình).
+              Hẹp hơn (điện thoại, máy tính bảng): một cột dọc, bài đăng trước, Xưởng sau.
+            */}
+            <div className={clsx('space-y-8', coXuong && 'xl:space-y-0 xl:grid xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] xl:gap-8 xl:items-start')}>
+            <div className="space-y-8 min-w-0">
               
               {/*
                 Bài đã đăng thì không chọn lại kênh được nữa, và nền tảng chỉ
@@ -1210,71 +1212,18 @@ export default function Content() {
                     )}
                     Nhờ AI viết
                   </button>
+                  <p className="text-[11px] text-on-surface-variant">AI viết một bài hiệu quả nhất, hiện ngay ở ô Nội dung bài đăng bên dưới.</p>
 
-                  {/* AI Output Options */}
-                  {aiOptions.length > 0 && (
-                    <div className="mt-4 space-y-3">
-                      <p className="text-xs font-bold text-on-surface-variant uppercase">Chọn một phương án:</p>
-                      {aiOptions.map((opt, idx) => (
-                        <div key={idx} className="p-3 bg-surface-container-highest border border-outline-variant rounded-lg group">
-                          <p className="text-sm text-on-surface mb-3 leading-relaxed">{opt}</p>
-                          <button 
-                            onClick={() => {
-                              setComposerContent(opt);
-                              setAiOptions([]);
-                            }}
-                            className="w-full py-1.5 bg-surface-variant text-on-surface font-bold text-xs rounded-md hover:bg-primary hover:text-on-primary transition-colors"
-                          >
-                            Dùng bài này
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
 
               {/* Block 2: NỘI DUNG BÀI ĐĂNG */}
               <div className="khung-muc mau-lam">
                 <h3 className="tieu-de-muc dau-muc">NỘI DUNG BÀI ĐĂNG</h3>
-                <div className="relative">
-                  <textarea 
-                    rows={10}
-                    value={composerContent}
-                    onChange={(e) => setComposerContent(e.target.value)}
-                    placeholder="Nội dung bài viết sẽ hiển thị trên Fanpage..."
-                    className="bg-surface-container-high w-full rounded-xl border border-outline-variant p-4 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none"
-                  ></textarea>
-                  <span
-                    className={`absolute bottom-3 right-4 text-xs font-mono ${
-                      vuotGioiHan ? 'text-error font-bold' : 'text-on-surface-variant'
-                    }`}
-                  >
-                    {soKyTu.toLocaleString('vi-VN')}
-                    {gioiHan ? ` / ${gioiHan.soKyTu.toLocaleString('vi-VN')}` : ''} ký tự
-                  </span>
-                </div>
-                {vuotGioiHan && gioiHan && (
-                  <p className="text-xs text-error mt-2 leading-relaxed">
-                    Nội dung vượt {(soKyTu - gioiHan.soKyTu).toLocaleString('vi-VN')} ký tự so với
-                    {' '}giới hạn {gioiHan.soKyTu.toLocaleString('vi-VN')} ký tự của {gioiHan.ten}.
-                    {' '}Vui lòng rút ngắn nội dung, hoặc bỏ chọn {gioiHan.ten} ở Bước 1.
-                  </p>
-                )}
-              </div>
-
-              {baiDangSua?.status !== 'published' && (
-              <>
-              {/*
-                Hai việc khác nhau, để thành hai khối riêng.
-
-                Bản trước tôi nhét ô tải ảnh đăng bài xuống tận dưới, nằm ngay
-                cạnh ô tải ảnh mẫu cho AI — hai ô tải ảnh sát nhau, ai nhìn cũng
-                loạn.
-              */}
-              {/* Block 3A: ảnh và video sẽ ĐĂNG LÊN cùng bài */}
-              <div className="khung-muc mau-cam">
-                <h3 className="tieu-de-muc dau-muc">ẢNH VÀ VIDEO ĐĂNG KÈM BÀI</h3>
+                {/*
+                  Ảnh / video đăng kèm bài: thu gọn thành một nút ở góc ô nội dung (chủ dự án 03/10/2026) —
+                  đỡ chiếm chỗ, không lẫn với Xưởng AI bên dưới. Kéo thả tệp vào ô nội dung cũng được.
+                */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1288,215 +1237,96 @@ export default function Content() {
                   }}
                 />
                 <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (e.dataTransfer.files.length > 0) handleFilesChosen(e.dataTransfer.files);
+                  className="relative"
+                  onDragOver={(e) => {
+                    if (baiDangSua?.status !== 'published' && e.dataTransfer.types.includes('Files')) e.preventDefault();
                   }}
-                  className="border-2 border-dashed border-outline-variant rounded-xl p-8 flex flex-col items-center justify-center bg-surface-container hover:bg-surface-container/50 hover:border-primary/50 transition-colors cursor-pointer group"
+                  onDrop={(e) => {
+                    if (baiDangSua?.status === 'published' || e.dataTransfer.files.length === 0) return;
+                    e.preventDefault();
+                    handleFilesChosen(e.dataTransfer.files);
+                  }}
                 >
-                  <div className="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <span className="material-symbols-outlined text-on-surface-variant">
-                      {uploadingCount > 0 ? 'progress_activity' : 'upload_file'}
-                    </span>
-                  </div>
-                  <span className="text-sm font-medium text-on-surface-variant">
-                    {uploadingCount > 0
-                      ? `Đang tải lên… còn ${uploadingCount} tệp`
-                      : 'Kéo thả ảnh vào đây hoặc bấm để chọn'}
+                  <textarea 
+                    rows={10}
+                    value={composerContent}
+                    onChange={(e) => setComposerContent(e.target.value)}
+                    placeholder="Nội dung bài viết sẽ hiển thị trên Fanpage..."
+                    className="bg-surface-container-high w-full rounded-xl border border-outline-variant p-4 pb-12 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none"
+                  ></textarea>
+                  {/* Bài đã đăng: nền tảng không cho đổi ảnh, nên không có nút thêm ảnh. */}
+                  {baiDangSua?.status !== 'published' && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Thêm ảnh / video đăng kèm bài — hoặc kéo thả tệp vào ô này"
+                      className="absolute bottom-3 left-4 flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-outline-variant bg-surface-container text-xs font-bold text-on-surface-variant hover:border-primary/50 hover:text-on-surface transition-colors"
+                    >
+                      <span className={clsx('material-symbols-outlined text-[16px]', uploadingCount > 0 && 'animate-spin')}>
+                        {uploadingCount > 0 ? 'progress_activity' : 'attach_file'}
+                      </span>
+                      {uploadingCount > 0
+                        ? `Đang tải… còn ${uploadingCount}`
+                        : composerMedia.length > 0
+                          ? `Ảnh/video kèm bài (${composerMedia.length})`
+                          : 'Thêm ảnh/video'}
+                    </button>
+                  )}
+                  <span
+                    className={`absolute bottom-3 right-4 text-xs font-mono ${
+                      vuotGioiHan ? 'text-error font-bold' : 'text-on-surface-variant'
+                    }`}
+                  >
+                    {soKyTu.toLocaleString('vi-VN')}
+                    {gioiHan ? ` / ${gioiHan.soKyTu.toLocaleString('vi-VN')}` : ''} ký tự
                   </span>
                 </div>
-
                 {composerMedia.length > 0 && (
-                  <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {composerMedia.map((item, index) => (
-                      <div key={item.url} className="relative group aspect-square rounded-xl overflow-hidden border border-outline-variant bg-surface-container">
+                      <div key={item.url} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-outline-variant bg-surface-container">
                         {item.type === 'image' || item.type === 'gif' ? (
                           <img src={item.url} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center gap-1">
-                            <span className="material-symbols-outlined text-on-surface-variant">
+                          <div className="w-full h-full flex flex-col items-center justify-center">
+                            <span className="material-symbols-outlined text-[18px] text-on-surface-variant">
                               {item.type === 'video' ? 'movie' : 'description'}
                             </span>
-                            <span className="text-[10px] font-mono text-on-surface-variant uppercase">{item.type}</span>
                           </div>
                         )}
-                        <button
-                          onClick={() => setComposerMedia((current) => current.filter((_, i) => i !== index))}
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-noi border border-outline-variant flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:border-error hover:text-error"
-                          title="Bỏ tệp này"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">close</span>
-                        </button>
+                        {baiDangSua?.status !== 'published' && (
+                          <button
+                            onClick={() => setComposerMedia((current) => current.filter((_, i) => i !== index))}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-noi border border-outline-variant flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:border-error hover:text-error"
+                            title="Bỏ tệp này"
+                          >
+                            <span className="material-symbols-outlined text-[12px]">close</span>
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
-
-              {/* Block 3B: AI vẽ ảnh — không có gì ở đây tự lên nền tảng */}
-              <div className="khung-muc mau-hong">
-                <div className="dau-muc flex items-center justify-between gap-3">
-                  <h3 className="tieu-de-muc">AI VẼ ẢNH MINH HOẠ</h3>
-                  <button
-                    type="button"
-                    onClick={nhoAiVeAnh}
-                    disabled={
-                      dangTaoAnh || (!composerContent.trim() && !anhMauChon)
-                    }
-                    title={
-                      !composerContent.trim() && !anhMauChon
-                        ? 'Cần nội dung bài viết hoặc ảnh mẫu'
-                        : undefined
-                    }
-                    className="shrink-0 px-3 py-1.5 rounded-lg border border-primary/50 bg-primary/10 text-primary text-xs font-bold flex items-center gap-1.5 hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className={clsx('material-symbols-outlined text-[16px]', dangTaoAnh && 'animate-spin')}>
-                      {dangTaoAnh ? 'progress_activity' : 'auto_awesome'}
-                    </span>
-                    {dangTaoAnh ? 'Đang vẽ ảnh…' : 'Nhờ AI vẽ ảnh'}
-                  </button>
-                </div>
-                <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
-                  Ảnh AI vẽ xong sẽ tự vào mục đăng kèm bài ở trên. Ảnh không có chữ, không có
-                  tên thương hiệu và không có huy hiệu chứng nhận, để tránh quảng cáo sai sự thật.
-                  {tienAnh > 0 && ` Đã dùng ${tienAnh.toFixed(3)} USD cho ảnh trong bài này.`}
-                </p>
-                <div className="bg-surface-container rounded-xl p-4 border border-outline-variant mb-3 space-y-3">
-                  <label className="block text-xs font-bold text-on-surface">
-                    Phong cách ảnh — bạn tự viết, AI vẽ đúng theo
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {MAU_PHONG_CACH.map((m) => (
-                      <button
-                        key={m.ten}
-                        type="button"
-                        onClick={() => setPhongCachAnh(m.mota)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                          phongCachAnh === m.mota
-                            ? 'border-primary bg-primary/15 text-primary'
-                            : 'border-outline-variant bg-surface text-on-surface-variant hover:border-primary/50'
-                        }`}
-                      >
-                        {m.ten}
-                      </button>
-                    ))}
-                    {/*
-                      Bấm vào đây là xoá trắng ô bên dưới để chủ shop tự gõ, thay
-                      vì phải xoá tay đoạn mẫu đang có sẵn.
-                    */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPhongCachAnh('');
-                        oPhongCachRef.current?.focus();
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                        laPhongCachRieng
-                          ? 'border-primary bg-primary/15 text-primary'
-                          : 'border-outline-variant bg-surface text-on-surface-variant hover:border-primary/50'
-                      }`}
-                    >
-                      Phong cách tuỳ chỉnh
-                    </button>
-                  </div>
-                  <textarea
-                    ref={oPhongCachRef}
-                    rows={3}
-                    value={phongCachAnh}
-                    onChange={(e) => setPhongCachAnh(e.target.value)}
-                    placeholder="Ví dụ: ảnh quảng cáo sang trọng, nền tối, ánh sáng viền, màu vàng đồng…"
-                    className="bg-surface-container-high w-full rounded-lg border border-outline-variant p-3 text-sm text-on-surface leading-relaxed focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all resize-none"
-                  />
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-on-surface-variant leading-relaxed flex-1">
-                      Phong cách này dùng cho mọi ảnh. Đổi lúc nào cũng được.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={luuPhongCachAnh}
-                      disabled={dangLuuPhongCach || phongCachAnh.trim() === phongCachDaLuu.trim()}
-                      className="shrink-0 px-3 py-1.5 rounded-lg border border-outline text-on-surface text-xs font-bold hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {dangLuuPhongCach
-                        ? 'Đang lưu…'
-                        : phongCachAnh.trim() === phongCachDaLuu.trim()
-                          ? 'Đã là mặc định'
-                          : 'Lưu làm mặc định'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-surface-container rounded-xl p-4 border border-outline-variant mb-3 space-y-2">
-                  <label className="block text-xs font-bold text-on-surface">
-                    Ảnh mẫu cho AI — không đăng lên bài
-                  </label>
-                  <input
-                    ref={anhMauInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) taiAnhMau(f);
-                      e.target.value = '';
-                    }}
-                  />
-                  {anhMauChon ? (
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={anhMauChon}
-                        alt=""
-                        className="w-16 h-16 rounded-lg object-cover border-2 border-primary shrink-0"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => anhMauInputRef.current?.click()}
-                        className="px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface text-xs font-bold hover:border-primary transition-colors"
-                      >
-                        Đổi ảnh khác
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAnhMauChon('')}
-                        className="px-3 py-1.5 rounded-lg border border-error/30 bg-error/10 text-error text-xs font-bold hover:bg-error/20 transition-colors"
-                      >
-                        Bỏ ảnh mẫu
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => anhMauInputRef.current?.click()}
-                      disabled={dangTaiAnhMau}
-                      className="w-full py-3 rounded-lg border border-dashed border-outline-variant text-on-surface-variant text-xs font-bold hover:border-primary/50 hover:text-on-surface transition-colors disabled:opacity-60"
-                    >
-                      {dangTaiAnhMau ? 'Đang tải ảnh mẫu…' : 'Tải ảnh mẫu lên'}
-                    </button>
-                  )}
-                  <p className="text-xs text-on-surface-variant leading-relaxed">
-                    Ảnh này chỉ để AI nhìn rồi vẽ lại theo phong cách trên, giữ nguyên sản phẩm.
-                    Nó không được đăng lên nền tảng.
+                {vuotGioiHan && gioiHan && (
+                  <p className="text-xs text-error mt-2 leading-relaxed">
+                    Nội dung vượt {(soKyTu - gioiHan.soKyTu).toLocaleString('vi-VN')} ký tự so với
+                    {' '}giới hạn {gioiHan.soKyTu.toLocaleString('vi-VN')} ký tự của {gioiHan.ten}.
+                    {' '}Vui lòng rút ngắn nội dung, hoặc bỏ chọn {gioiHan.ten} ở Bước 1.
                   </p>
-                </div>
-
+                )}
               </div>
 
-              {/* Block 3C: AI tạo video — mặc định tắt, luôn báo giá trước khi tạo */}
-              <VideoAiPanel
-                noiDung={composerContent}
-                anhCoSan={[
-                  ...composerMedia.filter((m) => m.type === 'image').map((m) => m.url),
-                  ...(anhMauChon ? [anhMauChon] : []),
-                ].filter((u, i, ds) => ds.indexOf(u) === i)}
-                videoCoSan={composerMedia.filter((m) => m.type === 'video').map((m) => m.url)}
-                onGanVaoBai={(item) => setComposerMedia((truoc) => [...truoc, item])}
-              />
-
-              {/* Block 4: THỜI GIAN ĐĂNG */}
+              {/* Block 4: ĐĂNG BÀI NÀY LÚC NÀO */}
+              {baiDangSua?.status !== 'published' && (
               <div className="khung-muc mau-luc">
-                <h3 className="tieu-de-muc dau-muc">THỜI GIAN ĐĂNG</h3>
+                {/*
+                  Chỉ cho BÀI ĐANG SOẠN (đăng ngay / hẹn một lần) — khác lịch "Tự động hoá" (AI tự viết bài mới theo
+                  lịch lặp hằng tuần). Chủ dự án 03/10/2026 thấy hai chỗ cùng tên tưởng là trùng → đặt tên rõ.
+                */}
+                <h3 className="tieu-de-muc dau-muc">ĐĂNG BÀI NÀY LÚC NÀO</h3>
+                <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
+                  Chỉ cho bài bạn đang soạn. Bài AI tự viết theo lịch hằng tuần cài ở mục "Tự động hoá" ngoài trang.
+                </p>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <div className="relative flex items-center justify-center w-5 h-5">
@@ -1545,12 +1375,22 @@ export default function Content() {
                   )}
                 </div>
               </div>
-
-              </>
               )}
               </>
               )}
-
+            </div>
+            {coXuong && (
+              <div className="min-w-0">
+                {/* Block 3B: XƯỞNG AI — một ô soạn chung cho ảnh và video; không có gì ở đây tự lên nền tảng */}
+                <XuongAi
+                  noiDung={composerContent}
+                  anhBai={composerMedia.filter((m) => m.type === 'image').map((m) => m.url)}
+                  videoBai={composerMedia.filter((m) => m.type === 'video').map((m) => m.url)}
+                  onGanVaoBai={(item) => setComposerMedia((truoc) => [...truoc, item])}
+                  onKeHoachDang={setKeHoachXuong}
+                />
+              </div>
+            )}
             </div>
         </HopThoai>
       )}

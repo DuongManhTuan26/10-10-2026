@@ -252,7 +252,15 @@ export async function reconcileInbox(): Promise<KetQua> {
         ]);
         if (trung) continue;
 
+        // Nguồn bấm quảng cáo / link mà nhà cung cấp kênh lưu trên hội thoại (tên khoá có tiền tố meta_ad_*) — đổi
+        // về đúng dạng `metadata.referral` của webhook để tin vớt lại cũng ghi được nguồn như tin đi qua webhook.
+        const md = (c as { metadata?: Record<string, unknown> | null }).metadata ?? null;
+        const metadata =
+          md && (md.meta_ad_id || md.meta_ad_ref)
+            ? { referral: { ad_id: md.meta_ad_id, ref: md.meta_ad_ref, source: md.meta_ad_source, ads_context_data: { post_id: md.meta_ad_post_id } } }
+            : null;
         const payload = {
+          metadata,
           message: {
             id: m.id,
             conversationId: c.id,

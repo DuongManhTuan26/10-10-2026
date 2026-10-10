@@ -100,11 +100,12 @@ export default function Sidebar({
           { name: 'Báo Cáo Telegram', icon: 'notifications_active', path: '/telegram' },
         ]),
     { name: 'Gói Dịch Vụ', icon: 'workspace_premium', path: '/pricing' },
+    // Cùng tên, cùng biểu tượng ở cả hai tầng — một màn hình quản lý dùng chung (chỉ khác phạm vi).
     ...(laChuChuoi
-      ? [{ name: 'Quản Lý Trang', icon: 'store', path: '/quan-ly-trang' }]
+      ? [{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '/quan-ly-trang' }]
       : []),
     ...(laQuanTri
-      ? [{ name: 'Quản Trị Hệ Thống', icon: 'admin_panel_settings', path: '/admin' }]
+      ? [{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '/admin' }]
       : []),
   ];
 

@@ -19,6 +19,8 @@ import { analyticsRouter } from "./routes/analytics.js";
 import { hoanDiaChiKho, laDiaChiKho } from "./services/media-proxy.js";
 import { adminRouter } from "./routes/admin.js";
 import { quanLyRouter } from "./routes/quan-ly.js";
+import { chayVoiCachTim } from "./services/ngu-canh-trang.js";
+import { layTrangDangChon } from "./services/trang.js";
 
 export async function createApp() {
   const app = express();
@@ -79,6 +81,21 @@ export async function createApp() {
   });
 
   app.use(attachUser);
+
+  /*
+   * Trang đang làm việc của mỗi yêu cầu — để tiền AI ghi đúng trang (xem ngu-canh-trang.ts). Giao diện gửi kênh đang
+   * chọn qua đầu X-Kenh (hoặc accountId); máy chủ KHÔNG tin số trang từ ngoài mà suy từ kênh và kiểm kênh thuộc
+   * đúng người đăng nhập (layTrangDangChon). Không gửi thì là Trang đầu tiên của tài khoản.
+   */
+  app.use("/api", (req, _res, next) => {
+    if (!req.user) return next();
+    const userId = req.user.id;
+    const kenh =
+      req.get("x-kenh") ||
+      (typeof req.query.accountId === "string" ? req.query.accountId : undefined) ||
+      (typeof req.body?.accountId === "string" ? (req.body.accountId as string) : undefined);
+    chayVoiCachTim(() => layTrangDangChon(userId, kenh ?? null), next);
+  });
 
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", env: env.nodeEnv, time: new Date().toISOString() });

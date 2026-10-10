@@ -5,6 +5,7 @@ import { docTuChu } from "./sales-autonomy.js";
 import { handleCommentReceived } from "./comment-ai.js";
 import { touchCustomerMessage } from "./outbound.js";
 import { syncAccountsForUser } from "./accounts.js";
+import { chuCuaHoSo } from "./trang.js";
 import { xinSuatDocAnh } from "./chong-lam-dung.js";
 
 /**
@@ -177,6 +178,30 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
   const luc = message.createdAt ? new Date(message.createdAt) : null;
   const now = luc && !Number.isNaN(luc.getTime()) ? luc : new Date();
 
+  /*
+   * NGUỒN của hội thoại — nối quảng cáo / bài đăng → hội thoại → đơn bằng MÃ THẬT (chủ dự án duyệt 05/10/2026).
+   *
+   * Meta gửi `referral` ở tin ĐẦU TIÊN sau cú bấm (tài liệu nhà cung cấp kênh: metadata.referral trên message.received):
+   * `ad_id` = khách bấm quảng cáo nhắn tin; chỉ `ref` = link m.me có ref. Không có thì xem khách có đang trả lời tin
+   * nhắn riêng AI gửi từ bình luận của họ không — mã người bình luận trùng mã khách trên cùng Fanpage (đã đo 2/2 ca
+   * thật). Không có tín hiệu nào → 'tu_nhan'. KHÔNG đoán theo tên hay theo thời gian.
+   */
+  const thamChieu = ((event.payload.metadata as { referral?: Record<string, unknown> } | null | undefined)?.referral ?? null);
+  const chu = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const maQuangCao = chu(thamChieu?.ad_id);
+  const maLienKet = chu(thamChieu?.ref);
+  const baiQuangCao = chu((thamChieu?.ads_context_data as { post_id?: unknown } | undefined)?.post_id);
+  const loaiCham: "quang_cao" | "lien_ket" | null = maQuangCao ? "quang_cao" : maLienKet ? "lien_ket" : null;
+  const tuBinhLuan = await queryOne<{ platform_post_id: string | null; private_replied_at: Date }>(
+    `SELECT platform_post_id, private_replied_at FROM comments
+      WHERE user_id = $1 AND social_account_id = $2 AND author_id = $3
+        AND private_replied_at IS NOT NULL AND private_replied_at > $4::timestamptz - interval '7 days'
+        AND private_replied_at <= $4::timestamptz
+      ORDER BY private_replied_at DESC LIMIT 1`,
+    [account.user_id, accountId, senderId, now]
+  );
+  const nguon = loaiCham ?? (tuBinhLuan ? "binh_luan" : "tu_nhan");
+
   await transaction(async (client) => {
     // 1. Khách hàng — tạo mới nếu lần đầu nhắn, cập nhật nếu đã có.
     const customer = await client.query<{ id: number }>(
@@ -206,11 +231,13 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
     const customerId = customer.rows[0].id;
 
     // 2. Hội thoại — mở mới hoặc dời hạn cửa sổ 24 giờ.
+    // Nguồn chỉ ghi khi hội thoại MỚI (lần chạm đầu); các lần chạm sau ghi vào hoi_thoai_cham.
     await client.query(
       `INSERT INTO conversations
          (id, user_id, social_account_id, customer_id, platform, origin, status,
-          last_message_at, window_expires_at, unread_count)
-       VALUES ($1, $2, $3, $4, $5, 'message', 'ai', $6, $7, 1)
+          last_message_at, window_expires_at, unread_count,
+          origin_ad_id, origin_ref, origin_post_id, origin_at)
+       VALUES ($1, $2, $3, $4, $5, $8, 'ai', $6, $7, 1, $9, $10, $11, $6)
        ON CONFLICT (id) DO UPDATE SET
          last_message_at   = EXCLUDED.last_message_at,
          window_expires_at = EXCLUDED.window_expires_at,
@@ -230,8 +257,28 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
         platform,
         now,
         new Date(now.getTime() + MESSAGING_WINDOW_MS),
+        nguon,
+        maQuangCao,
+        maLienKet,
+        baiQuangCao ?? (nguon === "binh_luan" ? tuBinhLuan?.platform_post_id ?? null : null),
       ]
     );
+
+    // Mỗi lần chạm có mã (quảng cáo / link / bình luận) — kể cả khách cũ quay lại qua quảng cáo khác.
+    if (loaiCham) {
+      await client.query(
+        `INSERT INTO hoi_thoai_cham (conversation_id, user_id, loai, ad_id, ref, post_id, luc)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING`,
+        [message.conversationId, account.user_id, loaiCham, maQuangCao, maLienKet, baiQuangCao, now]
+      );
+    }
+    if (tuBinhLuan) {
+      await client.query(
+        `INSERT INTO hoi_thoai_cham (conversation_id, user_id, loai, post_id, luc)
+         VALUES ($1, $2, 'binh_luan', $3, $4) ON CONFLICT DO NOTHING`,
+        [message.conversationId, account.user_id, tuBinhLuan.platform_post_id, tuBinhLuan.private_replied_at]
+      );
+    }
 
     // 3. Tin nhắn — khoá duy nhất trên (conversation_id, external_id)
     //    đảm bảo giao lặp không tạo bản ghi thừa.
@@ -486,10 +533,9 @@ async function handleAccountChange(event: WebhookEvent): Promise<void> {
       return;
     }
 
-    const owner = await queryOne<{ id: number }>(
-      "SELECT id FROM users WHERE profile_ref = $1",
-      [profileId]
-    );
+    // Hồ sơ có thể là hồ sơ riêng của một Trang, không chỉ hồ sơ mặc định.
+    const chuId = await chuCuaHoSo(profileId);
+    const owner = chuId === null ? null : { id: chuId };
 
     if (!owner) {
       console.warn(

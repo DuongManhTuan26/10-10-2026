@@ -1,0 +1,13 @@
+import fs from "node:fs";
+import { query } from "../../server/db.js";
+const t = JSON.parse(fs.readFileSync("scripts/tam/chuoi-thu.json", "utf8"));
+const GOC = "http://127.0.0.1:3000";
+const dn = await fetch(GOC + "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: t.email, password: t.mk }) });
+const c = dn.headers.get("set-cookie")!.split(";")[0];
+const x = await fetch(GOC + `/api/quan-ly/trang/${t.trangId}`, { method: "DELETE", headers: { "Content-Type": "application/json", Cookie: c }, body: JSON.stringify({ xacNhanTen: t.tenTrang ?? "Trang thử màn hình" }) });
+console.log("xoá trang thử →", x.status);
+await query("DELETE FROM sessions WHERE user_id = $1 OR mo_boi = $1", [t.chuId]);
+await query("DELETE FROM users WHERE id = $1", [t.chuId]);
+console.log("còn sót:", (await query("SELECT 1 FROM users WHERE id = ANY($1::int[])", [[t.chuId, t.trangId]])).rowCount);
+fs.unlinkSync("scripts/tam/chuoi-thu.json");
+process.exit(0);

@@ -11,7 +11,7 @@ import { env } from "../env.js";
 import { AppError } from "../http.js";
 import { banGhi, optionalString } from "./ai.js";
 import { thongTin, taiVe, voiThuMucTam } from "./video-cong-cu.js";
-import { COT_VIEC, diaChiKhoHopLe, goiTaoViec, LUAT_VIDEO, videoDangBat, type ViecVideo } from "./video-ai.js";
+import { COT_VIEC, diaChiKhoHopLe, goiTaoViec, luatVideo, type LuatNoiDung, type ViecVideo } from "./video-ai.js";
 import path from "node:path";
 import { MODEL_SUA_VIDEO_DUOC_CHON } from "./model-duoc-chon.js";
 
@@ -102,10 +102,9 @@ export async function suaVideo(p: {
   model: string;
   videoNguon: string;
   yeuCau: string;
+  /** Người dùng bật/tắt (xem LuatNoiDung). */
+  luat?: LuatNoiDung;
 }): Promise<ViecVideo> {
-  if (!(await videoDangBat(p.trangId))) {
-    throw new AppError("Tạo video AI đang tắt. Bật trong phần soạn bài trước khi tạo.", 409);
-  }
   const yeuCau = p.yeuCau.trim().slice(0, 2_000);
   if (!yeuCau) throw new AppError("Cần mô tả muốn sửa video thế nào.", 400);
   const model = (await layModelSuaVideo()).find((m) => m.id === p.model);
@@ -119,7 +118,8 @@ export async function suaVideo(p: {
 
   const maViec = await goiTaoViec({
     model: model.id,
-    prompt: `${yeuCau}\n\n${LUAT_VIDEO}`,
+    // Sửa video: chữ theo đúng yêu cầu sửa của người dùng.
+    prompt: `${yeuCau}\n\n${luatVideo("theo_noi_dung", p.luat)}`,
     input_references: [{ type: "video_url", video_url: { url: nguon } }],
   });
   const row = await queryOne<ViecVideo>(

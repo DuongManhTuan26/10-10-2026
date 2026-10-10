@@ -12,8 +12,8 @@ import AutoScripts from './pages/AutoScripts';
 import TelegramAlerts from './pages/TelegramAlerts';
 import Connections from './pages/Connections';
 import Pricing from './pages/Pricing';
-import Admin from './pages/Admin';
-import QuanLyTrang from './pages/QuanLyTrang';
+// Một màn hình quản lý dùng chung cho quản trị tổng và chủ chuỗi (chủ dự án 04/10/2026: giống 100%, chỉ khác phạm vi).
+import QuanLy from './pages/QuanLy';
 import DangXemThay from './components/DangXemThay';
 import Analytics from './pages/Analytics';
 import Auth from './pages/Auth';
@@ -161,13 +161,18 @@ export default function App() {
         onDong={() => setMenuMo(false)}
       />
       <div className="flex-1 lg:ml-72 min-w-0 flex flex-col h-screen relative">
-        <TopNavBar user={user} avatarUrl={avatarUrl} onMoMenu={() => setMenuMo(true)} />
         {/*
           Đang xem thay một trang thì mọi màn hình trông y hệt tài khoản của
-          chính mình. Dải băng này là thứ duy nhất phân biệt, nên nó nằm trên
-          cùng và không bao giờ cuộn mất.
+          chính mình. Nút vàng cam ở góc phải thanh tiêu đề là thứ phân biệt —
+          thanh cố định nên không bao giờ cuộn mất, và không đè lên nội dung.
         */}
-        <DangXemThay user={user} onQuayLai={() => { window.location.href = '/quan-ly-trang'; }} />
+        <TopNavBar
+          user={user}
+          avatarUrl={avatarUrl}
+          onMoMenu={() => setMenuMo(true)}
+          // Quay lại thì về đúng màn hình quản lý của tầng mình (/quan-ly tự rẽ: quản trị tổng → /admin, chủ chuỗi → /quan-ly-trang).
+          gocPhai={<DangXemThay user={user} onQuayLai={() => { window.location.href = '/quan-ly'; }} />}
+        />
         <main className="flex-1 overflow-y-auto custom-scrollbar pt-16">
           {/*
             Lỗi ở MỘT màn hình không được kéo đổ cả ứng dụng thành màn hình
@@ -189,7 +194,7 @@ export default function App() {
           */}
           {user?.role === 'admin_con' ? (
             <Routes>
-              <Route path="/quan-ly-trang" element={<QuanLyTrang />} />
+              <Route path="/quan-ly-trang" element={<QuanLy user={user} />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="*" element={<Navigate to="/quan-ly-trang" replace />} />
             </Routes>
@@ -208,7 +213,8 @@ export default function App() {
               Chỉ quản trị mới có đường vào. Đây CHỈ là lớp che mắt — máy chủ
               vẫn kiểm lại vai trò từ database ở mọi lời gọi.
             */}
-            {user?.role === 'admin' && <Route path="/admin" element={<Admin />} />}
+            {user?.role === 'admin' && <Route path="/admin" element={<QuanLy user={user} />} />}
+            {user?.role === 'admin' && <Route path="/quan-ly" element={<Navigate to="/admin" replace />} />}
             <Route path="/analytics" element={<Analytics />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

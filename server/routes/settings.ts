@@ -581,8 +581,8 @@ settingsRouter.get(
 settingsRouter.get(
   "/ads/analytics",
   route(async (req, res) => {
-    const adAccounts = await query<{ id: string; display_name: string }>(
-      `SELECT id, display_name FROM social_accounts
+    const adAccounts = await query<{ id: string; display_name: string; profile_ref: string }>(
+      `SELECT id, display_name, profile_ref FROM social_accounts
         WHERE user_id = $1 AND platform = 'metaads' AND connected = TRUE`,
       [req.user!.id]
     );
@@ -600,7 +600,8 @@ settingsRouter.get(
     let analytics: unknown = null;
     try {
       analytics = await zernio.getAnalytics({
-        profileId: req.user!.profileRef ?? undefined,
+        // Hồ sơ đang giữ tài khoản quảng cáo — có thể là hồ sơ riêng của một Trang, không phải hồ sơ mặc định.
+        profileId: adAccounts.rows[0].profile_ref ?? req.user!.profileRef ?? undefined,
         platform: "metaads",
       });
     } catch (error) {

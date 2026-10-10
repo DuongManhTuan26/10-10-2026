@@ -70,6 +70,8 @@ export interface SessionUser {
    * hay trả lời khách của trang khác.
    */
   moBoi: number | null;
+  /** Tài khoản cha (admin con) của tài khoản này; null nếu đứng riêng. */
+  parentId: number | null;
 }
 
 declare global {
@@ -119,7 +121,8 @@ export async function hoSoNguoiDung(
     plan: string;
     role: string;
     profile_ref: string | null;
-  }>("SELECT id, email, name, plan, role, profile_ref FROM users WHERE id = $1", [userId]);
+    parent_id: number | null;
+  }>("SELECT id, email, name, plan, role, profile_ref, parent_id FROM users WHERE id = $1", [userId]);
   if (!row) return null;
 
   const nguoiMo =
@@ -138,6 +141,7 @@ export async function hoSoNguoiDung(
     role: chuanHoaVaiTro(row.role),
     profileRef: row.profile_ref,
     moBoi,
+    parentId: row.parent_id,
     nguoiMo,
   };
 }
@@ -214,8 +218,9 @@ async function loadSession(req: Request): Promise<SessionRow | null> {
     role: string;
     profile_ref: string | null;
     mo_boi: number | null;
+    parent_id: number | null;
   }>(
-    `SELECT s.id AS session_id, s.mo_boi, u.id, u.email, u.name, u.plan, u.role, u.profile_ref
+    `SELECT s.id AS session_id, s.mo_boi, u.id, u.email, u.name, u.plan, u.role, u.profile_ref, u.parent_id
        FROM sessions s
        JOIN users u ON u.id = s.user_id
       WHERE s.id = $1 AND s.expires_at > now() AND u.is_active = TRUE
@@ -228,10 +233,15 @@ async function loadSession(req: Request): Promise<SessionRow | null> {
          * mỗi request, thì khoá, hạ vai trò hay chuyển trang sang chủ khác đều
          * có hiệu lực ngay lượt bấm kế tiếp, không cần nhớ đi xoá phiên ở đâu.
          */
+        /*
+         * Quản trị tổng mở được MỌI tài khoản không phải quản trị; admin con chỉ mở được trang của mình
+         * (chủ dự án 04/10/2026: hai tầng có cùng tính năng, chỉ khác phạm vi).
+         */
         AND (s.mo_boi IS NULL OR EXISTS (
               SELECT 1 FROM users c
                WHERE c.id = s.mo_boi AND c.is_active = TRUE
-                 AND c.role IN ('admin', 'admin_con') AND u.parent_id = c.id))`,
+                 AND ((c.role = 'admin' AND u.role <> 'admin')
+                      OR (c.role = 'admin_con' AND u.parent_id = c.id))))`,
     [id]
   );
 
@@ -250,6 +260,7 @@ async function loadSession(req: Request): Promise<SessionRow | null> {
     role: chuanHoaVaiTro(row.role),
     profileRef: row.profile_ref,
     moBoi: row.mo_boi,
+    parentId: row.parent_id,
   };
 }
 

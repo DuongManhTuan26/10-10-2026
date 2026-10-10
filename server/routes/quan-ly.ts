@@ -26,11 +26,23 @@ import { Router } from "express";
 import { createSession, requireAuth } from "../auth.js";
 import { query, queryOne } from "../db.js";
 import { AppError, route } from "../http.js";
-import { DAU_NGAY_VN, DAU_THANG_VN } from "../moc-thoi-gian.js";
+import { DAU_NGAY_VN, DAU_THANG_VN, MOC_THEO_TRANG } from "../moc-thoi-gian.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
+import { layDanhSachQuanLy } from "../services/quan-ly-chung.js";
+import { layTongQuan } from "../services/tong-quan.js";
+import { baoCaoChuoi } from "../services/bao-cao-chuoi.js";
+import { sucKhoeTrang } from "../services/suc-khoe.js";
+import { chanLamDungAI } from "../services/chong-lam-dung.js";
+import { chayChoTrang } from "../services/ngu-canh-trang.js";
+import { soBangChungTrang } from "../services/so-bang-chung.js";
+import { hangBangChung } from "../services/kiem-cung.js";
+import { dieuHanhMotLan, goiAiThat, khoBangChung } from "../services/dieu-hanh.js";
+import { chuShopQuyet, deXuatGanDay, luuDeXuat, soDoDieuHanh, trangCuaDeXuat } from "../services/so-loi.js";
+import { NHOM_VIEC, VIEC } from "../services/so-ai.js";
+import { nhatKyLuot, saoKeChuoi } from "../services/chi-phi.js";
 import {
   rutGonTen,
-  sinhMatKhauTam,
+  docMatKhauTuDat,
   taoTaiKhoanTrang,
   TEN_MIEN_NOI_BO,
 } from "../services/tai-khoan.js";
@@ -50,7 +62,8 @@ quanLyRouter.use(requireAuth);
  * cookie tay mới ra được. Đã suýt làm đúng như vậy.
  */
 quanLyRouter.use("/trang", (req, _res, next) => {
-  if (nguoiQuanLy(req) === null) {
+  // Đang ở trong một tài khoản được mở (mo_boi) thì vẫn đi lại được — kể cả tài khoản đứng riêng do quản trị tổng mở.
+  if (nguoiQuanLy(req) === null && req.user?.moBoi == null) {
     next(new AppError("Phần này dành cho tài khoản quản lý chuỗi trang", 403));
     return;
   }
@@ -70,12 +83,47 @@ quanLyRouter.use("/trang", (req, _res, next) => {
  * mật khẩu của nó có mo_boi rỗng, nên không nhìn thấy trang anh em nào — cách
  * ly giữa các trang vẫn nguyên vẹn.
  */
-function nguoiQuanLy(req: { user?: { id: number; role: string; moBoi: number | null } }):
+function nguoiQuanLy(req: { user?: { id: number; role: string; moBoi: number | null; parentId: number | null } }):
   | number
   | null {
-  if (req.user?.moBoi != null) return req.user.moBoi;
-  if (req.user?.role === "admin_con" || req.user?.role === "admin") return req.user.id;
+  const u = req.user;
+  if (!u) return null;
+  // Tài khoản quản lý (kể cả khi quản trị tổng đã mở vào một admin con): các trang của CHÍNH tài khoản này.
+  if (u.role === "admin_con" || u.role === "admin") return u.id;
+  // Một trang được mở từ ngoài vào: "trang anh em" là các trang cùng cha.
+  if (u.moBoi != null) return u.parentId;
   return null;
+}
+
+/**
+ * Người THẬT đang ngồi trước màn hình: người đã mở phiên (mo_boi) nếu có, không thì chính tài khoản đang đăng nhập.
+ * Vai trò đọc lại từ database — quyền mở / quay lại dựa trên người thật, không dựa trên tài khoản đang được mở.
+ */
+async function nguoiThat(req: { user?: { id: number; moBoi: number | null } }) {
+  const id = req.user!.moBoi ?? req.user!.id;
+  const r = await queryOne<{ id: number; role: string; is_active: boolean }>(
+    "SELECT id, role, is_active FROM users WHERE id = $1",
+    [id]
+  );
+  if (!r || !r.is_active) throw new AppError("Không quay lại được, vui lòng đăng nhập lại", 403);
+  return r;
+}
+
+/**
+ * Tài khoản trong PHẠM VI quản lý của người đang xem (để xem báo cáo):
+ * chính mình; quản trị tổng (tự đăng nhập) — mọi tài khoản; admin con — các trang của mình.
+ */
+async function taiKhoanTrongPhamVi(
+  req: { user?: { id: number; role: string; moBoi: number | null; parentId: number | null } },
+  id: unknown
+): Promise<TrangCon> {
+  const so = Number(id);
+  if (Number.isInteger(so) && so > 0 && (so === req.user!.id || (req.user!.role === "admin" && req.user!.moBoi == null))) {
+    const r = await queryOne<TrangCon>("SELECT id, email, name, is_active, created_at FROM users WHERE id = $1", [so]);
+    if (r) return r;
+    throw new AppError("Không tìm thấy trang này", 404);
+  }
+  return trangCuaToi(nguoiQuanLy(req)!, id);
 }
 
 /**
@@ -161,102 +209,243 @@ quanLyRouter.get(
         ORDER BY u.created_at`,
       [nguoiQuanLy(req)]
     );
-    res.json({ success: true, data: rows.rows });
+    res.json({ success: true, data: nguoiQuanLy(req) === null ? [] : rows.rows });
   })
 );
 
 /**
- * Bảng điều hành cả chuỗi: mọi trang, mọi số liệu, trên MỘT màn hình.
- *
- * Đây mới là việc chính của tài khoản quản lý. Bản đầu tôi làm nó thành một
- * danh sách tài khoản kèm ba con số — chủ sản phẩm chỉ ra ngay là thiếu: chủ
- * chuỗi cần nhìn một màn hình biết cả năm trang đang chạy ra sao, chỗ nào
- * đang hỏng, chỗ nào có khách chờ, chứ không phải bấm vào từng trang mới biết.
- *
- * Ba tầng, đúng thứ tự người điều hành cần:
- *   1. Tổng cả chuỗi  — hôm nay bán được bao nhiêu, bao nhiêu khách đang chờ
- *   2. Việc phải xử lý — trang nào mất kết nối, chưa dạy AI, đang im lặng
- *   3. Từng trang     — tình trạng vận hành chi tiết để so sánh giữa các trang
- *
- * Gộp trong MỘT câu lệnh thay vì hỏi vòng từng trang: chuỗi mười trang mà hỏi
- * vòng là mười lượt đi về database cho mỗi lần mở màn hình.
+ * Danh sách cho màn hình QUẢN LÝ dùng chung (src/pages/QuanLy.tsx): chính mình + các trang của mình, cùng MỘT bộ cột
+ * với quản trị tổng (services/quan-ly-chung.ts) — hai màn hình không được lệch nhau.
+ */
+quanLyRouter.get(
+  "/danh-sach",
+  route(async (req, res) => {
+    if (req.user!.role !== "admin_con") throw new AppError("Phần này dành cho tài khoản quản lý chuỗi trang", 403);
+    res.json({ success: true, data: await layDanhSachQuanLy({ loai: "chuoi", chaId: req.user!.id }, req.user!.id) });
+  })
+);
+
+/**
+ * TỔNG QUAN tài sản (services/tong-quan.ts): MỘT đường cho cả hai tầng — quản trị tổng thấy cả hệ thống, admin con
+ * thấy chuỗi của mình. Cùng một bộ số, cùng một màn hình.
  */
 quanLyRouter.get(
   "/tong-quan",
   route(async (req, res) => {
-    const chaId = nguoiQuanLy(req);
+    const vaiTro = req.user!.role;
+    if (vaiTro !== "admin" && vaiTro !== "admin_con") throw new AppError("Phần này dành cho tài khoản quản lý", 403);
+    const ky = req.query.ky === "thang_truoc" ? "thang_truoc" : "thang_nay";
+    res.json({
+      success: true,
+      data: await layTongQuan(
+        vaiTro === "admin" ? { loai: "tong" } : { loai: "chuoi", chaId: req.user!.id },
+        req.user!.id,
+        ky
+      ),
+    });
+  })
+);
 
+/**
+ * Trang mà người đang đăng nhập được xem báo cáo: quản trị tổng — mọi trang; admin con — chỉ trang thuộc chuỗi mình.
+ * Không thuộc → 404 (không xác nhận trang có tồn tại). MỘT hàm cho mọi đường báo cáo trang — chép mỗi đường một bản
+ * thì sửa một bên quên bên kia.
+ */
+async function trangTrongPhamVi(user: { id: number; role: string }, giaTri: unknown): Promise<number> {
+  if (user.role !== "admin" && user.role !== "admin_con") throw new AppError("Phần này dành cho tài khoản quản lý", 403);
+  const trangId = Number(giaTri);
+  const thuoc = Number.isSafeInteger(trangId)
+    ? await queryOne(
+        `SELECT t.id FROM trang t JOIN users u ON u.id = t.user_id
+          WHERE t.id = $1 AND ($2::bigint IS NULL OR u.id = $2 OR u.parent_id = $2)`,
+        [trangId, user.role === "admin" ? null : user.id]
+      )
+    : null;
+  if (!thuoc) throw new AppError("Không tìm thấy trang này", 404);
+  return trangId;
+}
+
+/**
+ * Sao kê từng lượt AI của MỘT TRANG — cùng một đường cho cả hai tầng. Quản trị tổng xem mọi trang; admin con chỉ trang
+ * thuộc chuỗi mình (không thuộc thì 404, không xác nhận trang có tồn tại).
+ */
+quanLyRouter.get(
+  "/sao-ke-trang",
+  route(async (req, res) => {
+    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);
+    res.json({
+      success: true,
+      data: await nhatKyLuot({
+        soNgay: 0,
+        trangId,
+        kyThang: req.query.ky === "thang_truoc" ? "thang_truoc" : "thang_nay",
+        // Số theo trang chỉ tính từ mốc (duyệt 05/10/2026) — sao kê cùng kỳ với Tổng quan.
+        tuLuc: MOC_THEO_TRANG,
+        trang: Number(req.query.trang) || 1,
+      }),
+    });
+  })
+);
+
+/**
+ * Báo cáo chuỗi 4 khâu của MỘT TRANG (services/bao-cao-chuoi.ts) — cùng một đường, cùng chốt phạm vi với sao kê trang.
+ */
+quanLyRouter.get(
+  "/bao-cao-chuoi",
+  route(async (req, res) => {
+    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);
+    res.json({ success: true, data: await baoCaoChuoi(trangId, req.query.ky === "thang_truoc" ? "thang_truoc" : "thang_nay") });
+  })
+);
+
+/** Sức khoẻ từng khâu của MỘT TRANG — code thống kê chấm (services/suc-khoe.ts), cùng chốt phạm vi. */
+quanLyRouter.get(
+  "/suc-khoe",
+  route(async (req, res) => {
+    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);
+    res.json({ success: true, data: await sucKhoeTrang(trangId) });
+  })
+);
+
+// ------------------------------------------------------------------------------------------- AI điều hành (chạy thử)
+/*
+ * Màn hình chạy thử AI điều hành (chủ dự án 10/10/2026: "bật màn hình chạy thử cho tao kiểm tra"). Chế độ ĐỀ XUẤT:
+ * không thực thi gì — chỉ ra đề xuất để chủ shop duyệt / bác. Cùng chốt phạm vi chuỗi như các route khác.
+ */
+async function chuCuaTrang(trangId: number): Promise<number> {
+  const r = await queryOne<{ user_id: number }>("SELECT user_id::int AS user_id FROM trang WHERE id = $1", [trangId]);
+  if (!r) throw new AppError("Không tìm thấy trang này", 404);
+  return r.user_id;
+}
+
+/** Vấn đề do CODE chọn từ bảng sức khoẻ: sự cố trước, rồi chỉ số tụt ảnh hưởng tiền nhiều nhất. Không có → null. */
+function vanDeTuDong(sk: Awaited<ReturnType<typeof sucKhoeTrang>>): string | null {
+  if (sk.suCo.length) return `Sự cố: ${sk.suCo.map((s) => `${s.ten} (${s.chiTiet})`).join("; ")}`;
+  const tut = sk.uuTien.map((ma) => sk.chiSo.find((c) => c.ma === ma)).find((c) => c?.muc === "tut");
+  return tut ? `Chỉ số TỤT: ${tut.ten}` : null;
+}
+
+/** Sổ bằng chứng của trang — chỉ đọc, KHÔNG gọi AI, không tốn tiền. */
+quanLyRouter.get(
+  "/dieu-hanh/so",
+  route(async (req, res) => {
+    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);
+    const chu = await chuCuaTrang(trangId);
+    const [so, sk, soDo] = await Promise.all([soBangChungTrang(chu, trangId), sucKhoeTrang(trangId),
+      soDoDieuHanh(trangId, new Date(Date.now() - 30 * 86_400_000))]);
+    const kho = khoBangChung(so);
+    res.json({ success: true, data: {
+      bangChung: kho.map((b) => ({ ma: b.ma, nguon: b.nguon, noiDung: b.noiDung, hang: hangBangChung(b, so.luc).hang, lyDoHang: hangBangChung(b, so.luc).lyDo, gioiHan: b.gioiHan ?? [] })),
+      khoangTrong: so.khoangTrong,
+      vanDeTuDong: vanDeTuDong(sk),
+      soDo,
+    } });
+  })
+);
+
+/** Đang chạy theo trang — bấm hai lần không trả tiền hai lần. */
+const dangChayDieuHanh = new Set<number>();
+
+/** Chạy thử MỘT lần quy trình AI điều hành (tốn tiền AI — có chốt chống đốt tiền). Kết quả lưu, chờ chủ shop duyệt. */
+quanLyRouter.post(
+  "/dieu-hanh/chay",
+  chanLamDungAI,
+  route(async (req, res) => {
+    const trangId = await trangTrongPhamVi(req.user!, req.body?.trangId);
+    const chu = await chuCuaTrang(trangId);
+    const goTay = typeof req.body?.vanDe === "string" ? req.body.vanDe.trim().slice(0, 500) : "";
+    if (dangChayDieuHanh.has(trangId)) throw new AppError("Trang này đang chạy thử, chờ lượt trước xong", 409);
+    dangChayDieuHanh.add(trangId);
+    try {
+      const [so, sk] = await Promise.all([soBangChungTrang(chu, trangId), sucKhoeTrang(trangId)]);
+      const vanDe = goTay ? `Chủ shop hỏi: ${goTay}` : vanDeTuDong(sk);
+      if (!vanDe) throw new AppError("Bảng sức khoẻ không có vấn đề nào cần xử lý — gõ câu hỏi nếu muốn AI điều hành xem", 400);
+      // Tiền AI tính vào đúng trang này (sổ AI đọc trang từ ngữ cảnh).
+      const k = await chayChoTrang(trangId, () => dieuHanhMotLan({ vanDe, so, cheDo: "de_xuat", goi: goiAiThat(chu) }));
+      const id = await luuDeXuat({ userId: chu, trangId, vanDe, k, so });
+      res.json({ success: true, data: { id, ketQua: k.ketQua, soLuotAi: k.soLuotAi, tienUsd: k.tienUsd, giay: k.thoiGianMs / 1000 } });
+    } finally {
+      dangChayDieuHanh.delete(trangId);
+    }
+  })
+);
+
+/** Đề xuất gần đây của trang. */
+quanLyRouter.get(
+  "/dieu-hanh/de-xuat",
+  route(async (req, res) => {
+    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);
+    res.json({ success: true, data: await deXuatGanDay(trangId) });
+  })
+);
+
+/** Duyệt / bác một đề xuất (chế độ đề xuất: duyệt = ghi nhận, CHƯA thực thi gì). */
+quanLyRouter.post(
+  "/dieu-hanh/de-xuat/:id/quyet",
+  route(async (req, res) => {
+    const dx = await trangCuaDeXuat(Number(req.params.id));
+    if (!dx) throw new AppError("Không tìm thấy đề xuất", 404);
+    await trangTrongPhamVi(req.user!, dx.trang_id);
+    const ok = await chuShopQuyet({ id: Number(req.params.id), userId: dx.user_id, duyet: req.body?.duyet === true,
+      lyDo: typeof req.body?.lyDo === "string" ? req.body.lyDo.trim().slice(0, 1000) : undefined });
+    if (!ok) throw new AppError("Đề xuất này đã được quyết rồi", 409);
+    res.json({ success: true });
+  })
+);
+
+/** Chi phí tháng này của CHUỖI — cùng khung với chi phí hệ thống của quản trị tổng, chỉ tiền của chuỗi mình. */
+quanLyRouter.get(
+  "/chi-phi",
+  route(async (req, res) => {
+    if (req.user!.role !== "admin_con") throw new AppError("Phần này dành cho tài khoản quản lý chuỗi trang", 403);
+    const ngay = Number(req.query.ngay);
+    res.json({ success: true, data: await saoKeChuoi(req.user!.id, Number.isFinite(ngay) && ngay >= 0 ? ngay : 0) });
+  })
+);
+
+/** Từng lượt AI của chuỗi — cùng bộ lọc với quản trị tổng, luôn kẹp trong chuỗi của mình. */
+quanLyRouter.get(
+  "/chi-phi/luot",
+  route(async (req, res) => {
+    if (req.user!.role !== "admin_con") throw new AppError("Phần này dành cho tài khoản quản lý chuỗi trang", 403);
+    const ngay = Number(req.query.ngay);
+    const q = (k: string) => (typeof req.query[k] === "string" ? (req.query[k] as string) : "");
+    const tk = q("tk");
+    const nhom = q("nhom");
+    const viec = q("viec");
+    res.json({
+      success: true,
+      data: await nhatKyLuot({
+        soNgay: Number.isFinite(ngay) && ngay >= 0 ? ngay : 0,
+        taiKhoan: tk === "" || tk === "chung" ? undefined : Number(tk) || undefined,
+        kemCon: q("kemCon") === "1",
+        nhom: nhom in NHOM_VIEC || nhom === "chua_phan_loai" ? nhom : undefined,
+        viec: viec in VIEC || viec === "chua_phan_loai" ? viec : undefined,
+        trang: Number(q("trang")) || 1,
+        phamViChuoi: req.user!.id,
+      }),
+    });
+  })
+);
+
+/** Nhật ký quản lý của chuỗi: việc chính mình làm và việc làm trên các trang của mình. Cùng dạng với quản trị tổng. */
+quanLyRouter.get(
+  "/nhat-ky",
+  route(async (req, res) => {
+    if (req.user!.role !== "admin_con") throw new AppError("Phần này dành cho tài khoản quản lý chuỗi trang", 403);
     const rows = await query(
-      `SELECT u.id, u.email, u.name, u.is_active, u.plan, u.created_at,
-
-              /* --- Kênh: trang có đang nối được với Facebook không --- */
-              (SELECT count(*)::int FROM social_accounts s
-                WHERE s.user_id = u.id AND s.connected) AS kenh_noi,
-              (SELECT count(*)::int FROM social_accounts s
-                WHERE s.user_id = u.id AND s.needs_reconnection) AS kenh_can_noi_lai,
-              /*
-               * CHỈ lấy Fanpage đang còn nối.
-               *
-               * Không lọc theo connected thì thẻ trang hiện "Fanpage: X" ngay
-               * cạnh cảnh báo "Chưa nối Fanpage nào" — hai câu chọi nhau trên
-               * cùng một thẻ, đã nhìn thấy đúng như vậy trên màn hình thật.
-               */
-              (SELECT s.display_name FROM social_accounts s
-                WHERE s.user_id = u.id AND s.platform = 'facebook' AND s.connected
-                ORDER BY s.created_at LIMIT 1) AS ten_fanpage,
-
-              /* --- Bộ não: AI đã được dạy chưa, hay vẫn trống --- */
-              (SELECT count(*)::int FROM ai_configs c
-                WHERE c.user_id = u.id AND c.kind = 'sales'
-                  AND coalesce(c.system_prompt, '') <> '') AS da_day_vai_tro,
-              (SELECT count(*)::int FROM ai_documents d
-                WHERE d.user_id = u.id AND d.kind = 'sales') AS so_tai_lieu,
-              (SELECT coalesce((c.settings -> 'tuChu' ->> 'bat')::boolean, FALSE)
-                 FROM ai_configs c
-                WHERE c.user_id = u.id AND c.kind = 'sales' LIMIT 1) AS ai_tu_chu,
-              (SELECT count(*)::int FROM auto_scripts a
-                WHERE a.user_id = u.id AND a.is_active) AS kich_ban_bat,
-
-              /* --- Vận hành 7 ngày: trang này còn sống hay đã im --- */
-              (SELECT count(*)::int FROM messages m
-                WHERE m.user_id = u.id AND m.created_at >= now() - interval '7 days') AS tin_7_ngay,
-              (SELECT count(*)::int FROM messages m
-                WHERE m.user_id = u.id AND m.sender_type = 'ai'
-                  AND m.created_at >= now() - interval '7 days') AS ai_tra_loi_7_ngay,
-              (SELECT max(m.created_at) FROM messages m WHERE m.user_id = u.id) AS hoat_dong_cuoi,
-
-              /* --- Cần người: khách đang đợi chủ shop trả lời --- */
-              (SELECT count(*)::int FROM conversations c
-                WHERE c.user_id = u.id AND c.status = 'waiting_human') AS cho_nguoi,
-
-              /* --- Kết quả --- */
-              (SELECT count(*)::int FROM orders o
-                WHERE o.user_id = u.id AND o.created_at >= ${DAU_NGAY_VN}) AS don_hom_nay,
-              (SELECT count(*)::int FROM orders o
-                WHERE o.user_id = u.id AND o.created_at >= ${DAU_THANG_VN}
-                  AND o.status <> 'cancelled') AS don_thang,
-              (SELECT COALESCE(SUM(o.total), 0)::bigint FROM orders o
-                WHERE o.user_id = u.id AND o.created_at >= ${DAU_THANG_VN}
-                  AND o.status <> 'cancelled') AS doanh_thu_thang,
-
-              /*
-               * Tiền AI trang này tiêu trong tháng.
-               *
-               * Trang bán được 2 triệu mà đốt 1 triệu tiền AI thì đó không
-               * phải trang tốt — nhìn mỗi doanh thu là không thấy được điều đó.
-               */
-              -- Cùng cách tính với sao kê: số nhà cung cấp đã chốt, chưa chốt thì số lúc gọi.
-              (SELECT COALESCE(SUM(coalesce(a.cost_ncc, a.cost_usd)), 0)::text FROM ai_usage a
-                WHERE a.user_id = u.id AND a.created_at >= ${DAU_THANG_VN}) AS tien_ai_thang
-         FROM users u
-        WHERE u.parent_id = $1
-        ORDER BY u.created_at`,
-      [chaId]
+      `SELECT a.id, a.action, a.target_id, a.target_email, a.detail, a.created_at, u.email AS admin_email
+         FROM admin_audit a
+         LEFT JOIN users u ON u.id = a.admin_id
+        WHERE a.admin_id = $1 OR a.target_id = $1
+           OR a.target_id IN (SELECT id FROM users WHERE parent_id = $1)
+        ORDER BY a.created_at DESC LIMIT 100`,
+      [req.user!.id]
     );
-
     res.json({ success: true, data: rows.rows });
   })
 );
+
 
 /** Lập thêm một trang. Mật khẩu tạm trả về ĐÚNG MỘT LẦN, sau đó không đọc lại được. */
 quanLyRouter.post(
@@ -264,7 +453,7 @@ quanLyRouter.post(
   route(async (req, res) => {
     chanNeuDangXemThay(req);
     const ten = typeof req.body?.ten === "string" ? req.body.ten : "";
-    const taiKhoan = await taoTaiKhoanTrang({ parentId: req.user!.id, tenTrang: ten });
+    const taiKhoan = await taoTaiKhoanTrang({ parentId: req.user!.id, tenTrang: ten, matKhau: docMatKhauTuDat(req.body).matKhau });
 
     await ghiNhatKyQuanTri({
       adminId: req.user!.id,
@@ -291,7 +480,11 @@ quanLyRouter.patch(
   "/trang/:id",
   route(async (req, res) => {
     chanNeuDangXemThay(req);
-    const trang = await trangCuaToi(req.user!.id, req.params.id);
+    // Đổi tên CHÍNH MÌNH cũng qua đây — quản trị tổng sửa được tên của mình, admin con cũng phải được (đồng nhất).
+    const trang =
+      Number(req.params.id) === req.user!.id
+        ? (await queryOne<TrangCon>("SELECT id, email, name, is_active, created_at FROM users WHERE id = $1", [req.user!.id]))!
+        : await trangCuaToi(req.user!.id, req.params.id);
     const ten = typeof req.body?.ten === "string" ? req.body.ten.trim() : "";
     if (ten.length < 2) throw new AppError("Tên trang phải có ít nhất 2 ký tự");
 
@@ -402,11 +595,7 @@ quanLyRouter.post(
      * tay từng ký tự, và mất là phải xin lại. Không gửi gì lên thì vẫn sinh
      * ngẫu nhiên như cũ.
      */
-    const tuDat = typeof req.body?.matKhau === "string" ? req.body.matKhau : "";
-    if (tuDat && tuDat.length < 8) {
-      throw new AppError("Mật khẩu phải có ít nhất 8 ký tự");
-    }
-    const matKhauTam = tuDat || sinhMatKhauTam();
+    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);
 
     await query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2", [
       await hashPassword(matKhauTam),
@@ -441,7 +630,7 @@ quanLyRouter.post(
 quanLyRouter.get(
   "/trang/:id/bao-cao",
   route(async (req, res) => {
-    const trang = await trangCuaToi(nguoiQuanLy(req)!, req.params.id);
+    const trang = await taiKhoanTrongPhamVi(req, req.params.id);
     const ngay = [7, 30, 90].includes(Number(req.query.ngay)) ? Number(req.query.ngay) : 7;
 
     const so = await queryOne<Record<string, string>>(
@@ -539,10 +728,11 @@ quanLyRouter.delete(
     chanNeuDangXemThay(req);
     const trang = await trangCuaToi(req.user!.id, req.params.id);
 
-    const xacNhan = typeof req.body?.xacNhanTen === "string" ? req.body.xacNhanTen : "";
-    if (xacNhan.trim() !== trang.name.trim()) {
+    // Gõ đúng TÊN ĐĂNG NHẬP (email) để xác nhận — cùng cách với quản trị tổng. Tên trang vẫn nhận (bản cũ).
+    const xacNhan = (typeof req.body?.xacNhanTen === "string" ? req.body.xacNhanTen : "").trim();
+    if (xacNhan.toLowerCase() !== trang.email.toLowerCase() && xacNhan !== trang.name.trim()) {
       throw new AppError(
-        "Gõ đúng tên trang để xác nhận xoá. Thao tác này không lấy lại được.",
+        "Gõ đúng tên đăng nhập của trang để xác nhận xoá. Thao tác này không lấy lại được.",
         400
       );
     }
@@ -606,8 +796,25 @@ quanLyRouter.delete(
 quanLyRouter.post(
   "/trang/:id/mo",
   route(async (req, res) => {
-    const chaId = nguoiQuanLy(req)!;
-    const trang = await trangCuaToi(chaId, req.params.id);
+    /*
+     * Quản trị tổng mở được MỌI tài khoản không phải quản trị; admin con chỉ mở được trang của mình
+     * (chủ dự án 04/10/2026: hai tầng cùng tính năng, chỉ khác phạm vi). Quyền xét theo NGƯỜI THẬT (mo_boi).
+     */
+    const that = await nguoiThat(req);
+    const chaId = that.id;
+    let trang: TrangCon;
+    if (that.role === "admin") {
+      const so = Number(req.params.id);
+      const r = Number.isInteger(so) && so > 0
+        ? await queryOne<TrangCon>("SELECT id, email, name, is_active, created_at FROM users WHERE id = $1 AND role <> 'admin'", [so])
+        : null;
+      if (!r) throw new AppError("Không tìm thấy trang này", 404);
+      trang = r;
+    } else if (that.role === "admin_con") {
+      trang = await trangCuaToi(chaId, req.params.id);
+    } else {
+      throw new AppError("Không tìm thấy trang này", 404);
+    }
     if (!trang.is_active) {
       throw new AppError("Trang này đang bị khoá, vui lòng mở khoá trước", 409);
     }
@@ -644,12 +851,13 @@ quanLyRouter.post(
      * ghi lúc mở. Giữa hai thời điểm đó tài khoản quản lý có thể đã bị khoá,
      * bị hạ vai trò, hoặc trang này đã được chuyển sang người khác.
      */
+    // Cùng luật với phiên (auth.ts): quản trị tổng — mọi tài khoản không phải quản trị; admin con — trang của mình.
     const cha = await queryOne<{ id: number; email: string; name: string }>(
       `SELECT c.id, c.email, c.name
-         FROM users c
-         JOIN users t ON t.parent_id = c.id
-        WHERE c.id = $1 AND t.id = $2
-          AND c.is_active = TRUE AND c.role IN ('admin', 'admin_con')`,
+         FROM users c, users t
+        WHERE c.id = $1 AND t.id = $2 AND c.is_active = TRUE
+          AND ((c.role = 'admin' AND t.role <> 'admin')
+               OR (c.role = 'admin_con' AND t.parent_id = c.id))`,
       [moBoi, req.user!.id]
     );
     if (!cha) {

@@ -23,8 +23,20 @@
 import { query, queryOne } from "../db.js";
 import { generatePostContent } from "./content-ai.js";
 import { publishPost } from "./publish.js";
+import { layDanhSachModelAnh, taoAnhChoBai } from "./image-ai.js";
+import { AppError } from "../http.js";
+import {
+  giaVideo,
+  layDanhSachModel,
+  lyDoKhongHop,
+  taoVideo,
+  vietLoiMoTaVideo,
+  type HuongKichBan,
+  type LuaChonVideo,
+} from "./video-ai.js";
 import { sendTelegramMessage, escapeHtml } from "./telegram.js";
 import { gioiHanChatNhat } from "../../src/lib/gioi-han-kenh.js";
+import { chayChoTrang } from "./ngu-canh-trang.js";
 
 /** Toàn bộ lịch tính theo giờ Việt Nam: sản phẩm bán cho chủ shop Việt Nam. */
 const VN_OFFSET_MS = 7 * 60 * 60 * 1_000;
@@ -51,6 +63,80 @@ export interface AutoPilotConfig {
   notifyMinutes: number;
   /** Kênh sẽ đăng. Rỗng nghĩa là mọi kênh đang kết nối. */
   accountIds: string[];
+  /** Tự vẽ ảnh theo nội dung từng bài AI viết, đăng kèm bài (chủ dự án 03/10/2026). Tắt thì không có ảnh. */
+  anh: AnhTuDong;
+  /**
+   * Tự tạo video theo nội dung bài, đăng kèm — cùng cơ chế công tắc như ảnh (chủ dự án 03/10/2026, đổi quyết
+   * định trước "không cho video vào tự động"). Bật cả hai thì đăng cả ảnh và video; tắt cả hai thì chỉ chữ.
+   * Có TRẦN TIỀN MỖI THÁNG do người dùng nhập; video lỗi / quá lâu / chạm trần → đăng kèm ẢNH THAY THẾ.
+   */
+  video: VideoTuDong;
+}
+
+export interface VideoTuDong {
+  bat: boolean;
+  /** Mô hình video người dùng chọn. Rỗng = chưa chọn → không tạo. */
+  model: string;
+  soGiay: number;
+  doNet: string;
+  khung: string;
+  coTieng: boolean;
+  /** Mục đích video (MUC_DICH_VIDEO) — để AI viết lời nhắc video từ bài. */
+  mucDich: string;
+  chuTrongVideo: "theo_noi_dung" | "khong";
+  chanNhanHieuGia: boolean;
+  chanNguoiThat: boolean;
+  /** Trần tiền video tự động mỗi tháng (USD). 0 = chưa đặt → không bật được. */
+  tranThangUsd: number;
+}
+
+export function docVideoTuDong(raw: unknown): VideoTuDong {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const chuoi = (v: unknown) => (typeof v === "string" && /^[\w.:/-]{1,80}$/.test(v) ? v : undefined);
+  const so = (v: unknown, min: number, max: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= min && n <= max ? n : undefined;
+  };
+  return {
+    bat: o.bat === true,
+    model: chuoi(o.model) ?? "",
+    soGiay: Math.round(so(o.soGiay, 2, 30) ?? 8),
+    doNet: chuoi(o.doNet) ?? "720p",
+    khung: typeof o.khung === "string" && /^\d{1,2}:\d{1,2}$/.test(o.khung) ? o.khung : "9:16",
+    coTieng: o.coTieng === true,
+    mucDich: chuoi(o.mucDich) ?? "khoe_san_pham",
+    chuTrongVideo: o.chuTrongVideo === "khong" ? "khong" : "theo_noi_dung",
+    chanNhanHieuGia: o.chanNhanHieuGia === true,
+    chanNguoiThat: o.chanNguoiThat === true,
+    tranThangUsd: Math.round((so(o.tranThangUsd, 0, 10_000) ?? 0) * 100) / 100,
+  };
+}
+
+export interface AnhTuDong {
+  bat: boolean;
+  /** Mô hình và thông số người dùng chọn (model-anh.ts). Rỗng = chưa chọn → không vẽ. */
+  model: string;
+  doNet?: string;
+  chatLuong?: string;
+  khung?: string;
+  chuTrongAnh: "theo_noi_dung" | "khong";
+  chanNhanHieuGia: boolean;
+  chanNguoiThat: boolean;
+}
+
+export function docAnhTuDong(raw: unknown): AnhTuDong {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const chuoi = (v: unknown) => (typeof v === "string" && /^[\w.:/-]{1,80}$/.test(v) ? v : undefined);
+  return {
+    bat: o.bat === true,
+    model: chuoi(o.model) ?? "",
+    doNet: chuoi(o.doNet),
+    chatLuong: chuoi(o.chatLuong),
+    khung: chuoi(o.khung),
+    chuTrongAnh: o.chuTrongAnh === "khong" ? "khong" : "theo_noi_dung",
+    chanNhanHieuGia: o.chanNhanHieuGia === true,
+    chanNguoiThat: o.chanNguoiThat === true,
+  };
 }
 
 export const MAC_DINH: AutoPilotConfig = {
@@ -63,6 +149,8 @@ export const MAC_DINH: AutoPilotConfig = {
   guard: "approve",
   notifyMinutes: 30,
   accountIds: [],
+  anh: docAnhTuDong({}),
+  video: docVideoTuDong({}),
 };
 
 /** Đọc cấu hình từ JSONB, bỏ qua mọi giá trị rác thay vì tin vào nó. */
@@ -116,6 +204,8 @@ export function docCauHinh(raw: unknown): AutoPilotConfig {
     accountIds: Array.isArray(o.accountIds)
       ? o.accountIds.filter((v): v is string => typeof v === "string")
       : [],
+    anh: docAnhTuDong(o.anh),
+    video: docVideoTuDong(o.video),
   };
 }
 
@@ -204,7 +294,7 @@ export async function runDueAutoPilot(bayGio = new Date()): Promise<number> {
       if (!cho) continue;
 
       try {
-        const xong = await lamMotO(shop.user_id, shop.trang_id, cau, cho.id, o.khoa);
+        const xong = await chayChoTrang(shop.trang_id, () => lamMotO(shop.user_id, shop.trang_id, cau, cho.id, o.khoa));
         if (xong) daLam += 1;
       } catch (error) {
         const loi = error instanceof Error ? error.message : String(error);
@@ -312,19 +402,100 @@ async function lamMotO(
     return false;
   }
 
+  /*
+   * Ảnh theo nội dung bài — chỉ khi chủ shop bật và đã chọn mô hình.
+   *
+   * Vẽ ảnh hỏng (hết tiền AI, nhà cung cấp lỗi) thì bài KHÔNG tự lên sóng mà chuyển sang chờ
+   * duyệt: chủ shop đã chọn "có ảnh", đăng trơn chữ là trái ý họ, và kênh bắt buộc có ảnh
+   * (Instagram) sẽ làm hỏng cả lệnh đăng chung.
+   */
+  let media: { url: string; type: "image" | "video" }[] = [];
+  let loiAnh: string | null = null;
+  let tienAnh = 0;
+  if (cau.anh.bat && cau.anh.model) {
+    try {
+      const anh = await taoAnhChoBai({
+        userId,
+        trangId,
+        noiDung,
+        chuTrongAnh: cau.anh.chuTrongAnh,
+        luat: { chanNhanHieuGia: cau.anh.chanNhanHieuGia, chanNguoiThat: cau.anh.chanNguoiThat },
+        veAnh: { model: cau.anh.model, doNet: cau.anh.doNet, chatLuong: cau.anh.chatLuong, khung: cau.anh.khung },
+        viec: "tao_anh_tu_dong",
+      });
+      media = [{ url: anh.url, type: "image" }];
+      tienAnh = anh.costUsd;
+    } catch (error) {
+      loiAnh = error instanceof Error ? error.message : String(error);
+    }
+  }
+  const guard: AutoPilotConfig["guard"] = loiAnh ? "approve" : cau.guard;
+  const ghiChuAnh = loiAnh
+    ? ` Không vẽ được ảnh (${loiAnh.slice(0, 200)}), nên bài chờ bạn duyệt.`
+    : media.length
+      ? ` Có ảnh AI vẽ (${tienAnh.toFixed(4)} USD).`
+      : "";
+
+  /*
+   * Video theo nội dung bài — chỉ khi bật, đã chọn mô hình và còn trong trần tiền tháng.
+   * Video mất 1–5 phút nên bài nằm chờ (cho_video_id); runDueVideoTuDong gắn video rồi mới đăng.
+   * Không làm được video (tắt tạo video, chạm trần, lỗi) → đăng kèm ẢNH THAY THẾ (chủ dự án chọn).
+   */
+  let choVideo: { id: number; gia: number } | null = null;
+  let ghiChuVideo = "";
+  if (cau.video.bat && cau.video.model && trangId) {
+    try {
+      choVideo = await batDauVideoTuDong({ userId, trangId, noiDung, v: cau.video, anhMoDau: media[0]?.url });
+    } catch (error) {
+      const lyDo = error instanceof Error ? error.message : String(error);
+      ghiChuVideo = ` Không làm được video (${lyDo.slice(0, 200)})`;
+      if (!media.length) {
+        try {
+          const thay = await anhThayThe({ userId, trangId, noiDung, anh: cau.anh });
+          media = [{ url: thay.url, type: "image" }];
+          ghiChuVideo += `, đã đăng kèm ảnh thay thế (${thay.costUsd.toFixed(4)} USD).`;
+        } catch (e) {
+          ghiChuVideo += `; ảnh thay thế cũng hỏng (${(e instanceof Error ? e.message : String(e)).slice(0, 120)}).`;
+        }
+      } else {
+        ghiChuVideo += ", bài đăng kèm ảnh.";
+      }
+    }
+  }
+
+  if (choVideo) {
+    // Chờ video: chưa đăng, chưa hẹn giờ. Chế độ đăng đã chọn giữ lại để áp khi video xong.
+    const baiCho = await queryOne<{ id: number }>(
+      `INSERT INTO posts (user_id, content, media, target_account_ids, status,
+                          ai_generated, ai_prompt, auto_publish_at, cho_video_id, cho_video_guard)
+       VALUES ($1, $2, $3::jsonb, $4::text[], 'pending_approval', TRUE, $5, NULL, $6, $7)
+       RETURNING id`,
+      [userId, noiDung, JSON.stringify(media), kenh.rows.map((k) => k.id), chuDe, choVideo.id, guard]
+    );
+    if (!baiCho) throw new Error("Không lưu được bài vừa viết.");
+    await query(`UPDATE auto_pilot_runs SET status = 'ok', topic = $2, post_id = $3, note = $4 WHERE id = $1`, [
+      runId,
+      chuDe,
+      baiCho.id,
+      `Đã viết, đang tạo video (~${choVideo.gia.toFixed(3)} USD) — xong thì đăng kèm.` + ghiChuAnh,
+    ]);
+    return true;
+  }
+
   const tuDangLuc =
-    cau.guard === "notify" ? new Date(Date.now() + cau.notifyMinutes * 60_000) : null;
+    guard === "notify" ? new Date(Date.now() + cau.notifyMinutes * 60_000) : null;
 
   const bai = await queryOne<{ id: number }>(
-    `INSERT INTO posts (user_id, content, target_account_ids, status,
+    `INSERT INTO posts (user_id, content, media, target_account_ids, status,
                         ai_generated, ai_prompt, auto_publish_at)
-     VALUES ($1, $2, $3::text[], $4, TRUE, $5, $6)
+     VALUES ($1, $2, $3::jsonb, $4::text[], $5, TRUE, $6, $7)
      RETURNING id`,
     [
       userId,
       noiDung,
+      JSON.stringify(media),
       kenh.rows.map((k) => k.id),
-      cau.guard === "publish" ? "draft" : "pending_approval",
+      guard === "publish" ? "draft" : "pending_approval",
       chuDe,
       tuDangLuc,
     ]
@@ -337,11 +508,11 @@ async function lamMotO(
     bai.id,
   ]);
 
-  if (cau.guard === "publish") {
+  if (guard === "publish") {
     await publishPost(userId, bai.id);
     await query(`UPDATE auto_pilot_runs SET status = 'ok', note = $2 WHERE id = $1`, [
       runId,
-      "Đã viết và gửi đăng.",
+      "Đã viết và gửi đăng." + ghiChuAnh + ghiChuVideo,
     ]);
     await baoTelegram(
       userId,
@@ -350,10 +521,10 @@ async function lamMotO(
     return true;
   }
 
-  if (cau.guard === "notify") {
+  if (guard === "notify") {
     await query(`UPDATE auto_pilot_runs SET status = 'ok', note = $2 WHERE id = $1`, [
       runId,
-      `Đã viết, sẽ tự đăng sau ${cau.notifyMinutes} phút nếu không bị huỷ.`,
+      `Đã viết, sẽ tự đăng sau ${cau.notifyMinutes} phút nếu không bị huỷ.` + ghiChuAnh + ghiChuVideo,
     ]);
     await baoTelegram(
       userId,
@@ -366,11 +537,12 @@ async function lamMotO(
 
   await query(`UPDATE auto_pilot_runs SET status = 'ok', note = $2 WHERE id = $1`, [
     runId,
-    "Đã viết, đang chờ chủ shop duyệt.",
+    "Đã viết, đang chờ chủ shop duyệt." + ghiChuAnh + ghiChuVideo,
   ]);
   await baoTelegram(
     userId,
-    `🤖 <b>AI vừa viết một bài, đang chờ bạn duyệt</b>\nChủ đề: ${escapeHtml(chuDe)}\n\n${escapeHtml(noiDung.slice(0, 600))}`
+    `🤖 <b>AI vừa viết một bài, đang chờ bạn duyệt</b>\nChủ đề: ${escapeHtml(chuDe)}\n\n${escapeHtml(noiDung.slice(0, 600))}` +
+      (loiAnh ? `\n\n⚠️ ${escapeHtml(ghiChuAnh.trim())}` : "")
   );
   return true;
 }
@@ -418,6 +590,213 @@ export async function runDueAutoPublishes(): Promise<number> {
         error instanceof Error ? error.message : error
       );
     }
+  }
+  return dem;
+}
+
+// ---------------------------------------------------------------------------
+// Video tự động theo lịch (migration 039)
+// ---------------------------------------------------------------------------
+
+/** Bài chờ video quá lâu thì thôi chờ, đăng kèm ảnh thay thế. */
+export const CHO_VIDEO_TOI_DA_PHUT = 25;
+
+/** Tiền video tự động đã dùng trong tháng này (theo giờ Việt Nam) của một Trang. */
+export async function tienVideoTuDongThang(trangId: number): Promise<number> {
+  const r = await queryOne<{ tong: string | null }>(
+    `SELECT sum(coalesce(gia_thuc, gia_uoc_tinh))::text AS tong FROM video_ai
+      WHERE trang_id = $1 AND tu_dong
+        AND created_at >= (date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh')`,
+    [trangId]
+  );
+  return Number(r?.tong ?? 0) || 0;
+}
+
+/** AI viết lời nhắc video từ bài rồi gửi việc tạo video — chặn trước nếu vượt trần tiền tháng. */
+async function batDauVideoTuDong(p: {
+  userId: number;
+  trangId: number;
+  noiDung: string;
+  v: VideoTuDong;
+  anhMoDau?: string;
+}): Promise<{ id: number; gia: number }> {
+  const model = (await layDanhSachModel()).find((m) => m.id === p.v.model);
+  if (!model) throw new Error("mô hình video đã chọn không còn");
+  const lc = {
+    soGiay: p.v.soGiay,
+    doNet: p.v.doNet,
+    khung: p.v.khung,
+    coTieng: p.v.coTieng,
+    coAnhMoDau: Boolean(p.anhMoDau),
+    chuTrongVideo: p.v.chuTrongVideo,
+    chanNhanHieuGia: p.v.chanNhanHieuGia,
+    chanNguoiThat: p.v.chanNguoiThat,
+  };
+  const gia = giaVideo(model, lc);
+  if (gia === null) throw new Error("chưa tính được giá video");
+  const daDung = await tienVideoTuDongThang(p.trangId);
+  if (!(p.v.tranThangUsd > 0) || daDung + gia > p.v.tranThangUsd) {
+    throw new Error(`chạm trần tiền video tháng này (đã dùng ${daDung.toFixed(2)} / ${p.v.tranThangUsd} USD)`);
+  }
+  const viec = await vietVaGuiVideo({ userId: p.userId, trangId: p.trangId, noiDung: p.noiDung, model: model.id, lc, mucDich: p.v.mucDich, anhMoDau: p.anhMoDau });
+  await query("UPDATE video_ai SET tu_dong = TRUE WHERE id = $1", [viec.id]);
+  return { id: viec.id, gia };
+}
+
+/** AI viết lời nhắc video từ nội dung bài rồi gửi việc tạo video. */
+async function vietVaGuiVideo(p: {
+  userId: number;
+  trangId: number;
+  noiDung: string;
+  model: string;
+  lc: LuaChonVideo;
+  mucDich: string;
+  huong?: HuongKichBan;
+  anhMoDau?: string;
+}) {
+  const { loiMoTa } = await vietLoiMoTaVideo({
+    userId: p.userId,
+    noiDung: p.noiDung,
+    mucDich: p.mucDich,
+    soGiay: p.lc.soGiay,
+    coAnhMoDau: Boolean(p.anhMoDau),
+    chuTrongVideo: p.lc.chuTrongVideo,
+    huong: p.huong,
+    luat: { chanNhanHieuGia: p.lc.chanNhanHieuGia, chanNguoiThat: p.lc.chanNguoiThat },
+  });
+  return taoVideo({ userId: p.userId, trangId: p.trangId, model: p.model, loiMoTa, lc: p.lc, anhMoDau: p.anhMoDau });
+}
+
+/** Bài còn sửa được (chưa gửi lên nền tảng) mới gắn video theo bài được. */
+const TRANG_THAI_CHO_VIDEO = ["draft", "pending_approval", "scheduled", "failed"];
+
+/**
+ * Bài soạn tay, video "theo bài" (chủ dự án 04/10/2026: bấm Đăng bài / Lên lịch thì tự tạo video từ nội dung bài
+ * rồi đăng cùng). Video mất 1–5 phút nên bài nằm chờ như bài của lịch tự đăng: runDueVideoTuDong gắn video
+ * rồi đăng (giờ hẹn vẫn giữ — publishPost tự đọc scheduled_for). Không có trần tiền tháng: chủ shop đã thấy giá
+ * và bấm đồng ý ngay lúc đăng. Chỉ từ nội dung bài: không prompt tay, không ảnh tham chiếu (ô prompt đóng khi đi theo bài).
+ */
+export async function taoVideoTheoBai(p: {
+  userId: number;
+  trangId: number;
+  postId: number;
+  noiDung: string;
+  model: string;
+  lc: LuaChonVideo;
+  mucDich: string;
+  huong?: HuongKichBan;
+}): Promise<{ videoId: number; gia: number }> {
+  if (!Number.isInteger(p.postId) || p.postId <= 0) throw new AppError("Thiếu bài viết để gắn video.", 400);
+  const bai = await queryOne<{ status: string; content: string }>(
+    "SELECT status, content FROM posts WHERE id = $1 AND user_id = $2",
+    [p.postId, p.userId]
+  );
+  if (!bai) throw new AppError("Không tìm thấy bài viết", 404);
+  if (!TRANG_THAI_CHO_VIDEO.includes(bai.status)) throw new AppError("Bài đã gửi đăng, không gắn thêm video được.", 409);
+  const model = (await layDanhSachModel()).find((m) => m.id === p.model);
+  if (!model) throw new AppError("Mô hình video đã chọn không còn. Chọn mô hình khác.", 400);
+  const lyDo = lyDoKhongHop(model, p.lc);
+  if (lyDo) throw new AppError(`Mô hình video này ${lyDo}.`, 400);
+  const gia = giaVideo(model, p.lc);
+  if (gia === null) throw new AppError("Chưa tính được giá video này.", 400);
+  const viec = await vietVaGuiVideo({ ...p, noiDung: p.noiDung.trim() || bai.content });
+  const gan = await queryOne<{ id: number }>(
+    `UPDATE posts SET status = 'pending_approval', cho_video_id = $3, cho_video_guard = 'publish', updated_at = now()
+      WHERE id = $1 AND user_id = $2 AND status = ANY($4::text[]) RETURNING id`,
+    [p.postId, p.userId, viec.id, TRANG_THAI_CHO_VIDEO]
+  );
+  if (!gan) throw new AppError("Bài vừa được đăng hoặc xoá trong lúc gửi video. Video vẫn đang tạo, xem ở Xưởng AI.", 409);
+  return { videoId: viec.id, gia };
+}
+
+/** Ảnh thay cho video: mô hình ảnh đã chọn cho lịch, chưa chọn thì mô hình rẻ nhất. */
+async function anhThayThe(p: { userId: number; trangId: number | null; noiDung: string; anh: AnhTuDong }) {
+  const model = p.anh.model || (await layDanhSachModelAnh())[0]?.id;
+  if (!model) throw new Error("không có mô hình vẽ ảnh nào");
+  return taoAnhChoBai({
+    userId: p.userId,
+    trangId: p.trangId,
+    noiDung: p.noiDung,
+    chuTrongAnh: p.anh.chuTrongAnh,
+    luat: { chanNhanHieuGia: p.anh.chanNhanHieuGia, chanNguoiThat: p.anh.chanNguoiThat },
+    veAnh: p.anh.model
+      ? { model: p.anh.model, doNet: p.anh.doNet, chatLuong: p.anh.chatLuong, khung: p.anh.khung }
+      : { model },
+    viec: "tao_anh_tu_dong",
+  });
+}
+
+/**
+ * Bài đang chờ video: video xong → gắn vào bài; video lỗi hoặc chờ quá CHO_VIDEO_TOI_DA_PHUT phút → đăng kèm ảnh
+ * thay thế. Sau đó áp đúng chế độ đăng đã chọn lúc tạo bài (đăng thẳng / báo trước / chờ duyệt).
+ * Chủ shop tự đăng hay xoá bài trong lúc chờ thì bài không còn ở pending_approval → bỏ qua.
+ */
+export async function runDueVideoTuDong(): Promise<number> {
+  const ds = await query<{
+    id: number; user_id: number; content: string; media: unknown; cho_video_id: number; cho_video_guard: string | null;
+    trang_thai: string; url: string | null; trang_id: number; qua_lau: boolean;
+  }>(
+    `SELECT p.id, p.user_id, p.content, p.media, p.cho_video_id, p.cho_video_guard,
+            v.trang_thai, v.url, v.trang_id,
+            v.created_at < now() - ($1 || ' minutes')::interval AS qua_lau
+       FROM posts p JOIN video_ai v ON v.id = p.cho_video_id
+      WHERE p.cho_video_id IS NOT NULL AND p.status = 'pending_approval'
+        AND (v.trang_thai IN ('xong', 'loi') OR v.created_at < now() - ($1 || ' minutes')::interval)
+      ORDER BY p.id LIMIT 10`,
+    [String(CHO_VIDEO_TOI_DA_PHUT)]
+  );
+
+  let dem = 0;
+  for (const b of ds.rows) {
+    // Giành bài trước (gỡ cờ chờ) để hai lượt quét không xử lý trùng.
+    const gianh = await queryOne<{ id: number }>(
+      "UPDATE posts SET cho_video_id = NULL WHERE id = $1 AND cho_video_id = $2 RETURNING id",
+      [b.id, b.cho_video_id]
+    );
+    if (!gianh) continue;
+
+    const cau = docCauHinh(
+      (await queryOne<{ settings: Record<string, unknown> | null }>(
+        "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
+        [b.trang_id]
+      ))?.settings?.autoPilot
+    );
+    let media = Array.isArray(b.media) ? (b.media as { url: string; type: string }[]) : [];
+    let ghiChu: string;
+    if (b.trang_thai === "xong" && b.url) {
+      media = [...media, { url: b.url, type: "video" }];
+      ghiChu = "Video AI đã xong, đã gắn vào bài.";
+    } else {
+      ghiChu = b.trang_thai === "loi" ? "Video AI bị lỗi" : `Video AI quá ${CHO_VIDEO_TOI_DA_PHUT} phút chưa xong`;
+      if (!media.some((m) => m.type === "image")) {
+        try {
+          const thay = await chayChoTrang(b.trang_id, () => anhThayThe({ userId: b.user_id, trangId: b.trang_id, noiDung: b.content, anh: cau.anh }));
+          media = [...media, { url: thay.url, type: "image" }];
+          ghiChu += ", đã đăng kèm ảnh thay thế.";
+        } catch (e) {
+          ghiChu += `; ảnh thay thế cũng hỏng (${(e instanceof Error ? e.message : String(e)).slice(0, 120)}), bài chờ bạn duyệt.`;
+          await query("UPDATE posts SET media = $2::jsonb WHERE id = $1", [b.id, JSON.stringify(media)]);
+          await baoTelegram(b.user_id, `🤖 <b>Bài tự động đang chờ bạn duyệt</b>\n${escapeHtml(ghiChu)}`);
+          continue;
+        }
+      } else {
+        ghiChu += ", bài đăng kèm ảnh.";
+      }
+    }
+    await query("UPDATE posts SET media = $2::jsonb WHERE id = $1", [b.id, JSON.stringify(media)]);
+
+    const guard = b.cho_video_guard === "publish" || b.cho_video_guard === "notify" ? b.cho_video_guard : "approve";
+    if (guard === "publish") {
+      await query("UPDATE posts SET status = 'draft' WHERE id = $1", [b.id]);
+      await publishPost(b.user_id, b.id);
+    } else if (guard === "notify") {
+      await query("UPDATE posts SET auto_publish_at = now() + ($2 || ' minutes')::interval WHERE id = $1", [b.id, String(cau.notifyMinutes)]);
+    }
+    await baoTelegram(
+      b.user_id,
+      `🤖 <b>${guard === "publish" ? "AI vừa đăng một bài" : guard === "notify" ? `Bài sẽ tự đăng sau ${cau.notifyMinutes} phút` : "Bài mới đang chờ bạn duyệt"}</b>\n${escapeHtml(ghiChu)}\n\n${escapeHtml(b.content.slice(0, 400))}`
+    );
+    dem += 1;
   }
   return dem;
 }

@@ -8,6 +8,7 @@ import { chatJson, asRecord, optionalString } from "../services/ai.js";
 import { loadKnowledge } from "../services/knowledge.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "../services/text.js";
 import { chanLamDungAI } from "../services/chong-lam-dung.js";
+import { ghiThayDoiNgoai } from "../services/so-thay-doi.js";
 
 export const adsRouter = Router();
 
@@ -226,6 +227,10 @@ adsRouter.post(
       campaignIds,
       status: status as "ACTIVE" | "PAUSED" | "ARCHIVED",
     });
+    // Sổ thay đổi: quảng cáo đổi qua API nhà cung cấp, trigger không thấy — ghi tay SAU khi thành công.
+    for (const id of campaignIds) {
+      await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_chien_dich", banGhi: id, hanhDong: "sua", sau: { trang_thai: status }, nguon: "nguoi_dung" });
+    }
 
     res.json({ success: true, data: result });
   })
@@ -261,6 +266,7 @@ adsRouter.patch(
         budgetType,
         accountId: resolved.accountId,
       });
+      await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_chien_dich", banGhi: req.params.id, hanhDong: "sua", sau: { ngan_sach: amount, loai_ngan_sach: budgetType }, nguon: "nguoi_dung" });
       res.json({ success: true, data: result });
     } catch (error) {
       /*
@@ -346,6 +352,7 @@ adsRouter.patch(
             ? adSet.platform
             : "facebook",
     });
+    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_nhom", banGhi: req.params.id, hanhDong: "sua", sau: { ngan_sach: amount, loai_ngan_sach: body.budgetType === "lifetime" ? "lifetime" : "daily" }, nguon: "nguoi_dung" });
     res.json({ success: true, data: result });
   })
 );
@@ -361,6 +368,7 @@ adsRouter.post(
       accountId: resolved.accountId,
       adAccountId: resolved.adAccountId,
     });
+    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_chien_dich", banGhi: req.params.id, hanhDong: "them", sau: { nhan_ban_tu: req.params.id }, nguon: "nguoi_dung" });
     res.json({ success: true, data: result });
   })
 );
@@ -426,6 +434,7 @@ adsRouter.post(
       objective: typeof body.objective === "string" ? body.objective : undefined,
       targeting: body.targeting,
     });
+    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_day_bai", banGhi: String(postId), hanhDong: "them", sau: { bai: postId, ngan_sach_ngay: dailyBudget, so_ngay: durationDays, doi_tuong: body.targeting ?? null }, nguon: "nguoi_dung" });
 
     res.status(201).json({ success: true, data: result });
   })
@@ -448,6 +457,7 @@ adsRouter.post(
       description: typeof req.body?.description === "string" ? req.body.description : undefined,
       extra: req.body?.extra,
     });
+    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_doi_tuong", banGhi: null, hanhDong: "them", sau: { ten: name, loai: subtype }, nguon: "nguoi_dung" });
 
     res.status(201).json({ success: true, data: result });
   })
@@ -476,6 +486,7 @@ adsRouter.put(
       name,
       description,
     });
+    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_doi_tuong", banGhi: req.params.id, hanhDong: "sua", sau: { ten: name ?? null, mo_ta: description ?? null }, nguon: "nguoi_dung" });
 
     res.json({ success: true, data: result });
   })

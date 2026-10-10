@@ -98,7 +98,10 @@ export async function generatePostContent(params: {
     knowledge,
     khongLap,
     "",
-    `Trả về JSON: {"options": [${count} chuỗi nội dung khác nhau]}`,
+    // Một bài: chủ dự án (03/10/2026) chỉ cần MỘT bài hiệu quả nhất, đổ thẳng vào ô nội dung.
+    count === 1
+      ? `Trả về JSON: {"options": ["một bài duy nhất — bản hiệu quả nhất cho mục tiêu trên"]}`
+      : `Trả về JSON: {"options": [${count} chuỗi nội dung khác nhau]}`,
   ].join("\n");
 
   const result = await chatJson<string[]>({
@@ -107,7 +110,7 @@ export async function generatePostContent(params: {
     userId: params.userId,
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user", content: `Chủ đề: "${params.topic}". Viết ${count} phương án.` },
+      { role: "user", content: count === 1 ? `Chủ đề: "${params.topic}". Viết một bài hiệu quả nhất.` : `Chủ đề: "${params.topic}". Viết ${count} phương án.` },
     ],
     temperature: 0.8,
     maxTokens: 2_500,

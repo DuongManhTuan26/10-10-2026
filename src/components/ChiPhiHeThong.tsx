@@ -74,7 +74,13 @@ function dungCay(ds: TaiKhoan[]) {
     .sort((a, b) => b.tongChuoi - a.tongChuoi);
 }
 
-export default function ChiPhiHeThong() {
+/**
+ * phamVi: 'he_thong' — quản trị tổng, toàn bộ chi phí trả cho bên thứ ba; 'chuoi' — admin con, CÙNG khung này nhưng chỉ
+ * tiền của chuỗi mình (chủ dự án 04/10/2026: hai màn hình quản lý giống 100%, chỉ khác phạm vi). Số dư, đối chiếu,
+ * nạp tiền và cài đặt cảnh báo là việc của quản trị tổng — phạm vi chuỗi không có.
+ */
+export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_thong' | 'chuoi' }) {
+  const laChuoi = phamVi === 'chuoi';
   const [du, setDu] = useState<SaoKeChiPhi | null>(null);
   const [mo, setMo] = useState<Dong | null>(null);
   const [moCaiDat, setMoCaiDat] = useState(false);
@@ -88,13 +94,13 @@ export default function ChiPhiHeThong() {
 
   const tai = useCallback(async () => {
     try {
-      const { data } = await api.admin.chiPhi(0);
+      const { data } = laChuoi ? await api.quanLy.chiPhi(0) : await api.admin.chiPhi(0);
       setDu(data);
       setNguong(data.nguong);
     } catch (error) {
       setLoi(error instanceof ApiError ? error.message : 'Chưa tải được chi phí');
     }
-  }, []);
+  }, [laChuoi]);
 
   useEffect(() => {
     void tai();
@@ -241,14 +247,14 @@ export default function ChiPhiHeThong() {
     <section className="mb-10 max-w-2xl">
       <div className="flex items-center justify-between mb-3">
         <h2 className="tieu-de-muc">Chi phí tháng này</h2>
-        <button
+        {!laChuoi && (<button
           type="button"
           onClick={() => setMoCaiDat(!moCaiDat)}
           title="Cài đặt cảnh báo"
           className={clsx('material-symbols-outlined text-[20px]', moCaiDat ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface')}
         >
           settings
-        </button>
+        </button>)}
       </div>
 
       {loi && <p className="mb-3 text-xs text-error">{loi}</p>}
@@ -272,8 +278,8 @@ export default function ChiPhiHeThong() {
               })
             )}
 
-            {tieuDeMuc('Đối chiếu')}
-            {hang(2, {
+            {!laChuoi && tieuDeMuc('Đối chiếu')}
+            {!laChuoi && hang(2, {
               khoa: 'doi-chieu',
               nhan: (
                 <span className={clsx('flex items-center gap-2', kieuDoiChieu.mau)}>
@@ -298,7 +304,7 @@ export default function ChiPhiHeThong() {
                 ] as [string, number][]
               ).map(([k, v]) => hang(3, { khoa: `dc-${k}`, nhan: k, giaTri: chiDu(v), mauGiaTri: mauChi(v) }))}
 
-            {ai?.ok && (
+            {ai?.ok && ai.conLaiUsd !== undefined && (
               <>
                 {tieuDeMuc('Số dư')}
                 {hang(2, {
@@ -400,9 +406,11 @@ export default function ChiPhiHeThong() {
 
             {hangNut(
               <>
-                <a href={du.linkNap.openrouter} target="_blank" rel="noreferrer" className={nutChinh}>
-                  Nạp tiền AI
-                </a>
+                {du.linkNap && (
+                  <a href={du.linkNap.openrouter} target="_blank" rel="noreferrer" className={nutChinh}>
+                    Nạp tiền AI
+                  </a>
+                )}
                 <button type="button" onClick={() => moNhatKy({}, 'Từng lượt dùng AI')} className="text-xs text-primary hover:underline">
                   Xem từng lượt ›
                 </button>
@@ -432,18 +440,23 @@ export default function ChiPhiHeThong() {
                   giaTri: kenh.conHoatDong ? 'Đang hoạt động' : `Tạm dừng — ${kenh.lyDoTamDung ?? 'chưa thanh toán'}`,
                   mauGiaTri: kenh.conHoatDong ? 'text-green-400' : 'text-red-400',
                 })}
-                {hang(2, {
+                {kenh.uocTinh &&
+                  hang(2, {
+                    khoa: 'uoc-tinh',
+                    nhan: `Ước tính: chuỗi đang nối ${kenh.uocTinh.kenhChuoi}/${kenh.uocTinh.kenhTatCa} kênh của cả hệ thống (nhà cung cấp chỉ báo tổng)`,
+                  })}
+                {!laChuoi && hang(2, {
                   khoa: 'can-tra',
                   nhan: 'Cần trả',
                   giaTri: kenh.canTraUsd ? chi(kenh.canTraUsd) : 'Không',
                   mauGiaTri: mauChi(kenh.canTraUsd),
                 })}
-                {hang(2, { khoa: 'goi', nhan: 'Gói', giaTri: kenh.goi ?? '—', mauGiaTri: 'text-on-surface-variant' })}
+                {!laChuoi && hang(2, { khoa: 'goi', nhan: 'Gói', giaTri: kenh.goi ?? '—', mauGiaTri: 'text-on-surface-variant' })}
               </>
             )}
-            {hangNut(
+            {!laChuoi && hangNut(
               <a
-                href={(kenh.ok && kenh.linkHoaDon) || du?.linkNap.kenh}
+                href={(kenh.ok && kenh.linkHoaDon) || du?.linkNap?.kenh}
                 target="_blank"
                 rel="noreferrer"
                 className={nutChinh}
@@ -469,7 +482,7 @@ export default function ChiPhiHeThong() {
         </div>
       </div>
 
-      {moCaiDat && nguong && (
+      {!laChuoi && moCaiDat && nguong && (
         <div className="mt-3 rounded-2xl border border-outline-variant bg-surface-container p-5 space-y-3">
           <p className="text-xs text-on-surface-variant">Nhắn Telegram khi:</p>
           {(
@@ -525,7 +538,7 @@ export default function ChiPhiHeThong() {
           </div>
         </div>
       )}
-      {nhatKy && <NhatKyChiPhi loc={nhatKy.loc} tieuDe={nhatKy.tieuDe} onDong={() => setNhatKy(null)} />}
+      {nhatKy && <NhatKyChiPhi loc={nhatKy.loc} tieuDe={nhatKy.tieuDe} phamVi={phamVi} onDong={() => setNhatKy(null)} />}
     </section>
   );
 }

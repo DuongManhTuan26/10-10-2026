@@ -235,6 +235,17 @@ textarea::placeholder {
   .khung-muc .dau-muc .tieu-de-muc::before {
     background: var(--mau);
   }
+  /*
+   * Cột VIDEO của Xưởng AI: mọi "màu chính" bên trong thành hồng tím (chủ dự án 04/10/2026: ảnh xanh ngọc,
+   * video hồng tím, đồng nhất từng nút). Đổi biến màu theo vùng thay vì sửa từng nút — kỹ năng video nào thêm sau
+   * cũng tự đúng màu.
+   */
+  .vung-video {
+    --color-primary: var(--color-secondary);
+    --color-on-primary: var(--color-on-secondary-fixed);
+    --color-primary-container: var(--color-secondary-container);
+    --color-on-primary-container: var(--color-on-secondary-container);
+  }
   .mau-xanh { --mau: #22d3ee; }
   .mau-tim { --mau: #a78bfa; }
   .mau-cam { --mau: #fbbf24; }

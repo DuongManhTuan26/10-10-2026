@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { api, ApiError, timeAgo } from '../lib/api';
+import { hoiXacNhan } from '../components/HopHoi';
 
 /** Khoá sự kiện trong database <-> nhãn hiển thị. */
 const EVENT_KEYS = {
@@ -190,7 +191,7 @@ export default function TelegramAlerts() {
    * bật lại không phải lấy token mới từ BotFather.
    */
   const handleDisconnect = async () => {
-    if (!confirm('Ngắt kết nối Telegram? Hệ thống sẽ ngừng gửi thông báo.')) return;
+    if (!(await hoiXacNhan({ tieuDe: 'Ngắt kết nối Telegram?', noiDung: 'Hệ thống sẽ ngừng gửi thông báo.', nutDongY: 'Ngắt kết nối', nguyHiem: true }))) return;
     setBusy(true);
     try {
       if (usesPlatformBot) {

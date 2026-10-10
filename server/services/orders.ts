@@ -24,6 +24,11 @@ export interface DuLieuDon {
   /** 'ai' khi AI tự chốt, 'human' khi người bấm tạo. */
   closedBy: "ai" | "human";
   status?: string;
+  /**
+   * Trang của đơn khi KHÔNG có hội thoại (tạo tay). Có hội thoại thì luôn lấy trang của kênh hội thoại — giá trị này
+   * bị bỏ qua. Phải thuộc đúng tài khoản (kiểm trong câu ghi).
+   */
+  trangId?: number | null;
 }
 
 const TRANG_THAI = new Set(["pending", "confirmed", "shipping", "completed", "cancelled"]);
@@ -141,18 +146,60 @@ async function ghiDon(
     const code = await soDonTiepTheo(d.userId, (sql, params) =>
       client.query(sql, params as unknown[]) as Promise<{ rows: Array<{ n: number }> }>
     );
+    /*
+     * Trang + kênh của đơn, CHỐT ngay lúc tạo (chủ dự án 05/10/2026: doanh thu từng trang phải chính xác tuyệt đối).
+     * Có hội thoại → kênh khách nhắn tới và trang của kênh đó tại thời điểm này. Không có → trang chỉ định (tạo tay).
+     */
+    let kenhId: string | null = null;
+    let nguon: { loai: string | null; ad: string | null; bai: string | null } = { loai: null, ad: null, bai: null };
+    let trangId: number | null = d.trangId ?? null;
+    if (d.conversationId) {
+      const k = await client.query<{ social_account_id: string | null; trang_id: number | null }>(
+        `SELECT c.social_account_id, s.trang_id
+           FROM conversations c
+           LEFT JOIN social_accounts s ON s.id = c.social_account_id AND s.user_id = c.user_id
+          WHERE c.id = $1 AND c.user_id = $2`,
+        [d.conversationId, d.userId]
+      );
+      kenhId = k.rows[0]?.social_account_id ?? null;
+      trangId = k.rows[0]?.trang_id ?? null;
+      /*
+       * Nguồn của đơn = lần chạm GẦN NHẤT trước khi chốt (quảng cáo / link / bình luận), chốt cứng lúc tạo đơn.
+       * Không có lần chạm nào → nguồn ghi trên hội thoại (bỏ qua 'message' = hội thoại cũ chưa ghi nguồn).
+       */
+      const n = await client.query<{ loai: string | null; ad_id: string | null; post_id: string | null }>(
+        `SELECT loai, ad_id, post_id FROM hoi_thoai_cham WHERE conversation_id = $1 AND luc <= now()
+         ORDER BY luc DESC LIMIT 1`,
+        [d.conversationId]
+      );
+      const h = n.rows[0]
+        ? null
+        : (
+            await client.query<{ origin: string | null; origin_ad_id: string | null; origin_post_id: string | null }>(
+              "SELECT origin, origin_ad_id, origin_post_id FROM conversations WHERE id = $1 AND user_id = $2",
+              [d.conversationId, d.userId]
+            )
+          ).rows[0];
+      nguon = n.rows[0]
+        ? { loai: n.rows[0].loai, ad: n.rows[0].ad_id, bai: n.rows[0].post_id }
+        : h && h.origin && h.origin !== "message"
+          ? { loai: h.origin, ad: h.origin_ad_id, bai: h.origin_post_id }
+          : nguon;
+    }
     const inserted = await client.query(
       `INSERT INTO orders
          (user_id, customer_id, conversation_id, code, customer_name, phone,
-          address, product, quantity, unit_price, total, status, closed_by, note)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          address, product, quantity, unit_price, total, status, closed_by, note,
+          social_account_id, trang_id, origin, origin_ad_id, origin_post_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+               (SELECT id FROM trang WHERE id = $16 AND user_id = $1), $17, $18, $19)
        RETURNING *`,
       [
         d.userId, customerId, d.conversationId, code,
         d.customerName, d.phone, d.address,
         d.product, d.quantity, d.unitPrice, total,
         d.status && TRANG_THAI.has(d.status) ? d.status : "pending",
-        d.closedBy, d.note,
+        d.closedBy, d.note, kenhId, trangId, nguon.loai, nguon.ad, nguon.bai,
       ]
     );
 

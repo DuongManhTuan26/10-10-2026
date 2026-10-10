@@ -1,0 +1,20 @@
+import fs from "node:fs";
+import path from "node:path";
+import { chayFfmpeg, demKhung, doDaiTungCanh, lenhGhep, lichGiongDoc, noiDungPhuDe, thongTin } from "../../server/services/video-cong-cu.js";
+const S = process.argv[2];
+const tep = [0, 1, 2].map((i) => path.join(S, "noi7", `canh-${i}.mp4`));
+const info = await Promise.all(tep.map(thongTin));
+const soKhung = await Promise.all(tep.map(demKhung));
+const giongTep = [path.join(S, "am", "giong-gemini-3.8-flash-lite-tts.wav"), null, path.join(S, "am", "giong-gemini-3.8-flash-tts.wav")];
+const giong = await Promise.all(giongTep.map(async (t) => (t ? { tep: t, soGiay: (await thongTin(t)).soGiay ?? 0 } : null)));
+const doDai = doDaiTungCanh(info, soKhung);
+const lich = lichGiongDoc(doDai, giong);
+console.log("độ dài cảnh:", doDai.map((x) => x.toFixed(3)), "\nlịch giọng:", JSON.stringify(lich));
+const ass = path.join(S, "thu.ass");
+fs.writeFileSync(ass, noiDungPhuDe({ rong: info[0].rong, cao: info[0].cao, doDai, lich, canhCuoiLaKeuGoi: true,
+  chu: ["Hai giờ sáng, khách vẫn nhắn hỏi giá. Bạn ngủ quên, và đơn hàng trôi mất.", null, "Nhắn tin ngay để dùng thử!"] }));
+const ra = path.join(S, "thu-ghep-am.mp4");
+await chayFfmpeg(lenhGhep(tep, info, soKhung, true, ra, { giong, nhac: path.join(S, "am", "nhac.mp3"), phuDe: ass }));
+const t = await thongTin(ra);
+console.log("ra:", t);
+process.exit(0);

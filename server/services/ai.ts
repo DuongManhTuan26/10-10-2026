@@ -1,4 +1,5 @@
 import { env } from "../env.js";
+import { loiNhaCungCap } from "./loi-ncc.js";
 import { query } from "../db.js";
 import { AppError } from "../http.js";
 import { ghiLuotAi, type Viec } from "./so-ai.js";
@@ -158,7 +159,8 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
           // đối chiếu theo từng tài khoản ngay ở phía họ. Chỉ là mã số, không lộ tên.
           user: userId === null ? "he-thong" : `tk-${userId}`,
         }),
-        signal: AbortSignal.timeout(60_000),
+        // Câu trả lời dài cần lâu hơn: ~40 token/giây là mức chậm đã gặp, cộng 30 giây đệm.
+        signal: AbortSignal.timeout(Math.max(60_000, 30_000 + maxTokens * 25)),
       });
     } catch (error) {
       lastError = new AiError(
@@ -186,7 +188,7 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
     }
 
     if (!response.ok || data.error) {
-      const message = data.error?.message ?? `AI trả lỗi ${response.status}`;
+      const message = loiNhaCungCap(response.status, data.error?.message);
       const retryable = response.status === 429 || response.status >= 500;
       lastError = new AiError(message, response.status, retryable);
 
@@ -208,6 +210,12 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
       costUsd: data.usage?.cost ?? 0,
     };
     const rong = typeof content !== "string" || content.trim() === "";
+    /*
+     * Bị cắt vì chạm trần token: thử lại y nguyên thì lần nào cũng bị cắt y như
+     * vậy — chỉ tốn tiền. Đã thấy 02/10/2026: chia 8 cảnh có lời đọc chạm đúng
+     * 2.500 token, rỗng, thử lại 3 lần mất 0,083 USD mà không ra gì.
+     */
+    const biCat = data.choices?.[0]?.finish_reason === "length";
 
     /*
      * Ghi tiền NGAY TẠI ĐÂY, chỗ duy nhất mọi lượt chat đi qua, và ghi cả lượt
@@ -231,8 +239,12 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       costUsd: usage.costUsd,
-      loi: rong ? "AI trả về nội dung rỗng" : null,
+      loi: rong ? (biCat ? "AI chạm trần token, bị cắt" : "AI trả về nội dung rỗng") : null,
     });
+
+    if (rong && biCat) {
+      throw new AiError("AI viết chưa xong thì chạm giới hạn độ dài. Thử ý tưởng ngắn hơn hoặc ít cảnh hơn.", 502, false);
+    }
 
     if (typeof content !== "string" || rong) {
       // Model trả rỗng thường do bị cắt hoặc bị lọc nội dung — thử lại một lượt.

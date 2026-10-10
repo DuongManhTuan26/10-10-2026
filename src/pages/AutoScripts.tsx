@@ -7,6 +7,7 @@ import HopThoai, { NUT_CHINH, NUT_PHU } from '../components/HopThoai';
 import {
   toFileArray, doiCoTep, napTepChu, napTepAnh, NHAN_VAN_BAN, NHAN_ANH,
 } from '../lib/aiDocuments';
+import { hoiXacNhan } from '../components/HopHoi';
 import {
   AI_TONES, REQUIRED_INFO, HANDOFF_RULE_LABELS, SUGGESTED_TEST_PROMPTS,
 } from '../lib/aiTraining';
@@ -341,7 +342,7 @@ export default function AutoScripts() {
   };
 
   const handleDeleteScript = async (id: number) => {
-    if (!confirm('Xoá kịch bản này?')) return;
+    if (!(await hoiXacNhan({ tieuDe: 'Xoá kịch bản này?', nutDongY: 'Xoá', nguyHiem: true }))) return;
     try {
       await api.settings.removeAutoScript(id);
       await loadScripts();

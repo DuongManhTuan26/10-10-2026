@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { api, ApiError, type AutoPilotConfig, type AutoPilotRun } from '../lib/api';
 import ChonKenhDang from './ChonKenhDang';
+import { ChonMoHinhAnh, vndAnh } from './ChonMoHinhAnh';
+import { LuatNoiDungChon } from './LuatNoiDungChon';
+import { VideoTuDongChon } from './VideoTuDongChon';
 import { useActivePage } from '../lib/ActivePage';
 import { gioiHanChatNhat, kenhMacDinh, tinhKenhSeDang, type CheDoKenh } from '../lib/gioi-han-kenh';
 
@@ -61,6 +64,14 @@ interface AutoPilotPanelProps {
 
 export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
   const [cau, setCau] = useState<AutoPilotConfig | null>(null);
+  /*
+   * Lịch ĐÃ LƯU trên máy chủ — nhãn "Đang chạy" chỉ được nói theo cái này.
+   * Đã thấy 03/10/2026: bật công tắc mà chưa bấm Lưu thì nhãn vẫn "Đang chạy" trong khi máy chủ
+   * vẫn tắt — app báo sai sự thật.
+   */
+  const [cauLuu, setCauLuu] = useState<AutoPilotConfig | null>(null);
+  const [giaAnh, setGiaAnh] = useState<number | null>(null);
+  const [tienVideoThang, setTienVideoThang] = useState(0);
   const [runs, setRuns] = useState<AutoPilotRun[]>([]);
   const [chuDeText, setChuDeText] = useState('');
   const [dangLuu, setDangLuu] = useState(false);
@@ -83,7 +94,9 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
     try {
       const { data } = await api.ai.autoPilot();
       setCau(data.config);
+      setCauLuu(data.config);
       setRuns(data.runs);
+      setTienVideoThang(data.tienVideoThang ?? 0);
       setChuDeText(data.config.topics.join('\n'));
       if (data.config.enabled) setMoRong(true);
     } catch (error) {
@@ -169,6 +182,7 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
 
       const { data } = await api.ai.saveAutoPilot({ ...cau, topics: chuDe });
       setCau(data.config);
+      setCauLuu(data.config);
       setChuDeText(data.config.topics.join('\n'));
       setDaLuu(true);
       await nap();
@@ -181,6 +195,9 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
   };
 
   const soBaiMoiTuan = cau.days.length * cau.times.length;
+  const chuDeHienTai = chuDeText.split('\n').map((d) => d.trim()).filter((d) => d !== '');
+  const chuaLuu = JSON.stringify({ ...cau, topics: chuDeHienTai }) !== JSON.stringify(cauLuu);
+  const dangChay = Boolean(cauLuu?.enabled);
 
   return (
     /*
@@ -223,21 +240,36 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
               <span
                 className={clsx(
                   'text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider border',
-                  cau.enabled
+                  dangChay
                     ? 'text-primary bg-primary/20 border-primary/40'
                     : 'text-on-surface-variant bg-surface-container border-outline-variant'
                 )}
               >
-                {cau.enabled ? 'Đang chạy' : 'Chưa bật'}
+                {dangChay ? 'Đang chạy' : 'Chưa bật'}
               </span>
+              {chuaLuu && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider border text-orange-400 bg-orange-500/15 border-orange-500/40">
+                  Chưa lưu
+                </span>
+              )}
             </div>
             <h3 className="text-lg font-bold text-on-surface mb-0.5">
               Lịch AI tự viết và tự đăng
             </h3>
             <p className="text-sm text-on-surface-variant leading-relaxed">
-              {cau.enabled
+              {chuaLuu
+                ? 'Có thay đổi chưa lưu — bấm "Lưu lịch" ở cuối bảng để áp dụng.'
+                : cau.enabled
                 ? `Đang bật — ${soBaiMoiTuan} bài mỗi tuần, ${
                     CHOT_CHAN.find((c) => c.id === cau.guard)?.ten.toLowerCase()
+                  }, ${
+                    cau.anh.bat && cau.video.bat
+                      ? 'kèm ảnh và video AI'
+                      : cau.anh.bat
+                        ? 'kèm ảnh AI tự vẽ'
+                        : cau.video.bat
+                          ? 'kèm video AI'
+                          : 'chỉ đăng chữ (chưa bật ảnh / video)'
                   }`
                 : 'AI tự viết và đăng theo lịch bạn đặt, không cần bạn mở app mỗi ngày.'}
             </p>
@@ -294,6 +326,117 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
             kenhSeDang={kenhSeDang}
             gioiHan={gioiHan}
           />
+
+          {/* Ảnh đăng kèm — công tắc riêng; video có công tắc riêng ngay bên dưới (chủ dự án 03/10/2026). */}
+          <div>
+            <label className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-2 block">
+              Ảnh đăng kèm bài
+            </label>
+            <button
+              type="button"
+              onClick={() => sua({ anh: { ...cau.anh, bat: !cau.anh.bat } })}
+              className={clsx(
+                'w-full p-4 rounded-xl border text-left transition-all flex items-start gap-3',
+                cau.anh.bat ? 'bg-primary/10 border-primary' : 'bg-surface-container border-outline-variant hover:border-primary/50'
+              )}
+            >
+              <span className={clsx('material-symbols-outlined text-[20px] shrink-0 mt-0.5', cau.anh.bat ? 'text-primary' : 'text-on-surface-variant')}>
+                {cau.anh.bat ? 'check_box' : 'check_box_outline_blank'}
+              </span>
+              <span className="flex-1">
+                <span className={clsx('font-bold text-sm block mb-0.5', cau.anh.bat ? 'text-primary' : 'text-on-surface')}>
+                  Tự tạo ảnh theo nội dung bài
+                </span>
+                <span className="text-xs text-on-surface-variant leading-relaxed block">
+                  Mỗi bài AI viết, AI vẽ thêm một ảnh đúng nội dung bài đó rồi đăng kèm. Tắt thì chỉ đăng chữ.
+                </span>
+              </span>
+            </button>
+            {cau.anh.bat && (
+              <div className="mt-3 bg-surface-container rounded-xl p-4 border border-outline-variant space-y-3">
+                <ChonMoHinhAnh
+                  giaTri={cau.anh}
+                  onDoi={(v) => sua({ anh: { ...cau.anh, model: v.model, doNet: v.doNet, chatLuong: v.chatLuong, khung: v.khung } })}
+                  onGia={setGiaAnh}
+                />
+                {giaAnh !== null && (
+                  <p className="text-xs text-on-surface-variant">
+                    {soBaiMoiTuan} bài mỗi tuần → tiền ảnh khoảng{' '}
+                    <b className="text-primary">{vndAnh(giaAnh * soBaiMoiTuan)}</b> mỗi tuần.
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-on-surface">Chữ trong ảnh:</span>
+                  {(
+                    [
+                      { id: 'theo_noi_dung', ten: 'Có chữ theo nội dung' },
+                      { id: 'khong', ten: 'Không có chữ' },
+                    ] as const
+                  ).map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => sua({ anh: { ...cau.anh, chuTrongAnh: c.id } })}
+                      className={clsx(
+                        'px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors',
+                        cau.anh.chuTrongAnh === c.id
+                          ? 'border-primary bg-primary/15 text-primary'
+                          : 'border-outline-variant bg-surface text-on-surface-variant hover:border-primary/50'
+                      )}
+                    >
+                      {c.ten}
+                    </button>
+                  ))}
+                </div>
+                <LuatNoiDungChon
+                  giaTri={{ chanNhanHieuGia: cau.anh.chanNhanHieuGia, chanNguoiThat: cau.anh.chanNguoiThat }}
+                  onDoi={(v) => sua({ anh: { ...cau.anh, chanNhanHieuGia: v.chanNhanHieuGia, chanNguoiThat: v.chanNguoiThat } })}
+                />
+                <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                  Vẽ ảnh lỗi (ví dụ hết tiền AI) thì bài không tự lên Fanpage mà chuyển vào mục Chờ duyệt.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Video đăng kèm — cùng cơ chế công tắc như ảnh; có trần tiền mỗi tháng (chủ dự án 03/10/2026). */}
+          <div>
+            <label className="font-mono text-[11px] font-bold tracking-wider text-on-surface-variant uppercase mb-2 block">
+              Video đăng kèm bài
+            </label>
+            <button
+              type="button"
+              onClick={() => sua({ video: { ...cau.video, bat: !cau.video.bat } })}
+              className={clsx(
+                'w-full p-4 rounded-xl border text-left transition-all flex items-start gap-3',
+                cau.video.bat ? 'bg-primary/10 border-primary' : 'bg-surface-container border-outline-variant hover:border-primary/50'
+              )}
+            >
+              <span className={clsx('material-symbols-outlined text-[20px] shrink-0 mt-0.5', cau.video.bat ? 'text-primary' : 'text-on-surface-variant')}>
+                {cau.video.bat ? 'check_box' : 'check_box_outline_blank'}
+              </span>
+              <span className="flex-1">
+                <span className={clsx('font-bold text-sm block mb-0.5', cau.video.bat ? 'text-primary' : 'text-on-surface')}>
+                  Tự tạo video theo nội dung bài
+                </span>
+                <span className="text-xs text-on-surface-variant leading-relaxed block">
+                  Mỗi bài AI viết, AI làm thêm một video ngắn đúng nội dung bài rồi đăng kèm. Bật cả ảnh và video thì đăng cả hai;
+                  tắt cả hai thì chỉ đăng chữ.
+                </span>
+              </span>
+            </button>
+            {cau.video.bat && (
+              <div className="mt-3 bg-surface-container rounded-xl p-4 border border-outline-variant">
+                <VideoTuDongChon
+                  giaTri={cau.video}
+                  onDoi={(v) => sua({ video: v })}
+                  soBaiMoiTuan={soBaiMoiTuan}
+                  tienThang={tienVideoThang}
+                  coAnhMoDau={cau.anh.bat}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Chủ đề */}
           <div>

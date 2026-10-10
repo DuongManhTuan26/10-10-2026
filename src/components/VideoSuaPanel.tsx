@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { LuatNoiDungChon, type LuatNoiDungGiaTri } from './LuatNoiDungChon';
 import clsx from 'clsx';
+import { useDangKyHanhDong, useXuong } from '../lib/xuong';
 import { api, ApiError, type MediaItem, type ModelSuaVideo, type ViecVideo } from '../lib/api';
+import { hoiXacNhan } from './HopHoi';
 
 /**
  * Video → video: sửa video chủ shop đã có — đổi bối cảnh, thêm bớt đồ vật, đổi
@@ -33,7 +36,12 @@ export default function VideoSuaPanel({
   const [modelChon, setModelChon] = useState('');
   const [nguon, setNguon] = useState('');
   const [soGiayNguon, setSoGiayNguon] = useState<number | null>(null);
-  const [yeuCau, setYeuCau] = useState('');
+  // Trong Xưởng AI: yêu cầu sửa = ô mô tả của ô soạn chung (không có ô riêng).
+  const xuong = useXuong();
+  const [yeuCauRieng, setYeuCauRieng] = useState('');
+  const yeuCau = xuong ? xuong.moTa : yeuCauRieng;
+  const setYeuCau = xuong ? xuong.setMoTa : setYeuCauRieng;
+  const [luatNoiDung, setLuatNoiDung] = useState<LuatNoiDungGiaTri>({ chanNhanHieuGia: false, chanNguoiThat: false });
   const [dangTai, setDangTai] = useState(false);
   const [dangGui, setDangGui] = useState(false);
   const [viec, setViec] = useState<ViecVideo[]>([]);
@@ -93,11 +101,18 @@ export default function VideoSuaPanel({
   const gui = async () => {
     if (dangGui || !model || !nguon) return;
     if (!yeuCau.trim()) return setLoi('Viết muốn sửa video thế nào.');
-    if (!confirm(`Sửa video bằng ${model.ten}?\n\nChi phí ước tính: ${gia === null ? 'đang đo độ dài video' : tien(gia)}.\nTiền bị trừ kể cả khi bạn không dùng video.`)) return;
+    if (
+      !(await hoiXacNhan({
+        tieuDe: `Sửa video bằng ${model.ten}?`,
+        noiDung: `Chi phí ước tính: ${gia === null ? 'đang đo độ dài video' : tien(gia)}.\nTiền bị trừ kể cả khi bạn không dùng video.`,
+        nutDongY: 'Sửa video',
+        bieuTuong: 'movie_edit',
+      }))
+    ) return;
     setDangGui(true);
     setLoi('');
     try {
-      const { data } = await api.ai.suaVideo({ model: model.id, videoNguon: nguon, yeuCau });
+      const { data } = await api.ai.suaVideo({ model: model.id, videoNguon: nguon, yeuCau, ...luatNoiDung });
       setViec((truoc) => [data, ...truoc]);
     } catch (error) {
       setLoi(error instanceof ApiError ? error.message : 'Chưa gửi được yêu cầu sửa video');
@@ -105,6 +120,11 @@ export default function VideoSuaPanel({
       setDangGui(false);
     }
   };
+
+  const khoaGui = dangGui || !model || !nguon || !yeuCau.trim();
+  const nhanGui = dangGui ? 'Đang gửi…' : gia !== null ? `Sửa video — ${tien(gia)}` : 'Sửa video';
+  // Trong Xưởng AI: nút tạo ở ô soạn chung chạy "Sửa video".
+  useDangKyHanhDong('sua', { nhan: nhanGui, khoa: khoaGui, dangChay: dangGui }, () => void gui());
 
   return (
     <div className="space-y-3">
@@ -175,6 +195,11 @@ export default function VideoSuaPanel({
             </button>
           ))}
         </div>
+        {xuong ? (
+          <p className="text-[11px] text-on-surface-variant">
+            Viết muốn sửa thế nào ở ô mô tả của ô soạn phía trên (hoặc bấm một gợi ý). {yeuCau.trim() ? `Đang dùng: “${yeuCau.trim().slice(0, 120)}”` : ''}
+          </p>
+        ) : (
         <textarea
           rows={3}
           value={yeuCau}
@@ -182,6 +207,8 @@ export default function VideoSuaPanel({
           placeholder="Ví dụ: đổi nền thành bãi biển lúc hoàng hôn, giữ nguyên người và sản phẩm…"
           className="bg-surface-container-high w-full rounded-lg border border-outline-variant p-3 text-sm text-on-surface focus:border-primary focus:outline-none resize-none"
         />
+        )}
+        <LuatNoiDungChon giaTri={luatNoiDung} onDoi={setLuatNoiDung} />
       </div>
 
       <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-2">
@@ -216,13 +243,13 @@ export default function VideoSuaPanel({
       <button
         type="button"
         onClick={gui}
-        disabled={dangGui || !model || !nguon || !yeuCau.trim()}
+        disabled={khoaGui}
         className="w-full py-3 rounded-lg bg-primary text-on-primary text-sm font-bold flex items-center justify-center gap-2 hover:brightness-110 disabled:opacity-50"
       >
         <span className={clsx('material-symbols-outlined text-[18px]', dangGui && 'animate-spin')}>
           {dangGui ? 'progress_activity' : 'movie_edit'}
         </span>
-        {dangGui ? 'Đang gửi…' : gia !== null ? `Sửa video — ${tien(gia)}` : 'Sửa video'}
+        {nhanGui}
       </button>
 
       {viec.length > 0 && (

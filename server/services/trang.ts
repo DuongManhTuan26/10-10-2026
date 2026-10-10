@@ -162,3 +162,52 @@ export async function ganKenhVaoTrang(
     [trangId, accountId, userId]
   );
 }
+
+/*
+ * Một tài khoản có thể dùng NHIỀU hồ sơ Zernio: hồ sơ mặc định (users.profile_ref) và hồ sơ riêng của từng Trang.
+ *
+ * Vì sao: Zernio quy ước mỗi thương hiệu một hồ sơ và tính tiền theo từng kênh trong đó; chủ dự án 04/10/2026 chốt
+ * "1 trang = 1 hồ sơ" để số tiền từng trang khớp tuyệt đối với Zernio. Trước đó mọi chỗ chỉ hỏi hồ sơ mặc định —
+ * chuyển một Fanpage sang hồ sơ riêng là lượt đồng bộ sau tưởng Fanpage bị gỡ, đánh dấu mất kết nối, AI ngừng trả
+ * lời khách. Đồng bộ, webhook và chặn nhận hồ sơ của người khác đều phải đi qua hai hàm này.
+ */
+
+/** Mọi hồ sơ Zernio thật của một tài khoản (bỏ mã tạm "cho-cap-…"). */
+export async function hoSoCuaTaiKhoan(userId: number): Promise<string[]> {
+  const r = await query<{ ma: string }>(
+    `SELECT profile_ref AS ma FROM users WHERE id = $1 AND profile_ref IS NOT NULL
+     UNION
+     SELECT profile_ref FROM trang WHERE user_id = $1 AND profile_ref NOT LIKE 'cho-cap-%'`,
+    [userId]
+  );
+  return r.rows.map((x) => x.ma);
+}
+
+/** Tài khoản đang giữ một hồ sơ (qua hồ sơ mặc định hoặc qua một Trang). null = chưa ai giữ. */
+export async function chuCuaHoSo(profileRef: string): Promise<number | null> {
+  const r = await queryOne<{ id: number }>(
+    `SELECT id FROM users WHERE profile_ref = $1
+     UNION
+     SELECT user_id FROM trang WHERE profile_ref = $1
+     LIMIT 1`,
+    [profileRef]
+  );
+  return r?.id ?? null;
+}
+
+/**
+ * Sổ "kênh thuộc trang nào" theo NGÀY UTC (bảng kenh_trang_ngay) — chủ dự án duyệt 05/10/2026.
+ *
+ * Nhà cung cấp kênh tính tiền theo ngày-kênh (mỗi ngày một kênh đang nối = 1/30 đơn vị). Kênh Facebook đổi Fanpage
+ * giữa tháng vẫn là MỘT kênh với họ, nên tiền cả tháng của kênh phải chia theo số ngày kênh ở từng trang. Ghi trạng
+ * thái ĐẦU TIÊN thấy được trong ngày (ON CONFLICT DO NOTHING); gọi thêm ngay trước khi đổi Fanpage để ngày đổi vẫn
+ * giữ trang cũ, ngày hôm sau mới sang trang mới. Gọi lại nhiều lần trong ngày không sao.
+ */
+export async function ghiKenhTheoNgay(): Promise<number> {
+  const r = await query(
+    `INSERT INTO kenh_trang_ngay (ngay, account_id, user_id, trang_id, dang_noi)
+     SELECT (now() AT TIME ZONE 'UTC')::date, id, user_id, trang_id, connected FROM social_accounts
+     ON CONFLICT (ngay, account_id) DO NOTHING`
+  );
+  return r.rowCount ?? 0;
+}

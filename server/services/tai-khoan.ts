@@ -231,6 +231,22 @@ export function sinhMatKhauTam(): string {
 }
 
 /**
+ * Mật khẩu khi quản trị TẠO hoặc CẤP LẠI tài khoản: người quản trị TỰ ĐẶT; bỏ trống thì hệ thống sinh ngẫu nhiên.
+ *
+ * Lỗi đã lặp lại (chủ dự án 04/10/2026: "tao là admin tổng, tao thích đổi mật khẩu như nào tao phải biết chứ,
+ * lỗi này đã xảy ra trước đây"). Lần trước chỉ sửa đúng một chỗ (cấp lại mật khẩu trang ở Quản lý Trang); tạo
+ * tài khoản, cấp lại mật khẩu ở Quản trị hệ thống và lập trang mới vẫn chỉ sinh ngẫu nhiên. MỌI chỗ cấp mật khẩu
+ * đều đi qua hàm này để không còn chỗ nào bị sót.
+ */
+export function docMatKhauTuDat(body: unknown): { matKhau: string; tuDat: boolean } {
+  const v = body && typeof body === "object" ? (body as Record<string, unknown>).matKhau : undefined;
+  const tuDat = typeof v === "string" ? v : "";
+  if (tuDat && tuDat.length < 8) throw new AppError("Mật khẩu phải có ít nhất 8 ký tự");
+  if (tuDat.length > 200) throw new AppError("Mật khẩu dài quá 200 ký tự");
+  return { matKhau: tuDat || sinhMatKhauTam(), tuDat: Boolean(tuDat) };
+}
+
+/**
  * Lập một TÀI KHOẢN TRANG cho admin con.
  *
  * Mỗi tài khoản trang giữ đúng một Fanpage và độc lập hoàn toàn với các trang
@@ -244,6 +260,8 @@ export function sinhMatKhauTam(): string {
 export async function taoTaiKhoanTrang(params: {
   parentId: number;
   tenTrang: string;
+  /** Mật khẩu người lập tự đặt (đã kiểm qua docMatKhauTuDat); không có thì sinh ngẫu nhiên. */
+  matKhau?: string;
 }): Promise<TaiKhoanMoi & { matKhauTam: string }> {
   const tenTrang = params.tenTrang.trim();
   if (tenTrang.length < 2) {
@@ -265,7 +283,7 @@ export async function taoTaiKhoanTrang(params: {
     const trung = await queryOne("SELECT id FROM users WHERE lower(email) = $1", [tenDangNhap]);
     if (trung) continue;
 
-    const matKhauTam = sinhMatKhauTam();
+    const matKhauTam = params.matKhau || sinhMatKhauTam();
     const taiKhoan = await taoTaiKhoan({
       email: tenDangNhap,
       password: matKhauTam,

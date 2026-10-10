@@ -13,6 +13,9 @@
  * bấm, hoặc bật rõ trong lịch tự đăng.
  */
 
+import type { LuatNoiDung } from "./video-ai.js";
+import { chuanHoaModelAnh, giaAnh, MODEL_ANH_DUOC_CHON, type LuaChonAnh, type ModelAnh } from "./model-anh.js";
+import { loiNhaCungCap } from "./loi-ncc.js";
 import { query, queryOne } from "../db.js";
 import { env } from "../env.js";
 import { AppError } from "../http.js";
@@ -20,8 +23,94 @@ import { hoanDiaChiKho } from "./media-proxy.js";
 import { ghiLuotAi } from "./so-ai.js";
 import * as zernio from "./zernio.js";
 
-/** Model mặc định: rẻ nhất trong nhóm sinh ảnh mà chất lượng đủ dùng. */
+/**
+ * Mô hình vẽ khung mở đầu / ảnh mẫu nhân vật của VIDEO DÀI (việc nội bộ, khung-video.ts).
+ * Ảnh bài đăng thì người dùng tự chọn mô hình (model-anh.ts), không dùng hằng số này.
+ */
 export const MODEL_ANH = "google/gemini-2.5-flash-image";
+
+const GOC_API = "https://openrouter.ai/api/v1";
+
+// ---------------------------------------------------------------------------
+// Danh sách mô hình vẽ ảnh — lấy SỐNG từ OpenRouter, giữ 1 giờ
+// ---------------------------------------------------------------------------
+
+let boNhoAnh: { luc: number; ds: ModelAnh[] } | null = null;
+const GIU_DANH_SACH_MS = 60 * 60_000;
+
+/**
+ * Chỉ những mô hình trong MODEL_ANH_DUOC_CHON, theo thứ tự rẻ tới đắt. Nhà cung cấp gỡ mô hình
+ * nào (hoặc không còn nơi chạy) thì nó tự biến khỏi danh sách.
+ */
+export async function layDanhSachModelAnh(): Promise<ModelAnh[]> {
+  if (boNhoAnh && Date.now() - boNhoAnh.luc < GIU_DANH_SACH_MS) return boNhoAnh.ds;
+  if (!env.openrouter.apiKey) throw new AppError("Chưa cấu hình khoá AI nên chưa tạo được ảnh.", 503);
+  const dau = { Authorization: `Bearer ${env.openrouter.apiKey}` };
+  try {
+    const r = await fetch(`${GOC_API}/images/models`, { headers: dau, signal: AbortSignal.timeout(20_000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = (await r.json()) as { data?: Record<string, unknown>[] };
+    const tatCa = j.data ?? [];
+    const ds = (
+      await Promise.all(
+        MODEL_ANH_DUOC_CHON.map(async (c) => {
+          const tho = tatCa.find((m) => m.id === c.id);
+          if (!tho) return null;
+          const re = await fetch(`${GOC_API}/images/models/${c.id}/endpoints`, { headers: dau, signal: AbortSignal.timeout(20_000) });
+          if (!re.ok) return null;
+          const ep = ((await re.json()) as { endpoints?: Record<string, unknown>[] }).endpoints?.[0];
+          return ep ? chuanHoaModelAnh(tho, ep, c) : null;
+        })
+      )
+    ).filter((m): m is ModelAnh => m !== null && giaAnh(m) !== null);
+    boNhoAnh = { luc: Date.now(), ds };
+    return ds;
+  } catch (error) {
+    // Mất mạng thoáng qua thì dùng tạm danh sách cũ, còn hơn tắt hẳn tính năng.
+    if (boNhoAnh) return boNhoAnh.ds;
+    throw new AppError(`Chưa lấy được danh sách mô hình vẽ ảnh: ${error instanceof Error ? error.message : String(error)}`, 502);
+  }
+}
+
+/** Lựa chọn vẽ ảnh của người dùng — kiểm theo đúng khả năng mô hình, mục nào mô hình không có thì bỏ. */
+export interface LuaChonVeAnh {
+  model: string;
+  doNet?: string;
+  chatLuong?: string;
+  khung?: string;
+}
+
+/**
+ * Mô hình vẽ khung mở đầu / ảnh mẫu nhân vật của video dài: người dùng chọn; dự án cũ chưa chọn thì
+ * lấy mô hình RẺ NHẤT nhận ảnh mẫu (chủ dự án: việc thường ngày dùng mô hình rẻ).
+ */
+export async function layModelKhung(veAnh: LuaChonVeAnh | undefined): Promise<{ m: ModelAnh; lc: LuaChonAnh }> {
+  if (veAnh?.model) return layModelAnh(veAnh);
+  const re = (await layDanhSachModelAnh())
+    .filter((m) => m.soAnhThamChieu > 0)
+    .sort((a, b) => (giaAnh(a, { soAnhVao: 2 }) ?? Infinity) - (giaAnh(b, { soAnhVao: 2 }) ?? Infinity))[0];
+  if (!re) throw new AppError("Chưa có mô hình vẽ ảnh nào nhận ảnh mẫu để vẽ khung mở đầu.", 502);
+  return layModelAnh({ model: re.id });
+}
+
+/** Giá một khung mở đầu (USD): mô hình đã chọn, kèm 2 ảnh mẫu (ảnh mẫu nhân vật + ảnh tham chiếu). */
+export async function giaKhungVideo(veAnh: LuaChonVeAnh | undefined): Promise<number> {
+  const { m, lc } = await layModelKhung(veAnh);
+  return giaAnh(m, { ...lc, soAnhVao: Math.min(2, m.soAnhThamChieu) }) ?? 0;
+}
+
+export async function layModelAnh(lc: LuaChonVeAnh): Promise<{ m: ModelAnh; lc: LuaChonAnh }> {
+  const m = (await layDanhSachModelAnh()).find((x) => x.id === lc.model);
+  if (!m) throw new AppError("Mô hình vẽ ảnh này không có hoặc đã ngừng. Chọn mô hình khác.", 400);
+  return {
+    m,
+    lc: {
+      doNet: lc.doNet && m.doNet.includes(lc.doNet) ? lc.doNet : m.doNet[0],
+      chatLuong: lc.chatLuong && m.chatLuong.includes(lc.chatLuong) ? lc.chatLuong : m.chatLuong[0],
+      khung: lc.khung && m.khung.includes(lc.khung) ? lc.khung : undefined,
+    },
+  };
+}
 
 /**
  * Luật an toàn, áp cho mọi ảnh và không ai đổi được.
@@ -47,18 +136,67 @@ export const MODEL_ANH = "google/gemini-2.5-flash-image";
 const LUAT_ANH_TU_MAU = [
   "LUẬT BẮT BUỘC, không được phong cách nào ghi đè:",
   "Giữ đúng chủ thể và bố cục chính của ảnh mẫu, chỉ đổi phong cách và chất lượng.",
-  "TUYỆT ĐỐI không THÊM chữ, nhãn hiệu, logo, con dấu hay huy hiệu chứng nhận nào",
-  "không có trong ảnh mẫu. Xoá watermark và chữ chèn thêm của người khác.",
+  "TUYỆT ĐỐI không THÊM chữ nào không có trong ảnh mẫu.",
+  // Tiêu chí 4 (nhất quán): vẽ lại từ ảnh mẫu thì người trong ảnh vẫn là người đó.
   "Không đổi mặt người trong ảnh thành người khác.",
 ].join(" ");
 
-const LUAT_ANH = [
+/**
+ * Chữ trong ảnh do NGƯỜI DÙNG chọn (chủ dự án 03/10/2026: "có chữ hay không là do prompt điều hướng,
+ * không phải mặc định") — cùng kiểu lựa chọn với video (ChuTrongVideo).
+ *   - "khong": ảnh trống chữ hoàn toàn (LUAT_ANH, như trước).
+ *   - "theo_noi_dung": chỉ có chữ ở chỗ yêu cầu nêu rõ, viết đúng y như yêu cầu.
+ * Luật nội dung (nhãn hiệu, người thật, watermark) là lựa chọn riêng — xem LuatNoiDung.
+ */
+export type ChuTrongAnh = "theo_noi_dung" | "khong";
+
+/**
+ * Hai luật nội dung NGƯỜI DÙNG bật/tắt — không gài cứng (chủ dự án 03/10/2026, xem LuatNoiDung
+ * trong video-ai.ts và căn cứ: Điều 32 BLDS 2015, chính sách quảng cáo Meta).
+ */
+export const LUAT_NHAN_HIEU_GIA_ANH =
+  "TUYỆT ĐỐI không bịa tên thương hiệu, logo, con dấu, huy hiệu chứng nhận hay giải thưởng không có trong yêu cầu.";
+export const LUAT_NGUOI_THAT_ANH = "Không ghép ảnh người nổi tiếng, không vẽ mặt người thật có thể nhận ra.";
+/** Chỉ có nghĩa khi vẽ lại từ ảnh mẫu. */
+export const LUAT_XOA_WATERMARK = "Xoá watermark và chữ chèn thêm của người khác.";
+
+function luatThem(luat: LuatNoiDung, tuMau = false): string {
+  return [
+    luat.chanNhanHieuGia ? LUAT_NHAN_HIEU_GIA_ANH : "",
+    luat.chanNguoiThat ? LUAT_NGUOI_THAT_ANH : "",
+    tuMau && luat.xoaWatermark ? LUAT_XOA_WATERMARK : "",
+  ].filter(Boolean).join(" ");
+}
+
+export function luatAnh(chu: ChuTrongAnh, luat: LuatNoiDung = {}): string {
+  const chuLuat =
+    chu === "khong"
+      ? LUAT_ANH
+      : "LUẬT BẮT BUỘC, không được phong cách nào ghi đè: chỉ có chữ ở đúng chỗ yêu cầu nêu rõ, viết đúng y từng chữ " +
+        "và đúng dấu như yêu cầu; không thêm chữ nào khác.";
+  const them = luatThem(luat);
+  return them ? `${chuLuat} ${them}` : chuLuat;
+}
+
+export function luatAnhTuMau(chu: ChuTrongAnh, luat: LuatNoiDung = {}): string {
+  const chuLuat =
+    chu === "khong"
+      ? LUAT_ANH_TU_MAU
+      : [
+          "LUẬT BẮT BUỘC, không được phong cách nào ghi đè:",
+          "Giữ đúng chủ thể và bố cục chính của ảnh mẫu, chỉ đổi phong cách và chất lượng.",
+          "Chỉ thêm chữ khi yêu cầu nêu rõ, viết đúng y chữ đó.",
+          "Không đổi mặt người trong ảnh thành người khác.",
+        ].join(" ");
+  const them = luatThem(luat, true);
+  return them ? `${chuLuat} ${them}` : chuLuat;
+}
+
+/** "Không có chữ": ảnh trống chữ hoàn toàn (cả tên thương hiệu, nhãn trên bao bì — đều là chữ). */
+export const LUAT_ANH = [
   "LUẬT BẮT BUỘC, không được phong cách nào ghi đè:",
   "Ảnh phải TRỐNG CHỮ hoàn toàn — không chữ, không số, không nhãn dán, không khung chữ,",
-  "KỂ CẢ ở hậu cảnh và kể cả khi bị làm mờ.",
-  "TUYỆT ĐỐI không vẽ tên thương hiệu, logo, con dấu, huy hiệu chứng nhận hay giải thưởng,",
-  "kể cả bịa ra. Bao bì trong ảnh phải trơn, không nhãn.",
-  "Không ghép ảnh người nổi tiếng, không vẽ mặt người thật có thể nhận ra.",
+  "KỂ CẢ ở hậu cảnh và kể cả khi bị làm mờ. Không vẽ tên thương hiệu hay logo. Bao bì trong ảnh phải trơn, không nhãn.",
 ].join(" ");
 
 /**
@@ -117,6 +255,14 @@ export async function taoAnhChoBai(params: {
    * giữ nguyên chủ thể — thay vì bịa ra một cảnh hoàn toàn mới.
    */
   anhMau?: string;
+  /** Người dùng chọn có chữ theo yêu cầu hay không chữ. */
+  chuTrongAnh?: ChuTrongAnh;
+  /** Người dùng bật/tắt luật nội dung. */
+  luat?: LuatNoiDung;
+  /** Mô hình và thông số do người dùng chọn (model-anh.ts) — không cố định. */
+  veAnh: LuaChonVeAnh;
+  /** Việc ghi sổ: bấm tay hoặc lịch tự đăng. */
+  viec?: "tao_anh" | "tao_anh_tu_dong";
 }): Promise<AnhDaTao> {
   if (!env.openrouter.apiKey) {
     throw new AppError("Chưa cấu hình khoá AI nên chưa tạo được ảnh.", 503);
@@ -140,17 +286,34 @@ export async function taoAnhChoBai(params: {
    * Thứ tự có chủ đích: phong cách đứng TRƯỚC để định hướng toàn bộ ảnh, nội
    * dung bài đứng giữa, luật an toàn đứng cuối để không bị phong cách ghi đè.
    */
+  // Mô tả riêng (tạo ảnh độc lập, không theo bài) thì vẽ đúng mô tả, không gói thành "minh hoạ cho bài".
+  const tuMoTa = Boolean(params.yeuCau?.trim());
   const deBai = anhMau
     ? goc
-      ? `Vẽ lại ảnh mẫu kèm theo, trong bối cảnh bài bán hàng sau: "${goc}".`
+      ? tuMoTa
+        ? `Vẽ lại ảnh mẫu kèm theo, theo mô tả sau: "${goc}".`
+        : `Vẽ lại ảnh mẫu kèm theo, trong bối cảnh bài bán hàng sau: "${goc}".`
       : "Vẽ lại ảnh mẫu kèm theo theo phong cách trên."
-    : `Ảnh minh hoạ cho bài bán hàng sau: "${goc}".`;
+    : tuMoTa
+      ? `Vẽ ảnh theo mô tả sau: "${goc}".`
+      : `Ảnh minh hoạ cho bài bán hàng sau: "${goc}".`;
 
-  const moTa = `${phongCach}\n\n${deBai}\n\n${anhMau ? LUAT_ANH_TU_MAU : LUAT_ANH}`;
+  const { m: model, lc } = await layModelAnh(params.veAnh);
+  if (anhMau && model.soAnhThamChieu < 1) {
+    throw new AppError(`${model.ten} không nhận ảnh mẫu. Chọn mô hình khác để vẽ lại từ ảnh mẫu.`, 400);
+  }
+
+  const chu: ChuTrongAnh = params.chuTrongAnh === "khong" ? "khong" : "theo_noi_dung";
+  const moTa = `${phongCach}\n\n${deBai}\n\n${anhMau ? luatAnhTuMau(chu, params.luat) : luatAnh(chu, params.luat)}`;
 
   let response: Response;
   try {
-    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    /*
+     * API vẽ ảnh của OpenRouter (POST /api/v1/images — tài liệu "Image generation"):
+     * model, prompt, resolution, aspect_ratio, quality, input_references [{type:"image_url"…}];
+     * trả data[0].b64_json + media_type, usage.cost.
+     */
+    response = await fetch(`${GOC_API}/images`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${env.openrouter.apiKey}`,
@@ -159,20 +322,13 @@ export async function taoAnhChoBai(params: {
         "X-Title": "Zernio AI Sales",
       },
       body: JSON.stringify({
-        model: MODEL_ANH,
-        messages: [
-          {
-            role: "user",
-            content: anhMau
-              ? [
-                  { type: "text", text: moTa },
-                  { type: "image_url", image_url: { url: anhMau } },
-                ]
-              : moTa,
-          },
-        ],
-        modalities: ["image", "text"],
-        usage: { include: true },
+        model: model.id,
+        prompt: moTa,
+        n: 1,
+        ...(lc.doNet ? { resolution: lc.doNet } : {}),
+        ...(lc.khung ? { aspect_ratio: lc.khung } : {}),
+        ...(lc.chatLuong ? { quality: lc.chatLuong } : {}),
+        ...(anhMau ? { input_references: [{ type: "image_url", image_url: { url: anhMau } }] } : {}),
         user: `tk-${params.userId}`,
       }),
       // Sinh ảnh lâu hơn sinh chữ nhiều.
@@ -185,12 +341,11 @@ export async function taoAnhChoBai(params: {
     );
   }
 
-  const data = (await response.json()) as {
+  const data = (await response.json().catch(() => ({}))) as {
     id?: string;
     error?: { message?: string };
-    model?: string;
     usage?: { cost?: number };
-    choices?: { message?: { images?: { image_url?: { url?: string } }[] } }[];
+    data?: { b64_json?: string; media_type?: string; url?: string }[];
   };
 
   if (!response.ok || data.error) {
@@ -206,10 +361,13 @@ export async function taoAnhChoBai(params: {
         : response.status >= 400 && response.status < 500
           ? response.status
           : 502;
-    throw new AppError(`Tạo ảnh thất bại: ${data.error?.message ?? `HTTP ${response.status}`}`, ma);
+    throw new AppError(`Tạo ảnh thất bại: ${loiNhaCungCap(response.status, data.error?.message)}`, ma);
   }
 
-  const duLieu = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  const anh = data.data?.[0];
+  const duLieu = anh?.b64_json ? `data:${anh.media_type ?? "image/png"};base64,${anh.b64_json}` : undefined;
+  // Nhà cung cấp không báo tiền thì ghi theo bảng giá — sổ không bao giờ để 0 cho ảnh đã tính tiền.
+  const tien = data.usage?.cost ?? giaAnh(model, { ...lc, soAnhVao: anhMau ? 1 : 0 }) ?? 0;
 
   /*
    * Ghi sổ NGAY khi nhà cung cấp đã tính tiền — trước mọi bước có thể hỏng
@@ -219,10 +377,10 @@ export async function taoAnhChoBai(params: {
   await ghiLuotAi({
     userId: params.userId,
     task: "image",
-    viec: "tao_anh",
-    model: data.model ?? MODEL_ANH,
+    viec: params.viec ?? "tao_anh",
+    model: model.id,
     maNcc: data.id ?? null,
-    costUsd: data.usage?.cost ?? 0,
+    costUsd: duLieu ? tien : 0,
     loi: duLieu?.startsWith("data:") ? null : "Không trả về ảnh nào",
   });
 
@@ -260,8 +418,8 @@ export async function taoAnhChoBai(params: {
   return {
     url: presign.publicUrl,
     type: "image",
-    model: data.model ?? MODEL_ANH,
-    costUsd: data.usage?.cost ?? 0,
+    model: model.id,
+    costUsd: tien,
     moTa: goc,
     phongCach,
     tuAnhMau: Boolean(anhMau),

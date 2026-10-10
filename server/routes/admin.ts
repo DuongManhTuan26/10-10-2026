@@ -19,7 +19,8 @@ import { Router } from "express";
 import { requireAuth } from "../auth.js";
 import { query, queryOne } from "../db.js";
 import { AppError, route, chiNhanMaSo } from "../http.js";
-import { sinhMatKhauTam, taoTaiKhoan, EMAIL_PATTERN } from "../services/tai-khoan.js";
+import { docMatKhauTuDat, taoTaiKhoan, EMAIL_PATTERN } from "../services/tai-khoan.js";
+import { layDanhSachQuanLy } from "../services/quan-ly-chung.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
 import { chuyenThanhChuChuoi } from "../services/chuyen-chu-chuoi.js";
 import * as zernio from "../services/zernio.js";
@@ -89,35 +90,8 @@ async function layTaiKhoanDich(
 adminRouter.get(
   "/accounts",
   route(async (req, res) => {
-    const rows = await query(
-      `SELECT u.id, u.email, u.name, u.plan, u.role, u.is_active, u.created_at,
-              -- Dòng của chính người đang xem: giao diện thay nút "cấp lại mật khẩu" bằng "đổi mật khẩu".
-              (u.id = $1) AS la_toi,
-              (SELECT COUNT(*) FROM social_accounts s
-                WHERE s.user_id = u.id AND s.connected)::int          AS kenh,
-              (SELECT COUNT(*) FROM conversations c
-                WHERE c.user_id = u.id)::int                          AS hoi_thoai,
-              (SELECT COUNT(*) FROM conversations c
-                WHERE c.user_id = u.id AND c.status = 'waiting_human')::int AS cho_nguoi,
-              (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id)::int   AS don,
-              (SELECT COUNT(*) FROM posts p WHERE p.user_id = u.id)::int    AS bai,
-              (SELECT COUNT(*) FROM ai_documents d WHERE d.user_id = u.id)::int AS tai_lieu,
-              (SELECT MAX(m.sent_at) FROM messages m WHERE m.user_id = u.id) AS hoat_dong_cuoi,
-              /*
-               * Một tài khoản có thể có nhiều Trang, mỗi Trang một cấu hình.
-               * Bảng quản trị chỉ liệt kê tổng quan nên lấy Trang đầu tiên;
-               * không LIMIT thì truy vấn con trả nhiều dòng và lỗi ngay.
-               */
-              (SELECT a.settings->'tuChu'->>'bat' FROM ai_configs a
-                 JOIN trang tr ON tr.id = a.trang_id
-                WHERE tr.user_id = u.id AND a.kind = 'sales'
-                ORDER BY tr.id LIMIT 1)                                AS tu_chu,
-              (SELECT t.enabled FROM telegram_configs t WHERE t.user_id = u.id) AS telegram
-         FROM users u
-        ORDER BY u.created_at`,
-      [req.user!.id]
-    );
-    res.json({ success: true, data: rows.rows });
+    // CÙNG một bộ cột với màn hình của admin con (services/quan-ly-chung.ts) — hai màn hình không được lệch nhau.
+    res.json({ success: true, data: await layDanhSachQuanLy({ loai: "tong" }, req.user!.id) });
   })
 );
 
@@ -164,7 +138,8 @@ adminRouter.post(
      */
     const role = req.body?.role === "admin_con" ? "admin_con" : "shop";
 
-    const matKhauTam = sinhMatKhauTam();
+    // Quản trị tự đặt mật khẩu; bỏ trống thì hệ thống sinh (docMatKhauTuDat).
+    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);
     const taiKhoan = await taoTaiKhoan({ email, password: matKhauTam, name, role });
 
     await ghiNhatKyQuanTri({
@@ -315,7 +290,8 @@ adminRouter.post(
         400
       );
     }
-    const matKhauTam = sinhMatKhauTam();
+    // Quản trị tự đặt mật khẩu mới; bỏ trống thì hệ thống sinh (docMatKhauTuDat).
+    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);
 
     await query("UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1", [
       dich.id,

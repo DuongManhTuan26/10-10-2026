@@ -11,7 +11,7 @@ import clsx from 'clsx';
  *
  * Nay chỉ còn HAI cỡ, cùng một kiểu đầu / thân / chân:
  *   - 'lon': việc nhiều bước, nhiều trường (soạn bài, tạo quảng cáo, kịch bản...)
- *            — gần trọn màn hình: rộng tới 1240px, cao 92% màn hình.
+ *            — gần trọn màn hình: rộng tới 1800px (chủ dự án 04/10/2026: màn hình rộng còn trống 35%), cao 92%.
  *   - 'vua': biểu mẫu ngắn, xác nhận — rộng tới 880px.
  */
 
@@ -32,7 +32,7 @@ export const O_NHAP =
   'w-full h-12 px-4 rounded-xl bg-surface-container-high border border-outline-variant text-base text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/30 outline-none transition';
 
 const CO: Record<CoHopThoai, string> = {
-  lon: 'w-[min(1240px,96vw)] h-[min(92vh,1100px)]',
+  lon: 'w-[min(1800px,96vw)] h-[min(92vh,1100px)]',
   vua: 'w-[min(880px,94vw)] max-h-[90vh]',
 };
 

@@ -16,6 +16,7 @@
 
 import { query } from "../db.js";
 import { env } from "../env.js";
+import { trangHienTai } from "./ngu-canh-trang.js";
 
 /** Nhóm hiện ở dòng chính của sao kê. */
 export const NHOM_VIEC = {
@@ -40,13 +41,21 @@ export const VIEC = {
   viet_bai_tu_dong: { ten: "Viết bài tự động theo lịch", nhom: "marketing" },
   phan_tich_qc: { ten: "Phân tích quảng cáo", nhom: "phan_tich" },
   phan_tich_so_lieu: { ten: "Phân tích số liệu bán hàng", nhom: "phan_tich" },
+  dieu_hanh_chan_doan: { ten: "AI điều hành: chẩn đoán và đề xuất", nhom: "phan_tich" },
+  dieu_hanh_kiem: { ten: "AI điều hành: kiểm chéo", nhom: "phan_tich" },
   tao_anh: { ten: "Tạo ảnh", nhom: "anh" },
+  tao_anh_tu_dong: { ten: "Tạo ảnh tự động theo lịch đăng", nhom: "anh" },
   tao_video: { ten: "Tạo video", nhom: "video" },
   tao_canh_video_dai: { ten: "Tạo cảnh của video dài", nhom: "video" },
   sua_video: { ten: "Sửa video", nhom: "video" },
   mo_ta_video: { ten: "Viết lời mô tả video", nhom: "video" },
   chia_canh: { ten: "Chia cảnh video dài", nhom: "video" },
   phan_tich_trend: { ten: "Phân tích video trend", nhom: "video" },
+  khung_video: { ten: "Vẽ khung mở đầu cảnh video", nhom: "video" },
+  giong_doc: { ten: "Giọng đọc AI", nhom: "video" },
+  nhac_nen: { ten: "Nhạc nền AI", nhom: "video" },
+  nghe_kiem_tra: { ten: "Nghe kiểm tra giọng đọc", nhom: "video" },
+  kiem_dinh_video: { ten: "Kiểm định cảnh video", nhom: "video" },
   doc_tai_lieu: { ten: "Đọc tài liệu dạy AI", nhom: "day_ai" },
   thu_ai: { ten: "Chạy thử AI khi dạy", nhom: "day_ai" },
 } as const satisfies Record<string, { ten: string; nhom: NhomViec }>;
@@ -77,6 +86,8 @@ export interface LuotAi {
   costUsd: number;
   /** Bị tính tiền nhưng hỏng: ghi lý do. */
   loi?: string | null;
+  /** Trang được tính tiền. Bỏ trống = lấy "Trang đang làm việc" (ngu-canh-trang.ts). */
+  trangId?: number | null;
 }
 
 /**
@@ -87,9 +98,11 @@ export interface LuotAi {
  * phần đối chiếu tổng với nhà cung cấp.
  */
 export async function ghiLuotAi(l: LuotAi): Promise<void> {
+  const trangId = l.trangId !== undefined ? l.trangId : await trangHienTai();
   await query(
-    `INSERT INTO ai_usage (user_id, task, viec, model, ma_ncc, prompt_tokens, completion_tokens, cost_usd, loi)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    // Trang phải thuộc đúng tài khoản được tính tiền — không bao giờ ghi tiền sang trang của người khác.
+    `INSERT INTO ai_usage (user_id, task, viec, model, ma_ncc, prompt_tokens, completion_tokens, cost_usd, loi, trang_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (SELECT id FROM trang WHERE id = $10 AND user_id = $1))
      ON CONFLICT (ma_ncc) WHERE ma_ncc IS NOT NULL DO NOTHING`,
     [
       l.userId,
@@ -101,6 +114,7 @@ export async function ghiLuotAi(l: LuotAi): Promise<void> {
       l.completionTokens ?? 0,
       Number.isFinite(l.costUsd) ? l.costUsd : 0,
       l.loi ?? null,
+      trangId,
     ]
   ).catch((error) => console.error("[sổ AI] Không ghi được lượt AI:", error));
 }

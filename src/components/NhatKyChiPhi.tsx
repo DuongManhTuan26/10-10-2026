@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type Key } from 'react';
 import HopThoai from './HopThoai';
 import clsx from 'clsx';
 import { api, ApiError, type LocLuot, type LuotChiPhi } from '../lib/api';
@@ -36,7 +36,18 @@ const gio = (iso: string) => {
   return `${p.day}/${p.month} ${p.hour}:${p.minute}:${p.second}`;
 };
 
-export default function NhatKyChiPhi({ loc, tieuDe, onDong }: { loc: LocLuot; tieuDe: string; onDong: () => void }) {
+export default function NhatKyChiPhi({
+  loc,
+  tieuDe,
+  onDong,
+  phamVi = 'he_thong',
+}: {
+  loc: LocLuot;
+  tieuDe: string;
+  onDong: () => void;
+  /** 'chuoi': admin con — chỉ lượt của chuỗi mình (máy chủ kẹp phạm vi). */
+  phamVi?: 'he_thong' | 'chuoi';
+}) {
   const [trang, setTrang] = useState(1);
   const [du, setDu] = useState<{ luot: LuotChiPhi[]; tongLan: number; tongUsd: number; soTrang: number } | null>(null);
   const [loi, setLoi] = useState('');
@@ -44,14 +55,13 @@ export default function NhatKyChiPhi({ loc, tieuDe, onDong }: { loc: LocLuot; ti
   useEffect(() => {
     let huy = false;
     setDu(null);
-    api.admin
-      .luotChiPhi({ ...loc, trang })
+    (phamVi === 'chuoi' ? api.quanLy.luotChiPhi({ ...loc, trang }) : api.admin.luotChiPhi({ ...loc, trang }))
       .then(({ data }) => !huy && setDu(data))
       .catch((error) => !huy && setLoi(error instanceof ApiError ? error.message : 'Chưa tải được nhật ký'));
     return () => {
       huy = true;
     };
-  }, [loc, trang]);
+  }, [loc, trang, phamVi]);
 
   return (
     <HopThoai
@@ -84,30 +94,37 @@ export default function NhatKyChiPhi({ loc, tieuDe, onDong }: { loc: LocLuot; ti
         <div className="-mx-6 sm:-mx-8 -my-6 divide-y divide-outline-variant/60">
           {loi && <p className="px-8 py-5 text-sm text-red-400">{loi}</p>}
           {du && du.luot.length === 0 && <p className="px-8 py-5 text-sm text-on-surface-variant">Chưa có lượt nào.</p>}
-          {du?.luot.map((l) => {
-            const dc = NHAN_DOI_CHIEU[l.doiChieu];
-            return (
-              <div key={l.id} className="px-6 sm:px-8 py-3 flex items-start gap-4 text-sm">
-                <span className="w-[9.5rem] shrink-0 text-on-surface-variant tabular-nums pt-px">{gio(l.luc)}</span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-on-surface font-medium truncate">{l.tenViec}</span>
-                  <span className="block text-on-surface-variant truncate">
-                    {l.taiKhoan} · {l.model.split('/').pop()}
-                    {l.tokenVao + l.tokenRa > 0 && ` · ${(l.tokenVao + l.tokenRa).toLocaleString('vi-VN')} token`}
-                  </span>
-                  {l.loi && <span className="block text-amber-400">Bị tính tiền nhưng hỏng: {l.loi}</span>}
-                  {l.doiChieu === 'lech' && (
-                    <span className="block text-red-400">Lúc gọi báo {chiDu(l.usdLucGoi)}, nhà cung cấp chốt {chiDu(l.usdNhaCungCap)}</span>
-                  )}
-                </span>
-                <span className={clsx('shrink-0 font-bold tabular-nums', mauChi(l.usd))}>{chiDu(l.usd)}</span>
-                <span title={dc.giai} className={clsx('material-symbols-outlined text-[20px] shrink-0', dc.mau)}>
-                  {dc.ky}
-                </span>
-              </div>
-            );
-          })}
+          {du?.luot.map((l) => (
+            <DongLuot key={l.id} l={l} className="px-6 sm:px-8" />
+          ))}
         </div>
     </HopThoai>
+  );
+}
+
+/** Một lượt bị tính tiền — DÙNG CHUNG cho nhật ký chi phí và sao kê từng trang (màn hình quản lý). */
+export function DongLuot({ l, className }: { l: LuotChiPhi; className?: string; key?: Key }) {
+  const dc = NHAN_DOI_CHIEU[l.doiChieu];
+  return (
+    <div className={clsx('py-3 flex items-start gap-3 sm:gap-4 text-sm', className)}>
+      {/* Điện thoại: giờ nằm trên tên việc cho đủ chỗ số tiền. */}
+      <span className="hidden sm:block w-[9.5rem] shrink-0 text-on-surface-variant tabular-nums pt-px">{gio(l.luc)}</span>
+      <span className="flex-1 min-w-0">
+        <span className="sm:hidden block text-xs text-on-surface-variant tabular-nums">{gio(l.luc)}</span>
+        <span className="block text-on-surface font-medium break-words sm:truncate">{l.tenViec}</span>
+        <span className="block text-on-surface-variant truncate">
+          {l.taiKhoan} · {l.model.split('/').pop()}
+          {l.tokenVao + l.tokenRa > 0 && ` · ${(l.tokenVao + l.tokenRa).toLocaleString('vi-VN')} token`}
+        </span>
+        {l.loi && <span className="block text-amber-400">Bị tính tiền nhưng hỏng: {l.loi}</span>}
+        {l.doiChieu === 'lech' && (
+          <span className="block text-red-400">Lúc gọi báo {chiDu(l.usdLucGoi)}, nhà cung cấp chốt {chiDu(l.usdNhaCungCap)}</span>
+        )}
+      </span>
+      <span className={clsx('shrink-0 font-bold tabular-nums', mauChi(l.usd))}>{chiDu(l.usd)}</span>
+      <span title={dc.giai} className={clsx('material-symbols-outlined text-[20px] shrink-0', dc.mau)}>
+        {dc.ky}
+      </span>
+    </div>
   );
 }

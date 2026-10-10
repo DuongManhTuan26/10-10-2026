@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError, type User } from '../lib/api';
 import DoiMatKhau from './DoiMatKhau';
 
-export default function TopNavBar({ user, avatarUrl, onMoMenu }: {
+export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
   user?: User | null;
   /** Ảnh đại diện của Fanpage đang hoạt động, lấy từ kênh đã kết nối. */
   avatarUrl?: string | null;
   /** Mở ngăn kéo menu. Chỉ dùng dưới lg, nơi menu không đứng cố định. */
   onMoMenu?: () => void;
+  /** Thứ đặt ở góc phải trước chuông (vd. nút "đang xem thay" — luôn thấy, không đè nội dung). */
+  gocPhai?: ReactNode;
 }) {
   const location = useLocation();
   const [menuMo, setMenuMo] = useState(false);
@@ -52,10 +54,9 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu }: {
       case '/connections': return 'Kết nối';
       case '/pricing': return 'Gói dịch vụ';
       case '/settings': return 'Cài đặt';
-      case '/quan-ly-trang': return 'Quản lý trang';
-      // '/admin' cũng vốn rơi vào nhánh mặc định, nên trang Quản trị hệ thống
-      // lâu nay vẫn đề "Bảng điều khiển" ở thanh trên.
-      case '/admin': return 'Quản trị hệ thống';
+      // Cùng một màn hình quản lý cho cả hai tầng — cùng tiêu đề.
+      case '/quan-ly-trang': return 'Quản lý tài khoản';
+      case '/admin': return 'Quản lý tài khoản';
       default: return 'Bảng điều khiển';
     }
   };
@@ -84,6 +85,7 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu }: {
         </div>
       </div>
       <div className="flex items-center gap-base">
+        {gocPhai}
         <button
           onClick={() => navigate('/inbox')}
           title={waitingCount > 0 ? `${waitingCount} hội thoại đang chờ bạn xử lý` : 'Không có việc nào đang chờ'}

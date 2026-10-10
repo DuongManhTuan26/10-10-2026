@@ -1,0 +1,20 @@
+import { query } from "../../server/db.js";
+import { donDuLieuHetHan } from "../../server/auth.js";
+const luuDN = (await query(`SELECT * FROM login_attempts WHERE created_at < now() - interval '1 day'`)).rows;
+const luuDK = (await query(`SELECT * FROM dang_ky_theo_ip WHERE created_at < now() - interval '1 day'`)).rows;
+console.log("sao lưu dòng cũ thật:", luuDN.length, "đăng nhập,", luuDK.length, "đăng ký");
+const cu = await query(`INSERT INTO login_attempts (email, ip, created_at) VALUES ('thu-don-cu@example.test','0.0.0.1', now() - interval '2 days') RETURNING id`);
+const moi = await query(`INSERT INTO login_attempts (email, ip) VALUES ('thu-don-moi@example.test','0.0.0.1') RETURNING id`);
+const cuDK = await query(`INSERT INTO dang_ky_theo_ip (ip, created_at) VALUES ('0.0.0.1', now() - interval '2 days') RETURNING id`);
+const moiDK = await query(`INSERT INTO dang_ky_theo_ip (ip) VALUES ('0.0.0.1') RETURNING id`);
+console.log("hàm dọn xoá:", await donDuLieuHetHan(), "dòng");
+const con = async (bang: string, id: number) => ((await query(`SELECT 1 FROM ${bang} WHERE id = $1`, [id])).rowCount ?? 0) > 0;
+console.log("đăng nhập: dòng cũ còn?", await con("login_attempts", cu.rows[0].id), "| dòng mới còn?", await con("login_attempts", moi.rows[0].id));
+console.log("đăng ký:   dòng cũ còn?", await con("dang_ky_theo_ip", cuDK.rows[0].id), "| dòng mới còn?", await con("dang_ky_theo_ip", moiDK.rows[0].id));
+// dọn dòng thử, trả lại dòng thật
+await query(`DELETE FROM login_attempts WHERE id = $1`, [moi.rows[0].id]);
+await query(`DELETE FROM dang_ky_theo_ip WHERE id = $1`, [moiDK.rows[0].id]);
+for (const r of luuDN) await query(`INSERT INTO login_attempts (id, email, ip, created_at) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, [r.id, r.email, r.ip, r.created_at]);
+for (const r of luuDK) await query(`INSERT INTO dang_ky_theo_ip (id, ip, created_at) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [r.id, r.ip, r.created_at]);
+console.log("đã trả lại:", (await query(`SELECT count(*)::int c FROM login_attempts WHERE created_at < now() - interval '1 day'`)).rows[0].c, "đăng nhập,", (await query(`SELECT count(*)::int c FROM dang_ky_theo_ip WHERE created_at < now() - interval '1 day'`)).rows[0].c, "đăng ký");
+process.exit(0);

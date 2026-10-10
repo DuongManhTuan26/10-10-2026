@@ -1,7 +1,7 @@
 import { query, queryOne } from "../db.js";
 import { AppError } from "../http.js";
 import * as zernio from "./zernio.js";
-import { baoDamTrangChoHoSo, ganKenhVaoTrang } from "./trang.js";
+import { baoDamTrangChoHoSo, ganKenhVaoTrang, hoSoCuaTaiKhoan } from "./trang.js";
 
 /*
  * Thứ tự ưu tiên khi đặt tên Trang.
@@ -115,7 +115,10 @@ export async function syncAccountsForUser(
   userId: number,
   profileId: string
 ): Promise<number> {
-  const accounts = await zernio.listAccounts(profileId);
+  // Mọi hồ sơ của tài khoản, không chỉ hồ sơ mặc định — xem hoSoCuaTaiKhoan. Một hồ sơ hỏi hỏng thì cả lượt
+  // hỏng (ném lỗi), không đánh dấu nhầm kênh của hồ sơ đó là mất kết nối.
+  const dsHoSo = [...new Set([profileId, ...(await hoSoCuaTaiKhoan(userId))])];
+  const accounts = (await Promise.all(dsHoSo.map((ma) => zernio.listAccounts(ma)))).flat();
 
   /*
    * Đặt tên Trang theo Fanpage trước, nên duyệt Fanpage trước. Tài khoản
@@ -141,6 +144,9 @@ export async function syncAccountsForUser(
           needs_reconnection, token_expires_at, raw, page_id, last_synced_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, now())
        ON CONFLICT (id) DO UPDATE SET
+         -- Kênh chuyển sang hồ sơ khác (vd. hồ sơ riêng của Trang) thì phải theo; giữ hồ sơ cũ là tiền và số liệu
+         -- quảng cáo đọc nhầm hồ sơ.
+         profile_ref        = EXCLUDED.profile_ref,
          platform           = EXCLUDED.platform,
          username           = EXCLUDED.username,
          display_name       = EXCLUDED.display_name,

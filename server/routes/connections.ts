@@ -7,6 +7,7 @@ import * as zernio from "../services/zernio.js";
 import { env } from "../env.js";
 import { syncAccountsForUser, ensureProfile } from "../services/accounts.js";
 import { chanNeuThemFanpage } from "../services/gioi-han.js";
+import { ghiKenhTheoNgay } from "../services/trang.js";
 import {
   socialChannels,
   adChannels,
@@ -495,9 +496,12 @@ connectionsRouter.get(
   route(async (req, res) => {
     const profiles = await zernio.listProfiles();
 
+    // Hồ sơ riêng của Trang người khác cũng là đã có chủ.
     const claimed = await query<{ profile_ref: string }>(
       `SELECT profile_ref FROM users
-        WHERE profile_ref IS NOT NULL AND id <> $1`,
+        WHERE profile_ref IS NOT NULL AND id <> $1
+       UNION
+       SELECT profile_ref FROM trang WHERE user_id <> $1`,
       [req.user!.id]
     );
     const claimedIds = new Set(claimed.rows.map((row) => row.profile_ref));
@@ -532,8 +536,11 @@ connectionsRouter.post(
 
     // Hồ sơ đã thuộc về shop khác thì tuyệt đối không cho nhận, nếu không
     // hai shop sẽ cùng đọc được tin nhắn của nhau.
+    // Kể cả hồ sơ riêng của một Trang người khác.
     const taken = await queryOne(
-      `SELECT id FROM users WHERE profile_ref = $1 AND id <> $2`,
+      `SELECT id FROM users WHERE profile_ref = $1 AND id <> $2
+       UNION
+       SELECT user_id FROM trang WHERE profile_ref = $1 AND user_id <> $2`,
       [profileId, req.user!.id]
     );
     if (taken) {
@@ -601,6 +608,8 @@ connectionsRouter.put(
       throw new AppError("Chỉ kênh Facebook mới đổi được Trang", 400);
     }
 
+    // Chốt trạng thái hôm nay TRƯỚC khi đổi: ngày đổi vẫn tính cho trang cũ (sổ kênh theo ngày, chia tiền kênh).
+    await ghiKenhTheoNgay();
     const trangMoi = await zernio.doiTrangDangGan(account.id, pageId);
     await syncAccountsForUser(req.user!.id, req.user!.profileRef!);
 

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import clsx from 'clsx';
 import { api, ApiError, type MediaItem } from '../lib/api';
 import VideoDaiPanel from './VideoDaiPanel';
+import { useDangKyHanhDong } from '../lib/xuong';
 
 /**
  * Trend → video: tải lên một video đang thịnh hành, AI rút ra công thức (cách
@@ -58,6 +59,15 @@ export default function VideoTrendPanel({
       setDangPhanTich(false);
     }
   };
+
+  // Trong Xưởng AI: trước khi có công thức, nút tạo ở ô soạn chung là "phân tích video mẫu".
+  useDangKyHanhDong(
+    'trend',
+    ketQua
+      ? null
+      : { nhan: dangPhanTich ? 'AI đang xem video…' : nguon ? 'AI phân tích video mẫu' : 'Tải video mẫu lên trước', khoa: !nguon || dangPhanTich, dangChay: dangPhanTich },
+    () => void phanTich()
+  );
 
   return (
     <div className="space-y-3">

@@ -3,6 +3,7 @@ import HopThoai, { NUT_CHINH, NUT_PHU } from '../components/HopThoai';
 import { clsx } from 'clsx';
 import { api, ApiError, type Platform, type SocialAccount } from '../lib/api';
 import { useActivePage } from '../lib/ActivePage';
+import { hoiXacNhan } from '../components/HopHoi';
 
 // Mỗi lượt kết nối chọn một trang. Chưa phải hạn mức theo gói.
 const MOI_LUOT_MOT_TRANG = 1;
@@ -122,12 +123,17 @@ export default function Connections() {
   const doiSangTrang = async (pageId: string, tenTrang: string) => {
     if (!kenhDangDoi) return;
     const tenCu = dsTrang.find((t) => t.id === trangDangGan)?.name ?? 'Trang hiện tại';
-    if (!window.confirm(
-      `Chuyển sang "${tenTrang}"?\n\n` +
-      `"${tenCu}" sẽ NGỪNG nhận tin nhắn và bình luận ngay lập tức. ` +
-      `Một tài khoản chỉ bán hàng được trên một Trang.\n\n` +
-      `Muốn chạy cả hai Trang cùng lúc thì tạo thêm một tài khoản riêng cho Trang kia.`
-    )) return;
+    if (
+      !(await hoiXacNhan({
+        tieuDe: `Chuyển sang "${tenTrang}"?`,
+        noiDung:
+          `"${tenCu}" sẽ NGỪNG nhận tin nhắn và bình luận ngay lập tức. ` +
+          `Một tài khoản chỉ bán hàng được trên một Trang.\n\n` +
+          `Muốn chạy cả hai Trang cùng lúc thì tạo thêm một tài khoản riêng cho Trang kia.`,
+        nutDongY: 'Chuyển Trang',
+        bieuTuong: 'swap_horiz',
+      }))
+    ) return;
 
     setDangDoi(true);
     setErrorMessage('');
@@ -146,7 +152,7 @@ export default function Connections() {
   const handleDisconnectAccount = async (platformId: string) => {
     const target = accounts.filter((a) => a.platform === platformId);
     if (target.length === 0) return;
-    if (!window.confirm(`Ngắt kết nối ${target.length} tài khoản của kênh này?`)) return;
+    if (!(await hoiXacNhan({ tieuDe: `Ngắt kết nối ${target.length} tài khoản của kênh này?`, nutDongY: 'Ngắt kết nối', nguyHiem: true }))) return;
     try {
       for (const account of target) await api.connections.disconnect(account.id);
       await load();
@@ -157,7 +163,7 @@ export default function Connections() {
   };
 
   const handleDisconnectPage = async (accountId: string) => {
-    if (!window.confirm('Ngắt kết nối trang này?')) return;
+    if (!(await hoiXacNhan({ tieuDe: 'Ngắt kết nối trang này?', nutDongY: 'Ngắt kết nối', nguyHiem: true }))) return;
     try {
       await api.connections.disconnect(accountId);
       await load();

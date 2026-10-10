@@ -1038,3 +1038,71 @@ export function verifyWebhookSignature(
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
 }
+
+/**
+ * Tiền Zernio tính cho TỪNG KÊNH trong một kỳ hoá đơn — đúng số trên hoá đơn của họ.
+ *
+ * Tài liệu chính thức (docs.zernio.com/billing, /usage/get-usage): tính theo từng kênh đang nối, chia theo ngày
+ * (số ngày-kênh ÷ 30), chạy qua bậc giá 6 / 3 / 1 USD, trừ 12 USD miễn phí mỗi tháng. `groupBy=account` trả phần
+ * tiền của từng kênh và "sum(groups) + unattributed equals totals exactly". Chủ dự án 04/10/2026: tính với khách
+ * "y sì như vậy để khớp tuyệt đối 100%" — nên KHÔNG tự chia lại theo công thức riêng mà đọc thẳng số Zernio chia.
+ * Đo thật cùng ngày: kỳ 09/2026 cả hệ thống 4,71 USD, nhóm duy nhất (kênh TikTok) 4,71, không gán 0.
+ */
+export interface TienKenhZernio {
+  tu: string;
+  den: string;
+  /** id kênh Zernio → USD. */
+  theoKenh: Record<string, number>;
+  khongGanUsd: number;
+  tongUsd: number;
+}
+
+export async function docTienKenhTheoKenh(
+  khoang: "cycle" | "prev-cycle" | { from: string; to: string }
+): Promise<TienKenhZernio> {
+  // Khoảng ngày tuỳ chọn (UTC, gồm cả hai đầu): tiền từng kênh trong ĐÚNG khoảng đó, nhà cung cấp tự chia theo hoá đơn.
+  const q =
+    typeof khoang === "string"
+      ? { range: khoang, granularity: "total", groupBy: "account" }
+      : { range: "custom", from: khoang.from, to: khoang.to, granularity: "total", groupBy: "account" };
+  const d = await request<{
+    period?: { start?: string; end?: string };
+    totals?: { total?: number };
+    attribution?: { groups?: { key: string; totalUsd?: number }[]; unattributed?: { totalUsd?: number } };
+  }>("/usage", { query: q });
+  const theoKenh: Record<string, number> = {};
+  for (const g of d.attribution?.groups ?? []) theoKenh[g.key] = Number(g.totalUsd) || 0;
+  return {
+    tu: d.period?.start ?? "",
+    den: d.period?.end ?? "",
+    theoKenh,
+    khongGanUsd: Number(d.attribution?.unattributed?.totalUsd) || 0,
+    tongUsd: Number(d.totals?.total) || 0,
+  };
+}
+
+/** Một bài trong danh sách số liệu bài đăng (GET /v1/analytics). Số là CỘNG DỒN trọn đời bài. */
+export interface SoLieuBai {
+  _id: string;
+  latePostId?: string | null;
+  publishedAt?: string | null;
+  isExternal?: boolean;
+  isAd?: boolean;
+  platform?: string;
+  analytics?: {
+    impressions?: number; reach?: number; likes?: number; comments?: number; shares?: number; clicks?: number; views?: number;
+  } | null;
+}
+
+/** Số liệu các bài của MỘT kênh, đăng trong khoảng ngày (YYYY-MM-DD). Đọc hết các trang kết quả. */
+export async function layThongKeBai(accountId: string, fromDate: string, toDate: string): Promise<SoLieuBai[]> {
+  const tatCa: SoLieuBai[] = [];
+  for (let trang = 1; trang <= 20; trang++) {
+    const d = await request<{ posts?: SoLieuBai[]; pagination?: { pages?: number } }>("/analytics", {
+      query: { accountId, fromDate, toDate, limit: 100, page: trang },
+    });
+    tatCa.push(...(d.posts ?? []));
+    if (trang >= (d.pagination?.pages ?? 1)) break;
+  }
+  return tatCa;
+}

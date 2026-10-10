@@ -1,0 +1,85 @@
+{
+ "id": 9,
+ "loai": "kich_ban",
+ "y_tuong": "Video quảng cáo khoảng 60 giây cho BrewManager AI — trợ lý AI bán hàng tự động dành cho chủ shop bán hàng trên Fanpage Facebook.\nNhân vật: chị Linh, khoảng 28 tuổi, chủ một shop quần áo online nhỏ ở Hà Nội.\nHook: 11 giờ đêm, chị Linh mệt mỏi giữa căn phòng đầy túi hàng, điện thoại rung liên tục vì tin nhắn khách.\nVấn đề: trả lời không xuể; khách hỏi giá không ai trả lời thì bỏ đi; bài đăng bán hàng cũng chưa kịp viết.\nGiải pháp: chị bật BrewManager AI — AI tự trả lời tin nhắn và bình luận của khách suốt ngày đêm, tư vấn, hỏi đủ thông tin và chốt đơn, rồi báo đơn mới về điện thoại.\nLợi ích: AI còn tự viết bài, tạo ảnh, tạo video và đăng theo lịch; sáng hôm sau chị Linh thảnh thơi uống cà phê, xem những đơn đã chốt trong đêm.\nKêu gọi: nhắn tin cho BrewManager AI ngay để được tư vấn và cài đặt.\nMàn hình điện thoại trong video chỉ hiện bong bóng tin nhắn phát sáng, không có chữ đọc được.",
+ "anh_tham_chieu": [],
+ "nhat_quan": "Linh is a 28-year-old Vietnamese woman, small shop owner, with shoulder-length black hair tied into a loose messy bun, soft round face, light skin, no makeup, wearing a light gray oversized knit sweater and black leggings throughout. The location is her small home office/bedroom in Hanoi: a cluttered room with stacks of clothing bags on the floor, a wooden desk against the wall holding an open laptop, a small desk lamp, and a window with sheer curtains behind her. Her smartphone has a plain dark screen showing only soft glowing message bubbles in blue-green light, no readable text, no logos. Her laptop screen shows simple glowing abstract icons (chat bubble, calendar, photo frame, play button) representing automated content creation, also without text or logos. Color grade is warm amber indoor tones at night contrasting with soft golden morning light later, overall a cozy cinematic look with gentle film grain. Camera style is handheld documentary-style with shallow depth of field, smooth slow pushes and pans, no shaky cuts.",
+ "phan_canh": [
+  {
+   "moTa": "Late at night, the room lit only by a warm desk lamp, Linh sits on the floor surrounded by clothing bags, her face tired under dim light as her phone buzzes repeatedly with glowing message bubbles; camera slowly pushes in from a wide shot to a close-up of her exhausted face and the glowing phone in her hand.",
+   "loiDoc": "11 giờ đêm, chị Linh vẫn ngồi giữa đống hàng, điện thoại rung không ngừng.",
+   "soGiay": 8,
+   "tomTat": "Mở đầu gây chú ý: chị Linh mệt mỏi giữa đêm khuya vì tin nhắn khách dồn dập.",
+   "noiTiep": false
+  },
+  {
+   "moTa": "Still in the dim lamp light, Linh swipes frantically between glowing message bubbles piling up on her phone screen, her shoulders tense; camera pans slowly from the phone screen up to her strained eyes, following her growing frustration.",
+   "loiDoc": "Tin nhắn chồng chất, chị không thể trả lời kịp từng khách một.",
+   "soGiay": 8,
+   "tomTat": "Vấn đề: tin nhắn khách quá nhiều, chị không trả lời kịp.",
+   "noiTiep": true
+  },
+  {
+   "moTa": "In the same dim room, a close-up on the phone screen shows one glowing message bubble slowly fading out and disappearing, while the laptop beside it shows an empty blank page glowing faintly; camera tracks slowly from the fading phone bubble to the blank laptop screen.",
+   "loiDoc": "Khách hỏi giá, chờ lâu quá rồi lặng lẽ bỏ đi, bài bán hàng vẫn chưa kịp viết.",
+   "soGiay": 8,
+   "tomTat": "Hậu quả: khách bỏ đi vì chờ lâu, bài đăng bán hàng cũng chưa kịp làm.",
+   "noiTiep": false
+  },
+  {
+   "moTa": "Still at night under the warm lamp, Linh taps her phone screen and a calm blue-green glow spreads across it as the message bubbles begin lighting up and responding on their own; camera slowly pushes in on her hand tapping the screen as the glow brightens.",
+   "loiDoc": "Chị bật BrewManager AI, để AI tự trả lời tin nhắn và bình luận suốt ngày đêm.",
+   "soGiay": 8,
+   "tomTat": "Giải pháp: chị bật BrewManager AI để tự động trả lời khách.",
+   "noiTiep": false
+  },
+  {
+   "moTa": "The phone screen glows steadily as multiple message bubbles light up and resolve quickly one after another, ending with a brighter pulsing bubble indicating a new order; camera holds a steady close shot, slowly zooming into the brightest confirmed bubble.",
+   "loiDoc": "AI tư vấn, hỏi đủ thông tin và chốt đơn, rồi báo ngay đơn mới về máy.",
+   "soGiay": 8,
+   "tomTat": "AI tư vấn, chốt đơn và báo ngay đơn mới cho chị Linh.",
+   "noiTiep": true
+  },
+  {
+   "moTa": "Still at night, the laptop screen now glows with soft abstract icons forming in sequence: an image frame, a play button, and a calendar ticking forward, representing automatic content creation and scheduling; camera pans slowly across the laptop screen following the icons as they light up one by one.",
+   "loiDoc": "AI còn tự viết bài, tạo ảnh, tạo video và đăng bài đúng giờ đã lên lịch.",
+   "soGiay": 8,
+   "tomTat": "Lợi ích: AI tự viết bài, tạo ảnh, video và đăng theo lịch.",
+   "noiTiep": false
+  },
+  {
+   "moTa": "Morning sunlight streams softly through the sheer curtains, filling the same room with golden light; Linh sits relaxed near the desk holding a warm coffee cup, smiling gently as she looks at her phone showing a row of glowing completed order bubbles; camera slowly pushes in on her calm, content face.",
+   "loiDoc": "Sáng hôm sau, chị thảnh thơi nhấp cà phê, xem những đơn đã chốt trong đêm.",
+   "soGiay": 8,
+   "tomTat": "Kết quả: sáng ra chị thảnh thơi, đơn hàng đã được chốt sẵn.",
+   "noiTiep": false
+  },
+  {
+   "moTa": "In the same sunlit room, Linh smiles warmly at the camera for a brief moment before looking back down at her phone, where a single glowing message bubble pulses invitingly; camera slowly pushes in from her face to the glowing phone screen, ending close on the soft light.",
+   "loiDoc": "Nhắn tin cho BrewManager AI ngay để được tư vấn và cài đặt.",
+   "soGiay": 8,
+   "tomTat": "Kêu gọi hành động: nhắn tin cho BrewManager AI để được tư vấn, cài đặt ngay.",
+   "noiTiep": false
+  }
+ ],
+ "model": "google/veo-3.1-lite",
+ "do_net": "720p",
+ "khung": "9:16",
+ "co_tieng": true,
+ "trang_thai": "nhap",
+ "gia_uoc_tinh": 3.527121,
+ "gia_thuc": null,
+ "url": null,
+ "loi": null,
+ "created_at": "2026-10-02T10:13:14.568Z",
+ "am_thanh": {
+  "nhac": true,
+  "giong": "Kore",
+  "phuDe": true,
+  "giongDoc": true,
+  "moTaNhac": "Soft emotional indie pop instrumental, slow tempo building to warm uplifting rhythm, acoustic guitar and light piano, hopeful mood.",
+  "modelGiong": "google/gemini-3.8-flash-lite-tts"
+ },
+ "nhac_url": null,
+ "chi_phi_them": 0
+}

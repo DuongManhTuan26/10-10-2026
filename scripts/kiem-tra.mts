@@ -22,6 +22,10 @@ import { anDiaChiKho, hoanDiaChiKho, laDiaChiKho } from "../server/services/medi
 import { laNguonAnhCuaNenTang } from "../server/services/vision.js";
 import { giaCoTrongChu, laySoDau } from "../server/services/sales-ai.js";
 import { gopVaoTongChi } from "../server/services/orders.js";
+import { kiemHaiTiLe, kiemPoisson, chamMuc } from "../server/services/suc-khoe.js";
+import { hangBangChung, kiemTrich, kiemQuyetDinh, mucChac, ketLuanTinh, mucDichTinh, xetPhanBien, doiYHopLe, phanXu, nguCanhTrich, type BangChung, type BoiCanh, type QuyetDinh } from "../server/services/kiem-cung.js";
+import { dieuHanhMotLan, hienDeXuat, cauHoiKiem, khoBangChung, type GoiAi } from "../server/services/dieu-hanh.js";
+import { bangChungTuChiSo, hienP, khacBiet, bangChungTuThayDoi, bangChungTuTaiLieu, dungSoBangChung } from "../server/services/so-bang-chung.js";
 import { docSoLieuQuangCao } from "../src/pages/Ads.js";
 import { MAU_PHONG_CACH } from "../src/lib/phong-cach-anh.js";
 import {
@@ -37,11 +41,20 @@ import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
 import { errorHandler, chiNhanMaSo } from "../server/http.js";
-import { chuanHoaModel, giaMoiGiay, lyDoKhongHop, kichThuocKhop, viecCua } from "../server/services/video-ai.js";
-import { chuanHoaCanh, giaDuAn, giayGanNhat, TOI_DA_CANH, TOI_DA_GIAY_DU_AN } from "../server/services/video-dai.js";
-import { docThongTinVideo } from "../server/services/video-cong-cu.js";
+import { chuanHoaModel, giaMoiGiay, giaVideo, LUAT_NGUOI_THAT_VIDEO, LUAT_NHAN_HIEU_GIA_VIDEO, luatVideo, phanKhucTheoGia, lyDoKhongHop, kichThuocKhop, viecCua } from "../server/services/video-ai.js";
+import { baoGiaVideoDai, KIEU_KICH_BAN, boCauChiGio, canVeKhung, PHI_CHIA_CANH, phanCanhGiaDinh, GIOI_HAN_VE_LAI, loiNhacCanh, MO_DAU_NOI_DAI, giongDocSai, SO_LAN_DOC_LAI, chuanHoaCanh, docAmThanh, giaDuAn, giayGanNhat, kyTuLoiToiDa, LUAT_MOT_CU_MAY, LUAT_KHONG_NHAC, LUAT_KHONG_NOI, LUAT_NOI_TIEP, luatTiengNen, TOI_DA_CANH, TOI_DA_GIAY_DU_AN } from "../server/services/video-dai.js";
+import { docThongTinVideo, lenhGhep, lichGiongDoc, noiDungPhuDe, VUNG_AN_TOAN } from "../server/services/video-cong-cu.js";
+import { deBaiAnhNhanVat, deBaiKhung, GIA_KHUNG_UOC_TINH } from "../server/services/khung-video.js";
+import { chuanHoaModelAnh, giaAnh, MODEL_ANH_DUOC_CHON, phanKhucAnh, type ModelAnh } from "../server/services/model-anh.js";
+import { CHO_VIDEO_TOI_DA_PHUT, docAnhTuDong, docCauHinh as docLichTuDang, docVideoTuDong } from "../server/services/autopilot.js";
+import { ghepDeBai } from "../src/components/XuongAi.js";
+import { LUAT_ANH, LUAT_NGUOI_THAT_ANH, LUAT_NHAN_HIEU_GIA_ANH, LUAT_XOA_WATERMARK, luatAnh, luatAnhTuMau } from "../server/services/image-ai.js";
+import { LOI_HET_TIEN_AI, loiNhaCungCap } from "../server/services/loi-ncc.js";
+import { chuanBiDoc } from "../server/services/am-thanh-ai.js";
+import { DE_BAI_XEM_CLIP, MODEL_XEM_CLIP, phanLoaiSoDo } from "../server/services/kiem-dinh-video.js";
 import { giaSuaVideo } from "../server/services/video-sua.js";
-import { MODEL_VIDEO_DUOC_CHON, MODEL_SUA_VIDEO_DUOC_CHON } from "../server/services/model-duoc-chon.js";
+import { docMatKhauTuDat } from "../server/services/tai-khoan.js";
+import { MODEL_VIDEO_DUOC_CHON, MODEL_SUA_VIDEO_DUOC_CHON, MODEL_GIONG_DOC_DUOC_CHON, MODEL_NHAC_NEN, MODEL_NHIEU_CANH, MODEL_NOI_DAI, MODEL_TIENG_VIET_GOC } from "../server/services/model-duoc-chon.js";
 import { cheEmail, SAI_TOI_DA, MA_MOI_GIO_TOI_DA, SONG_PHUT } from "../server/services/xac-thuc-email.js";
 import { danhGia, chuanHoaNguong, NGUONG_MAC_DINH, trangThaiLuot, trangThaiTong, phanLech } from "../server/services/chi-phi.js";
 import { VIEC, NHOM_VIEC, tenViec, nhomCua, TEN_CHUA_PHAN_LOAI } from "../server/services/so-ai.js";
@@ -813,6 +826,8 @@ kiem("báo lỗi", "băng lỗi được máy đọc màn hình nhận ra", /rol
 // không hề nhắc tới. Chủ shop tưởng đang đăng lên Fanpage.
 // ---------------------------------------------------------------------------
 const nguonSoanBai = fs.readFileSync(path.join(GOC, "src/pages/Content.tsx"), "utf8");
+// Phần vẽ ảnh đã chuyển từ Content sang ô soạn chung của Xưởng AI (03/10/2026).
+const nguonXuongAi = fs.readFileSync(path.join(GOC, "src/components/XuongAi.tsx"), "utf8");
 kiem("soạn bài", "hộp soạn bài tự nói bài sẽ lên kênh nào",
   /BƯỚC 1 · CHỌN KÊNH ĐĂNG/.test(nguonSoanBai), true);
 kiem("soạn bài", "kênh hiển thị lấy đúng từ lựa chọn trong hộp soạn",
@@ -1000,22 +1015,26 @@ kiem("vẽ ảnh", "cấm model vẽ chữ lên ảnh",
   /Ảnh phải TRỐNG CHỮ hoàn toàn/.test(nguonVeAnh), true);
 kiem("vẽ ảnh", "cấm chữ ở cả hậu cảnh, kể cả khi bị làm mờ",
   /KỂ CẢ ở hậu cảnh và kể cả khi bị làm mờ/.test(nguonVeAnh), true);
-kiem("vẽ ảnh", "cấm bịa tên thương hiệu và huy hiệu chứng nhận",
-  /không vẽ tên thương hiệu, logo, con dấu, huy hiệu chứng nhận/.test(nguonVeAnh), true);
+// Chủ dự án 03/10/2026: luật này là LỰA CHỌN người dùng bật (không gài cứng) — kiểm tuỳ chọn có đúng nội dung.
+kiem("vẽ ảnh", "tuỳ chọn 'không bịa thương hiệu, huy hiệu chứng nhận' có sẵn để người dùng bật",
+  /export const LUAT_NHAN_HIEU_GIA_ANH =\s*"TUYỆT ĐỐI không bịa tên thương hiệu, logo, con dấu, huy hiệu chứng nhận/.test(nguonVeAnh), true);
 kiem("vẽ ảnh", "ảnh đi đúng luồng kho media sẵn có, không tự dựng đường riêng",
   /zernio\.presignMedia\(/.test(nguonVeAnh), true);
 
 /*
  * Vẽ ảnh tốn tiền thật nên KHÔNG được có đường nào gọi ngầm.
- * Chỉ endpoint do chủ shop bấm mới được gọi.
+ * Chỉ hai nơi: endpoint do chủ shop bấm, và lịch tự đăng KHI chủ shop bật "tự tạo ảnh theo bài"
+ * (chủ dự án 03/10/2026).
  */
 const noiGoiVeAnh = moiTepMayChu(path.join(GOC, "server")).filter(
   (tep) =>
     !tep.endsWith("image-ai.ts") &&
     /taoAnhChoBai\(/.test(fs.readFileSync(tep, "utf8"))
 );
-kiem("vẽ ảnh", "chỉ một nơi duy nhất gọi được lệnh vẽ ảnh",
-  noiGoiVeAnh.map((t) => path.basename(t)).join(", "), "ai.ts");
+kiem("vẽ ảnh", "chỉ hai nơi gọi được lệnh vẽ ảnh: bấm tay và lịch tự đăng",
+  noiGoiVeAnh.map((t) => path.basename(t)).sort().join(", "), "ai.ts, autopilot.ts");
+kiem("vẽ ảnh", "lịch tự đăng chỉ vẽ ảnh khi chủ shop bật và đã chọn mô hình",
+  /if \(cau\.anh\.bat && cau\.anh\.model\) \{\s*try \{\s*const anh = await taoAnhChoBai\(/.test(fs.readFileSync(path.join(GOC, "server/services/autopilot.ts"), "utf8")), true);
 
 // ---------------------------------------------------------------------------
 // 29. Che địa chỉ kho ảnh của nhà cung cấp
@@ -1111,7 +1130,7 @@ kiem("sửa bài", "bài đã đăng: cập nhật thẳng ra nền tảng, khô
 kiem("sửa bài", "nói rõ nền tảng không cho đổi ảnh của bài đã đăng",
   /không cho đổi ảnh/.test(nguonSoanBai), true);
 kiem("sửa bài", "gỡ bài phải hỏi trước vì mất hết tương tác",
-  /confirm\([\s\S]{0,200}?mất hết lượt thích và bình luận/.test(nguonSoanBai), true);
+  /hoiXacNhan\(\{[\s\S]{0,200}?mất hết lượt thích và bình luận/.test(nguonSoanBai), true);
 
 // ---------------------------------------------------------------------------
 // 31. Phong cách vẽ ảnh do chủ shop điều khiển
@@ -1126,7 +1145,7 @@ kiem("sửa bài", "gỡ bài phải hỏi trước vì mất hết tương tác
 kiem("phong cách ảnh", "luật an toàn tách khỏi phong cách",
   /Ở đây CHỈ có luật an toàn/.test(nguonVeAnh), true);
 kiem("phong cách ảnh", "phong cách đứng trước, luật an toàn đứng cuối",
-  /const moTa = `\$\{phongCach\}[\s\S]{0,40}\$\{deBai\}[\s\S]{0,40}\$\{anhMau \? LUAT_ANH_TU_MAU : LUAT_ANH\}`/.test(
+  /const moTa = `\$\{phongCach\}[\s\S]{0,40}\$\{deBai\}[\s\S]{0,40}\$\{anhMau \? luatAnhTuMau\(chu, params\.luat\) : luatAnh\(chu, params\.luat\)\}`/.test(
     nguonVeAnh
   ), true);
 kiem("phong cách ảnh", "có phong cách mặc định hướng tới ảnh có chiều sâu",
@@ -1150,13 +1169,13 @@ kiem("phong cách ảnh", "mẫu nào cũng có tên ngắn để hiện trên n
   MAU_PHONG_CACH.every((m) => m.ten.length > 0 && m.ten.length <= 26), true);
 
 kiem("phong cách ảnh", "hộp soạn bài có ô để chủ shop tự chỉ dẫn",
-  /Phong cách ảnh — bạn tự viết, AI vẽ đúng theo/.test(nguonSoanBai), true);
+  /Phong cách ảnh — bạn tự viết, AI vẽ đúng theo/.test(nguonXuongAi), true);
 kiem("phong cách ảnh", "phong cách đang gõ được gửi kèm khi vẽ",
-  /style: phongCachAnh\.trim\(\) \|\| undefined/.test(nguonSoanBai), true);
+  /style: phongCachAnh\.trim\(\) \|\| undefined/.test(nguonXuongAi), true);
 kiem("phong cách ảnh", "lưu được làm mặc định cho lần sau",
-  /api\.ai\.saveImageStyle\(phongCachAnh\.trim\(\)\)/.test(nguonSoanBai), true);
+  /api\.ai\.saveImageStyle\(phongCachAnh\.trim\(\)\)/.test(nguonXuongAi), true);
 kiem("phong cách ảnh", "nói rõ đổi lúc nào cũng được",
-  /Đổi lúc nào cũng được/.test(nguonSoanBai), true);
+  /Đổi lúc nào cũng được/.test(nguonXuongAi), true);
 
 // ---------------------------------------------------------------------------
 // 32. Ô chỉ dẫn tự do và vẽ lại từ ảnh mẫu
@@ -1176,7 +1195,7 @@ kiem("ảnh mẫu", "chế độ ảnh mẫu không xoá sạch chữ thật c�
 kiem("ảnh mẫu", "chế độ ảnh mẫu giữ đúng chủ thể và bố cục",
   /Giữ đúng chủ thể và bố cục chính của ảnh mẫu/.test(nguonVeAnh), true);
 kiem("ảnh mẫu", "chọn đúng bộ luật theo từng chế độ",
-  /\$\{anhMau \? LUAT_ANH_TU_MAU : LUAT_ANH\}/.test(nguonVeAnh), true);
+  /\$\{anhMau \? luatAnhTuMau\(chu, params\.luat\) : luatAnh\(chu, params\.luat\)\}/.test(nguonVeAnh), true);
 kiem("ảnh mẫu", "địa chỉ ảnh mẫu được hoàn về địa chỉ thật trước khi gửi model",
   /params\.anhMau \? hoanDiaChiKho\(params\.anhMau\)/.test(nguonVeAnh), true);
 kiem("ảnh mẫu", "chặn địa chỉ ảnh mẫu lạ, không cho gửi đi bất kỳ đâu",
@@ -1187,17 +1206,18 @@ kiem("ảnh mẫu", "có ảnh mẫu thì không bắt buộc phải có chữ",
   /if \(!goc && !anhMau\)/.test(nguonVeAnh), true);
 
 kiem("ô chỉ dẫn", "có ô để tự gõ phong cách riêng, không theo mẫu nào",
-  /Phong cách tuỳ chỉnh/.test(nguonSoanBai), true);
+  /Phong cách tuỳ chỉnh/.test(nguonXuongAi), true);
 kiem("ô chỉ dẫn", "bấm ô tuỳ chỉnh thì xoá trắng ô prompt để tự gõ",
-  /setPhongCachAnh\(''\);\s*\n\s*oPhongCachRef\.current\?\.focus\(\);/.test(nguonSoanBai), true);
+  /setPhongCachAnh\(''\);\s*\n\s*oPhongCachRef\.current\?\.focus\(\);/.test(nguonXuongAi), true);
 kiem("ô chỉ dẫn", "ô tuỳ chỉnh sáng lên khi phong cách không khớp mẫu nào",
   /const laPhongCachRieng = !MAU_PHONG_CACH\.some\(\(m\) => m\.mota === phongCachAnh\)/.test(
-    nguonSoanBai
+    nguonXuongAi
   ), true);
 kiem("ô chỉ dẫn", "ảnh mẫu được gửi kèm khi vẽ",
-  /sample: anhMauChon \|\| undefined/.test(nguonSoanBai), true);
+  /sample: anhMau \|\| undefined/.test(nguonXuongAi) && /const anhMau = anhRieng \? \(anhChon\[0\] \?\? ''\) : '';/.test(nguonXuongAi), true);
 kiem("ô chỉ dẫn", "vẽ được khi chỉ có ảnh mẫu, không cần nội dung bài",
-  /!composerContent\.trim\(\) && !anhMauChon/.test(nguonSoanBai), true);
+  /const coDeBai = Boolean\(deBaiAnh\.trim\(\)\) \|\| Boolean\(anhMau\);/.test(nguonXuongAi) &&
+    /khoa: dangTaoAnh \|\| !veAnh\.model \|\| !coDeBai,/.test(nguonXuongAi), true);
 
 /*
  * Hai ô tải ảnh phải TÁCH HẲN nhau.
@@ -1207,18 +1227,18 @@ kiem("ô chỉ dẫn", "vẽ được khi chỉ có ảnh mẫu, không cần n�
  * xem ảnh thì buộc phải đăng luôn ảnh đó lên Fanpage.
  */
 kiem("ảnh mẫu", "ảnh mẫu có ô tải riêng, không dùng chung với ảnh đăng bài",
-  /ref=\{anhMauInputRef\}/.test(nguonSoanBai) && /ref=\{fileInputRef\}/.test(nguonSoanBai), true);
+  /ref=\{oTep\}/.test(nguonXuongAi) && /ref=\{fileInputRef\}/.test(nguonSoanBai), true);
 kiem("ảnh mẫu", "ảnh mẫu KHÔNG rơi vào danh sách ảnh đăng kèm bài",
-  /const item = await api\.posts\.uploadMedia\(file\);\s*\n\s*setAnhMauChon\(item\.url\);/.test(
-    nguonSoanBai
+  /const item = await api\.posts\.uploadMedia\(f\);\s*\n\s*themAnh\(item\.url\);/.test(
+    nguonXuongAi
   ), true);
 kiem("ảnh mẫu", "nói rõ ảnh mẫu không được đăng lên",
-  /Ảnh mẫu cho AI — không đăng lên bài/.test(nguonSoanBai) &&
-    /Nó không được đăng lên nền tảng/.test(nguonSoanBai), true);
-kiem("ảnh mẫu", "khối ảnh đăng bài ghi rõ là đăng kèm bài",
-  /ẢNH VÀ VIDEO ĐĂNG KÈM BÀI/.test(nguonSoanBai), true);
+  /ảnh mẫu \(tối đa \{TOI_DA_ANH_THAM_CHIEU\}, không bắt buộc, không đăng lên bài\)/.test(nguonXuongAi), true);
+kiem("ảnh mẫu", "nút ảnh đăng bài ghi rõ là đăng kèm bài",
+  /Thêm ảnh \/ video đăng kèm bài/.test(nguonSoanBai) && /Ảnh\/video kèm bài \(\$\{composerMedia\.length\}\)/.test(nguonSoanBai), true);
+// Xưởng AI nằm trong hộp soạn bài: đóng hộp là bộ phận bị gỡ, ảnh tham chiếu (state riêng) mất theo.
 kiem("ảnh mẫu", "đóng hộp soạn bài thì bỏ luôn ảnh mẫu",
-  (nguonSoanBai.match(/setAnhMauChon\(''\)/g) ?? []).length >= 3, true);
+  /const \[anhChon, setAnhChon\] = useState<string\[\]>\(\[\]\);/.test(nguonXuongAi) && !/anhMauChon/.test(nguonSoanBai), true);
 
 // ---------------------------------------------------------------------------
 // 33. Hai khối ảnh phải tách rời, đúng thứ tự
@@ -1227,19 +1247,284 @@ kiem("ảnh mẫu", "đóng hộp soạn bài thì bỏ luôn ảnh mẫu",
 // mẫu cho AI. Hai ô tải ảnh sát nhau, làm hai việc trái ngược nhau — ai nhìn
 // cũng nhầm.
 // ---------------------------------------------------------------------------
-const viTriKhoiAnhBai = nguonSoanBai.indexOf("ẢNH VÀ VIDEO ĐĂNG KÈM BÀI");
+// 03/10/2026 (chủ dự án): ảnh/video đăng kèm thu gọn thành nút ở góc ô NỘI DUNG BÀI ĐĂNG.
+const viTriKhoiAnhBai = nguonSoanBai.indexOf("NỘI DUNG BÀI ĐĂNG</h3>");
 const viTriOKeoTha = nguonSoanBai.indexOf("ref={fileInputRef}");
-const viTriKhoiAI = nguonSoanBai.indexOf("AI VẼ ẢNH MINH HOẠ");
-const viTriAnhMau = nguonSoanBai.indexOf("Ảnh mẫu cho AI — không đăng lên bài");
-kiem("bố cục ảnh", "ô kéo thả nằm ngay dưới nhãn ảnh đăng kèm bài",
+// Khối AI giờ là "Xưởng AI" (ảnh + video chung một cửa sổ, chủ dự án 03/10/2026).
+const viTriKhoiAI = nguonSoanBai.indexOf("<XuongAi");
+const viTriAnhMau = nguonSoanBai.indexOf("<XuongAi") + (/Ảnh tham chiếu — sản phẩm, nhân vật, ảnh mẫu/.test(nguonXuongAi) ? 1 : -1e9);
+kiem("bố cục ảnh", "nút / ô kéo thả ảnh đăng kèm nằm trong khối nội dung bài, trước Xưởng AI",
   viTriKhoiAnhBai > 0 && viTriOKeoTha > viTriKhoiAnhBai && viTriOKeoTha < viTriKhoiAI, true);
 kiem("bố cục ảnh", "khối AI vẽ ảnh đứng sau, tách hẳn khối ảnh đăng bài",
   viTriKhoiAI > viTriOKeoTha, true);
 kiem("bố cục ảnh", "ô tải ảnh mẫu nằm trong khối AI, không nằm cạnh ô đăng bài",
   viTriAnhMau > viTriKhoiAI, true);
+const nguonXuong = fs.readFileSync(path.join(GOC, "src/components/XuongAi.tsx"), "utf8");
 kiem("bố cục ảnh", "mỗi khối có nhãn riêng, không trùng tên",
-  /AI VẼ ẢNH MINH HOẠ<\/h3>/.test(nguonSoanBai) &&
-    /ẢNH VÀ VIDEO ĐĂNG KÈM BÀI<\/h3>/.test(nguonSoanBai), true);
+  /XƯỞNG AI — ẢNH &amp; VIDEO<\/h3>/.test(nguonXuong) &&
+    /NỘI DUNG BÀI ĐĂNG<\/h3>/.test(nguonSoanBai) && !/ẢNH VÀ VIDEO ĐĂNG KÈM BÀI/.test(nguonSoanBai), true);
+kiem("bố cục ảnh", "bài đã đăng không có nút thêm ảnh (nền tảng không cho đổi ảnh); kéo thả tệp vào ô nội dung được",
+  [/\{baiDangSua\?\.status !== 'published' && \(\s*<button\s*type="button"\s*onClick=\{\(\) => fileInputRef\.current\?\.click\(\)\}/.test(nguonSoanBai),
+    /onDrop=\{\(e\) => \{\s*if \(baiDangSua\?\.status === 'published'/.test(nguonSoanBai)], [true, true]);
+kiem("nhờ AI viết", "một bài hiệu quả nhất, đổ thẳng vào ô nội dung; ô đang có chữ thì hỏi trước",
+  [/api\.ai\.generatePost\(composerTopic\.trim\(\), composerGoal, 1\)/.test(nguonSoanBai), /setComposerContent\(bai\);/.test(nguonSoanBai),
+    /!\(await hoiXacNhan\(\{ tieuDe: 'Thay nội dung đang có bằng bài AI vừa viết\?'/.test(nguonSoanBai), /Chọn một phương án:/.test(nguonSoanBai)], [true, true, true, false]);
+const nguonAiPanelX = fs.readFileSync(path.join(GOC, "src/components/VideoAiPanel.tsx"), "utf8");
+const nguonDaiPanelX = fs.readFileSync(path.join(GOC, "src/components/VideoDaiPanel.tsx"), "utf8");
+const nguonSuaPanelX = fs.readFileSync(path.join(GOC, "src/components/VideoSuaPanel.tsx"), "utf8");
+kiem("xưởng AI", "MỘT ô soạn chung cho ảnh và video: một ô mô tả, một dải ảnh tham chiếu, mỗi bên một công tắc; Content chỉ gắn Xưởng",
+  [(nguonXuongAi.match(/<textarea/g) ?? []).length, /value=\{moTa\}/.test(nguonXuongAi),
+    /<CongTac\s*ten="Ảnh tạo riêng"[\s\S]{0,120}bat=\{anhRieng\}\s*onDoi=\{\(\) => setAnhRieng\(!anhRieng\)\}/.test(nguonXuongAi) &&
+      /<CongTac\s*ten="Video tạo riêng"[\s\S]{0,120}bat=\{videoRieng\}\s*onDoi=\{\(\) => setVideoRieng\(!videoRieng\)\}/.test(nguonXuongAi),
+    /<XuongContext\.Provider value=\{\{ moTa, setMoTa, theoBai: !videoRieng, anhChon, deBai: deBaiVideo, datHanhDong, datVideoTheoBai \}\}>/.test(nguonXuongAi),
+    /<XuongAi\s*noiDung=\{composerContent\}/.test(nguonSoanBai), (nguonSoanBai.match(/<VideoAiPanel/g) ?? []).length],
+  [2, true, true, true, true, 0]);
+kiem("xưởng AI", "phần video đọc ô soạn chung, KHÔNG vẽ ô mô tả / ô ảnh riêng khi nằm trong Xưởng",
+  [/const anhMoDau = xuong \? \(xuong\.theoBai \? '' : \(xuong\.anhChon\[0\] \?\? ''\)\) : anhMoDauRieng;/.test(nguonAiPanelX),
+    /const loiNhac = loiMoTa\.trim\(\) \|\| \(xuong \? xuong\.deBai\.trim\(\) : ''\);/.test(nguonAiPanelX),
+    /const yTuong = xuong \? xuong\.deBai : yTuongRieng;/.test(nguonDaiPanelX), /const anhThamChieu = xuong \? xuong\.anhChon\.slice\(0, 4\) : anhThamChieuRieng;/.test(nguonDaiPanelX),
+    /\{!xuong && \(\s*<>\s*<label/.test(nguonDaiPanelX), /const yeuCau = xuong \? xuong\.moTa : yeuCauRieng;/.test(nguonSuaPanelX)],
+  [true, true, true, true, true, true]);
+// 04/10/2026 (chủ dự án): đi theo bài thì CHỈ nội dung bài — prompt tay không trộn vào ("đánh nhau").
+// 04/10/2026 (chủ dự án): phần dùng chung (ô prompt) ở giữa; lựa chọn riêng chia đôi song song — ảnh trái, video
+// phải — LUÔN MỞ (nối với bài vẫn phải chọn mô hình cho lúc tự tạo). Không còn ẩn / hiện theo chế độ.
+kiem("xưởng AI", "lựa chọn ảnh (trái) và video (phải) song song, luôn mở; đề bài = chỉ bài (theo bài) hoặc chỉ prompt (tạo riêng)",
+  [/<div className="grid @3xl:grid-cols-2 gap-3 items-start">\s*<section className="rounded-xl border border-primary\/30 p-3 space-y-3 min-w-0">\s*<CotDau ten="Lựa chọn ảnh"/.test(nguonXuongAi) &&
+      /<section className="vung-video rounded-xl border border-primary\/30 p-3 space-y-3 min-w-0">\s*<CotDau ten="Lựa chọn video"/.test(nguonXuongAi),
+    /hidden=\{cheDo/.test(nguonXuongAi),
+    ghepDeBai(true, " Bài A ", ""), ghepDeBai(true, "Bài A", "nắng sớm"), ghepDeBai(false, "Bài A", " Túi cà phê ")],
+  [true, false, "Bài A", "Bài A", "Túi cà phê"]);
+kiem("xưởng AI", "ảnh: giá trên nút tạo; phong cách và giới hạn nội dung gập vào 'Tuỳ chỉnh thêm'; ảnh tham chiếu lấy được từ thư viện",
+  [/`Tạo ảnh\$\{giaVeAnh !== null \? ` — \$\{vndAnh\(giaVeAnh\)\}` : ''\}`/.test(nguonXuongAi),
+    /Tuỳ chỉnh thêm <span[^>]*>— phong cách ảnh, giới hạn nội dung<\/span>[\s\S]{0,4000}Phong cách ảnh — bạn tự viết[\s\S]{0,4000}<LuatNoiDungChon giaTri=\{luatAnh\}/.test(nguonXuongAi),
+    /<ThuVienAnh onDung=\{\(url\) => themAnh\(url\)\} \/>/.test(nguonXuongAi)],
+  [true, true, true]);
+// 03/10/2026 (chủ dự án): hai công tắc cân đối trái/phải; nút tạo nằm ngay trong ô soạn.
+// 04/10/2026: công tắc NẰM TRÊN thanh Ảnh | Video (chọn trước rồi mới tạo); mỗi bên một công tắc "tạo riêng":
+// đèn sáng = tạo riêng theo prompt, đèn tối = đi theo bài (đăng bài là tự tạo). Ảnh xanh ngọc, video hồng tím.
+{
+  const nguonTrendX = fs.readFileSync(path.join(GOC, "src/components/VideoTrendPanel.tsx"), "utf8");
+  const viTriTab = nguonXuongAi.indexOf('role="tablist"');
+  const viTriCongTac1 = nguonXuongAi.indexOf('ten="Ảnh tạo riêng"');
+  const viTriCongTac2 = nguonXuongAi.indexOf('ten="Video tạo riêng"');
+  const viTriOSoan = nguonXuongAi.indexOf("value={moTa}");
+  kiem("xưởng AI", "hai công tắc cùng hàng 2 cột NẰM TRÊN thanh Ảnh | Video, trước ô soạn; trái = ảnh, phải = video",
+    [/<div className="grid grid-cols-2 gap-2 mb-3">\s*<CongTac\s*ten="Ảnh tạo riêng"/.test(nguonXuongAi),
+      viTriCongTac1 > 0 && viTriCongTac2 > viTriCongTac1 && viTriTab > viTriCongTac2 && viTriOSoan > viTriTab,
+      // Không còn công tắc "Bật tạo video AI" ở đâu cả.
+      /ten="Bật tạo video AI"|datCongTac|api\.ai\.batVideo/.test(nguonXuongAi + nguonAiPanelX),
+      // Trong Xưởng phần video không vẽ tiêu đề / công tắc riêng.
+      /\{!nhung && \(\s*<div className="flex items-center justify-between gap-3 dau-muc">/.test(nguonAiPanelX)],
+    [true, true, false, true]);
+  kiem("xưởng AI", "công tắc: bật = sáng màu của bên (ảnh primary, video secondary); tắt = tối; bên đang mở VÀ đang chọn sáng hẳn",
+    [/bat\s*\?\s*laAnh\s*\?\s*'bg-primary border-primary shadow-\[0_0_14px_var\(--color-primary\)\]'\s*:\s*'bg-secondary border-secondary shadow-\[0_0_14px_var\(--color-secondary\)\]'\s*:\s*'bg-surface-container-high border-outline-variant'/.test(nguonXuongAi),
+      /!bat\s*\? 'border-outline-variant bg-surface-container'\s*: laAnh\s*\? dangChon\s*\? 'border-primary bg-primary\/15 shadow-\[0_0_16px_var\(--color-primary\)\]'\s*: 'border-primary\/50 bg-primary\/5'\s*: dangChon\s*\? 'border-secondary bg-secondary\/15 shadow-\[0_0_16px_var\(--color-secondary\)\]'/.test(nguonXuongAi),
+      /mau="anh"\s*dangChon=\{laAnh\}/.test(nguonXuongAi), /mau="video"\s*dangChon=\{!laAnh\}/.test(nguonXuongAi),
+      /\{bat \? 'Đang mở: tạo theo prompt của bạn' : 'Tắt: nối với bài, tự tạo khi Đăng bài'\}/.test(nguonXuongAi)],
+    [true, true, true, true, true]);
+  kiem("xưởng AI", "nút Ảnh | Video: bên nối với bài TỐI hẳn; bên mở viền màu; bên mở + đang chọn tô đầy, phát sáng; nút Tạo cùng màu",
+    [/!mo\s*\? 'border-outline-variant bg-surface-container-low text-on-surface-variant cursor-not-allowed'/.test(nguonXuongAi) &&
+      /disabled=\{!anhRieng\} onClick=\{\(\) => setCheDo\('anh'\)\}/.test(nguonXuongAi) && /disabled=\{!videoRieng\} onClick=\{\(\) => setCheDo\('video'\)\}/.test(nguonXuongAi) &&
+      /\? 'border-primary bg-primary text-on-primary shadow-\[0_0_18px_var\(--color-primary\)\]'\s*: 'border-primary\/60 bg-surface-container text-primary/.test(nguonXuongAi) &&
+      /\? 'border-secondary bg-secondary text-on-secondary-fixed shadow-\[0_0_18px_var\(--color-secondary\)\]'\s*: 'border-secondary\/60 bg-surface-container text-secondary/.test(nguonXuongAi),
+      /laAnh \? 'bg-primary text-on-primary' : 'bg-secondary text-on-secondary-fixed'/.test(nguonXuongAi),
+      /laAnh \? 'focus-within:border-primary focus-within:ring-primary' : 'focus-within:border-secondary focus-within:ring-secondary'/.test(nguonXuongAi)],
+    [true, true, true]);
+  kiem("xưởng AI", "lần đầu cả hai bên để TẠO RIÊNG (không tự tốn tiền khi đăng), nhớ lựa chọn cho lần sau",
+    [/nhoLocal\('anhRieng', 'true', \['true', 'false'\] as const\) === 'true'/.test(nguonXuongAi), /luuLocal\('anhRieng', String\(v\)\)/.test(nguonXuongAi),
+      /nhoLocal\('videoRieng', 'true', \['true', 'false'\] as const\) === 'true'/.test(nguonXuongAi), /luuLocal\('videoRieng', String\(v\)\)/.test(nguonXuongAi)],
+    [true, true, true, true]);
+  const viTriNut = nguonXuongAi.indexOf("onClick={nutTao.chay}");
+  kiem("xưởng AI", "nút tạo nằm NGAY TRONG ô soạn (sau ô mô tả, trước dải ảnh tham chiếu); chỉ một nút tạo ảnh",
+    [viTriNut > viTriOSoan && viTriNut < nguonXuongAi.indexOf("ref={oTep}"), (nguonXuongAi.match(/onClick=\{taoAnh\}/g) ?? []).length,
+      /disabled=\{nutTao\.khoa\}/.test(nguonXuongAi)], [true, 0, true]);
+  kiem("xưởng AI", "nút trong ô prompt đổi theo bên: ảnh = vẽ ảnh kèm giá; video = việc chính của kỹ năng đang mở",
+    [/const nutTao: \{[^}]*\} = laAnh\s*\?\s*\{\s*nhan: dangTaoAnh\s*\? 'Đang vẽ ảnh…'/.test(nguonXuongAi),
+      /chay: \(\) => void taoAnh\(\),/.test(nguonXuongAi),
+      /: \{ nhan: 'Tạo video', khoa: true, dangChay: false, chay: \(\) => undefined, goiY: 'Chọn cách làm video bên dưới' \}/.test(nguonXuongAi),
+      /\? \{ \.\.\.hanhDong\.h, chay: \(\) => chayRef\.current\[hanhDong\.chu\]\?\.\(\) \}/.test(nguonXuongAi),
+      // Kỹ năng gỡ ra chỉ xoá việc CỦA NÓ (kỹ năng khác vừa báo lên không bị xoá).
+      /setHanhDong\(\(cu\) => \(cu && cu\.chu === chu \? null : cu\)\);/.test(nguonXuongAi)],
+    [true, true, true, true, true]);
+  kiem("xưởng AI", "mỗi kỹ năng video báo đúng việc chính lên nút ô soạn",
+    [/useDangKyHanhDong\('ngan', cheDo === 'mot_canh' \? \{ nhan: nhanTao, khoa: khoaTao, dangChay: dangGui \} : null, \(\) => void taoVideo\(\)\);/.test(nguonAiPanelX),
+      /`dai-\$\{loai\}`,\s*nhap\s*\? \{ nhan: dangBatDau \? 'Đang gửi…' : `Duyệt và tạo video — \$\{tien\(giaNhap\)\}`, khoa: dangBatDau,/.test(nguonDaiPanelX),
+      /\(\) => void \(nhap \? batDau\(\) : chiaCanh\(\)\)/.test(nguonDaiPanelX),
+      /'trend',\s*ketQua\s*\? null/.test(nguonTrendX), /\(\) => void phanTich\(\)/.test(nguonTrendX),
+      /useDangKyHanhDong\('sua', \{ nhan: nhanGui, khoa: khoaGui, dangChay: dangGui \}, \(\) => void gui\(\)\);/.test(nguonSuaPanelX)],
+    [true, true, true, true, true, true]);
+}
+
+// 04/10/2026: chạy thật video #40 — Wan 3.0 vẫn có tiếng dù gửi generate_audio: false (tài liệu Alibaba: tiếng luôn
+// được tạo). Chủ dự án chọn để nguyên, chỉ ghi chú cho khách biết trước (TD-07).
+{
+  const nguonRtGc = fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8");
+  const nguonTdGc = fs.readFileSync(path.join(GOC, "src/components/VideoTuDongChon.tsx"), "utf8");
+  const nguonVaGc = fs.readFileSync(path.join(GOC, "src/components/VideoAiPanel.tsx"), "utf8");
+  const nguonViGc = fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8");
+  kiem("video AI", "Wan 3.0 (cả bản Prime) ghi rõ 'luôn có tiếng'; ghi chú đi tới tận màn hình (Xưởng + lịch tự đăng), màu cam cảnh báo",
+    [MODEL_VIDEO_DUOC_CHON.filter((m) => m.ghiChu && /Luôn có tiếng/.test(m.ghiChu)).map((m) => m.id).sort(),
+      /\.\.\.\(c\.ghiChu \? \{ ghiChu: c\.ghiChu \} : \{\}\),/.test(nguonViGc),
+      /ghiChu: m\.ghiChu \?\? null,/.test(nguonRtGc),
+      /\{cheDo === 'mot_canh' && model\?\.ghiChu && <p className="text-\[11px\] text-orange-400">\{model\.ten\}: \{model\.ghiChu\}<\/p>\}/.test(nguonVaGc),
+      /\{model\?\.ghiChu && <p className="text-\[11px\] text-orange-400 mt-1">\{model\.ten\}: \{model\.ghiChu\}<\/p>\}/.test(nguonTdGc)],
+    [["alibaba/wan-3.0", "alibaba/wan-3.0-prime"], true, true, true, true]);
+}
+
+// 04/10/2026 (chủ dự án): bên nào đi theo bài thì bấm Đăng bài / Lên lịch là tự tạo rồi đăng cùng.
+{
+  const nguonLichTB = fs.readFileSync(path.join(GOC, "server/services/autopilot.ts"), "utf8");
+  const nguonRtTB = fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8");
+  const hamTB = /export async function taoVideoTheoBai[\s\S]*?\n\}\n/.exec(nguonLichTB)?.[0] ?? "";
+  kiem("theo bài", "Xưởng báo kế hoạch đăng: chỉ bên đi theo bài và CHƯA có ảnh/video Xưởng đã tạo cho bài",
+    [/const anhTheoBaiCan = !anhRieng && !anhBai\.some\(\(u\) => daTao\.current\.has\(u\)\);/.test(nguonXuongAi),
+      /const videoTheoBaiCan = !videoRieng && !videoBai\.some\(\(u\) => daTao\.current\.has\(u\)\);/.test(nguonXuongAi),
+      /anh: anhTheoBaiCan \? \{ gia: giaVeAnh \} : null,/.test(nguonXuongAi),
+      /video: videoTheoBaiCan && videoTheoBai \? \{ gia: videoTheoBai\.gia, ten: videoTheoBai\.ten \} : null,/.test(nguonXuongAi),
+      // Ảnh / video Xưởng tạo (kể cả tạo thử) được ghi nhớ để lúc đăng không tạo thêm.
+      /const ganVaoBai = \(item: MediaItem\) => \{\s*daTao\.current\.add\(item\.url\);\s*onGanVaoBai\(item\);/.test(nguonXuongAi),
+      /daTao\.current\.add\(data\.url\);\s*return \{ url: data\.url, type: data\.type \};/.test(nguonXuongAi),
+      /onGanVaoBai=\{ganVaoBai\} \/>/.test(nguonXuongAi)],
+    [true, true, true, true, true, true, true]);
+  kiem("theo bài", "đi theo bài mà chưa chọn được mô hình thì chặn đăng, nói rõ thiếu gì",
+    [/anhTheoBaiCan && !veAnh\.model\s*\? 'Ảnh đang đi theo bài nhưng chưa chọn mô hình vẽ ảnh/.test(nguonXuongAi),
+      /videoTheoBaiCan && !videoTheoBai\s*\? 'Video đang đi theo bài nhưng chưa có mô hình video/.test(nguonXuongAi),
+      /if \(kh\?\.loi\) \{\s*setErrorMessage\(kh\.loi\);\s*return;/.test(nguonSoanBai)], [true, true, true]);
+  kiem("theo bài", "hàm gọi lúc đăng đọc lựa chọn MỚI NHẤT (qua ref), gửi đúng thông số video đang chọn",
+    [/moiNhat\.current = \{ veAnhMoi, deBaiVideo, videoTheoBai \};/.test(nguonXuongAi),
+      /const taoAnhKhiDang = useCallback\(\(\) => moiNhat\.current\.veAnhMoi\(\), \[\]\);/.test(nguonXuongAi),
+      /await api\.ai\.videoTheoBai\(\{ \.\.\.v\.lc, \.\.\.v\.huong, postId, model: v\.model, noiDung: deBai, mucDich: v\.mucDich \}\);/.test(nguonXuongAi),
+      /useEffect\(\(\) => \(\) => onKeHoachDang\?\.\(null\), \[onKeHoachDang\]\);/.test(nguonXuongAi),
+      /onKeHoachDang=\{setKeHoachXuong\}/.test(nguonSoanBai)], [true, true, true, true, true]);
+  kiem("theo bài", "video theo bài chỉ làm Video ngắn; phần video báo thông số đang chọn (model làm được) lên Xưởng",
+    [/if \(theoBai && cheDo !== 'mot_canh'\) setCheDo\('mot_canh'\);/.test(nguonAiPanelX),
+      /\{theoBai \? null : \(<>/.test(nguonAiPanelX) && /moTaTat="nối với bài — tự tạo video ngắn khi bấm Đăng bài"/.test(nguonXuongAi),
+      /model && !model\.lyDo\s*\? \{ model: model\.id, ten: model\.ten, gia: model\.giaUocTinh, lc, mucDich, huong \}\s*: null/.test(nguonAiPanelX),
+      // Theo bài: không lời nhắc tay, không nút tạo tay ở phần video — chỉ còn hướng video và thông số.
+      /\{theoBai && <HuongKichBanChon giaTri=\{huong\} onDoi=\{setHuong\} \/>\}/.test(nguonAiPanelX) && /\{theoBai \? null : \(\s*<details/.test(nguonAiPanelX),
+      // Trong Xưởng nút tạo nằm ở ô prompt — cuối cột video không lặp nút.
+      /\{!xuong && <button\s*type="button"\s*onClick=\{taoVideo\}/.test(nguonAiPanelX)],
+    [true, true, true, true, true]);
+  // 04/10/2026 (chủ dự án): cột video dài gấp 6 cột ảnh → gọn như cột ảnh, dòng chính ngắn, chi tiết bấm mới hiện.
+  // 04/10/2026 (chủ dự án): cửa sổ soạn bài dài 5,3 màn hình. Màn hình rộng thì chia đôi; điện thoại vẫn một cột.
+  kiem("theo bài", "cửa sổ soạn bài: ≥1280px chia đôi (trái bài đăng, phải Xưởng); hẹp hơn một cột, bài đăng trước Xưởng sau",
+    [/const coXuong = daChonKenh && baiDangSua\?\.status !== 'published';/.test(nguonSoanBai),
+      /<div className=\{clsx\('space-y-8', coXuong && 'xl:space-y-0 xl:grid xl:grid-cols-\[minmax\(0,5fr\)_minmax\(0,7fr\)\] xl:gap-8 xl:items-start'\)\}>/.test(nguonSoanBai),
+      nguonSoanBai.indexOf("ĐĂNG BÀI NÀY LÚC NÀO</h3>") > 0 && nguonSoanBai.indexOf("ĐĂNG BÀI NÀY LÚC NÀO</h3>") < nguonSoanBai.indexOf("<XuongAi"),
+      /\{coXuong && \(\s*<div className="min-w-0">[\s\S]{0,200}<XuongAi/.test(nguonSoanBai)],
+    [true, true, true, true]);
+  kiem("theo bài", "hai cột ảnh / video theo bề rộng CỦA XƯỞNG (container), không theo bề rộng màn hình",
+    [/<div className="khung-muc mau-hong @container">/.test(nguonXuongAi), /<div className="grid @3xl:grid-cols-2 gap-3 items-start">/.test(nguonXuongAi)],
+    [true, true]);
+  kiem("theo bài", "cột video gọn: mô hình là ô chọn có giá (không còn danh sách dài), nhãn đầu dòng, lời nhắc gập, video cũ gập",
+    [/<select\s*value=\{modelChon\}\s*onChange=\{\(e\) => setModelChon\(e\.target\.value\)\}/.test(nguonAiPanelX),
+      /name="model-video"/.test(nguonAiPanelX),
+      (nguonAiPanelX.match(/<HangChon nhan="/g) ?? []).length,
+      /Giá mỗi video: <b className="text-primary">\{tien\(model\.giaUocTinh\)\}<\/b>/.test(nguonAiPanelX),
+      /open=\{!xuong \|\| Boolean\(loiMoTa\) \|\| undefined\}/.test(nguonAiPanelX),
+      /const viecHien = viec\.filter\(\(v\) => v\.trang_thai === 'dang_tao' \|\| vuaTao\.current\.has\(v\.id\)\);/.test(nguonAiPanelX) &&
+        /vuaTao\.current\.add\(data\.id\);/.test(nguonAiPanelX) &&
+        /\{viecHien\.map\(theVideo\)\}\s*\{viecCu\.length > 0 && \(\s*<details/.test(nguonAiPanelX)],
+    [true, false, 5, true, true, true]);
+  const viTriHoi = nguonSoanBai.indexOf("kh?.video &&\n        !(await hoiXacNhan({");
+  const viTriVeAnh = nguonSoanBai.indexOf("const anh = await kh.taoAnh();");
+  const viTriLuu = nguonSoanBai.indexOf("const { data: post } = editingPostId");
+  const viTriGuiVideo = nguonSoanBai.indexOf("await kh.guiVideo(post.id);");
+  kiem("theo bài", "Đăng bài: hỏi lại kèm giá video TRƯỚC mọi việc tốn tiền → vẽ ảnh, gắn vào bài → lưu → gửi video",
+    [viTriHoi > 0 && viTriVeAnh > viTriHoi && viTriLuu > viTriVeAnh && viTriGuiVideo > viTriLuu,
+      /media = \[\.\.\.media, anh\];\s*setComposerMedia\(media\);/.test(nguonSoanBai),
+      /Tiền bị trừ kể cả khi bạn không dùng video\./.test(nguonSoanBai)], [true, true, true]);
+  kiem("theo bài", "có video theo bài: lưu nháp rồi để máy chủ đăng khi video xong — KHÔNG gửi đăng ngay; gửi video hỏng thì giữ hộp soạn trên đúng bài đó",
+    [(nguonSoanBai.match(/status: kh\?\.video \? 'draft' : dang \? \(scheduledFor \? 'scheduled' : 'pending_approval'\) : 'draft',/g) ?? []).length,
+      /\} else if \(dang\) \{\s*\/\/[^\n]*\n\s*await api\.posts\.publish\(post\.id\);/.test(nguonSoanBai),
+      /catch \(error\) \{\s*setEditingPostId\(post\.id\);\s*setBaiDangSua\(post\);\s*setErrorMessage\(\s*`Đã lưu bài vào Bản nháp nhưng chưa gửi được video/.test(nguonSoanBai)],
+    [2, true, true]);
+  kiem("theo bài", "nút Đăng bài hiện luôn giá ảnh / video sẽ tự tạo",
+    /keHoachXuong\?\.anh && `\+ ảnh \$\{vndAnh\(keHoachXuong\.anh\.gia\)\}`,\s*keHoachXuong\?\.video && `\+ video \$\{vndVideo\(keHoachXuong\.video\.gia\)\}`,/.test(nguonSoanBai), true);
+  kiem("theo bài", "điện thoại: chân cửa sổ không tràn — nút Đăng bài co lại, cao theo chữ, giá ở dòng nhỏ",
+    [/className=\{clsx\(NUT_CHINH\.replace\('h-12 px-8 ', ''\), 'min-h-12 py-1\.5 px-3 sm:px-8 min-w-0 flex-1 sm:flex-none sm:min-w-\[220px\] text-center'\)\}/.test(nguonSoanBai),
+      // Biểu tượng ẩn ở khung bọc (lớp của bộ biểu tượng tự đặt display, ẩn thẳng trên nó không ăn).
+      /<span className="hidden sm:inline-flex">\s*<span className=\{clsx\("material-symbols-outlined text-\[20px\]", dangGuiBai && "animate-spin"\)\}>/.test(nguonSoanBai)], [true, true]);
+  kiem("theo bài", "bài chờ video hiện 'Đang tạo video AI · xong tự đăng', ẩn nút duyệt (duyệt lúc này là đăng thiếu video)",
+    [/\{post\.cho_video_id \? 'ĐANG TẠO VIDEO AI · XONG TỰ ĐĂNG' : POST_STATUS_LABELS\[post\.status\]\.toUpperCase\(\)\}/.test(nguonSoanBai),
+      /\{post\.status === 'pending_approval' && !post\.cho_video_id && \(/.test(nguonSoanBai)], [true, true]);
+  kiem("theo bài", "máy chủ: chỉ gắn video cho bài chưa gửi đăng, mô hình làm được, có giá; gắn bằng một lệnh có điều kiện",
+    [/if \(!Number\.isInteger\(p\.postId\) \|\| p\.postId <= 0\) throw new AppError/.test(hamTB),
+      /if \(!TRANG_THAI_CHO_VIDEO\.includes\(bai\.status\)\) throw new AppError/.test(hamTB),
+      /const lyDo = lyDoKhongHop\(model, p\.lc\);\s*if \(lyDo\) throw new AppError/.test(hamTB),
+      /if \(gia === null\) throw new AppError/.test(hamTB),
+      /SET status = 'pending_approval', cho_video_id = \$3, cho_video_guard = 'publish', updated_at = now\(\)\s*WHERE id = \$1 AND user_id = \$2 AND status = ANY\(\$4::text\[\]\)/.test(hamTB),
+      /const TRANG_THAI_CHO_VIDEO = \["draft", "pending_approval", "scheduled", "failed"\];/.test(nguonLichTB),
+      // Lịch tự đăng vẫn chặn trần tiền tháng; bài soạn tay thì chủ shop đã thấy giá và bấm đồng ý.
+      /tienVideoTuDongThang/.test(hamTB)],
+    [true, true, true, true, true, true, false]);
+  kiem("theo bài", "máy chủ: video theo bài chỉ từ nội dung bài (AI viết lời nhắc, không nhận prompt / ảnh tay); đường API có chốt chống lạm dụng",
+    [/loiMoTa|anhMoDau/.test(/export async function taoVideoTheoBai\(p: \{[\s\S]*?\}\)/.exec(nguonLichTB)?.[0] ?? "x"),
+      /const \{ loiMoTa \} = await vietLoiMoTaVideo\(/.test(nguonLichTB),
+      /"\/video\/theo-bai",\s*chanLamDungAI,/.test(nguonRtTB)], [false, true, true]);
+  // Ô prompt chỉ mở cho bên tạo riêng; bật bên nào thì chọn luôn bên đó; tắt bên đang chọn thì sang bên còn mở.
+  kiem("theo bài", "nối với bài cả hai thì CHỈ ô prompt đóng; ô prompt làm cho bên đang mở; mở bên nào thì chọn bên đó",
+    [/const dangMo = anhRieng \|\| videoRieng;/.test(nguonXuongAi),
+      /const cheDoMo: CheDoXuong = \(cheDo === 'anh' \? anhRieng : videoRieng\) \? cheDo : anhRieng \? 'anh' : 'video';/.test(nguonXuongAi),
+      /const laAnh = cheDoMo === 'anh';/.test(nguonXuongAi),
+      /<div hidden=\{!dangMo\} className="bg-surface-container rounded-xl p-4/.test(nguonXuongAi),
+      /\{!dangMo && \(\s*<div[\s\S]{0,300}Ô prompt đóng — ảnh và video đang nối với bài đăng:/.test(nguonXuongAi),
+      /if \(v\) setCheDo\('anh'\);/.test(nguonXuongAi), /if \(v\) setCheDo\('video'\);/.test(nguonXuongAi),
+      /Tạo thử ngay/.test(nguonXuongAi + nguonAiPanelX)],
+    [true, true, true, true, true, true, true, false]);
+  kiem("theo bài", "chờ video quá lâu tính từ lúc GỬI VIỆC VIDEO, không phải lúc tạo bài (bản nháp cũ không bị đăng vội)",
+    [/v\.created_at < now\(\) - \(\$1 \|\| ' minutes'\)::interval AS qua_lau/.test(nguonLichTB),
+      /OR v\.created_at < now\(\) - \(\$1 \|\| ' minutes'\)::interval\)/.test(nguonLichTB), /p\.created_at < now\(\)/.test(nguonLichTB)],
+    [true, true, false]);
+}
+
+// 04/10/2026 (chủ dự án): màn hình quản lý của quản trị tổng và admin con phải GIỐNG 100% — chỉ khác phạm vi /
+// tầng. "Sau này sửa 1 bên thì phải lập tức đồng nhất luôn với các bên còn lại." Cách chặn lệch: MỘT tệp màn hình,
+// MỘT bộ cột dữ liệu; mọi chỗ rẽ theo tầng đều đếm — thêm khác biệt mới mà không chủ ý là bộ kiểm tra kêu.
+{
+  const nguonQLChung = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
+  const nguonAppQL = fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8");
+  const nguonMenuQL = fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8");
+  const nguonThanhQL = fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8");
+  kiem("đồng nhất", "MỘT màn hình quản lý cho cả hai tầng: không còn trang riêng; hai đường dẫn cùng vẽ QuanLy",
+    [fs.existsSync(path.join(GOC, "src/pages/Admin.tsx")) || fs.existsSync(path.join(GOC, "src/pages/QuanLyTrang.tsx")),
+      /<Route path="\/quan-ly-trang" element=\{<QuanLy user=\{user\} \/>\} \/>/.test(nguonAppQL),
+      /<Route path="\/admin" element=\{<QuanLy user=\{user\} \/>\} \/>/.test(nguonAppQL),
+      // Quay lại từ tài khoản đã mở: về đúng màn hình quản lý của tầng mình.
+      /onQuayLai=\{\(\) => \{ window\.location\.href = '\/quan-ly'; \}\}/.test(nguonAppQL) &&
+        /<Route path="\/quan-ly" element=\{<Navigate to="\/admin" replace \/>\} \/>/.test(nguonAppQL)],
+    [false, true, true, true]);
+  kiem("đồng nhất", "cùng tên menu, cùng biểu tượng, cùng tiêu đề thanh trên ở cả hai tầng",
+    [(nguonMenuQL.match(/\{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '\/(quan-ly-trang|admin)' \}/g) ?? []).length,
+      (nguonThanhQL.match(/case '\/(quan-ly-trang|admin)': return 'Quản lý tài khoản';/g) ?? []).length],
+    [2, 2]);
+  // Phạm vi admin con: CHỈ chính mình + trang của mình — ở danh sách, báo cáo, và chi phí (không lộ phần hệ thống).
+  {
+    const nguonChungQL = fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8");
+    const nguonRtQL = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
+    const nguonCPQL = fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8");
+    kiem("đồng nhất", "phạm vi admin con không lọt ra ngoài chuỗi (danh sách, báo cáo); chi phí chuỗi không có cài đặt hệ thống",
+      [/FROM users u WHERE u\.id = \$2 OR u\.parent_id = \$2 ORDER BY/.test(nguonChungQL),
+        /if \(Number\.isInteger\(so\) && so > 0 && \(so === req\.user!\.id \|\| \(req\.user!\.role === "admin" && req\.user!\.moBoi == null\)\)\) \{/.test(nguonRtQL),
+        /return trangCuaToi\(nguoiQuanLy\(req\)!, id\);/.test(nguonRtQL),
+        /\{!laChuoi && moCaiDat && nguong && \(/.test(nguonCPQL)],
+      [true, true, true, true]);
+  }
+  kiem("đồng nhất", "cả hai tầng lấy danh sách qua MỘT bộ cột (services/quan-ly-chung.ts), chỉ khác phạm vi",
+    [/layDanhSachQuanLy\(\{ loai: "tong" \}, req\.user!\.id\)/.test(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8")),
+      /layDanhSachQuanLy\(\{ loai: "chuoi", chaId: req\.user!\.id \}, req\.user!\.id\)/.test(fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8"))],
+    [true, true]);
+  // Danh sách chỗ rẽ theo tầng ĐÃ ĐƯỢC CHỦ DỰ ÁN CHẤP NHẬN (phạm vi dữ liệu, loại tài khoản, chi phí hệ thống /
+  // chuỗi, chuyển thành chủ chuỗi, đường gọi máy chủ của từng tầng). Muốn thêm khác biệt mới: hỏi chủ dự án trước.
+  kiem("đồng nhất", "số chỗ rẽ theo tầng trong màn hình quản lý không tự tăng (19)",
+    (nguonQLChung.match(/laTong/g) ?? []).length, 19);
+  kiem("đồng nhất", "chi phí tháng này: cùng khung; phạm vi chuỗi ẩn số dư, đối chiếu, nạp tiền, cài đặt (việc của quản trị tổng)",
+    [/<ChiPhiHeThong phamVi=\{laTong \? 'he_thong' : 'chuoi'\} \/>/.test(nguonQLChung),
+      /\{!laChuoi && \(<button/.test(fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8")),
+      /export async function saoKeChuoi\(chaId: number, soNgay: number\)/.test(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8")),
+      /uocTinh: \{ kenhChuoi, kenhTatCa \}/.test(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8"))],
+    [true, true, true, true]);
+}
 
 // ---------------------------------------------------------------------------
 // 34. Worker không được phép treo, và AI không được phép chết câm
@@ -2119,7 +2404,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("vớt tin bỏ sót", "chờ một lúc để đường bình thường làm trước",
     /cuoi\.created_at < now\(\) - \(\$1 \|\| ' milliseconds'\)::interval/.test(thanBoSot), true);
   kiem("vớt tin bỏ sót", "đi qua đúng đường xử lý chính, không viết đường thứ hai",
-    /if \(await handleIncomingMessage\(hc\.id\)\) daVot \+= 1;/.test(thanBoSot), true);
+    // Chạy trong ngữ cảnh Trang của kênh hội thoại (tiền AI ghi đúng trang) — vẫn đúng một đường xử lý chính.
+    /if \(await chayChoKenh\(hc\.social_account_id, \(\) => handleIncomingMessage\(hc\.id\)\)\) daVot \+= 1;/.test(thanBoSot), true);
   kiem("vớt tin bỏ sót", "không đụng hội thoại nhân viên đang giữ",
     /WHERE c\.status = 'ai'/.test(thanBoSot), true);
 
@@ -2398,7 +2684,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    */
   const napLaiTheoTrang: Array<[string, RegExp]> = [
     ["src/pages/AutoScripts.tsx", /Không tải được cấu hình AI[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
-    ["src/pages/Content.tsx", /phong cách mặc định[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
+    ["src/components/XuongAi.tsx", /phong cách mặc định[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
     ["src/pages/Content.tsx", /dùng mặc định an toàn[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
     ["src/components/AutoPilotPanel.tsx", /Không tải được lịch tự động[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
     ["src/components/AITrainingModal.tsx", /Không tải được cấu hình AI[\s\S]{0,900}?\}, \[kind, activeAccountId, activeTrangId\]\);/],
@@ -2562,9 +2848,11 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * một vòng kiểm hàng phải qua màn hình trung gian chín lần — hai phần rời
    * hẳn nhau, đúng điều chủ sản phẩm chỉ ra.
    */
+  // 04/10/2026: quyền mở / quay lại xét theo NGƯỜI THẬT (mo_boi), vai trò đọc lại từ database.
   kiem("phân tầng", "đang trong một trang vẫn suy ra được người quản lý thật",
-    /if \(req\.user\?\.moBoi != null\) return req\.user\.moBoi;/.test(nguonQL) &&
-      /const chaId = nguoiQuanLy\(req\)!;/.test(nguonQL), true);
+    /const id = req\.user!\.moBoi \?\? req\.user!\.id;/.test(nguonQL) &&
+      /const that = await nguoiThat\(req\);\s*const chaId = that\.id;/.test(nguonQL) &&
+      /if \(u\.moBoi != null\) return u\.parentId;/.test(nguonQL), true);
 
   /*
    * Nhưng CHỈ được đi lại, không được cầm quyền trên tài khoản khác. Lập
@@ -2601,8 +2889,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * Cách ly giữa các trang là điểm chính của cả mô hình này.
    */
   kiem("phân tầng", "trang tự đăng nhập không thấy trang anh em",
-    /if \(req\.user\?\.role === "admin_con" \|\| req\.user\?\.role === "admin"\) return req\.user\.id;\s*\n\s*return null;/
-      .test(nguonQL), true);
+    /if \(u\.role === "admin_con" \|\| u\.role === "admin"\) return u\.id;[\s\S]{0,160}if \(u\.moBoi != null\) return u\.parentId;\s*\n\s*return null;/
+      .test(nguonQL) && /data: nguoiQuanLy\(req\) === null \? \[\] : rows\.rows/.test(nguonQL), true);
 
   // Điều kiện parent_id phải nằm TRONG câu lệnh. Lấy về rồi mới kiểm thì sớm
   // muộn có đường nào đó quên kiểm.
@@ -2627,7 +2915,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * thay vẫn nhảy được sang trang anh em. Quyền sở hữu vẫn do chính
    * trangCuaToi kiểm bằng parent_id, nên cái phải đếm là CÓ GỌI hay không.
    */
-  const soLanKiemChu = (nguonQL.match(/await trangCuaToi\(/g) ?? []).length;
+  // Báo cáo đi qua taiKhoanTrongPhamVi (chính mình / quản trị tổng / trang của mình) — cũng là một lần kiểm chủ.
+  const soLanKiemChu = (nguonQL.match(/await (trangCuaToi|taiKhoanTrongPhamVi)\(/g) ?? []).length;
   kiem("phân tầng", "mọi đường nhắm vào trang khác đều kiểm chủ sở hữu",
     soLanKiemChu, soRouteTheoId);
 
@@ -2643,9 +2932,13 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * lúc mở: giữa hai thời điểm đó tài khoản quản lý có thể đã bị khoá, bị hạ
    * vai trò, hoặc trang này đã chuyển sang người khác.
    */
-  kiem("phân tầng", "quay ra kiểm lại quan hệ cha con, không tin mã đã ghi",
-    /JOIN users t ON t\.parent_id = c\.id[\s\S]{0,200}?c\.is_active = TRUE AND c\.role IN \('admin', 'admin_con'\)/
+  kiem("phân tầng", "quay ra kiểm lại quyền (quản trị tổng: không phải quản trị; admin con: đúng trang của mình), không tin mã đã ghi",
+    /WHERE c\.id = \$1 AND t\.id = \$2 AND c\.is_active = TRUE\s*AND \(\(c\.role = 'admin' AND t\.role <> 'admin'\)\s*OR \(c\.role = 'admin_con' AND t\.parent_id = c\.id\)\)/
       .test(nguonQL), true);
+  kiem("phân tầng", "mở tài khoản: quản trị tổng mở mọi tài khoản KHÔNG phải quản trị; admin con chỉ trang của mình; còn lại 404",
+    [/if \(that\.role === "admin"\) \{[\s\S]{0,300}WHERE id = \$1 AND role <> 'admin'/.test(nguonQL),
+      /\} else if \(that\.role === "admin_con"\) \{\s*trang = await trangCuaToi\(chaId, req\.params\.id\);\s*\} else \{\s*throw new AppError\("Không tìm thấy trang này", 404\);/.test(nguonQL)],
+    [true, true]);
 
   const nguonTk3 = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
 
@@ -2738,10 +3031,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * Ba tầng, đúng thứ tự người điều hành cần: tổng cả chuỗi → việc phải xử lý
    * → tình trạng từng trang.
    */
-  const nguonManHinhQL = fs.readFileSync(path.join(GOC, "src/pages/QuanLyTrang.tsx"), "utf8");
+  const nguonManHinhQL = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
   kiem("phân tầng", "màn hình quản lý là bảng điều hành, không phải danh sách suông",
-    /api\.quanLy\.tongQuan\(\)/.test(nguonManHinhQL) &&
-      /Cần xử lý \(\{cangDau\.length\} trang\)/.test(nguonManHinhQL), true);
+    /api\.quanLy\.danhSach\(\)/.test(nguonManHinhQL) && /api\.admin\.accounts\(\)/.test(nguonManHinhQL) &&
+      /Cần xử lý \(\{canXuLy\.length\}\)/.test(nguonManHinhQL), true);
 
   /*
    * Số liệu vận hành phải là số THẬT lấy từ database, không phải số dựng sẵn.
@@ -2753,7 +3046,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     "kich_ban_bat", "tin_7_ngay", "ai_tra_loi_7_ngay", "hoat_dong_cuoi",
     "cho_nguoi", "don_hom_nay", "don_thang", "doanh_thu_thang",
   ];
-  const khuTongQuan = /"\/tong-quan"[\s\S]*?res\.json/.exec(nguonQL)?.[0] ?? "";
+  // Một bộ cột dùng chung cho cả hai tầng (services/quan-ly-chung.ts).
+  const khuTongQuan = fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8");
   kiem("phân tầng", "bảng điều hành lấy đủ số liệu vận hành thật",
     canCoTrongTongQuan.filter((c) => !khuTongQuan.includes(c)), []);
 
@@ -2775,8 +3069,9 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("phân tầng", "trang im lặng cả tuần phải bị nêu ra",
     /t\.kenh_noi > 0 && t\.tin_7_ngay === 0/.test(nguonTinhTrang), true);
   const soLanDoc = (nguonManHinhQL.match(/docTinhTrang\(/g) ?? []).length;
-  kiem("phân tầng", "dải cảnh báo và thẻ từng trang đọc cùng một chỗ",
-    soLanDoc, 2);
+  kiem("phân tầng", "dải cảnh báo và thẻ từng tài khoản đọc cùng một chỗ",
+    [soLanDoc, /const tinhTrang = \(t: TaiKhoanQuanLy\) => \(t\.role === 'admin_con' \? \[\] : docTinhTrang\(t\)\);/.test(nguonManHinhQL),
+      (nguonManHinhQL.match(/tinhTrang\(t\)/g) ?? []).length], [1, true, 2]);
 
   /*
    * Việc VẬN HÀNH và việc QUẢN LÝ TÀI KHOẢN phải tách ra.
@@ -2817,8 +3112,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * hàng và bộ não. Bắt gõ đúng TÊN TRANG, và dọn luôn hồ sơ bên nhà cung cấp
    * — để lại là rác nằm vĩnh viễn, đúng cách đống hồ sơ rác cũ hình thành.
    */
-  kiem("phân tầng", "xoá trang bắt gõ đúng tên để xác nhận",
-    /if \(xacNhan\.trim\(\) !== trang\.name\.trim\(\)\) \{/.test(nguonQL), true);
+  kiem("phân tầng", "xoá trang bắt gõ đúng tên đăng nhập (hoặc tên trang) để xác nhận",
+    /if \(xacNhan\.toLowerCase\(\) !== trang\.email\.toLowerCase\(\) && xacNhan !== trang\.name\.trim\(\)\) \{/.test(nguonQL), true);
   kiem("phân tầng", "xoá trang dọn luôn hồ sơ bên nhà cung cấp",
     /"\/trang\/:id"[\s\S]{0,1600}?await zernio\.xoaHoSo\(hoSo\.profile_ref\);/.test(nguonQL), true);
 
@@ -2845,14 +3140,54 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * "Fanpage: X" ngay cạnh cảnh báo "Chưa nối Fanpage nào" — hai câu chọi nhau
    * trên cùng một thẻ, đã nhìn thấy đúng như vậy trên màn hình thật.
    */
-  const soLocFanpage = (nguonQL.match(
+  // /trang (danh sách đi lại) và bộ cột dùng chung của màn hình quản lý.
+  const soLocFanpage = ((nguonQL + fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8")).match(
     /WHERE s\.user_id = u\.id AND s\.platform = 'facebook' AND s\.connected/g
   ) ?? []).length;
   kiem("phân tầng", "chỉ hiện tên Fanpage khi kênh còn nối", soLocFanpage, 2);
 
-  kiem("phân tầng", "màn hình quản lý có vẽ bảng báo cáo chi tiết",
-    /<BaoCaoTrangCon trangId=\{t\.id\}/.test(nguonManHinhQL) &&
-      /Xem báo cáo/.test(nguonManHinhQL), true);
+  /*
+   * Chủ dự án 04/10/2026 tự thiết kế: tách HAI PHẦN — Tổng quan (biểu đồ tài sản) và Chi tiết (cây đánh số Chuỗi →
+   * Tài khoản → Trang; bấm tài khoản mới hiện trang, bấm trang mới hiện báo cáo, đầu tiên là sao kê).
+   */
+  const nguonTqUi = fs.readFileSync(path.join(GOC, "src/components/QuanLyTongQuan.tsx"), "utf8");
+  kiem("phân tầng", "màn hình quản lý tách hai phần Tổng quan / Chi tiết, cùng một bộ mã cho hai tầng",
+    [/\['tong_quan', 'Tổng quan', 'monitoring'\],\s*\['chi_tiet', 'Chi tiết', 'account_tree'\],/.test(nguonManHinhQL),
+      /<TongQuanTaiSan du=\{tq\} ky=\{ky\} onDoiKy=\{setKy\} phamViChu=\{laTong \? 'Cả hệ thống' : 'Chuỗi của bạn'\} \/>/.test(nguonManHinhQL),
+      // Một đường dữ liệu cho cả hai tầng, không rẽ theo laTong.
+      /setTq\(\(await api\.quanLy\.tongQuan\(ky\)\)\.data\);/.test(nguonManHinhQL)],
+    [true, true, true]);
+  kiem("phân tầng", "chi tiết là cây ĐÁNH SỐ Chuỗi → Tài khoản → Trang, mặc định đóng, bấm mới mở",
+    [/if \(g\.goc\.role !== 'admin_con'\) return veTaiKhoan\(g\.goc, String\(g\.so\)\);/.test(nguonManHinhQL),
+      /\{g\.con\.map\(\(c, j\) => veTaiKhoan\(c, `\$\{g\.so\}\.\$\{j \+ 1\}`\)\)\}/.test(nguonManHinhQL),
+      /\{tk\.trang\.map\(\(tr, k\) => veTrang\(tr, `\$\{so\}\.\$\{k \+ 1\}`\)\)\}/.test(nguonManHinhQL),
+      // Mặc định đóng hết.
+      /const \[mo, setMo\] = useState<Set<string>>\(new Set\(\)\);/.test(nguonManHinhQL),
+      // Bấm trang → báo cáo của đúng trang đó.
+      /\{moRa && tq && \(\s*<div[^>]*>\s*<BaoCaoMotTrang t=\{tr\} ky=\{ky\} chot=\{tq\.chot\} \/>/.test(nguonManHinhQL),
+      // Mỗi tầng nhãn + biểu tượng riêng.
+      /chuoi: \{ icon: 'account_tree', chu: 'Chuỗi' \},\s*tai_khoan: \{ icon: 'person', chu: 'Tài khoản' \},\s*trang: \{ icon: 'storefront', chu: 'Trang' \},/.test(nguonManHinhQL)],
+    [true, true, true, true, true, true]);
+  kiem("phân tầng", "cây thẳng cột: tiêu đề, dòng mọi tầng và dòng phụ dùng chung MỘT khung cột; điện thoại chỉ tên + tổng + nút",
+    [(nguonManHinhQL.match(/clsx\(\s*LUOI,/g) ?? []).length,
+      /<div className=\{clsx\(LUOI, 'hidden lg:grid /.test(nguonManHinhQL),
+      (nguonManHinhQL.match(/'hidden lg:block text-right text-sm/g) ?? []).length,
+      /<span className=\{clsx\('lg:hidden shrink-0 tabular-nums', mauChi\(t\)\)\}>· \{chi\(t\)\}<\/span>/.test(nguonManHinhQL),
+      // Chỉ ô tên thụt theo tầng; cả dòng KHÔNG thụt (cột tiền thẳng với dòng cha).
+      /LUOI,\s*'px-4 py-3 border-t border-outline-variant\/60 cursor-pointer transition-colors hover:bg-surface-container-high',\s*sau === 0 \?/.test(nguonManHinhQL),
+      // Dòng chuỗi = cộng cả chuỗi (chủ chuỗi tự nó không có trang).
+      /export const tienNhom = \(g: NhomGoc\) => \[g\.goc, \.\.\.g\.con\]\.reduce\(/.test(nguonTqUi)],
+    [3, true, 3, true, true, true]);
+  kiem("phân tầng", "báo cáo trang: tiền AI từng loại, tiền từng kênh, quảng cáo, rồi sao kê từng lượt (dòng dùng chung với nhật ký chi phí)",
+    [/api\.quanLy\s*\.saoKeTrang\(t\.id, ky, so\)/.test(nguonTqUi), /<DongLuot key=\{l\.id\} l=\{l\} \/>/.test(nguonTqUi),
+      /\{t\.kenh\.map\(\(k\) => \(/.test(nguonTqUi), /\{t\.quangCao\.map\(\(q\) => \(/.test(nguonTqUi),
+      /export function DongLuot\(/.test(fs.readFileSync(path.join(GOC, "src/components/NhatKyChiPhi.tsx"), "utf8"))],
+    [true, true, true, true, true]);
+  kiem("phân tầng", "tổng quan: số chính (tài khoản / trang hoạt động, tiền AI, tiền kênh, quảng cáo) + biểu đồ theo tài khoản và theo trang",
+    [/nhan="Tài khoản hoạt động"/.test(nguonTqUi), /nhan="Trang hoạt động"/.test(nguonTqUi), /nhan="Tiền AI"/.test(nguonTqUi),
+      /nhan="Tiền kết nối kênh"/.test(nguonTqUi), /nhan="Tiền quảng cáo"/.test(nguonTqUi),
+      /tieuDe="Số trang theo tài khoản"/.test(nguonTqUi), /tieuDe="Tiền theo tài khoản"/.test(nguonTqUi), /tieuDe="Tiền theo trang"/.test(nguonTqUi)],
+    [true, true, true, true, true, true, true, true]);
   // Kỳ trước để biết tăng hay giảm, không gắn cứng phần trăm nào.
   kiem("phân tầng", "báo cáo có kỳ trước để so tăng giảm",
     /const truoc = await queryOne/.test(khuBaoCao) &&
@@ -2881,24 +3216,55 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /UPDATE users SET email = \$1[\s\S]{0,300}?DELETE FROM sessions WHERE user_id = \$1/.test(nguonQL),
     true);
   // Chuỗi ngẫu nhiên thì người trông trang phải chép tay từng ký tự.
-  kiem("phân tầng", "chủ chuỗi tự đặt được mật khẩu, không bắt dùng chuỗi ngẫu nhiên",
-    /const matKhauTam = tuDat \|\| sinhMatKhauTam\(\);/.test(nguonQL) &&
-      /Mật khẩu phải có ít nhất 8 ký tự/.test(nguonQL), true);
+  // 04/10/2026 (chủ dự án, lỗi LẶP LẠI): lần trước chỉ sửa cấp lại mật khẩu ở Quản lý Trang; tạo tài khoản, cấp lại
+  // mật khẩu ở Quản trị hệ thống và lập trang vẫn chỉ sinh ngẫu nhiên. MỌI chỗ cấp mật khẩu phải cho tự đặt.
+  {
+    const nguonAdminRt = fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8");
+    const nguonTk = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
+    const thu = (body: unknown) => { try { const r = docMatKhauTuDat(body); return [r.tuDat, r.tuDat ? r.matKhau : r.matKhau.length]; } catch (e) { return (e as Error).message; } };
+    kiem("phân tầng", "hàm chung: tự đặt ≥8 ký tự dùng đúng mật khẩu đó; ngắn quá thì báo; bỏ trống thì sinh 16 ký tự",
+      [thu({ matKhau: "matkhau123" }), thu({ matKhau: "ngan" }), thu({}), thu({ matKhau: "" }), thu(null)],
+      [[true, "matkhau123"], "Mật khẩu phải có ít nhất 8 ký tự", [false, 16], [false, 16], [false, 16]]);
+    kiem("phân tầng", "cả 4 chỗ cấp mật khẩu đều cho quản trị tự đặt (tạo / cấp lại ở Quản trị; lập / cấp lại ở Quản lý Trang)",
+      [(nguonAdminRt.match(/const \{ matKhau: matKhauTam \} = docMatKhauTuDat\(req\.body\);/g) ?? []).length,
+        /taoTaiKhoanTrang\(\{ parentId: req\.user!\.id, tenTrang: ten, matKhau: docMatKhauTuDat\(req\.body\)\.matKhau \}\)/.test(nguonQL),
+        /const \{ matKhau: matKhauTam \} = docMatKhauTuDat\(req\.body\);/.test(nguonQL),
+        /const matKhauTam = params\.matKhau \|\| sinhMatKhauTam\(\);/.test(nguonTk),
+        // Không route nào gọi thẳng hàm sinh ngẫu nhiên nữa.
+        /sinhMatKhauTam\(/.test(nguonAdminRt + nguonQL)],
+      [2, true, true, true, false]);
+    const nguonAdminUi = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
+    const nguonQLUi = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
+    kiem("phân tầng", "giao diện: ô gõ mật khẩu (chữ hiện rõ) khi tạo, cấp lại tài khoản và lập trang; không còn hộp confirm cấp mật khẩu ngẫu nhiên",
+      [/\{ ten: 'Đặt lại mật khẩu', onChon: \(\) => setDatMatKhau\(\{ tk: t, mk: '' \}\) \}/.test(nguonAdminUi),
+        /await api\.admin\.resetPassword\(tk\.id, mk \|\| undefined\)/.test(nguonAdminUi) && /await api\.quanLy\.capLaiMatKhau\(tk\.id, mk \|\| undefined\)/.test(nguonAdminUi),
+        /matKhau: mk \|\| undefined \}\)/.test(nguonAdminUi),
+        (nguonAdminUi.match(/type="text"\s*autoComplete="new-password"/g) ?? []).length,
+        /Cấp lại mật khẩu cho \$\{tk\.email\}\?/.test(nguonAdminUi),
+        /await api\.quanLy\.lapTrang\(tenMoi\.trim\(\), mk \|\| undefined\)/.test(nguonQLUi) && /value=\{matKhauMoi\}/.test(nguonQLUi)],
+      [true, true, true, 2, false, true]);
+  }
 
   // Dải băng cũng là chỗ nối hai phần lại: danh sách trang anh em nằm ngay đó.
   kiem("phân tầng", "đang xem thay vẫn nhảy thẳng sang trang khác được",
     /Sang trang khác \(\{trangKhac\.length\}\)/.test(nguonBangXem) &&
       /await api\.quanLy\.moTrang\(trang\.id\);/.test(nguonBangXem), true);
 
-  kiem("phân tầng", "giao diện cảnh báo rõ khi đang xem thay một trang",
-    /if \(!user\?\.nguoiMo\) return null;/.test(nguonBangXem) &&
-      /Bạn đang xem thay trang/.test(nguonBangXem) &&
-      /Quay lại quản lý/.test(nguonBangXem), true);
+  // 04/10/2026 (chủ dự án): mở trang là ĐĂNG NHẬP THẲNG vào trang con, không phải "xem" — bỏ hẳn chữ / màu "đang xem".
+  kiem("phân tầng", "trong trang con chỉ có nút Quay lại quản lý (không còn chữ / màu 'đang xem')",
+    [/if \(!user\?\.nguoiMo\) return null;/.test(nguonBangXem), /Quay lại quản lý/.test(nguonBangXem),
+      /Đang xem|đang xem thay trang|xem thay trang|bg-amber|text-amber/.test(dongNgoaiChuThich(nguonBangXem).map((x) => x.d).join("\n"))],
+    [true, true, false]);
 
   const nguonApp = fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8");
-  kiem("phân tầng", "dải băng cảnh báo nằm ngoài vùng cuộn, không trôi mất",
-    /<DangXemThay user=\{user\} onQuayLai=/.test(nguonApp) &&
-      /sticky top-0 z-50/.test(nguonBangXem), true);
+  // 04/10/2026 (chủ dự án): bỏ dải vàng ngang trang; nút vàng cam ở góc phải THANH TIÊU ĐỀ (cố định, không đè nội dung).
+  const nguonThanhTieuDe = fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8");
+  kiem("phân tầng", "nút Quay lại quản lý nằm trong thanh tiêu đề cố định (không trôi, không đè nội dung), nổi bật màu chủ đạo",
+    [/gocPhai=\{<DangXemThay user=\{user\} onQuayLai=/.test(nguonApp),
+      /<nav className="fixed top-0 /.test(nguonThanhTieuDe) && /<div className="flex items-center gap-base">\s*\{gocPhai\}/.test(nguonThanhTieuDe),
+      /rounded-full bg-primary text-on-primary text-xs font-bold pl-2\.5 pr-3 py-2 shadow-\[0_0_18px_var\(--color-primary\)\]/.test(nguonBangXem),
+      /sticky top-0 z-50/.test(nguonBangXem)],
+    [true, true, true, false]);
 
   /*
    * Đăng nhập, đăng ký và /auth/me phải trả CÙNG MỘT hình dạng người dùng.
@@ -3010,7 +3376,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * Máy chủ coi giá trị thiếu là 'shop', nên đây không phải lỗi bảo mật mà là
    * lỗi lặng lẽ tạo sai loại tài khoản — khó thấy hơn nhiều.
    */
-  const nguonManHinhQT = fs.readFileSync(path.join(GOC, "src/pages/Admin.tsx"), "utf8");
+  const nguonManHinhQT = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
   kiem("phân tầng", "màn hình Quản trị có chỗ chọn loại tài khoản",
     /const \[vaiTroMoi, setVaiTroMoi\] = useState<'admin_con' \| 'shop'>\('admin_con'\);/
       .test(nguonManHinhQT), true);
@@ -3018,14 +3384,13 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /api\.admin\.create\(\{[\s\S]{0,200}?role: vaiTroMoi,/.test(nguonManHinhQT), true);
 
   // Có nút chuyển cho tài khoản đứng riêng, để không phải vào database sửa tay.
-  kiem("phân tầng", "màn hình Quản trị có nút chuyển thành chủ chuỗi",
-    /t\.role === 'shop' && \(/.test(nguonManHinhQT) &&
-      /onClick=\{\(\) => thanhChuChuoi\(t\)\}/.test(nguonManHinhQT), true);
+  kiem("phân tầng", "màn hình quản lý (tầng quản trị tổng) có việc chuyển tài khoản đứng riêng thành chủ chuỗi",
+    /\.\.\.\(laTong && t\.role === 'shop' && t\.parent_id === null \? \[\{ ten: 'Thành chủ chuỗi', onChon: \(\) => thanhChuChuoi\(t\) \}\] : \[\]\),/.test(nguonManHinhQT), true);
 
   // Kiểu khai ở lớp gọi API bắt buộc phải có role, để không đường nào quên gửi.
   const nguonApiClient = fs.readFileSync(path.join(GOC, "src/lib/api.ts"), "utf8");
   kiem("phân tầng", "lớp gọi API bắt buộc khai vai trò khi tạo tài khoản hộ",
-    /create: \(payload: \{ email: string; name\?: string; role: 'admin_con' \| 'shop' \}\)/
+    /create: \(payload: \{ email: string; name\?: string; role: 'admin_con' \| 'shop'; matKhau\?: string \}\)/
       .test(nguonApiClient), true);
 
   /*
@@ -3142,7 +3507,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8")
   );
   kiem("đếm nguyên tắc", "mọi đường /trang/:id đều kiểm chủ sở hữu",
-    (maQuanLy.match(/await trangCuaToi\(/g) ?? []).length,
+    (maQuanLy.match(/await (trangCuaToi|taiKhoanTrongPhamVi)\(/g) ?? []).length,
     (maQuanLy.match(/"\/trang\/:id[^"]*"/g) ?? []).length);
 }
 
@@ -3281,8 +3646,21 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonQL3 = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
   // Trang bán 2 triệu mà đốt 1 triệu tiền AI thì không phải trang tốt — nhìn
   // mỗi doanh thu là không thấy được điều đó.
-  kiem("tiền AI", "bảng điều hành hiện tiền AI từng trang",
-    /SUM\(coalesce\(a\.cost_ncc, a\.cost_usd\)\), 0\)::text FROM ai_usage a/.test(nguonQL3), true);
+  // Khôi phục 10/10/2026 (kiểm ngược toàn bộ thấy lỗ "bảng điều hành bỏ tiền AI" lọt — phép kiểm cũ đã mất): cột tiền
+  // AI tháng của bảng điều hành phải tính đúng cách sao kê (số nhà cung cấp chốt, chưa chốt thì số lúc gọi).
+  kiem("tiền AI", "bảng điều hành: tiền AI tháng tính đúng cách sao kê, theo mốc tháng giờ Việt Nam",
+    /\(SELECT COALESCE\(SUM\(coalesce\(a\.cost_ncc, a\.cost_usd\)\), 0\)::text FROM ai_usage a\s+WHERE a\.user_id = u\.id AND a\.created_at >= \$\{DAU_THANG_VN\}\) AS tien_ai_thang/
+      .test(fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8")), true);
+  // Tiền AI theo TỪNG TRANG: mỗi lượt ghi trang (ngữ cảnh), chỉ nhận trang thuộc đúng tài khoản bị tính tiền.
+  const nguonSoAiTrang = fs.readFileSync(path.join(GOC, "server/services/so-ai.ts"), "utf8");
+  const nguonTqSv = fs.readFileSync(path.join(GOC, "server/services/tong-quan.ts"), "utf8");
+  kiem("tiền AI", "mỗi lượt AI ghi trang; trang phải thuộc đúng tài khoản bị tính tiền; tổng quan cộng theo trang",
+    [/const trangId = l\.trangId !== undefined \? l\.trangId : await trangHienTai\(\);/.test(nguonSoAiTrang),
+      /\(SELECT id FROM trang WHERE id = \$10 AND user_id = \$1\)/.test(nguonSoAiTrang),
+      fs.existsSync(path.join(GOC, "server/migrations/040_so_ai_theo_trang.sql")),
+      /SELECT a\.user_id, a\.trang_id, a\.viec, sum\(\$\{TIEN\}\)::text AS usd/.test(nguonTqSv)],
+    [true, true, true, true]);
+
 }
 
 // ---------------------------------------------------------------------------
@@ -3522,8 +3900,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   // danh sách trang và nhảy sang trang khác.
   const nguonPhien = boChuThichTS(fs.readFileSync(path.join(GOC, "server/auth.ts"), "utf8"));
   const nguonQuanTri = boChuThichTS(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8"));
-  kiem("bảo mật", "phiên xem thay chết khi người mở mất quyền",
-    /s\.mo_boi IS NULL OR EXISTS \([\s\S]{0,120}c\.id = s\.mo_boi AND c\.is_active = TRUE[\s\S]{0,80}c\.role IN \('admin', 'admin_con'\) AND u\.parent_id = c\.id/.test(nguonPhien), true);
+  kiem("bảo mật", "phiên mở hộ chết ngay khi người mở mất quyền (bị khoá, hạ vai trò, trang chuyển chủ); quản trị tổng không mở hộ quản trị khác",
+    /s\.mo_boi IS NULL OR EXISTS \([\s\S]{0,120}c\.id = s\.mo_boi AND c\.is_active = TRUE\s*AND \(\(c\.role = 'admin' AND u\.role <> 'admin'\)\s*OR \(c\.role = 'admin_con' AND u\.parent_id = c\.id\)\)/.test(nguonPhien), true);
   kiem("bảo mật", "khoá và cấp lại mật khẩu huỷ cả phiên xem thay",
     (nguonQuanTri.match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length, 2);
   kiem("bảo mật", "tự đổi mật khẩu huỷ cả phiên xem thay",
@@ -3550,6 +3928,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     ["server/routes/ai.ts", "/video/du-an/:id/bat-dau"],
     ["server/routes/ai.ts", "/video/sua"],
     ["server/routes/ai.ts", "/video/trend/phan-tich"],
+    ["server/routes/quan-ly.ts", "/dieu-hanh/chay"],
   ];
   for (const [tep, duong] of DUONG_TON_TIEN_AI) {
     const ma = fs.readFileSync(path.join(GOC, tep), "utf8");
@@ -3557,10 +3936,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
       ma.includes(`.post(\n  "${duong}",\n  chanLamDungAI,\n  route(`), true);
   }
   // Không sót đường nào: mọi route gọi hàm AI trả tiền đều phải nằm trong danh sách trên.
-  const soDuongGoiAI = ["server/routes/ai.ts", "server/routes/analytics.ts", "server/routes/ads.ts"]
+  const soDuongGoiAI = ["server/routes/ai.ts", "server/routes/analytics.ts", "server/routes/ads.ts", "server/routes/quan-ly.ts"]
     .map((t) => boChuThichTS(fs.readFileSync(path.join(GOC, t), "utf8")))
     .flatMap((ma) => ma.split(/\n(?=\w+Router\.(?:get|post|put|patch|delete)\()/))
-    .filter((khoi) => /\b(chat|chatJson|taoAnhChoBai|docChuTuAnh|generatePostContent|extractOrderInfo|suggestReply|vietLoiMoTaVideo|taoVideo|taoDuAn|batDauDuAn|suaVideo|phanTichTrend)\s*(<[^>]*>)?\(/.test(khoi))
+    .filter((khoi) => /\b(chat|chatJson|taoAnhChoBai|docChuTuAnh|generatePostContent|extractOrderInfo|suggestReply|vietLoiMoTaVideo|taoVideo|taoDuAn|batDauDuAn|suaVideo|phanTichTrend|dieuHanhMotLan)\s*(<[^>]*>)?\(/.test(khoi))
     .length;
   kiem("chống đốt tiền AI", "số đường gọi AI trả tiền khớp danh sách có chốt", soDuongGoiAI, DUONG_TON_TIEN_AI.length);
 
@@ -3710,19 +4089,52 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("video AI", "số giây model không làm được thì có lý do", typeof lyDoKhongHop(veoLite, lc({ soGiay: 5 })), "string");
   kiem("video AI", "khung model không có thì có lý do", typeof lyDoKhongHop(veoLite, lc({ khung: "1:1" })), "string");
   kiem("video AI", "lựa chọn hợp lệ thì không có lý do", lyDoKhongHop(veoLite, lc({ khung: "9:16" })), null);
+  // Đo thật 04/10/2026 (TD-06): Wan 3.0 2 giây (#40) và 5 giây (#41) cùng bị trừ 0,2125 USD — tối thiểu 5 giây,
+  // OpenRouter đang giảm 15% (endpoints[].pricing.discount). Bản cũ báo 0,10 cho 2 giây — khách bị trừ gấp đôi.
+  const wan30 = { ...chuanHoaModel({ id: "alibaba/wan-3.0", supported_durations: [2, 3, 4, 5, 6, 7, 8, 10, 30],
+    supported_resolutions: ["480p", "720p", "1080p"], supported_aspect_ratios: ["9:16", "16:9"], generate_audio: true,
+    supported_frame_images: ["first_frame"], pricing_skus: { duration_seconds_480p: "0.05", duration_seconds_720p: "0.1", duration_seconds_1080p: "0.2" } })!,
+    giayTinhToiThieu: MODEL_VIDEO_DUOC_CHON.find((m) => m.id === "alibaba/wan-3.0")?.giayTinhToiThieu, giamGia: 0.15 };
+  kiem("video AI", "Wan 3.0 khớp tiền thật: 2 giây = 5 giây = 0,2125 USD; 8 giây = 0,34 USD",
+    [lamTron(giaVideo(wan30, lc({ soGiay: 2, doNet: "480p", khung: "9:16" }))), lamTron(giaVideo(wan30, lc({ soGiay: 5, doNet: "480p", khung: "9:16" }))),
+      lamTron(giaVideo(wan30, lc({ soGiay: 8, doNet: "480p", khung: "9:16" })))], [0.2125, 0.2125, 0.34]);
+  kiem("video AI", "mô hình không giảm giá, không mức tối thiểu thì giá giữ nguyên (đã khớp tiền thật trước đây)",
+    lamTron(giaVideo(veoLite, lc({ soGiay: 8, khung: "9:16" }))), 0.24);
+  {
+    const nguonViGd = fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8");
+    kiem("video AI", "mức giảm giá đọc sống từ OpenRouter; không đọc được thì coi như 0 (báo cao hơn, không thấp hơn tiền thật)",
+      [/const ds = await Promise\.all\(daChon\.map\(async \(m\) => \(\{ \.\.\.m, giamGia: await layGiamGia\(m\.id\) \}\)\)\);/.test(nguonViGd),
+        /return hop\.length === muc\.length && hop\.length > 0 \? Math\.min\(\.\.\.hop\) : 0;/.test(nguonViGd),
+        /\} catch \{\s*return 0;\s*\}/.test(nguonViGd)], [true, true, true]);
+  }
   kiem("video AI", "model không nhận ảnh mở đầu thì báo",
     typeof lyDoKhongHop({ ...veoLite, anhMoDau: false }, lc({ khung: "9:16", coAnhMoDau: true })), "string");
 
   const nguonVideo = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8"));
   const hamTaoVideo = nguonVideo.slice(nguonVideo.indexOf("export async function taoVideo("));
-  const viTriKiemBat = hamTaoVideo.indexOf("if (!(await videoDangBat(params.trangId))) {");
-  const viTriGui = hamTaoVideo.indexOf("return guiViecVideo(");
-  kiem("video AI", "đang tắt thì chặn TRƯỚC khi gửi việc", viTriKiemBat > 0 && viTriGui > viTriKiemBat, true);
+  // 04/10/2026 (chủ dự án): bỏ công tắc "Bật tạo video AI" — chống tốn tiền nhầm bằng hỏi lại kèm giá + trần tiền tháng.
+  kiem("video AI", "không còn khoá 'Bật tạo video AI' ở bất kỳ đường tạo video nào",
+    ["server/services/video-ai.ts", "server/services/video-dai.ts", "server/services/video-sua.ts", "server/services/video-trend.ts", "server/routes/ai.ts", "src/lib/api.ts"]
+      .filter((t) => /videoDangBat|videoBat|batVideo/.test(fs.readFileSync(path.join(GOC, t), "utf8"))), []);
+  kiem("video AI", "video ngắn vẫn hỏi lại kèm giá trước khi tạo",
+    fs.readFileSync(path.join(GOC, "src/components/VideoAiPanel.tsx"), "utf8").includes(
+      "    if (\n      !(await hoiXacNhan({\n        tieuDe: `Tạo video ${soGiay} giây bằng ${model.ten}?`,\n        noiDung: `Chi phí ước tính: ${tien(model.giaUocTinh)}."), true);
   // Mọi lời mô tả gửi đi đều phải kèm luật: đếm số chỗ gán prompt và số chỗ có luật.
   const nguonGuiVideo = nguonVideo + boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-sua.ts"), "utf8"));
   const soChoPrompt = (nguonGuiVideo.match(/\bprompt: /g) ?? []).length;
-  const soChoCoLuat = (nguonGuiVideo.match(/\bprompt: `\$\{[^}]+\}\\n\\n\$\{LUAT_VIDEO\}`/g) ?? []).length;
-  kiem("video AI", "luật không chữ, không logo gắn vào MỌI lời mô tả gửi đi", soChoPrompt > 0 && soChoCoLuat === soChoPrompt, true);
+  // Chữ trong video do NGƯỜI DÙNG chọn (chủ dự án 03/10/2026) — luật chữ + luật an toàn gắn vào MỌI lời gửi đi.
+  const soChoCoLuat = (nguonGuiVideo.match(/\bprompt: `\$\{[^}]+\}\\n\\n\$\{luatVideo\([^)]*\)\}`/g) ?? []).length;
+  kiem("video AI", "luật chữ (theo lựa chọn) + luật an toàn gắn vào MỌI lời mô tả gửi đi", soChoPrompt > 0 && soChoCoLuat === soChoPrompt, true);
+  kiem("video AI", "chữ trong video theo lựa chọn: 'không chữ' cấm chữ; 'theo nội dung' chỉ chữ được yêu cầu",
+    [/no on-screen text/.test(luatVideo("khong")), /ONLY where the description above explicitly asks/.test(luatVideo("theo_noi_dung")),
+      /no on-screen text/.test(luatVideo("theo_noi_dung"))], [true, true, false]);
+  // Chủ dự án 03/10/2026: "ai cho phép mày tự ý áp luật cứng" → hai luật nội dung là LỰA CHỌN, tắt thì không gài gì.
+  kiem("luật nội dung", "video: tắt thì không gài luật nhãn hiệu / người thật; bật cái nào thêm đúng cái đó",
+    [luatVideo("theo_noi_dung").includes(LUAT_NHAN_HIEU_GIA_VIDEO), luatVideo("theo_noi_dung").includes(LUAT_NGUOI_THAT_VIDEO),
+      luatVideo("theo_noi_dung", { chanNhanHieuGia: true }).includes(LUAT_NHAN_HIEU_GIA_VIDEO),
+      luatVideo("theo_noi_dung", { chanNhanHieuGia: true }).includes(LUAT_NGUOI_THAT_VIDEO),
+      luatVideo("khong", { chanNguoiThat: true }).includes(LUAT_NGUOI_THAT_VIDEO), /celebrit/i.test(luatVideo("khong"))],
+    [false, false, true, false, true, false]);
   kiem("video AI", "địa chỉ kho được kiểm trước khi chuyển cho bên AI",
     /const that = hoanDiaChiKho\(u\);\s*if \(!laDiaChiKho\(that\)\) throw/.test(nguonVideo) &&
       /diaChiKhoHopLe\(params\.anhMoDau, "Ảnh mở đầu"\)/.test(hamTaoVideo), true);
@@ -3747,7 +4159,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * dừng ở cảnh 10 nên trần số cảnh không bao giờ bị chạm — bộ đục lỗ đã bắt
    * được phép kiểm giả này.
    */
-  const canhNgan = chuanHoaCanh(sd15, Array.from({ length: 15 }, (_, i) => ({ soGiay: 4, moTa: `cảnh ${i}`, tomTat: "" })));
+  const canhNgan = chuanHoaCanh(sd15, Array.from({ length: TOI_DA_CANH + 5 }, (_, i) => ({ soGiay: 4, moTa: `cảnh ${i}`, tomTat: "" })));
   kiem("video dài", "không quá số cảnh tối đa (cảnh ngắn, chưa chạm trần giây)", canhNgan.length, TOI_DA_CANH);
   const canhDai = chuanHoaCanh(sd15, Array.from({ length: 9 }, (_, i) => ({ soGiay: 20, moTa: `cảnh ${i}`, tomTat: "" })));
   kiem("video dài", "không quá tổng số giây tối đa (ít cảnh, cảnh dài)", canhDai.reduce((t, c) => t + c.soGiay, 0) <= TOI_DA_GIAY_DU_AN, true);
@@ -3758,7 +4170,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     supported_aspect_ratios: ["16:9", "9:16"], generate_audio: true, supported_frame_images: ["first_frame"],
     pricing_skus: { text_to_video_duration_seconds_720p: "0.08", image_to_video_duration_seconds_720p: "0.10" } })!;
   kiem("video dài", "cảnh 1 tính giá từ chữ, cảnh sau tính giá từ ảnh",
-    giaDuAn(wan26, [{ soGiay: 5, moTa: "a", tomTat: "" }, { soGiay: 10, moTa: "b", tomTat: "" }], { doNet: "720p", khung: "9:16", coTieng: false }),
+    giaDuAn(wan26, [{ soGiay: 5, moTa: "a", tomTat: "", noiTiep: false, loiDoc: "" }, { soGiay: 10, moTa: "b", tomTat: "", noiTiep: true, loiDoc: "" }], { doNet: "720p", khung: "9:16", coTieng: false }),
     Math.round((5 * 0.08 + 10 * 0.1) * 1e6) / 1e6);
   kiem("video dài", "khung dọc 9:16 chọn kích thước dọc", kichThuocKhop(sd15, "480p", "9:16"), "480x854");
   kiem("video dài", "khung ngang 16:9 chọn kích thước ngang", kichThuocKhop(sd15, "480p", "16:9"), "854x480");
@@ -3766,7 +4178,352 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const logMau = "Input #0, mov,mp4\n  Duration: 00:00:12.04, start: 0.000000, bitrate: 900 kb/s\n" +
     "  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 496x864, 800 kb/s, 24 fps\n" +
     "  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s";
-  kiem("video dài", "đọc đúng kích thước, độ dài, có tiếng", docThongTinVideo(logMau), { rong: 496, cao: 864, coTieng: true, soGiay: 12.04 });
+  kiem("video dài", "đọc đúng kích thước, độ dài, có tiếng", docThongTinVideo(logMau), { rong: 496, cao: 864, coTieng: true, soGiay: 12.04, khungMoiGiay: 24 });
+  // Nối cảnh liền mạch — đã đo thật 02/10/2026 (H3 Max, dự án #6, 3 cảnh × 5 giây).
+  const nguonNoiCanh = fs.readFileSync(path.join(GOC, "server/services/video-cong-cu.ts"), "utf8");
+  const nguonDaiNoi = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-dai.ts"), "utf8"));
+  const lenhKhungCuoi = /async function layKhungCuoi[\s\S]*?chayFfmpeg\((\[[^\]]*\])/.exec(nguonNoiCanh)?.[1] ?? "";
+  // Bản cũ "-frames:v 1" lấy khung ĐẦU của 0,25 giây cuối = lùi 4 khung → video tua ngược ở mỗi mối nối.
+  kiem("nối cảnh", "lấy khung cuối THẬT (ghi đè tới khung cuối, không dừng ở khung đầu)",
+    [/"-update", "1"/.test(lenhKhungCuoi), /-frames:v/.test(lenhKhungCuoi)], [true, false]);
+  const infoCanh = { rong: 480, cao: 832, coTieng: true, soGiay: 5.18, khungMoiGiay: 24 };
+  const locGhep = (coTieng: boolean, coTiengCanh = [true, true, true]) => {
+    const l = lenhGhep(["a", "b", "c"], coTiengCanh.map((t) => ({ ...infoCanh, coTieng: t })), [124, 124, 124], coTieng, "ra");
+    return l[l.indexOf("-filter_complex") + 1];
+  };
+  const loc3 = locGhep(true);
+  kiem("nối cảnh", "từ cảnh 2 bỏ khung đầu (trùng khung cuối cảnh trước)",
+    [/\[0:v\]trim/.test(loc3), /\[1:v\]trim=start_frame=1,/.test(loc3), /\[2:v\]trim=start_frame=1,/.test(loc3)], [false, true, true]);
+  // Tiếng dài hơn hình 0,013 giây/clip → bộ ghép chèn khung lặp ở mối nối (đã đo: khung 247 = 248).
+  kiem("nối cảnh", "tiếng mỗi cảnh cắt đúng bằng độ dài hình",
+    [...loc3.matchAll(/apad,atrim=end=([\d.]+)/g)].map((m) => m[1]), ["5.166667", "5.125000", "5.125000"]);
+  kiem("nối cảnh", "cảnh không tiếng chèn khoảng lặng đúng độ dài hình",
+    [...locGhep(true, [true, false, true]).matchAll(/anullsrc=r=44100:cl=stereo,atrim=0:([\d.]+)/g)].map((m) => m[1]), ["5.125000"]);
+  kiem("nối cảnh", "không tiếng thì không dựng tiếng", /\[a\d\]/.test(locGhep(false)), false);
+  // "Shot 2 of 3" làm mô hình tự cắt cảnh giữa clip (toàn thân → nửa người, đứng → ngồi).
+  kiem("nối cảnh", "lời gửi mô hình không gọi là 'Shot x of y'", /Shot \$\{/.test(nguonDaiNoi), false);
+  const amKhong = { giongGoc: false, giongDoc: false, nhac: false };
+  const lnGhep = (i: number, them: Partial<Parameters<typeof loiNhacCanh>[0]> = {}) =>
+    loiNhacCanh({ nhatQuan: "BIBLE", moTa: "MOTA", loiDoc: "Xin chào", i, cheDo: "ghep_canh", veKhung: false, nhieuCanh: false, amThanh: amKhong, ...them });
+  kiem("nối cảnh", "mô hình một cú máy: clip dặn quay liền; cảnh sau dặn nối tiếp khung cuối",
+    [lnGhep(0).includes(LUAT_MOT_CU_MAY), lnGhep(1).includes(LUAT_NOI_TIEP), lnGhep(0).includes(LUAT_NOI_TIEP),
+      /no cuts/.test(LUAT_MOT_CU_MAY), /exact last frame/.test(LUAT_NOI_TIEP)], [true, true, false, true, true]);
+  kiem("nối cảnh", "mô hình nhiều cảnh (Seedance 2.5, Kling 3.0): không ép một cú máy",
+    [lnGhep(0, { nhieuCanh: true }).includes(LUAT_MOT_CU_MAY), MODEL_NHIEU_CANH.has("bytedance/seedance-2.5"), MODEL_NHIEU_CANH.has("kwaivgi/kling-v3.0-pro")],
+    [false, true, true]);
+  // Tài liệu chính thức Seedance 2.5 (BytePlus): lời nhắc nối dài phải có "extend…/continue", đoạn đầu thì không.
+  kiem("nối dài", "đoạn sau mở đầu bằng 'Extend @Video 1 … continue'; đoạn đầu không; không ép một cú máy",
+    [lnGhep(1, { cheDo: "noi_dai" }).startsWith(MO_DAU_NOI_DAI), /^Extend @Video 1: continue/.test(MO_DAU_NOI_DAI),
+      lnGhep(0, { cheDo: "noi_dai" }).includes("Extend"), lnGhep(1, { cheDo: "noi_dai" }).includes(LUAT_MOT_CU_MAY),
+      lnGhep(1, { cheDo: "noi_dai" }).includes(LUAT_NOI_TIEP)], [true, true, false, false, false]);
+  // Quảng cáo cần nhiều nhịp (vấn đề → giải pháp → kêu gọi) nên ĐƯỢC cắt GIỮA các cảnh khi sang nhịp mới,
+  // nhưng KHÔNG BAO GIỜ cắt bên trong một cảnh (đã đo: mô hình tự cắt → nhảy từ đứng sang ngồi).
+  kiem("nối cảnh", "đạo diễn AI: không cắt bên trong cảnh, chỉ cắt giữa các cảnh khi sang nhịp mới",
+    [/Never a cut, jump or new angle INSIDE a shot/.test(nguonDaiNoi), /noiTiep=false: a deliberate cut/.test(nguonDaiNoi)], [true, true]);
+  // --- Video quảng cáo: cắt cảnh có chủ đích, giọng đọc, nhạc nền, phụ đề (02/10/2026).
+  const c3 = (noi: boolean[]) => noi.map((n, i) => ({ soGiay: 8, moTa: "x", tomTat: "", noiTiep: i > 0 && n, loiDoc: "" }));
+  kiem("cắt cảnh", "dự án liền một cú máy: không vẽ khung nào (không tốn thêm tiền ảnh)",
+    [0, 1, 2].map((i) => canVeKhung(c3([false, true, true]), i)), [false, false, false]);
+  kiem("cắt cảnh", "có chỗ cắt: vẽ khung cảnh 1 (làm mẫu nhân vật) và mọi cảnh cắt",
+    [0, 1, 2, 3].map((i) => canVeKhung(c3([false, true, false, true]), i)), [true, false, true, false]);
+  kiem("cắt cảnh", "cảnh 1 luôn là cảnh mới; thiếu trường noiTiep (dự án cũ) thì coi là nối liền",
+    chuanHoaCanh(sd15, [{ soGiay: 5, moTa: "a", noiTiep: true }, { soGiay: 5, moTa: "b" }, { soGiay: 5, moTa: "c", noiTiep: false }]).map((c) => c.noiTiep),
+    [false, true, false]);
+  kiem("cắt cảnh", "lời đọc giữ nguyên, cắt độ dài vô lý",
+    chuanHoaCanh(sd15, [{ soGiay: 5, moTa: "a", loiDoc: "Xin chào" }, { soGiay: 5, moTa: "b", loiDoc: "x".repeat(900) }]).map((c) => c.loiDoc.length), [8, 300]);
+  kiem("cắt cảnh", "lời đọc tối đa ~12 ký tự/giây, chừa 1 giây", [kyTuLoiToiDa(8), kyTuLoiToiDa(4)], [84, 36]);
+  // Đo 02/10/2026: Flash đọc câu 82 ký tự hết 13,5 giây (cảnh chỉ 7,6 giây), Flash-Lite 5,5 giây.
+  kiem("âm thanh", "giọng mặc định là Flash-Lite (vừa nhịp cảnh), không phải Flash", MODEL_GIONG_DOC_DUOC_CHON[0].id, "google/gemini-3.8-flash-lite-tts");
+  const amMacDinh = docAmThanh({});
+  kiem("âm thanh", "mặc định tắt giọng, nhạc, phụ đề (dự án cũ không đổi)", [amMacDinh.giongDoc, amMacDinh.nhac, amMacDinh.phuDe], [false, false, false]);
+  kiem("âm thanh", "mô hình giọng ngoài danh sách thì về mô hình đã chọn theo xếp hạng",
+    docAmThanh({ modelGiong: "openai/tts-1" }).modelGiong, MODEL_GIONG_DOC_DUOC_CHON[0].id);
+  const veoLite2 = chuanHoaModel({ id: "google/veo-3.1-lite", supported_durations: [4, 6, 8], supported_resolutions: ["720p"],
+    supported_aspect_ratios: ["9:16"], generate_audio: true, supported_frame_images: ["first_frame"],
+    pricing_skus: { duration_seconds_with_audio_720p: "0.05", duration_seconds_without_audio_720p: "0.03" } })!;
+  const lcVeo = { doNet: "720p", khung: "9:16", coTieng: true };
+  const giaKhongCat = giaDuAn(veoLite2, c3([false, true, true]), lcVeo)!;
+  const giaCoCat = giaDuAn(veoLite2, c3([false, true, false]), lcVeo)!;
+  kiem("giá video", "có cảnh cắt: cộng ảnh mẫu nhân vật + khung cảnh 1 + khung cảnh cắt (3 ảnh)",
+    Math.round((giaCoCat - giaKhongCat) * 1e6) / 1e6, Math.round(3 * GIA_KHUNG_UOC_TINH * 1e6) / 1e6);
+  kiem("giá video", "nhạc nền cộng đúng giá một bài",
+    Math.round((giaDuAn(veoLite2, c3([false, true, true]), lcVeo, 0, { ...amMacDinh, nhac: true })! - giaKhongCat) * 1e6) / 1e6, MODEL_NHAC_NEN.giaMoiBai);
+  const loi3 = c3([false, true, true]).map((c) => ({ ...c, loiDoc: "x".repeat(84) }));
+  kiem("giá video", "giọng đọc cộng tiền (nhỏ nhưng phải có)",
+    giaDuAn(veoLite2, loi3, lcVeo, 0, { ...amMacDinh, giongDoc: true })! > giaKhongCat, true);
+  // Báo giá trọn video ngay khi người dùng chọn xong (chủ dự án 03/10/2026).
+  const tongCanh = (ds: number[]) => ds.reduce((t, x) => t + x, 0);
+  kiem("báo giá", "phân cảnh giả định: số cảnh như AI chia, tổng đúng độ dài đã chọn (60 → 8 cảnh = 60 giây; 10 → 6 + 4; 300 → 38 cảnh)",
+    [phanCanhGiaDinh(veoLite2, 60).length, tongCanh(phanCanhGiaDinh(veoLite2, 60)), phanCanhGiaDinh(veoLite2, 10),
+      phanCanhGiaDinh(veoLite2, 300).length, tongCanh(phanCanhGiaDinh(veoLite2, 300))], [8, 60, [6, 4], 38, 300]);
+  const bg = (o: Partial<Parameters<typeof baoGiaVideoDai>[2]>) =>
+    baoGiaVideoDai(veoLite2, lcVeo, { tongGiay: 60, cheDo: "ghep_canh", amThanh: amMacDinh, tuKiem: false, ...o })!;
+  const canh8 = phanCanhGiaDinh(veoLite2, 60).map((soGiay, i) => ({ soGiay, noiTiep: i > 0, loiDoc: "" }));
+  kiem("báo giá", "giá thường gặp = giá các cảnh + AI chia cảnh (không cảnh nào vẽ lại)",
+    Math.round(bg({}).uocTinh * 1e4) / 1e4, Math.round((giaDuAn(veoLite2, canh8, lcVeo)! + PHI_CHIA_CANH.coDinh + PHI_CHIA_CANH.moiCanh * 8) * 1e4) / 1e4);
+  kiem("báo giá", "giọng, nhạc, tự kiểm đều làm giá tăng; tự kiểm còn nâng mức tối đa (vẽ lại cảnh lỗi)",
+    [bg({ amThanh: { ...amMacDinh, giongDoc: true } }).uocTinh > bg({}).uocTinh, bg({ amThanh: { ...amMacDinh, nhac: true } }).uocTinh > bg({}).uocTinh,
+      bg({ tuKiem: true }).uocTinh > bg({}).uocTinh, bg({ tuKiem: true }).toiDa - bg({ tuKiem: true }).uocTinh > bg({}).toiDa - bg({}).uocTinh],
+    [true, true, true, true]);
+  kiem("báo giá", "dài hơn thì đắt hơn; độ nét cao hơn thì đắt hơn",
+    [bg({ tongGiay: 180 }).uocTinh > bg({}).uocTinh,
+      baoGiaVideoDai(veoLite2, { ...lcVeo, doNet: "1080p" }, { tongGiay: 60, cheDo: "ghep_canh", amThanh: amMacDinh, tuKiem: false }) === null],
+    [true, true]);
+  const nguonRtGia = fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8");
+  const nguonUiGia = fs.readFileSync(path.join(GOC, "src/components/VideoDaiPanel.tsx"), "utf8");
+  kiem("báo giá", "máy chủ báo giá từng mô hình theo lựa chọn video dài; giao diện hiện giá trọn video và gửi đủ lựa chọn",
+    [/giaCaVideo: duAn\s*\? baoGiaVideoDai\(m, lc,/.test(nguonRtGia), /Giá video \{tongGiay\} giây hoàn thành:/.test(nguonUiGia),
+      /\}, \[doNet, khung, coTieng, cachLam, tongGiay, tuKiem, anhThamChieu\.length, amThanh\.nhac, loiDoc, amThanh\.veAnh\?\.model, amThanh\.veAnh\?\.doNet, amThanh\.veAnh\?\.chatLuong\]\);/.test(nguonUiGia),
+      /giaUocTinh \/ 8\) \* tongGiay/.test(nguonUiGia)],
+    [true, true, true, false]);
+  // Lịch giọng đọc: vào sau đầu cảnh 0,25 giây; dài quá thì đọc nhanh lên, tối đa 25%.
+  const lich = lichGiongDoc([8, 8, 8], [{ soGiay: 5 }, null, { soGiay: 12 }]);
+  kiem("âm thanh", "giọng vừa cảnh thì giữ tốc độ, vào đúng sau đầu cảnh",
+    [lich[0]!.batDau, lich[0]!.tempo, lich[1]], [0.25, 1, null]);
+  kiem("âm thanh", "giọng quá dài thì tăng tốc nhưng không quá 25%", [lich[2]!.batDau, lich[2]!.tempo], [16.25, 1.25]);
+  const ass = noiDungPhuDe({ rong: 720, cao: 1280, doDai: [8, 8], chu: ["Chào {\\b1}bạn\nnhé", "Nhắn tin ngay!"],
+    lich: lichGiongDoc([8, 8], [{ soGiay: 4 }, null]), canhCuoiLaKeuGoi: true });
+  kiem("phụ đề", "bỏ ký tự điều khiển ASS (không ai chèn được lệnh vẽ), gộp xuống dòng",
+    /Dialogue: 0,0:00:00\.25,0:00:04\.55,Phu,,0,0,0,,Chào b1bạn nhé$/m.test(ass), true);
+  kiem("phụ đề", "cảnh cuối là lời kêu gọi: kiểu chữ riêng, hiện suốt cảnh",
+    /Dialogue: 0,0:00:08\.10,0:00:15\.95,KeuGoi,/.test(ass), true);
+  kiem("phụ đề", "phông chữ có dấu tiếng Việt, cỡ theo khung", [/Style: Phu,Arial,44,/.test(ass), /Style: KeuGoi,Arial,54,/.test(ass)], [true, true]);
+  const lenhAm = lenhGhep(["a", "b"], [infoCanh, infoCanh], [124, 124], true, "ra",
+    { giong: [{ tep: "g0", soGiay: 3 }, null], nhac: "nhac", phuDe: "p.ass" });
+  const locAm = lenhAm[lenhAm.indexOf("-filter_complex") + 1];
+  kiem("âm thanh", "giọng đọc đặt đúng mốc cảnh (adelay)", /\[2:a\][^;]*adelay=250\|250\[g0\]/.test(locAm), true);
+  kiem("âm thanh", "nhạc tự nhỏ khi có lời (nén theo giọng), mờ vào/ra", [/sidechaincompress/.test(locAm), /afade=t=in/.test(locAm), /afade=t=out/.test(locAm)], [true, true, true]);
+  // Thử ngược 02/10/2026: trộn nhạc CHƯA nén mà phép kiểm trên vẫn đạt — phải kiểm đúng nhãn được trộn.
+  kiem("âm thanh", "bản trộn dùng nhạc ĐÃ nén theo giọng, không phải nhạc gốc",
+    /\[nhac0\]\[loiA\]sidechaincompress=[^;]*\[nhac\];\[nen\]\[nhac\]\[loiB\]amix=inputs=3/.test(locAm), true);
+  kiem("âm thanh", "chuẩn độ to mạng xã hội và cắt đúng độ dài hình", /loudnorm=I=-14:[^;]*atrim=0:10\.292\[am\]$/.test(locAm), true); // 124/24 + 123/24 giây
+  kiem("phụ đề", "phụ đề in lên hình sau khi ghép", [/\[v\]ass=filename='p\.ass'\[vc\]/.test(locAm), lenhAm[lenhAm.indexOf("-map") + 1]], [true, "[vc]"]);
+  kiem("âm thanh", "không giọng, không nhạc thì giữ nguyên cách ghép cũ", /loudnorm|amix/.test(locGhep(true)), false);
+  // Tiêu chí 9: chỉ cấm đúng thứ đã làm riêng — có nhạc riêng thì clip không nhạc, có giọng riêng thì clip không ai nói.
+  const lnAm = (am: Partial<typeof amKhong>) => lnGhep(0, { amThanh: { ...amKhong, ...am } });
+  kiem("video dài", "giọng đọc riêng → clip không ai nói; nhạc riêng → clip không nhạc; không chọn gì → không cấm gì",
+    [lnAm({ giongDoc: true }).includes(LUAT_KHONG_NOI), lnAm({ giongDoc: true }).includes(LUAT_KHONG_NHAC),
+      lnAm({ nhac: true }).includes(LUAT_KHONG_NHAC), lnAm({ nhac: true }).includes(LUAT_KHONG_NOI),
+      lnAm({ giongDoc: true, nhac: true }).includes(LUAT_KHONG_NOI) && lnAm({ giongDoc: true, nhac: true }).includes(LUAT_KHONG_NHAC),
+      /Audio:/.test(lnGhep(0)), luatTiengNen({ giongDoc: false, nhac: false }), /nobody on screen talks/.test(LUAT_KHONG_NOI)],
+    [true, false, true, false, true, false, "", true]);
+  // Seedance 2.5 nói tiếng Việt gốc (BytePlus: 11 ngôn ngữ có Vietnamese).
+  kiem("giọng gốc", "giọng gốc: mô hình tự nói lời dẫn tiếng Việt trong video; có nhạc riêng thì dặn không nhạc",
+    [/narrator says in Vietnamese: "Xin chào"/.test(lnGhep(0, { amThanh: { ...amKhong, giongGoc: true } })),
+      / No background music\./.test(lnGhep(0, { amThanh: { ...amKhong, giongGoc: true, nhac: true } })),
+      lnGhep(0, { amThanh: { ...amKhong, giongGoc: true } }).includes(LUAT_KHONG_NOI), MODEL_TIENG_VIET_GOC.has("bytedance/seedance-2.5"),
+      MODEL_TIENG_VIET_GOC.has("google/veo-3.1")], [true, true, false, true, false]);
+  // Dự án #9: dùng khung cảnh 1 làm mẫu thì AI ảnh chép cả phòng, đèn đêm, góc máy — 6 khung y hệt nhau.
+  kiem("video dài", "cảnh cắt lấy ẢNH MẪU NỀN TRƠN làm mẫu nhân vật (vẽ một lần mỗi dự án), không lấy khung cảnh 1",
+    [/anhMau: \[anhNhanVat, \.\.\.d\.anh_tham_chieu\]/.test(nguonDaiNoi), /khungCanh1/.test(nguonDaiNoi), /if \(!anhNhanVat\) \{/.test(nguonDaiNoi)],
+    [true, false, true]);
+  kiem("video dài", "ảnh mẫu nhân vật: nền trơn, không nơi chốn, không giờ trong ngày",
+    [/plain light-grey studio background/.test(deBaiAnhNhanVat("x")), /NO room, NO furniture, NO location/.test(deBaiAnhNhanVat("x"))], [true, true]);
+  kiem("video dài", "nhạc làm một lần rồi giữ lại (ghép lại không trả tiền lần nữa)",
+    /if \(amThanh\.nhac && !nhacUrl\)/.test(nguonDaiNoi), true);
+  // Đã thấy 02/10/2026: chia 8 cảnh chạm trần 2.500 token → rỗng → thử lại y nguyên 3 lần, mất 0,083 USD.
+  const nguonAiChu = fs.readFileSync(path.join(GOC, "server/services/ai.ts"), "utf8");
+  kiem("AI chữ", "bị cắt vì chạm trần token thì dừng, không thử lại vô ích",
+    /if \(rong && biCat\) \{\s*throw new AiError\([^)]*, 502, false\);/.test(nguonAiChu), true);
+  kiem("AI chữ", "thời gian chờ tăng theo độ dài câu trả lời", /AbortSignal\.timeout\(Math\.max\(60_000, 30_000 \+ maxTokens \* 25\)\)/.test(nguonAiChu), true);
+  kiem("video dài", "trần token chia cảnh tăng theo số cảnh", /maxTokens: Math\.min\(16_000, 2_000 \+ 900 \* soCanh\)/.test(nguonDaiNoi), true);
+  // Đã gặp 02/10/2026 (dự án #8): kho từ chối mp3 ở bước cuối → cả dự án "lỗi", 8 cảnh đã trả 3,2 USD nằm không.
+  kiem("video dài", "nhạc đóng vào MP4 trước khi lưu kho (kho chỉ nhận ảnh/MP4/MOV/PDF)",
+    [/duaLenKho\(ra, "video\/mp4", `\$\{ten\}\.mp4`\)/.test(nguonDaiNoi), /audio\/mpeg/.test(nguonDaiNoi)], [true, false]);
+  // Dự án #9: hết tiền AI ở cảnh 5/8 → 4 cảnh đã trả tiền nằm không. Làm tiếp phải GIỮ cảnh đã xong.
+  const hamTiepTuc = /export async function tiepTucDuAn[\s\S]*?\n\}/.exec(nguonDaiNoi)?.[0] ?? "";
+  kiem("video dài", "làm tiếp: chỉ bỏ cảnh LỖI, giữ cảnh đã xong; đủ cảnh thì chỉ ghép",
+    [/DELETE FROM video_ai v USING du_an_video d[\s\S]*?v\.trang_thai = 'loi'/.test(hamTiepTuc), /DELETE[\s\S]*?RETURNING v\.gia_thuc/.exec(hamTiepTuc)?.[0].includes("'xong'"),
+      /= jsonb_array_length\(d\.phan_canh\)\s*THEN 'dang_ghep' ELSE 'dang_tao' END/.test(hamTiepTuc)], [true, false, true]);
+  kiem("video dài", "làm tiếp chỉ với dự án đang lỗi, của đúng trang",
+    /WHERE d\.id = \$1 AND d\.trang_id = \$2 AND d\.trang_thai = 'loi'/.test(hamTiepTuc), true);
+  kiem("video dài", "cảnh lỗi bị bỏ mà vẫn bị tính tiền thì vẫn nằm trong \"đã tốn\"",
+    /chi_phi_them = d\.chi_phi_them \+ COALESCE\(\(SELECT sum\(gia_thuc\) FROM hong\), 0\)/.test(hamTiepTuc), true);
+  kiem("video dài", "danh sách dự án hiện tiền đã tiêu tới lúc này (cả dự án lỗi giữa chừng)",
+    /\(COALESCE\(\(SELECT sum\(v\.gia_thuc\) FROM video_ai v WHERE v\.du_an_id = d\.id AND NOT v\.bo_qua\), 0\) \+ d\.chi_phi_them\)::float AS da_ton/
+      .test(fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8")), true);
+  // --- Kiểm định từng cảnh (02/10/2026). Số đo lấy từ clip THẬT đã soi bằng mắt.
+  const so = (catMax: number, sangDau: number, sangCuoi: number) => phanLoaiSoDo({ catMax, sangDau, sangCuoi }).ketLuan;
+  kiem("kiểm định", "cú cắt cứng giữa clip: lỗi ngay, không cần AI (clip #6: 0,44 và 0,57)", [so(0.44, 104, 137), so(0.574, 125, 118)], ["loi", "loi"]);
+  kiem("kiểm định", "clip sạch: đạt bằng máy, không tốn tiền AI (#8-2, #8-4, #7-0, #6-1)",
+    [so(0.009, 94, 99), so(0.013, 85, 88), so(0.038, 111, 123), so(0.122, 130, 144)], ["dat", "dat", "dat", "dat"]);
+  kiem("kiểm định", "trôi sáng mạnh: phải nhờ AI xem (#8-5 +19, #8-3 +66, #9-2 +60 đúng kịch bản)",
+    [so(0.013, 89, 108), so(0.009, 81, 147), so(0.035, 80, 140)], ["can_xem", "can_xem", "can_xem"]);
+  kiem("kiểm định", "AI xem: mặc định coi đổi sáng là lỗi trừ khi mô tả gây ra, kèm số đo; dùng mô hình đã đo tốt nhất",
+    [/A brightness change is a DEFECT unless the description itself causes it/.test(DE_BAI_XEM_CLIP), MODEL_XEM_CLIP,
+      /Measured: average brightness goes from/.test(fs.readFileSync(path.join(GOC, "server/services/kiem-dinh-video.ts"), "utf8"))],
+    [true, "google/gemini-3.7-flash", true]);
+  kiem("kiểm định", "bộ chạy kiểm cảnh vừa xong TRƯỚC khi vẽ cảnh sau",
+    nguonDaiNoi.indexOf("kiemDinhCanh({") > 0 && nguonDaiNoi.indexOf("kiemDinhCanh({") < nguonDaiNoi.indexOf("if (d.trang_thai === \"dang_tao\" && ds.length < d.phan_canh.length)"), true);
+  kiem("kiểm định", "cảnh lỗi: loại, chuyển tiền vào \"đã tốn\", quay về đang tạo; có trần số lần vẽ lại",
+    [/if \(d\.so_lan_ve_lai < GIOI_HAN_VE_LAI\)/.test(nguonDaiNoi), /SET bo_qua = true/.test(nguonDaiNoi),
+      /chi_phi_them = chi_phi_them \+ \$2,\s*trang_thai = 'dang_tao'/.test(nguonDaiNoi), GIOI_HAN_VE_LAI], [true, true, true, 2]);
+  kiem("kiểm định", "kiểm hỏng thì cho qua và ghi lại, không làm hỏng cả dự án",
+    /catch \(error\) \{[\s\S]{0,250}kiem_dinh = \$2[\s\S]{0,120}khong_kiem_duoc/.test(nguonDaiNoi), true);
+  kiem("kiểm định", "cảnh bị loại không còn trong video, không bị làm tiếp, không bị tính tiền hai lần",
+    [/FROM video_ai WHERE du_an_id = \$1 AND NOT bo_qua ORDER BY thu_tu/.test(nguonDaiNoi), /v\.trang_thai = 'loi' AND NOT v\.bo_qua/.test(nguonDaiNoi),
+      /v\.trang_thai = 'xong' AND NOT v\.bo_qua\) = jsonb_array_length/.test(nguonDaiNoi)], [true, true, true]);
+  kiem("lời lỗi", "hết hạn mức kiểu \"budget exceeded\" cũng là hết tiền AI",
+    loiNhaCungCap(403, "Workspace lifetime budget of $11.00 exceeded. Contact your org admin."), LOI_HET_TIEN_AI);
+  // Dự án #9 cảnh 7: lời dặn tiếng Anh gửi kèm lời đọc bị giọng AI ĐỌC TO lên video.
+  kiem("giọng đọc", "không gửi lời dặn kèm lời đọc", [/input: chuanBiDoc\(loiDoc\),/.test(fs.readFileSync(path.join(GOC, "server/services/am-thanh-ai.ts"), "utf8")),
+    /huongDan/.test(fs.readFileSync(path.join(GOC, "server/services/am-thanh-ai.ts"), "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))], [true, false]);
+  kiem("giọng đọc", "nghe lại: bắt đọc thừa (câu thật cảnh 7), đọc thiếu; không báo nhầm khi máy nghe tách chữ, đổi số",
+    [giongDocSai("Sáng hôm sau, chị thảnh thơi nhấp cà phê.", "Read in Vietnamese as a warm, clear narrator. Read noticeably faster. Sáng hôm sau, chị thảnh thơi nhấp cà phê.") !== null,
+      giongDocSai("Khách hỏi giá, chờ lâu quá rồi lặng lẽ bỏ đi.", "Khách hỏi giá.") !== null,
+      giongDocSai("Chị bật BrewManager AI ngay.", "Chỉ bật Brew Manager AI ngay."), giongDocSai("Đã 11 giờ đêm rồi.", "Đã 11:00 đêm rồi.")],
+    [true, true, null, null]);
+  kiem("giọng đọc", "mỗi câu đọc xong được nghe lại; sai thì đọc lại (có trần), giữ bản giống lời nhất",
+    [/tot\.d = await diem\(tot\.b\);/.test(nguonDaiNoi), /for \(let lan = 0; lan < SO_LAN_DOC_LAI && tot\.d < 1; lan\+\+\)/.test(nguonDaiNoi),
+      /if \(d > tot\.d\) tot = \{ b, d \};/.test(nguonDaiNoi), SO_LAN_DOC_LAI], [true, true, true, 2]);
+  // Câu THẬT dự án #9 cảnh 8: giọng đọc "AI ngay" thành "AI now", "tư vấn và" thành "ghi mắc thông tin" — dài gần bằng, phải so từng chữ.
+  const c8 = "Nhắn tin cho BrewManager AI ngay để được tư vấn và cài đặt.";
+  kiem("giọng đọc", "bắt giọng đọc SAI CHỮ dù dài bằng lời (câu thật), không báo nhầm câu đúng mà máy nghe tách/lệch chữ",
+    [giongDocSai(c8, "Nhắn tin cho Brew Manager AI Now để được ghi mắc thông tin về cài đặt.") !== null,
+      giongDocSai(c8, "Nhắn tin cho Broom Manager AI ngay để được tư vấn và cài đặt"),
+      giongDocSai("Khách hỏi giá, chờ lâu quá rồi lặng lẽ bỏ đi, bài bán hàng vẫn chưa kịp viết.", "Khách gọi giả, chờ lâu quá rồi lặng lẽ bỏ đi, bài bán hàng vẫn chưa kịp viết.")],
+    [true, null, null]);
+  // Nghe lại 02/10/2026: "BrewManager" viết liền bị đọc thành "Pro/Bloom Manager"; tách ra thì 2/2 lần nghe đúng.
+  kiem("giọng đọc", "tách tên viết liền cho giọng đọc, phụ đề giữ nguyên", [chuanBiDoc("Nhắn tin cho BrewManager AI."), chuanBiDoc("Đã 11 giờ đêm.")],
+    ["Nhắn tin cho Brew Manager AI.", "Đã 11 giờ đêm."]);
+  kiem("giọng đọc", "giọng đọc nhận lời đã chuẩn bị", /input: chuanBiDoc\(loiDoc\),/.test(fs.readFileSync(path.join(GOC, "server/services/am-thanh-ai.ts"), "utf8")), true);
+  // --- Nối dài gốc của hãng (Seedance 2.5, hướng dẫn chính thức BytePlus) qua OpenRouter.
+  kiem("nối dài", "Seedance 2.5 nối dài được: mỗi đoạn 4–30 giây, có nguồn tài liệu hãng",
+    [MODEL_NOI_DAI["bytedance/seedance-2.5"]?.giayMoiDoanToiDa, MODEL_NOI_DAI["bytedance/seedance-2.5"]?.giayMoiDoanToiThieu,
+      /docs\.byteplus\.com/.test(MODEL_NOI_DAI["bytedance/seedance-2.5"]?.nguon ?? "")], [30, 4, true]);
+  const nguonGui = (fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8").split("export async function guiViecVideo")[1] ?? "")
+    .split("export async function goiTaoViec")[0];
+  kiem("nối dài", "đoạn nối dài: đưa đoạn trước vào input_references loại video_url, KHÔNG gửi tỷ lệ khung/kích thước (adaptive)",
+    [/if \(p\.videoNoiDai\) \{\s*delete than\.aspect_ratio;\s*delete than\.size;\s*than\.input_references = \[\{ type: "video_url", video_url: \{ url: p\.videoNoiDai \} \}\];/.test(nguonGui),
+      /\} else if \(p\.anhMoDau\)/.test(nguonGui)], [true, true]);
+  const sd25Noi = chuanHoaModel({ id: "bytedance/seedance-2.5", supported_durations: [4, 5, 30], supported_resolutions: ["480p", "720p"],
+    supported_aspect_ratios: ["9:16"], supported_sizes: ["480x854", "720x1280"], supported_frame_images: ["first_frame"], generate_audio: true,
+    pricing_skus: { video_tokens: "0.0000107", video_tokens_with_video_input: "0.0000064" } })!;
+  const lcSd = { soGiay: 10, doNet: "720p", khung: "9:16", coTieng: true, coAnhMoDau: false };
+  kiem("nối dài", "đưa video vào thì tính theo giá riêng video_tokens_with_video_input",
+    Math.round((giaMoiGiay(sd25Noi, { ...lcSd, coVideoVao: true })! / giaMoiGiay(sd25Noi, lcSd)!) * 1e6) / 1e6, Math.round((0.0000064 / 0.0000107) * 1e6) / 1e6);
+  const doan3 = [0, 1, 2].map((i) => ({ soGiay: 10, moTa: "x", tomTat: "", noiTiep: i > 0, loiDoc: "" }));
+  // BytePlus: token khi có video vào = (giây vào + giây ra) × rộng × cao × fps ÷ 1024 → đoạn 10 giây nối từ đoạn 10 giây tính 20 giây.
+  kiem("nối dài", "giá dự án nối dài: đoạn 1 giá thường, đoạn sau giá video vào TÍNH CẢ GIÂY VIDEO VÀO, không tiền khung vẽ",
+    Math.round(giaDuAn(sd25Noi, doan3, { doNet: "720p", khung: "9:16", coTieng: true }, 0, undefined, "noi_dai")! * 1e6) / 1e6,
+    Math.round((giaVideo(sd25Noi, { ...lcSd })! + 2 * 20 * giaMoiGiay(sd25Noi, { ...lcSd, coVideoVao: true })!) * 1e6) / 1e6);
+  kiem("nối dài", "giây video vào chỉ cộng khi mô hình tính theo token có video vào; bộ chạy truyền đúng giây đoạn trước",
+    [Math.round((giaVideo(sd25Noi, { ...lcSd, coVideoVao: true, giayVideoVao: 5 })! / giaVideo(sd25Noi, { ...lcSd, coVideoVao: true })!) * 1e6) / 1e6,
+      giaVideo(sd25Noi, { ...lcSd, giayVideoVao: 5 }) === giaVideo(sd25Noi, lcSd),
+      /giayVideoVao: videoNoiDai \? d\.phan_canh\[i - 1\]\.soGiay : undefined,/.test(nguonDaiNoi)], [1.5, true, true]);
+  kiem("nối dài", "chỉ cho nối dài với mô hình có tính năng; giọng gốc chỉ với mô hình nói tiếng Việt",
+    [/if \(cheDo === "noi_dai" && !MODEL_NOI_DAI\[model\.id\]\) \{\s*throw new AppError/.test(nguonDaiNoi),
+      /if \(amVao\.giongGoc && !MODEL_TIENG_VIET_GOC\.has\(model\.id\)\) \{\s*throw new AppError/.test(nguonDaiNoi)], [true, true]);
+  kiem("nối dài", "bộ chạy: đoạn sau đưa NGUYÊN đoạn trước làm video tham chiếu; không lấy khung cuối, không vẽ khung",
+    [/if \(noiDai && i > 0\) \{\s*const truoc = ds\.find\(\(x\) => x\.thu_tu === i - 1\);[\s\S]{0,120}videoNoiDai = truoc\.url;/.test(nguonDaiNoi),
+      /const veKhung = !noiDai && canVeKhung\(d\.phan_canh, i\);/.test(nguonDaiNoi), /videoNoiDai,\s*duAnId: d\.id,/.test(nguonDaiNoi)], [true, true, true]);
+  kiem("nối dài", "không kiểm định 'tự cắt cảnh' với nối dài / mô hình nhiều cảnh (cắt là theo kịch bản), ghi rõ lý do",
+    /\(d\.che_do === "noi_dai" \|\| MODEL_NHIEU_CANH\.has\(d\.model\)\)\) \{\s*await query\("UPDATE video_ai SET kiem_dinh = 'khong_ap_dung: nhiều cảnh theo kịch bản'/.test(nguonDaiNoi), true);
+  const locKhongCat = (() => { const l = lenhGhep(["a", "b"], [infoCanh, infoCanh], [124, 124], false, "ra", { boKhungDau: [false, false] }); return l[l.indexOf("-filter_complex") + 1]; })();
+  kiem("nối dài", "ghép: chỉ cảnh nối từ khung cuối mới bỏ khung đầu; đoạn nối dài giữ nguyên",
+    [/trim=start_frame=1/.test(locKhongCat), /boKhungDau: d\.phan_canh\.map\(\(c, i\) => i > 0 && d\.che_do !== "noi_dai" && c\.noiTiep && !canVeKhung\(d\.phan_canh, i\)\)/.test(nguonDaiNoi)],
+    [false, true]);
+  kiem("nối dài", "giới hạn video dài 5 phút", [TOI_DA_GIAY_DU_AN, TOI_DA_CANH >= Math.ceil(300 / 8)], [300, true]);
+  // Chữ trong ẢNH do người dùng chọn (chủ dự án 03/10/2026) — luật an toàn luôn áp.
+  kiem("chữ trong ảnh", "'không chữ' giữ luật trống chữ; 'theo yêu cầu' chỉ chữ được yêu cầu",
+    [luatAnh("khong") === LUAT_ANH, /chỉ có chữ ở đúng chỗ yêu cầu nêu rõ/.test(luatAnh("theo_noi_dung")), /TRỐNG CHỮ/.test(luatAnh("theo_noi_dung")),
+      /Chỉ thêm chữ khi yêu cầu nêu rõ/.test(luatAnhTuMau("theo_noi_dung"))], [true, true, false, true]);
+  kiem("luật nội dung", "ảnh: tắt thì không gài luật nhãn hiệu / người thật (cả vẽ mới và vẽ từ mẫu); bật thì thêm đúng luật",
+    [/người nổi tiếng|huy hiệu chứng nhận/.test(luatAnh("khong") + luatAnh("theo_noi_dung") + luatAnhTuMau("khong") + luatAnhTuMau("theo_noi_dung")),
+      luatAnh("theo_noi_dung", { chanNhanHieuGia: true }).includes(LUAT_NHAN_HIEU_GIA_ANH),
+      luatAnh("theo_noi_dung", { chanNhanHieuGia: true }).includes(LUAT_NGUOI_THAT_ANH),
+      luatAnhTuMau("khong", { chanNguoiThat: true }).includes(LUAT_NGUOI_THAT_ANH)],
+    [false, true, false, true]);
+  kiem("luật nội dung", "lựa chọn đi tới mọi nơi: video một cảnh, sửa video, tạo ảnh, video dài (đoạn, khung, ảnh mẫu)",
+    [/\.\.\.docLuatNoiDung\(nguon\)/.test(fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8")),
+      (fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8").match(/luat: docLuatNoiDung\(req\.body \?\? \{\}\)/g) ?? []).length,
+      /luatVideo\(lc\.chuTrongVideo, lc\)/.test(fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8")),
+      /chanNhanHieuGia: amThanh\.chanNhanHieuGia,\s*chanNguoiThat: amThanh\.chanNguoiThat,/.test(nguonDaiNoi),
+      (nguonDaiNoi.match(/luat: amThanh,/g) ?? []).length], [true, 3, true, true, 2]);
+  // Chủ dự án 03/10/2026: luật cứng CHỈ từ tài liệu nhà sản xuất và 10 tiêu chí; còn lại là lựa chọn của người dùng.
+  const amHuong = docAmThanh({ cauTrucQuangCao: true, giuSuThat: "x", boiCanhVietNam: true });
+  kiem("không luật cứng", "hướng kịch bản mặc định tắt, chỉ nhận đúng true",
+    [docAmThanh({}).cauTrucQuangCao, docAmThanh({}).giuSuThat, docAmThanh({}).boiCanhVietNam, amHuong.cauTrucQuangCao, amHuong.giuSuThat, amHuong.boiCanhVietNam],
+    [false, false, false, true, false, true]);
+  const nguonVAi = fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8");
+  const nguonRouteAi2 = fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8");
+  kiem("không luật cứng", "AI đạo diễn: cấu trúc quảng cáo, giữ sự thật, bối cảnh VN, không bịa nhãn hiệu — chỉ khi người dùng bật",
+    [/huong\.cauTrucQuangCao\s*\? "- Advert structure/.test(nguonDaiNoi), /huong\.giuSuThat \? "- Only claim what the idea states/.test(nguonDaiNoi),
+      /huong\.boiCanhVietNam \? "- Vietnamese everyday context/.test(nguonDaiNoi), /p\.luat\?\.chanNhanHieuGia \? "- Do not invent brands/.test(nguonDaiNoi),
+      /p\.giongDocRieng \? "  Nobody on screen speaks/.test(nguonDaiNoi),
+      /huong: \{\s*cauTrucQuangCao: amVao\.cauTrucQuangCao \|\| amVao\.kieuKichBan === "quang_cao",\s*giuSuThat: amVao\.giuSuThat,\s*boiCanhVietNam: amVao\.boiCanhVietNam,\s*\}/.test(nguonDaiNoi),
+      /giongDocRieng: amVao\.giongDoc && !amVao\.giongGoc/.test(nguonDaiNoi)],
+    [true, true, true, true, true, true, true]);
+  kiem("không luật cứng", "AI viết lời mô tả: móc câu, bối cảnh VN, giữ sự thật, nhãn hiệu — chỉ khi bật; route chuyển lựa chọn vào",
+    [/huong\.cauTrucQuangCao \? "- The first 2 seconds/.test(nguonVAi), /huong\.boiCanhVietNam \? "- Vietnamese everyday/.test(nguonVAi),
+      /huong\.giuSuThat \? "- Only show what the post states/.test(nguonVAi), /params\.luat\?\.chanNhanHieuGia \? "; do not invent brands/.test(nguonVAi),
+      /huong: docHuongKichBan\(req\.body \?\? \{\}\),\s*luat: docLuatNoiDung\(req\.body \?\? \{\}\),/.test(nguonRouteAi2)],
+    [true, true, true, true, true]);
+  // Những câu gài cứng đã gỡ hẳn (không có căn cứ nhà sản xuất / 10 tiêu chí).
+  const nguonKhung = fs.readFileSync(path.join(GOC, "server/services/khung-video.ts"), "utf8");
+  const nguonNhac = fs.readFileSync(path.join(GOC, "server/services/am-thanh-ai.ts"), "utf8");
+  kiem("không luật cứng", "đã gỡ: 'Commercial quality', ép số cảnh, 'Prefer continuous', 'do not copy', 'Photorealistic', nhạc 'advert/steady energy'",
+    [/Commercial quality/.test(nguonVAi), /Prefer continuous sequences/.test(nguonDaiNoi), /do not copy its footage/.test(nguonDaiNoi),
+      /Photorealistic/.test(nguonKhung), /advert|steady energy/.test(nguonNhac), /one smooth camera move/.test(nguonDaiNoi)],
+    [false, false, false, false, false, false]);
+  kiem("không luật cứng", "nhạc: 'chừa chỗ cho giọng' chỉ khi có lời đọc",
+    [/\(p\.coLoiDoc \? " Leaves room for a voice-over\." : ""\)/.test(nguonNhac), /coLoiDoc: amThanh\.giongDoc \|\| amThanh\.giongGoc,/.test(nguonDaiNoi)], [true, true]);
+  const nguonHuongUi = fs.readFileSync(path.join(GOC, "src/components/HuongKichBanChon.tsx"), "utf8");
+  kiem("không luật cứng", "giao diện: hướng kịch bản ban đầu tắt, có ở video một cảnh và video dài; xoá watermark chỉ hiện khi có ảnh mẫu",
+    [/HUONG_TAT: HuongKichBanGiaTri = \{ cauTrucQuangCao: false, giuSuThat: false, boiCanhVietNam: false \}/.test(nguonHuongUi),
+      /chanNhanHieuGia: luatNoiDung\.chanNhanHieuGia,\s*\.\.\.huong,/.test(fs.readFileSync(path.join(GOC, "src/components/VideoAiPanel.tsx"), "utf8")),
+      /<HuongKichBanChon[\s\S]{0,300}?onDoi=\{\(v\) => setAmThanh\(\{ \.\.\.amThanh, \.\.\.v \}\)\}/.test(fs.readFileSync(path.join(GOC, "src/components/VideoDaiPanel.tsx"), "utf8")),
+      /coAnhMau=\{Boolean\(anhMau\)\}/.test(nguonXuongAi),
+      /LUA_CHON\.filter\(\(o\) => coAnhMau \|\| !o\.chiKhiCoAnhMau\)/.test(fs.readFileSync(path.join(GOC, "src/components/LuatNoiDungChon.tsx"), "utf8"))],
+    [true, true, true, true, true]);
+  kiem("không luật cứng", "ảnh từ mẫu: xoá watermark chỉ khi bật; vẽ mới thì không bao giờ có",
+    [/watermark/.test(luatAnhTuMau("khong") + luatAnhTuMau("theo_noi_dung")), luatAnhTuMau("khong", { xoaWatermark: true }).includes(LUAT_XOA_WATERMARK),
+      luatAnhTuMau("theo_noi_dung", { xoaWatermark: true }).includes(LUAT_XOA_WATERMARK), luatAnh("theo_noi_dung", { xoaWatermark: true }).includes(LUAT_XOA_WATERMARK)],
+    [false, true, true, false]);
+  kiem("chữ trong ảnh", "khung video theo lựa chọn chữ của dự án; ảnh mẫu nhân vật (nội bộ) luôn không chữ",
+    [/TRỐNG CHỮ/.test(deBaiKhung({ nhatQuan: "", moTa: "", coAnhMau: false, chu: "khong" })),
+      /TRỐNG CHỮ/.test(deBaiKhung({ nhatQuan: "", moTa: "", coAnhMau: false, chu: "theo_noi_dung" })),
+      /TRỐNG CHỮ/.test(deBaiAnhNhanVat("x")), /chu: amThanh\.chuTrongVideo,/.test(nguonDaiNoi)], [true, false, true, true]);
+  const nguonMoTaVideo = fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8");
+  kiem("chữ trong video", "AI viết lời mô tả video và AI đạo diễn theo lựa chọn chữ (không còn cấm cố định)",
+    [/params\.chuTrongVideo === "khong"\s*\? "- Never ask for on-screen text/.test(nguonMoTaVideo),
+      /p\.chuTrongVideo === "khong"\s*\? "- Keep product packaging plain and unbranded\."/.test(nguonDaiNoi),
+      /chuTrongVideo: lc\.chuTrongVideo,/.test(fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8"))], [true, true, true]);
+  // Khách từng thấy nguyên văn lời nhà cung cấp kèm đường dẫn nạp tiền của họ.
+  kiem("lời lỗi", "hết tiền AI: báo lời thân thiện, không lộ nhà cung cấp",
+    loiNhaCungCap(402, "Insufficient credits. Add more using https://openrouter.ai/settings/credits"), LOI_HET_TIEN_AI);
+  kiem("lời lỗi", "lỗi khác: bỏ đường dẫn và tên nhà cung cấp",
+    loiNhaCungCap(400, "Model not found on OpenRouter, see https://openrouter.ai/docs"), "Model not found on nhà cung cấp, see");
+  // Thử ngược 02/10/2026: chỉ kiểm "tệp có gọi bộ làm sạch" thì bỏ sót chỗ thứ hai trong cùng tệp.
+  const nguonVideoAi = fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8");
+  kiem("lời lỗi", "video: cả lúc gửi việc lẫn lúc nhà cung cấp báo hỏng đều qua bộ làm sạch",
+    [/Tạo video thất bại: \$\{loiNhaCungCap\(r\.status, loi\)\}/.test(nguonVideoAi), /AI tạo video báo lỗi: \$\{loiNhaCungCap\(r\.status, loi\)\}/.test(nguonVideoAi),
+      /await ketThuc\(v\.id, `[^`]*\$\{loi\}`/.test(nguonVideoAi)], [true, true, false]);
+  kiem("lời lỗi", "mọi chỗ báo lỗi AI cho khách đều qua bộ làm sạch",
+    ["video-ai.ts", "image-ai.ts", "khung-video.ts", "am-thanh-ai.ts", "ai.ts"].filter((t) =>
+      !/loiNhaCungCap\(/.test(fs.readFileSync(path.join(GOC, "server/services", t), "utf8"))), []);
+  // Đã thấy ở dự án #8 (Veo 3.1 Lite): clip tự mờ chồng sang cảnh khác, đêm sáng dần thành ngày
+  // (độ sáng cảnh 4 tăng +65, cảnh 7 +45 trên thang 0–255), khung cảnh "buổi sáng" vẽ ra ban đêm.
+  kiem("cắt cảnh", "clip cấm mờ chồng/chuyển dần, giữ nguyên giờ trong ngày và ánh sáng",
+    [/no dissolve, cross-fade or fade/.test(LUAT_MOT_CU_MAY), /time of day and the lighting stay exactly the same/.test(LUAT_MOT_CU_MAY)], [true, true]);
+  kiem("cắt cảnh", "mô tả chung chỉ chứa thứ không đổi; giờ, ánh sáng ghi riêng từng cảnh",
+    [/ONLY what never changes: never describe changes/.test(nguonDaiNoi), /the time of day and lighting of that shot/.test(nguonDaiNoi)], [true, true]);
+  kiem("cắt cảnh", "vẽ khung: ảnh mẫu chỉ giữ người, ánh sáng/giờ theo cảnh đang vẽ",
+    /The reference ONLY fixes who the person is: the time of day, lighting/.test(deBaiKhung({ nhatQuan: "", moTa: "", coAnhMau: true })), true);
+  // Meta (Reels): để trống chữ ở 35% dưới, 6% mỗi bên. Khung 720×1280: cách đáy ≥ 448px, lề ≥ 44px.
+  const lePhu = (ten: string) => (new RegExp(`^Style: ${ten},(?:[^,]*,){18}(\\d+),(\\d+),(\\d+),1$`, "m").exec(ass) ?? []).slice(1).map(Number);
+  const [lt, lp, cd] = lePhu("Phu");
+  const [ltK, lpK, cdK] = lePhu("KeuGoi");
+  kiem("phụ đề", "phụ đề và lời kêu gọi nằm ngoài vùng bị che của Meta (35% dưới, 6% hai bên)",
+    [cd >= 1280 * VUNG_AN_TOAN.duoi, cdK >= 1280 * VUNG_AN_TOAN.duoi, lt >= 720 * VUNG_AN_TOAN.ben, lp >= 720 * VUNG_AN_TOAN.ben,
+      ltK >= 720 * VUNG_AN_TOAN.ben, lpK >= 720 * VUNG_AN_TOAN.ben, VUNG_AN_TOAN.duoi, VUNG_AN_TOAN.ben],
+    [true, true, true, true, true, true, 0.35, 0.06]);
+  kiem("video dài", "\"đã tốn\" cộng cả tiền khung, giọng, nhạc",
+    [/\+ \(Number\(daCong\?\.them\) \|\| 0\)/.test(nguonDaiNoi), (nguonDaiNoi.match(/await congChiPhiThem\(/g) ?? []).length], [true, 5]); // ảnh mẫu, khung, nhạc, giọng, AI xem lại
+  // Câu thật AI đạo diễn viết ở dự án #9 dù đã được dặn đừng viết.
+  const nqThat = "Linh wears a gray sweater. Color grade is warm amber indoor tones at night contrasting with soft golden morning light later, overall a cozy look. Camera style is handheld.";
+  kiem("cắt cảnh", "mô tả chung tự bỏ câu nói về giờ trong ngày, giữ phần còn lại", boCauChiGio(nqThat), "Linh wears a gray sweater. Camera style is handheld.");
+  kiem("cắt cảnh", "lọc giờ trong ngày áp vào kết quả AI đạo diễn", /const nhatQuan = boCauChiGio\(/.test(nguonDaiNoi), true);
   kiem("video dài", "không nhầm mã codec 0x… thành kích thước",
     docThongTinVideo("Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p").rong, 0);
 
@@ -3775,12 +4532,16 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /const kichThuoc = kichThuocKhop\(p\.model, lc\.doNet, lc\.khung\);\s*if \(kichThuoc\) than\.size = kichThuoc;/.test(nguonVideo), true);
 
   const nguonDai = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-dai.ts"), "utf8"));
-  kiem("video dài", "cảnh sau lấy khung cuối cảnh trước làm khung mở đầu",
-    /const anhMoDau = i > 0 \? await layKhungCuoi\(ds\[i - 1\]\.url!/.test(nguonDai), true);
-  kiem("video dài", "ảnh tham chiếu chỉ gửi ở cảnh đầu (có khung mở đầu thì bên AI bỏ qua)",
-    /anhThamChieu: i === 0 \? anhThamChieuCanhDau : \[\]/.test(nguonDai), true);
-  kiem("video dài", "tạo dự án và bắt đầu đều kiểm công tắc bật",
-    (nguonDai.match(/if \(!\(await videoDangBat\((p\.trangId|trangId)\)\)\) \{/g) ?? []).length, 2);
+  kiem("video dài", "cảnh nối liền lấy khung cuối cảnh trước làm khung mở đầu",
+    /\} else if \(i > 0 && !noiDai\) \{\s*const truoc = ds\.find\(\(x\) => x\.thu_tu === i - 1\);[\s\S]{0,120}anhMoDau = await layKhungCuoi\(truoc\.url,/.test(nguonDai), true);
+  // Vẽ lại một cảnh GIỮA (cảnh lỗi bị loại): phải vẽ đúng cảnh còn thiếu, không phải "cảnh sau cảnh cuối".
+  kiem("video dài", "vẽ cảnh còn thiếu có số nhỏ nhất (vẽ lại được cảnh giữa); kiểm đúng cảnh vừa vẽ",
+    [/const daCo = new Set\(ds\.map\(\(x\) => x\.thu_tu\)\);\s*let i = 0;\s*while \(daCo\.has\(i\)\) i\+\+;/.test(nguonDai),
+      /const vuaXong = ds\.reduce[^;]*c\.id > m\.id/.test(nguonDai), /const i = ds\.length;/.test(nguonDai)], [true, true, false]);
+  kiem("video dài", "ảnh tham chiếu chỉ gửi ở cảnh đầu khi chưa có khung mở đầu (có khung thì bên AI bỏ qua)",
+    [/i === 0 && !anhMoDau\s*\? await Promise\.all/.test(nguonDai), /anhThamChieu: anhThamChieuCanhDau,/.test(nguonDai)], [true, true]);
+  kiem("video dài", "bắt đầu tạo (từ đây mới tốn tiền) chỉ với bản nháp đã duyệt, của đúng trang",
+    /WHERE id = \$1 AND trang_id = \$2 AND trang_thai = 'nhap' RETURNING/.test(nguonDai), true);
   kiem("video dài", "lỗi giữa chừng thì dừng hẳn, không tự thử lại",
     /catch \(error\) \{[\s\S]{0,300}?await ketThucDuAn\(d\.id, loi\);/.test(nguonDai), true);
   const nguonCongCu = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-cong-cu.ts"), "utf8"));
@@ -3794,19 +4555,71 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("video dài", "worker chạy video dài trong chuỗi không chặn",
     /void runDueVideoJobs\(\)[\s\S]{0,300}?await runDueVideoProjects\(\)/.test(nguonWorker), true);
 
-  // Chỉ mô hình xếp top theo phân khúc (Artificial Analysis Video Arena 02/10/2026).
-  // Đã thấy: app hiện cả Sora 2 Pro (OpenAI tắt API 24/09/2026) và mô hình hạng bét.
-  kiem("chọn mô hình", "tạo video: đúng ba mô hình top theo phân khúc",
-    MODEL_VIDEO_DUOC_CHON.map((m) => m.id), ["minimax/hailuo-3-max", "alibaba/wan-3.0", "minimax/hailuo-3"]);
-  kiem("chọn mô hình", "không mô hình đã ngừng hay hạng bét",
-    MODEL_VIDEO_DUOC_CHON.filter((m) => /sora|seedance-1-5|veo-3\.1|wan-2\.[67]|hailuo-2/.test(m.id)).length, 0);
-  kiem("chọn mô hình", "mô hình nào cũng ghi phân khúc và thứ hạng",
-    [...MODEL_VIDEO_DUOC_CHON, ...MODEL_SUA_VIDEO_DUOC_CHON].filter((m) => !m.phanKhuc || !/Hạng \d/.test(m.xepHang)).length, 0);
+  // Chỉ BỎ mô hình đã ngừng, hạng bét, bản cũ đã có bản mới; GIỮ mô hình nổi tiếng
+  // (Artificial Analysis Video Arena 02/10/2026). Đã thấy: bản đầu lọc còn 3 mô hình,
+  // bỏ cả Seedance 2.5 / Veo 3.1 / Kling — chủ dự án: "ai bảo mày loại những mô hình tốt".
+  kiem("chọn mô hình", "tạo video: giữ đủ mô hình nổi tiếng",
+    ["bytedance/seedance-2.5", "bytedance/seedance-2.0", "google/veo-3.1", "kwaivgi/kling-v3.0-pro", "runway/gen-4.5",
+      "black-forest-labs/flux-3-video", "alibaba/wan-3.0", "minimax/hailuo-3", "minimax/hailuo-3-max", "x-ai/grok-imagine-video-1.5"]
+      .filter((id) => !MODEL_VIDEO_DUOC_CHON.some((m) => m.id === id)), []);
+  kiem("chọn mô hình", "không mô hình đã ngừng, hạng bét hay bản cũ",
+    MODEL_VIDEO_DUOC_CHON.filter((m) => /sora|seedance-1-5|wan-2\.[67]|hailuo-2|happyhorse-1\.0|grok-imagine-video$|kling-video-o1|avatar/.test(m.id)).map((m) => m.id), []);
+  kiem("chọn mô hình", "không mô hình trùng", new Set(MODEL_VIDEO_DUOC_CHON.map((m) => m.id)).size, MODEL_VIDEO_DUOC_CHON.length);
+  kiem("chọn mô hình", "mô hình nào cũng ghi phân khúc và thứ hạng (hoặc nói rõ chưa xếp hạng)",
+    [...MODEL_VIDEO_DUOC_CHON, ...MODEL_SUA_VIDEO_DUOC_CHON].filter((m) => !m.phanKhuc || !/Hạng \d|Chưa/.test(m.xepHang)).length, 0);
+  // Giá theo xu (cent) mỗi giây — đã thấy 02/10/2026: FLUX.3 / Runway / Grok báo "chưa rõ giá".
+  const runway = chuanHoaModel({ id: "runway/gen-4.5", supported_durations: [5], supported_resolutions: ["720p"],
+    supported_aspect_ratios: ["16:9", "9:16"], supported_frame_images: ["first_frame"], pricing_skus: { cents_per_second_output: "12" } })!;
+  const grok15 = chuanHoaModel({ id: "x-ai/grok-imagine-video-1.5", supported_durations: [5], supported_resolutions: ["480p", "720p"],
+    supported_aspect_ratios: ["9:16"], supported_frame_images: ["first_frame"],
+    pricing_skus: { cents_per_image_input: "1", cents_per_video_output_second_480p: "8", cents_per_video_output_second_720p: "14" } })!;
+  const flux3 = chuanHoaModel({ id: "black-forest-labs/flux-3-video", supported_durations: [5], supported_resolutions: ["720p", "1080p"],
+    supported_aspect_ratios: ["9:16"], pricing_skus: { cents_per_second_output: "17", cents_per_second_output_720p: "17", cents_per_second_output_1080p: "29" } })!;
+  const lc5 = (doNet: string, coAnhMoDau = false) => ({ soGiay: 5, doNet, khung: "9:16", coTieng: false, coAnhMoDau });
+  kiem("giá video", "giá theo xu mỗi giây (Runway 12 xu)", giaMoiGiay(runway, lc5("720p")), 0.12);
+  kiem("giá video", "giá theo xu mỗi giây theo độ nét (Grok 720p 14 xu)", giaMoiGiay(grok15, lc5("720p")), 0.14);
+  kiem("giá video", "giá theo xu ưu tiên đúng độ nét (FLUX.3 1080p 29 xu)", giaMoiGiay(flux3, lc5("1080p")), 0.29);
+  kiem("giá video", "phí ảnh đưa vào cộng một lần (Grok 5 giây 480p + ảnh mở đầu)",
+    Math.round(giaVideo(grok15, lc5("480p", true))! * 1e6) / 1e6, 0.41);
+  const heygen = chuanHoaModel({ id: "heygen/heygen-video-1", supported_durations: [5], supported_resolutions: ["480p"],
+    supported_aspect_ratios: ["9:16"], supported_frame_images: ["first_frame"],
+    pricing_skus: { duration_seconds_480p: "0.02", reference_duration_seconds_480p: "0.04" } })!;
+  kiem("giá video", "có ảnh tham chiếu thì dùng bảng giá tham chiếu (HeyGen)",
+    [giaVideo(heygen, lc5("480p")), giaVideo(heygen, lc5("480p"), 2)], [0.1, 0.2]);
+  const h3Gia = chuanHoaModel({ id: "minimax/hailuo-3", supported_durations: [5], supported_resolutions: ["2K"],
+    supported_aspect_ratios: ["9:16"], pricing_skus: { duration_seconds: "0.13", reference_images: "0.04" } })!;
+  const haiCanh = [{ soGiay: 5, moTa: "a", tomTat: "", noiTiep: false, loiDoc: "" }, { soGiay: 5, moTa: "b", tomTat: "", noiTiep: true, loiDoc: "" }];
+  // Cảnh 1 dùng ảnh tham chiếu (giá tham chiếu), cảnh 2 nối từ khung cuối (giá thường).
+  kiem("giá video", "giá dự án video dài tính ảnh tham chiếu ở cảnh đầu",
+    giaDuAn(heygen, haiCanh, { doNet: "480p", khung: "9:16", coTieng: false }, 1), 0.3);
+  const nguonGiaDai = fs.readFileSync(path.join(GOC, "server/services/video-dai.ts"), "utf8");
+  kiem("giá video", "tạo và sửa dự án đều truyền số ảnh tham chiếu vào giá",
+    [/giaDuAn\(model, canh, p\.lc, anh\.length, amThanh, cheDo, p\.tuKiem !== false, await giaKhungVideo\(amThanh\.veAnh\)\)/.test(nguonGiaDai),
+      /giaDuAn\(model, canh, lc, cu\.anh_tham_chieu\.length, amThanh, cu\.che_do, cu\.tu_kiem, await giaKhungVideo\(amThanh\.veAnh\)\)/.test(nguonGiaDai)], [true, true]);
+  // TD-04 (03/10/2026): khung mở đầu / ảnh mẫu nhân vật dùng mô hình vẽ ảnh người dùng chọn, không cố định.
+  const nguonKhungMoi = fs.readFileSync(path.join(GOC, "server/services/khung-video.ts"), "utf8");
+  kiem("khung video", "vẽ khung bằng mô hình người dùng chọn (dự án cũ: rẻ nhất nhận ảnh mẫu), qua API /images, ảnh mẫu không quá sức mô hình",
+    [/MODEL_ANH/.test(nguonKhungMoi), /const \{ m: model, lc \} = await layModelKhung\(p\.veAnh\);/.test(nguonKhungMoi),
+      /fetch\("https:\/\/openrouter\.ai\/api\/v1\/images"/.test(nguonKhungMoi), /\.slice\(0, Math\.min\(4, model\.soAnhThamChieu\)\)/.test(nguonKhungMoi),
+      (nguonGiaDai.match(/veAnh: amThanh\.veAnh,/g) ?? []).length, /model: model\.id,\s*prompt: deBai,/.test(nguonKhungMoi)], [false, true, true, true, 2, true]);
+  kiem("khung video", "giá dự án tính tiền khung theo mô hình đã chọn",
+    Math.round((giaDuAn(veoLite2, c3([false, true, false]), lcVeo, 0, undefined, "ghep_canh", false, 0.1)! - giaDuAn(veoLite2, c3([false, true, true]), lcVeo)!) * 1e6) / 1e6,
+    Math.round(3 * 0.1 * 1e6) / 1e6);
+  kiem("khung video", "lựa chọn mô hình khung lưu cùng dự án, loại giá trị rác",
+    [docAmThanh({ veAnh: { model: "openai/gpt-image-1-mini", chatLuong: "low" } }).veAnh, docAmThanh({ veAnh: { model: "x y" } }).veAnh],
+    [{ model: "openai/gpt-image-1-mini", doNet: undefined, chatLuong: "low" }, undefined]);
+  // Đã thấy: nhãn cố định làm "Tầm trung" đứng trước "Tiết kiệm" trong danh sách xếp theo giá.
+  kiem("chọn mô hình", "phân khúc theo giá thật mỗi giây",
+    [0.05, 0.089, 0.09, 0.14, 0.15, 0.4].map(phanKhucTheoGia), ["Tiết kiệm", "Tiết kiệm", "Tầm trung", "Tầm trung", "Cao cấp", "Cao cấp"]);
+  kiem("chọn mô hình", "danh sách gửi giao diện dùng phân khúc theo giá",
+    /phanKhuc: gia === null \|\| lyDo \? \(m\.phanKhuc \?\? null\) : phanKhucTheoGia\(gia \/ lc\.soGiay\)/.test(fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8")), true);
+  kiem("giá video", "ảnh tham chiếu H3 cộng theo từng ảnh",
+    Math.round(giaVideo(h3Gia, lc5("2K"), 2)! * 1e6) / 1e6, 0.73);
   // Wan 3.0 (hạng 1 sửa video) từ chối video đầu vào qua nhà cung cấp; H3 đã thử thật sửa đúng.
   kiem("chọn mô hình", "sửa video: chỉ mô hình đã thử thật nhận video đầu vào", MODEL_SUA_VIDEO_DUOC_CHON.map((m) => m.id), ["minimax/hailuo-3"]);
   const nguonChonVideo = fs.readFileSync(path.join(GOC, "server/services/video-ai.ts"), "utf8");
   kiem("chọn mô hình", "danh sách tạo video lọc theo mô hình đã chọn",
-    /const ds = MODEL_VIDEO_DUOC_CHON\.flatMap\(/.test(nguonChonVideo), true);
+    /const daChon = MODEL_VIDEO_DUOC_CHON\.flatMap\(/.test(nguonChonVideo), true);
   kiem("chọn mô hình", "danh sách sửa video lọc theo mô hình đã chọn",
     /for \(const chon of MODEL_SUA_VIDEO_DUOC_CHON\)/.test(fs.readFileSync(path.join(GOC, "server/services/video-sua.ts"), "utf8")), true);
   const h3Sua = { id: "minimax/hailuo-3", ten: "", moTa: "", giaMoiGiay: 0.13, toiThieu: 0, giayToiThieu: 5 };
@@ -3821,10 +4634,9 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonSua = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-sua.ts"), "utf8"));
   const nguonTrend = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/video-trend.ts"), "utf8"));
   for (const [ten, ma] of [["sửa video", nguonSua], ["trend", nguonTrend]] as const) {
-    const viTriBat = ma.indexOf("if (!(await videoDangBat(p.trangId))) {");
     const viTriKho = ma.search(/diaChiKhoHopLe\(p\.videoNguon, /);
     const viTriGoi = Math.max(ma.indexOf("await goiTaoViec("), ma.indexOf("await chatJson("));
-    kiem(ten, "kiểm công tắc bật và địa chỉ kho TRƯỚC khi gọi bên AI", viTriBat > 0 && viTriKho > viTriBat && viTriGoi > viTriKho, true);
+    kiem(ten, "kiểm địa chỉ kho TRƯỚC khi gọi bên AI", viTriKho > 0 && viTriGoi > viTriKho, true);
   }
   kiem("sửa video", "video nguồn quá dài bị từ chối trước khi tốn tiền",
     /if \(soGiay > TOI_DA_GIAY_NGUON\) \{\s*throw/.test(nguonSua) && nguonSua.indexOf("if (soGiay > TOI_DA_GIAY_NGUON)") < nguonSua.indexOf("await goiTaoViec("), true);
@@ -3888,9 +4700,9 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("chi phí", "đọc mềm: không phải đối tượng thì ra rỗng, không vỡ", [banGhi(undefined), banGhi(null), banGhi("x"), banGhi([1])], [{}, {}, {}, {}]);
   const nguonAnhAi = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/image-ai.ts"), "utf8"));
   kiem("chi phí", "tạo ảnh ghi sổ NGAY khi nhà cung cấp tính tiền, trước khi đưa lên kho",
-    (/\n  await ghiLuotAi\(\{\s*userId: params\.userId,\s*task: "image",\s*viec: "tao_anh",/.exec(nguonAnhAi)?.index ?? Infinity) <
+    (/\n  await ghiLuotAi\(\{\s*userId: params\.userId,\s*task: "image",\s*viec: params\.viec \?\? "tao_anh",/.exec(nguonAnhAi)?.index ?? Infinity) <
       nguonAnhAi.indexOf("zernio.presignMedia("), true);
-  kiem("chi phí", "sổ ảnh lưu mã giao dịch", /viec: "tao_anh",[\s\S]{0,120}?maNcc: data\.id \?\? null,/.test(nguonAnhAi), true);
+  kiem("chi phí", "sổ ảnh lưu mã giao dịch", /viec: params\.viec \?\? "tao_anh",[\s\S]{0,120}?maNcc: data\.id \?\? null,/.test(nguonAnhAi), true);
   const nguonChiPhi = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8"));
   kiem("chi phí", "đọc dữ liệu nhà cung cấp bằng cách mềm, không ném lỗi", /asRecord\(/.test(nguonChiPhi), false);
   kiem("chi phí", "nội dung cảnh báo được thoát ký tự trước khi gửi Telegram", /escapeHtml\(c\.noiDung\)/.test(nguonChiPhi), true);
@@ -4100,13 +4912,15 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const nguonQT = fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8");
   kiem("tự khoá", "máy chủ từ chối tự cấp lại mật khẩu cho chính mình",
     /"\/accounts\/:id\/reset-password"[\s\S]{0,1200}?if \(dich\.id === req\.user!\.id\) \{\s*throw new AppError\(/.test(nguonQT), true);
-  kiem("tự khoá", "danh sách tài khoản đánh dấu dòng của chính mình", /\(u\.id = \$1\) AS la_toi,/.test(nguonQT), true);
-  const nguonTrangQT = fs.readFileSync(path.join(GOC, "src/pages/Admin.tsx"), "utf8");
+  kiem("tự khoá", "danh sách tài khoản đánh dấu dòng của chính mình",
+    /\(u\.id = \$1\) AS la_toi,/.test(fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8")) &&
+      /layDanhSachQuanLy\(\{ loai: "tong" \}, req\.user!\.id\)/.test(nguonQT), true);
+  const nguonTrangQT = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
   kiem("tự khoá", "dòng của mình mở hộp đổi mật khẩu (nhập mật khẩu hiện tại), không cấp lại",
-    /onClick=\{\(\) => \(t\.la_toi \? setDoiMatKhauMo\(true\) : capLaiMatKhau\(t\)\)\}/.test(nguonTrangQT) &&
+    /t\.la_toi\s*\? \{ ten: 'Đổi mật khẩu', onChon: \(\) => setDoiMatKhauMo\(true\) \}\s*: \{ ten: 'Đặt lại mật khẩu', onChon: \(\) => setDatMatKhau\(\{ tk: t, mk: '' \}\) \},/.test(nguonTrangQT) &&
       /\{doiMatKhauMo && <DoiMatKhau onClose=/.test(nguonTrangQT), true);
   kiem("tự khoá", "mật khẩu tạm hiện ở cửa sổ nổi, không lẫn phía trên trang",
-    /\{matKhauTam && \(\s*<HopThoai[\s\S]{0,500}?dongKhiBamNgoai=\{false\}/.test(nguonTrangQT), true);
+    /\{matKhauVua && \(\s*<HopThoai[\s\S]{0,500}?dongKhiBamNgoai=\{false\}/.test(nguonTrangQT), true);
 }
 
 // ---------------------------------------------------------------------------
@@ -4127,7 +4941,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     if (!r) throw new Error(`không đọc được màu ${v}`);
     return { c: [+r[1], +r[2], +r[3]], a: r[4] === undefined ? 1 : +r[4] };
   };
-  const mau = Object.fromEntries([...nguonCss.matchAll(/--color-([a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], docMau(m[2])]));
+  // Chỉ bảng màu gốc (@theme) — các vùng đổi biến màu theo chỗ (vd. .vung-video) đo riêng ở dưới.
+  const bangMau = nguonCss.slice(nguonCss.indexOf("@theme {"), nguonCss.indexOf("\n}", nguonCss.indexOf("@theme {")));
+  const mau = Object.fromEntries([...bangMau.matchAll(/--color-([a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], docMau(m[2])]));
   const hexMau = (c: number[]) => "#" + c.map((x) => Math.round(x).toString(16).padStart(2, "0")).join("");
   const tren = (tren: Mau, duoi: string) => hexMau(tren.c.map((x, i) => x * tren.a + docMau(duoi).c[i] * (1 - tren.a)));
   const kenh = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -4155,13 +4971,40 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     ["chữ gợi ý (70%) trên ô nhập", tp(tron(hexMau(mau["on-surface-variant"].c), O, 0.7), O), 4.5],
     ["chữ nhập vào trên ô nhập", tp(hexMau(mau["on-surface"].c), O), 7],
     ["viền ô nhập ↔ thẻ", tp(tren(mau["outline-variant"], THE), THE), 2],
+    // Xưởng AI: nút ảnh xanh ngọc, nút video hồng tím (chủ dự án 04/10/2026) — chữ trên nút phải đọc rõ.
+    ["chữ trên nút xanh ngọc (ảnh)", tp(hexMau(mau["on-primary"].c), hexMau(mau.primary.c)), 4.5],
+    ["chữ trên nút hồng tím (video)", tp(hexMau(mau["on-secondary-fixed"].c), hexMau(mau.secondary.c)), 4.5],
   ] as const;
   kiem("giao diện", "mọi cặp màu đạt độ tương phản tối thiểu",
     datChuan.filter(([, v, min]) => !(v >= min)).map(([ten, v, min]) => `${ten}: ${v.toFixed(2)} < ${min}`), []);
+  kiem("giao diện", "cột video của Xưởng: màu chính thành hồng tím, chữ trên nút dùng màu đã đo đạt chuẩn",
+    [/\.vung-video \{\s*--color-primary: var\(--color-secondary\);\s*--color-on-primary: var\(--color-on-secondary-fixed\);/.test(nguonCss),
+      /<section className="vung-video /.test(fs.readFileSync(path.join(GOC, "src/components/XuongAi.tsx"), "utf8")),
+      ["XuongAi.tsx", "VideoAiPanel.tsx"].filter((t) => /bg-secondary text-white/.test(fs.readFileSync(path.join(GOC, "src/components", t), "utf8")))],
+    [true, true, []]);
   kiem("giao diện", "chữ gợi ý trong ô nhập có quy tắc chung đủ sáng",
     /input::placeholder,\s*textarea::placeholder \{\s*color: color-mix\(in srgb, var\(--color-on-surface-variant\) 70%, transparent\);/.test(nguonCss), true);
 
   const tepGiaoDien = moiTrang(path.join(GOC, "src"));
+  // 04/10/2026 (chủ dự án): "thay cái thông báo này bằng chính lệnh mô hình chúng ta, không được sử dụng thông báo
+  // qua trang kiểu này nữa" — hộp confirm/prompt/alert của trình duyệt hiện "localhost:3000 says", lệch giao diện.
+  {
+    const hopTrinhDuyet = tepGiaoDien.flatMap((tep) =>
+      dongNgoaiChuThich(fs.readFileSync(tep, "utf8"))
+        .filter(({ d }) => /(^|[^.\w])(window\.)?(confirm|prompt|alert)\(/.test(d))
+        .map((x) => `${path.basename(tep)}:${x.dong}`));
+    const nguonHopHoi = fs.readFileSync(path.join(GOC, "src/components/HopHoi.tsx"), "utf8");
+    kiem("giao diện", "không còn hộp confirm / prompt / alert của trình duyệt ở bất kỳ đâu — dùng hộp của app (HopHoi)",
+      [hopTrinhDuyet.join(", "),
+        /<App \/>\s*\{\/\*[^*]*\*\/\}\s*<NoiHopHoi \/>/.test(fs.readFileSync(path.join(GOC, "src/main.tsx"), "utf8")),
+        // Esc chỉ đóng hộp hỏi, không đóng luôn hộp thoại bên dưới (vd. ô Soạn bài).
+        /window\.addEventListener\('keydown', phim, true\);/.test(nguonHopHoi) && /e\.stopImmediatePropagation\(\);/.test(nguonHopHoi),
+        // Việc không lấy lại được: nút đỏ.
+        /t\.nguyHiem\s*\? NUT_CHINH\.replace\('bg-primary text-on-primary', 'bg-error text-on-error'\)/.test(nguonHopHoi),
+        // Ô nhập có kiểm tra thì khoá nút đồng ý tới khi hợp lệ.
+        /disabled=\{Boolean\(loi\)\}/.test(nguonHopHoi)],
+      ["", true, true, true, true]);
+  }
   const timLop = (re: RegExp) => tepGiaoDien.flatMap((tep) =>
     dongNgoaiChuThich(fs.readFileSync(tep, "utf8")).filter(({ d }) => re.test(d)).map((x) => `${path.basename(tep)}:${x.dong}`));
   kiem("giao diện", "không có thẻ nền trong suốt chìm vào nền (bg-surface…/NN)",
@@ -4178,13 +5021,14 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("giao diện", "tiêu đề mục không dùng màu xanh của nút bấm", tieuDeXanh.join(", "), "");
 
   // Mọi hộp thoại đi qua khung chung. Chỉ còn lớp phủ của menu/thanh bên được dùng fixed inset-0.
-  const DUOC_PHEP = ["HopThoai.tsx", "Sidebar.tsx", "TopNavBar.tsx", "Orders.tsx"];
+  // DangXemThay.tsx: menu xổ xuống trong thanh tiêu đề (như menu tài khoản của TopNavBar) — lớp phủ để bấm ra ngoài thì đóng.
+  const DUOC_PHEP = ["HopThoai.tsx", "Sidebar.tsx", "TopNavBar.tsx", "Orders.tsx", "DangXemThay.tsx"];
   // Chủ dự án chọn tông của thanh menu cho cả app: nền lưới + quầng sáng xanh ngọc.
   kiem("giao diện", "nền chung của app cùng chất liệu với menu",
     /\.nen-app \{[\s\S]{0,600}?background-size: auto, auto, 24px 24px, 24px 24px;/.test(nguonCss) &&
       /<div className="flex h-screen w-full bg-background nen-app">/.test(fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8")), true);
   kiem("giao diện", "trang không tự phủ nền đặc che mất nền chung",
-    ["Dashboard", "Ads", "Content", "AutoScripts", "Orders", "Admin", "Connections", "Inbox", "Analytics", "QuanLyTrang", "TelegramAlerts", "Pricing"]
+    ["Dashboard", "Ads", "Content", "AutoScripts", "Orders", "QuanLy", "Connections", "Inbox", "Analytics", "TelegramAlerts", "Pricing"]
       .filter((t) => /<main className="[^"]*\bbg-background\b(?!\/)/.test(fs.readFileSync(path.join(GOC, `src/pages/${t}.tsx`), "utf8"))), []);
   // Thứ NỔI trên nội dung phải đặc — thẻ kính trong suốt thì chữ trang sau lẫn vào.
   kiem("giao diện", "hộp thoại dùng nền đặc riêng, không dùng màu thẻ kính",
@@ -4237,7 +5081,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       .map((x) => `${path.basename(tep)}:${x.dong}`)).join(", "), "");
   // Đã bị chê 02/10/2026: các phần cùng một màu, không có viền riêng — không phân biệt được.
   // Mỗi phần là một khung viền màu riêng; hai phần liền nhau không cùng màu.
-  for (const [tep, toiThieu] of [["src/pages/Content.tsx", 4], ["src/pages/AutoScripts.tsx", 6], ["src/pages/Orders.tsx", 3]] as const) {
+  // Content: Xưởng AI (khung riêng) nằm ở XuongAi.tsx, khối ảnh đăng kèm đã gộp vào khối nội dung (03/10/2026).
+  for (const [tep, toiThieu] of [["src/pages/Content.tsx", 3], ["src/pages/AutoScripts.tsx", 6], ["src/pages/Orders.tsx", 3]] as const) {
     const mauLanLuot = [...fs.readFileSync(path.join(GOC, tep), "utf8").matchAll(/className="khung-muc mau-([a-z]+)"/g)].map((m) => m[1]);
     kiem("phân tách phần", `${path.basename(tep)}: các phần có khung viền màu riêng`, mauLanLuot.length >= toiThieu, true);
     kiem("phân tách phần", `${path.basename(tep)}: hai phần liền nhau không cùng màu`,
@@ -4253,7 +5098,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     (fs.readFileSync(path.join(GOC, "src/pages/Orders.tsx"), "utf8").match(/fixed inset-0/g) ?? []).length, 1);
   const nguonHop = fs.readFileSync(path.join(GOC, "src/components/HopThoai.tsx"), "utf8");
   kiem("giao diện", "khung hộp thoại chỉ có đúng hai cỡ, rộng gần trọn màn hình",
-    /lon: 'w-\[min\(1240px,96vw\)\] h-\[min\(92vh,1100px\)\]',\s*vua: 'w-\[min\(880px,94vw\)\] max-h-\[90vh\]',\s*\};/.test(nguonHop), true);
+    /lon: 'w-\[min\(1800px,96vw\)\] h-\[min\(92vh,1100px\)\]',\s*vua: 'w-\[min\(880px,94vw\)\] max-h-\[90vh\]',\s*\};/.test(nguonHop), true);
   kiem("giao diện", "hộp thoại đóng được bằng phím Esc", /if \(e\.key === 'Escape'\) onDong\(\);/.test(nguonHop), true);
   kiem("giao diện", "thân hộp thoại cuộn được (đã thấy: chi tiết đơn hàng bị cắt, không cuộn)",
     /<div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-6">\{children\}<\/div>/.test(nguonHop), true);
@@ -4262,6 +5107,663 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Ảnh: chọn mô hình rẻ tới đắt, biết giá một ảnh; ảnh tự động theo lịch đăng (chủ dự án 03/10/2026)
+// ---------------------------------------------------------------------------
+{
+  const mo = (gia: ModelAnh["gia"], them: Partial<ModelAnh> = {}): ModelAnh =>
+    ({ id: "x", ten: "x", xepHang: "", doNet: [], chatLuong: [], khung: [], soAnhThamChieu: 1, gia, ...them });
+  const tron = (x: number | null) => (x === null ? null : Math.round(x * 1e6) / 1e6);
+  // Bảng giá thật của nhà cung cấp, đo 03/10/2026.
+  const flux3 = mo([768, "1k", "1.5k", "2k", "4k"].map((v, i) => ({ billable: "output_image", unit: "image", cost_usd: [0.041, 0.048, 0.07, 0.1, 0.607][i], variant: String(v) })),
+    { doNet: ["768", "1K", "1.5K", "2K", "4K"] });
+  kiem("giá ảnh", "theo ảnh, chia biến thể độ nét: đúng mức từng độ nét",
+    ["768", "1K", "2K", "4K"].map((d) => giaAnh(flux3, { doNet: d })), [0.041, 0.048, 0.1, 0.607]);
+  const sdPro = mo([{ billable: "output_image", unit: "image", cost_usd: 0.045 }, { billable: "output_image", unit: "image", cost_usd: 0.09, variant: "high_resolution" },
+    { billable: "input_image", unit: "image", cost_usd: 0.003 }], { doNet: ["1K", "2K"] });
+  kiem("giá ảnh", "biến thể 'high_resolution' = độ nét trên mức thấp nhất; cộng tiền ảnh mẫu đưa vào",
+    [giaAnh(sdPro, { doNet: "1K" }), giaAnh(sdPro, { doNet: "2K" }), tron(giaAnh(sdPro, { doNet: "1K", soAnhVao: 1 }))], [0.045, 0.09, 0.048]);
+  const grok = mo(["low_1k", "low_2k", "medium_1k", "medium_2k"].map((v, i) => ({ billable: "output_image", unit: "image", cost_usd: [0.04, 0.06, 0.06, 0.08][i], variant: v })),
+    { doNet: ["1K", "2K"], chatLuong: ["low", "medium"] });
+  kiem("giá ảnh", "biến thể chất lượng + độ nét", [giaAnh(grok, { doNet: "2K", chatLuong: "medium" }), giaAnh(grok)], [0.08, 0.04]);
+  kiem("giá ảnh", "theo megapixel: ảnh 1K ≈ 1,05 MP", tron(giaAnh(mo([{ billable: "output_image", unit: "megapixel", cost_usd: 0.03 }]))), 0.0315);
+  // Số token mỗi ảnh theo tài liệu hãng: Google 1.120 token / ảnh 1K; OpenAI 272 / 1.056 / 4.160.
+  const nb2 = mo([{ billable: "output_image", unit: "token", cost_usd: 0.00006 }], { doNet: ["512", "1K", "2K", "4K"], tokenMoiAnh: { "512": 747, "1K": 1120, "2K": 1680, "4K": 2520 } });
+  const mini = mo([{ billable: "output_image", unit: "token", cost_usd: 0.000008 }], { chatLuong: ["low", "medium", "high"], tokenMoiAnh: { low: 272, medium: 1056, high: 4160 } });
+  kiem("giá ảnh", "theo token: × số token một ảnh theo độ nét / chất lượng (ra đúng giá niêm yết của hãng)",
+    [tron(giaAnh(nb2, { doNet: "1K" })), tron(giaAnh(nb2, { doNet: "4K" })), tron(giaAnh(mini, { chatLuong: "low" })), tron(giaAnh(mini, { chatLuong: "high" }))],
+    [0.0672, 0.1512, 0.002176, 0.03328]);
+  kiem("giá ảnh", "không có số token / không có giá ra → không báo giá (không đoán)",
+    [giaAnh(mo([{ billable: "output_image", unit: "token", cost_usd: 0.00003 }])), giaAnh(mo([]))], [null, null]);
+  kiem("giá ảnh", "phân khúc theo giá thật mỗi ảnh", [0.002, 0.0199, 0.02, 0.059, 0.06, 0.6].map(phanKhucAnh),
+    ["Tiết kiệm", "Tiết kiệm", "Tầm trung", "Tầm trung", "Cao cấp", "Cao cấp"]);
+  const doc = chuanHoaModelAnh({ name: "GPT" }, {
+    supported_parameters: { quality: { values: ["auto", "low", "medium", "high", "xhigh", "max"] }, aspect_ratio: { values: ["1:1", "auto"] }, input_references: { max: 16 } },
+    pricing: [{ billable: "output_image", unit: "token", cost_usd: 0.00003 }, { billable: "x" }],
+  }, { id: "openai/gpt-image-2.5-flare", xepHang: "Hạng 2", tokenMoiAnh: { low: 200, medium: 1767, high: 7033 } });
+  kiem("giá ảnh", "chỉ đưa ra mức chất lượng báo giá được (bỏ auto / xhigh / max), bỏ khung 'auto', đọc số ảnh mẫu tối đa",
+    [doc.chatLuong, doc.khung, doc.soAnhThamChieu, doc.gia.length], [["low", "medium", "high"], ["1:1"], 16, 1]);
+  // Mô hình tính theo ảnh (không có bảng token) cũng không được đưa ra "auto" / "max": không biết trước giá.
+  kiem("giá ảnh", "mô hình tính theo ảnh: vẫn bỏ chất lượng auto / xhigh / max",
+    chuanHoaModelAnh({}, { supported_parameters: { quality: { values: ["auto", "low", "max"] } }, pricing: [] }, { id: "y", xepHang: "" }).chatLuong, ["low"]);
+  kiem("giá ảnh", "đã bỏ bản cũ / hạng thấp / không báo giá được / chặn tiếng Việt (Gemini 2.5 Flash Image, GPT Image 1/2, Seedream 4.5, Krea, Muse, MAI)",
+    ["google/gemini-2.5-flash-image", "openai/gpt-image-1", "openai/gpt-image-2", "bytedance-seed/seedream-4.5", "krea/krea-2-large", "meta/muse-image",
+      "microsoft/mai-image-2.6", "microsoft/mai-image-2.6-flash"]
+      .some((id) => MODEL_ANH_DUOC_CHON.some((m) => m.id === id)), false);
+  kiem("giá ảnh", "giữ các mô hình nổi tiếng, từ rẻ nhất tới cao cấp nhất",
+    ["openai/gpt-image-1-mini", "bytedance-seed/seedream-5-0-flash", "google/gemini-3.1-flash-image", "google/gemini-3-pro-image", "openai/gpt-image-2.5-sunburst", "x-ai/grok-imagine-image-2.0"]
+      .every((id) => MODEL_ANH_DUOC_CHON.some((m) => m.id === id)), true);
+
+  const nguonAnhMoi = fs.readFileSync(path.join(GOC, "server/services/image-ai.ts"), "utf8");
+  kiem("vẽ ảnh", "gọi API vẽ ảnh của OpenRouter (/images) với mô hình người dùng chọn, ảnh mẫu đúng dạng input_references",
+    [/fetch\(`\$\{GOC_API\}\/images`/.test(nguonAnhMoi), /model: model\.id,\s*prompt: moTa,/.test(nguonAnhMoi),
+      /input_references: \[\{ type: "image_url", image_url: \{ url: anhMau \} \}\]/.test(nguonAnhMoi), /model: MODEL_ANH,/.test(nguonAnhMoi.split("export async function taoAnhChoBai")[1] ?? "")],
+    [true, true, true, false]);
+  kiem("vẽ ảnh", "mô hình không nhận ảnh mẫu thì báo trước, không gửi đi tốn tiền",
+    /if \(anhMau && model\.soAnhThamChieu < 1\) \{\s*throw new AppError/.test(nguonAnhMoi), true);
+  kiem("vẽ ảnh", "nhà cung cấp không báo tiền thì ghi sổ theo bảng giá, không để 0",
+    /const tien = data\.usage\?\.cost \?\? giaAnh\(model, \{ \.\.\.lc, soAnhVao: anhMau \? 1 : 0 \}\) \?\? 0;/.test(nguonAnhMoi), true);
+
+  // Ảnh tự động theo lịch đăng.
+  kiem("ảnh tự động", "mặc định tắt, chưa chọn mô hình; lịch cũ không có mục ảnh vẫn đọc được",
+    [docAnhTuDong({}).bat, docAnhTuDong({}).model, docLichTuDang({}).anh.bat, docAnhTuDong({ bat: "true" }).bat], [false, "", false, false]);
+  kiem("ảnh tự động", "đọc đúng lựa chọn, loại giá trị rác",
+    docAnhTuDong({ bat: true, model: "openai/gpt-image-1-mini", chatLuong: "low", khung: "1:1; drop", chuTrongAnh: "khong", chanNguoiThat: true }),
+    { bat: true, model: "openai/gpt-image-1-mini", doNet: undefined, chatLuong: "low", khung: undefined, chuTrongAnh: "khong", chanNhanHieuGia: false, chanNguoiThat: true });
+  const nguonLich = fs.readFileSync(path.join(GOC, "server/services/autopilot.ts"), "utf8");
+  kiem("ảnh tự động", "ảnh đi cùng bài: lưu vào media của bài, ghi sổ việc riêng, theo luật/chữ người dùng chọn",
+    [/INSERT INTO posts \(user_id, content, media,/.test(nguonLich), /JSON\.stringify\(media\),/.test(nguonLich), /viec: "tao_anh_tu_dong",/.test(nguonLich),
+      /chuTrongAnh: cau\.anh\.chuTrongAnh,/.test(nguonLich), /media = \[\{ url: anh\.url, type: "image" \}\];/.test(nguonLich)], [true, true, true, true, true]);
+  kiem("ảnh tự động", "vẽ ảnh lỗi → bài chuyển chờ duyệt (không tự đăng trơn chữ), ghi rõ lý do, báo Telegram",
+    [/const guard: AutoPilotConfig\["guard"\] = loiAnh \? "approve" : cau\.guard;/.test(nguonLich), /guard === "publish" \? "draft" : "pending_approval"/.test(nguonLich),
+      /cau\.guard === "publish" \? "draft"/.test(nguonLich), /\(loiAnh \? `\\n\\n⚠️/.test(nguonLich)], [true, true, false, true]);
+  // 03/10/2026 chủ dự án đổi quyết định: video vào lịch tự đăng cùng cơ chế công tắc như ảnh, có trần tiền tháng.
+  kiem("video tự động", "chỉ làm video khi bật, đã chọn mô hình; video lỗi / chạm trần → ảnh thay thế",
+    [/if \(cau\.video\.bat && cau\.video\.model && trangId\) \{\s*try \{\s*choVideo = await batDauVideoTuDong\(/.test(nguonLich),
+      /if \(!media\.length\) \{\s*try \{\s*const thay = await anhThayThe\(/.test(nguonLich)], [true, true]);
+  const nguonRtLich = fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8");
+  kiem("ảnh tự động", "bật mà chưa chọn mô hình thì không lưu; mô hình phải có thật, thông số chuẩn theo mô hình",
+    [/if \(sach\.anh\.bat\) \{\s*if \(!sach\.anh\.model\) throw new AppError/.test(nguonRtLich), /const \{ lc \} = await layModelAnh\(sach\.anh\);/.test(nguonRtLich)], [true, true]);
+  const nguonPanel = fs.readFileSync(path.join(GOC, "src/components/AutoPilotPanel.tsx"), "utf8");
+  kiem("ảnh tự động", "giao diện: công tắc, chọn mô hình có giá, tiền ảnh mỗi tuần; vẽ tay cũng chọn mô hình và thấy giá ảnh vừa vẽ",
+    [/Tự tạo ảnh theo nội dung bài/.test(nguonPanel), /<ChonMoHinhAnh[\s\S]{0,200}onGia=\{setGiaAnh\}/.test(nguonPanel), /vndAnh\(giaAnh \* soBaiMoiTuan\)/.test(nguonPanel),
+      /\.\.\.luatAnh,\s*\.\.\.veAnh,/.test(nguonXuongAi), /Ảnh vừa vẽ: <b className="text-primary">\{vndAnh\(tienAnhCuoi\)\}/.test(nguonXuongAi)],
+    [true, true, true, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// Xưởng AI: kỹ năng theo việc người bán, kiểu kịch bản, nhiều phương án, thư viện sản phẩm/nhân vật
+// ---------------------------------------------------------------------------
+{
+  kiem("kiểu kịch bản", "mặc định 'tự do', chỉ nhận 4 kiểu, loại giá trị rác",
+    [docAmThanh({}).kieuKichBan, docAmThanh({ kieuKichBan: "ugc" }).kieuKichBan, docAmThanh({ kieuKichBan: "phim_ngan" }).kieuKichBan,
+      docAmThanh({ kieuKichBan: "quang_cao" }).kieuKichBan, docAmThanh({ kieuKichBan: "x" }).kieuKichBan], ["tu_do", "ugc", "phim_ngan", "quang_cao", "tu_do"]);
+  const nguonDaiKieu = fs.readFileSync(path.join(GOC, "server/services/video-dai.ts"), "utf8");
+  kiem("kiểu kịch bản", "là lựa chọn của người dùng: 'tự do' không thêm câu nào; 'quảng cáo' = cấu trúc quảng cáo; UGC / phim ngắn thêm đúng câu của kiểu đó",
+    [/p\.kieu === "ugc" \|\| p\.kieu === "phim_ngan" \? KIEU_KICH_BAN\[p\.kieu\] : "",/.test(nguonDaiKieu), /kieu: amVao\.kieuKichBan,/.test(nguonDaiKieu),
+      /cauTrucQuangCao: amVao\.cauTrucQuangCao \|\| amVao\.kieuKichBan === "quang_cao",/.test(nguonDaiKieu),
+      /phone/.test(KIEU_KICH_BAN.ugc), /twist/.test(KIEU_KICH_BAN.phim_ngan)], [true, true, true, true, true]);
+
+  const nguonAiPanel = fs.readFileSync(path.join(GOC, "src/components/VideoAiPanel.tsx"), "utf8");
+  const nguonDaiPanel = fs.readFileSync(path.join(GOC, "src/components/VideoDaiPanel.tsx"), "utf8");
+  kiem("xưởng AI", "4 kỹ năng theo việc người bán; 'Từ ảnh tham chiếu' đã gộp vào 'Theo kịch bản'",
+    [(nguonAiPanel.match(/^\s*\{?\s*id: '(mot_canh|kich_ban|trend|sua_video)'/gm) ?? []).length, /id: 'tham_chieu'/.test(nguonAiPanel)], [4, false]);
+  kiem("xưởng AI", "ảnh sản phẩm / nhân vật dùng được ở MỌI kiểu video dài (không còn chỉ ở 'ảnh tham chiếu')",
+    [/loai === 'tham_chieu' && \(/.test(nguonDaiPanel), /Ảnh sản phẩm \/ nhân vật — để AI làm đúng hàng thật/.test(nguonDaiPanel)], [false, true]);
+  kiem("xưởng AI", "nhiều phương án kịch bản: N bản nháp song song, đổi phương án giữ chỗ đã sửa",
+    [/Array\.from\(\{ length: soPhuongAn \}, \(\) =>\s*api\.ai\.taoDuAnVideo\(/.test(nguonDaiPanel),
+      /setNhapDs\(\(ds\) => ds\.map\(\(x\) => \(x\.id === nhap\.id \? nhap : x\)\)\);/.test(nguonDaiPanel)], [true, true]);
+  kiem("xưởng AI", "phần phụ gập vào 'Tuỳ chỉnh thêm': video dài (lời đọc, nhạc, chữ, luật, tự kiểm, mô hình khung); video ngắn (chữ, luật)",
+    [/<details className="bg-surface-container rounded-xl px-4 py-3 border border-outline-variant">\s*<summary[^>]*>\s*Tuỳ chỉnh thêm/.test(nguonDaiPanel),
+      /cheDo === 'mot_canh' && \(\s*<details/.test(nguonAiPanel), (nguonAiPanel.match(/<LuatNoiDungChon/g) ?? []).length], [true, true, 1]);
+  kiem("xưởng AI", "thư viện dùng ở cả ảnh mẫu, ảnh mở đầu video ngắn, ảnh sản phẩm video dài",
+    [/<ThuVienAnh/.test(nguonXuongAi), /<ThuVienAnh/.test(nguonAiPanel), /<ThuVienAnh onDung=\{\(url\) => setAnhThamChieu/.test(nguonDaiPanel)], [true, true, true]);
+
+  // Thư viện: lưu nguyên tệp (kho media của nhà cung cấp chỉ giữ tệp tạm 7 ngày).
+  const nguonTv = fs.readFileSync(path.join(GOC, "server/services/thu-vien-anh.ts"), "utf8");
+  const migTv = fs.readFileSync(path.join(GOC, "server/migrations/038_thu_vien_anh.sql"), "utf8");
+  kiem("thư viện", "lưu nguyên tệp trong cơ sở dữ liệu; dùng thì đưa lên kho lại để có địa chỉ mới",
+    [/du_lieu\s+BYTEA\s+NOT NULL/.test(migTv), /zernio\.presignMedia\(/.test(nguonTv.split("export async function dungAnh")[1] ?? "")], [true, true]);
+  kiem("thư viện", "chỉ nhận ảnh từ kho của app, JPG/PNG/WebP, tối đa 5 MB, 60 ảnh mỗi Trang",
+    [/if \(!laDiaChiKho\(that\)\) throw new AppError/.test(nguonTv), /const KIEU_HOP_LE = \["image\/jpeg", "image\/png", "image\/webp"\];/.test(nguonTv),
+      /if \(du\.length > TOI_DA_BYTE\) throw/.test(nguonTv), /if \(Number\(dem\?\.n \?\? 0\) >= TOI_DA_MOI_TRANG\)/.test(nguonTv)], [true, true, true, true]);
+  kiem("thư viện", "ảnh chỉ chủ tài khoản đọc được; dùng / xoá chỉ trong Trang của mình",
+    [/WHERE id = \$1 AND user_id = \$2/.test(nguonTv), /FROM thu_vien_anh WHERE id = \$1 AND trang_id = \$2/.test(nguonTv), /DELETE FROM thu_vien_anh WHERE id = \$1 AND trang_id = \$2/.test(nguonTv)],
+    [true, true, true]);
+}
+
+{
+  const nguonLichUi = fs.readFileSync(path.join(GOC, "src/components/AutoPilotPanel.tsx"), "utf8");
+  kiem("lịch tự đăng", "công tắc tự tạo ảnh nằm ngay sau chọn kênh (không bị chìm cuối bảng); dòng tóm tắt nói rõ có ảnh hay chỉ chữ",
+    [nguonLichUi.indexOf("{/* Ảnh đăng kèm") > nguonLichUi.indexOf("{/* Kênh đăng") && nguonLichUi.indexOf("{/* Ảnh đăng kèm") < nguonLichUi.indexOf("{/* Chủ đề */}"),
+      /: 'chỉ đăng chữ \(chưa bật ảnh \/ video\)'/.test(nguonLichUi)], [true, true]);
+  kiem("lịch tự đăng", "nhãn 'Đang chạy' chỉ theo lịch ĐÃ LƯU; thay đổi chưa lưu thì hiện nhãn cam 'Chưa lưu'",
+    [/\{dangChay \? 'Đang chạy' : 'Chưa bật'\}/.test(nguonLichUi), /const dangChay = Boolean\(cauLuu\?\.enabled\);/.test(nguonLichUi),
+      /\{cau\.enabled \? 'Đang chạy' : 'Chưa bật'\}/.test(nguonLichUi), /\{chuaLuu && \(\s*<span[^>]*text-orange-400[^>]*>\s*Chưa lưu/.test(nguonLichUi),
+      (nguonLichUi.match(/setCauLuu\(data\.config\);/g) ?? []).length], [true, true, false, true, 2]);
+  const nguonAnhAi2 = fs.readFileSync(path.join(GOC, "server/services/image-ai.ts"), "utf8");
+  kiem("vẽ ảnh", "công tắc 'Ảnh tạo riêng': tắt = theo bài; bật = ô mô tả riêng, gửi mô tả thay cho bài",
+    [/const deBaiAnh = ghepDeBai\(!anhRieng, noiDung, moTa\);/.test(nguonXuongAi), /value=\{moTa\}/.test(nguonXuongAi),
+      /content: !anhRieng \? deBaiAnh : '',/.test(nguonXuongAi), /prompt: anhRieng \? deBaiAnh \|\| undefined : undefined,/.test(nguonXuongAi)], [true, true, true, true]);
+  kiem("vẽ ảnh", "ảnh độc lập vẽ đúng mô tả, không gói thành 'minh hoạ cho bài bán hàng'",
+    /tuMoTa\s*\? `Vẽ ảnh theo mô tả sau: "\$\{goc\}"\.`\s*: `Ảnh minh hoạ cho bài bán hàng sau: "\$\{goc\}"\.`/.test(nguonAnhAi2), true);
+  kiem("soạn bài", "giờ đăng của bài đang soạn đặt tên khác lịch tự động, kèm dòng giải thích",
+    [/ĐĂNG BÀI NÀY LÚC NÀO<\/h3>/.test(nguonSoanBai), /THỜI GIAN ĐĂNG<\/h3>/.test(nguonSoanBai)], [true, false]);
+}
+
+{
+  const nguonLichV = fs.readFileSync(path.join(GOC, "server/services/autopilot.ts"), "utf8");
+  const nguonRtV = fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8");
+  kiem("video tự động", "mặc định tắt, chưa chọn mô hình, chưa đặt trần; lịch cũ không có mục video vẫn đọc được; loại giá trị rác",
+    [docVideoTuDong({}).bat, docVideoTuDong({}).model, docVideoTuDong({}).tranThangUsd, docLichTuDang({}).video.bat,
+      docVideoTuDong({ bat: "true", soGiay: 999, khung: "9:16; x", tranThangUsd: -5 }).bat, docVideoTuDong({ soGiay: 999 }).soGiay,
+      docVideoTuDong({ khung: "9:16; x" }).khung, docVideoTuDong({ tranThangUsd: 3.456 }).tranThangUsd],
+    [false, "", 0, false, false, 8, "9:16", 3.46]);
+  kiem("video tự động", "chặn trần tiền TRƯỚC khi tốn tiền viết lời nhắc / tạo video; đánh dấu video tự động để tính trần",
+    [/const daDung = await tienVideoTuDongThang\(p\.trangId\);\s*if \(!\(p\.v\.tranThangUsd > 0\) \|\| daDung \+ gia > p\.v\.tranThangUsd\) \{/.test(nguonLichV),
+      nguonLichV.indexOf("await tienVideoTuDongThang(p.trangId)") < nguonLichV.indexOf("await vietLoiMoTaVideo({"),
+      /UPDATE video_ai SET tu_dong = TRUE WHERE id = \$1/.test(nguonLichV),
+      /date_trunc\('month', now\(\) AT TIME ZONE 'Asia\/Ho_Chi_Minh'\)/.test(nguonLichV)], [true, true, true, true]);
+  kiem("video tự động", "bài chờ video không đăng ngay; giữ chế độ đăng đã chọn để áp khi video xong",
+    [/VALUES \(\$1, \$2, \$3::jsonb, \$4::text\[\], 'pending_approval', TRUE, \$5, NULL, \$6, \$7\)/.test(nguonLichV),
+      /\[userId, noiDung, JSON\.stringify\(media\), kenh\.rows\.map\(\(k\) => k\.id\), chuDe, choVideo\.id, guard\]/.test(nguonLichV)], [true, true]);
+  kiem("video tự động", "video xong → gắn video; lỗi / quá 25 phút → ảnh thay thế; giành bài trước để không xử lý trùng; áp đúng chế độ đăng",
+    [CHO_VIDEO_TOI_DA_PHUT, /UPDATE posts SET cho_video_id = NULL WHERE id = \$1 AND cho_video_id = \$2 RETURNING id/.test(nguonLichV),
+      /media = \[\.\.\.media, \{ url: b\.url, type: "video" \}\];/.test(nguonLichV),
+      // Ảnh thay thế chạy trong ngữ cảnh Trang của bài (tiền ảnh ghi đúng trang).
+      /if \(!media\.some\(\(m\) => m\.type === "image"\)\) \{\s*try \{\s*const thay = await chayChoTrang\(b\.trang_id, \(\) => anhThayThe\(/.test(nguonLichV),
+      /if \(guard === "publish"\) \{\s*await query\("UPDATE posts SET status = 'draft' WHERE id = \$1", \[b\.id\]\);\s*await publishPost\(b\.user_id, b\.id\);/.test(nguonLichV),
+      /WHERE p\.cho_video_id IS NOT NULL AND p\.status = 'pending_approval'/.test(nguonLichV)], [25, true, true, true, true, true]);
+  kiem("video tự động", "lưu lịch: bật video thì phải chọn mô hình làm được và có trần tiền tháng",
+    [/if \(!sach\.video\.model\) throw new AppError/.test(nguonRtV), /const lyDoV = lyDoKhongHop\(mv,/.test(nguonRtV),
+      /if \(!\(sach\.video\.tranThangUsd > 0\)\) \{/.test(nguonRtV)], [true, true, true]);
+  kiem("video tự động", "nhịp mỗi phút của worker có xử lý bài chờ video",
+    /await coHanGio\("bài chờ video", runDueVideoTuDong\(\), HAN_MOI_VIEC_MS\)/.test(fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8")), true);
+  const nguonVtdUi = fs.readFileSync(path.join(GOC, "src/components/VideoTuDongChon.tsx"), "utf8");
+  kiem("video tự động", "giao diện: công tắc riêng như ảnh, chọn mô hình có giá, trần tiền tháng, ước tính tiền tháng",
+    [/Tự tạo video theo nội dung bài/.test(fs.readFileSync(path.join(GOC, "src/components/AutoPilotPanel.tsx"), "utf8")),
+      /Trần tiền video mỗi tháng:/.test(nguonVtdUi), /giaMot \* soBaiMoiTuan \* 4\.3/.test(nguonVtdUi), /Cần đặt trần tiền mỗi tháng mới lưu được\./.test(nguonVtdUi)],
+    [true, true, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// Tổng quan tài sản theo trang (chủ dự án 04/10/2026): hồ sơ riêng từng trang, tiền kênh khớp tuyệt đối với nhà
+// cung cấp kênh, tiền AI ghi theo trang ở mọi điểm vào.
+// ---------------------------------------------------------------------------
+{
+  const doc = (tep: string) => fs.readFileSync(path.join(GOC, tep), "utf8");
+  const acc = doc("server/services/accounts.ts");
+  const trangTs = doc("server/services/trang.ts");
+  const con = doc("server/routes/connections.ts");
+  const ev = doc("server/services/events.ts");
+  kiem("hồ sơ từng trang", "đồng bộ kênh hỏi MỌI hồ sơ của tài khoản (không thì kênh ở hồ sơ riêng bị đánh dấu mất kết nối)",
+    [/const dsHoSo = \[\.\.\.new Set\(\[profileId, \.\.\.\(await hoSoCuaTaiKhoan\(userId\)\)\]\)\];/.test(acc),
+      /\(await Promise\.all\(dsHoSo\.map\(\(ma\) => zernio\.listAccounts\(ma\)\)\)\)\.flat\(\)/.test(acc),
+      // Kênh chuyển hồ sơ thì cột hồ sơ phải theo.
+      /ON CONFLICT \(id\) DO UPDATE SET[\s\S]{0,200}profile_ref\s+= EXCLUDED\.profile_ref,/.test(acc),
+      /SELECT profile_ref FROM trang WHERE user_id = \$1 AND profile_ref NOT LIKE 'cho-cap-%'/.test(trangTs)],
+    [true, true, true, true]);
+  kiem("hồ sơ từng trang", "hồ sơ riêng của Trang người khác là ĐÃ CÓ CHỦ: không hiện để nhận, không nhận được; webhook tìm chủ qua cả Trang",
+    [/SELECT profile_ref FROM trang WHERE user_id <> \$1/.test(con),
+      /SELECT user_id FROM trang WHERE profile_ref = \$1 AND user_id <> \$2/.test(con),
+      /const chuId = await chuCuaHoSo\(profileId\);/.test(ev)],
+    [true, true, true]);
+
+  const app = doc("server/app.ts");
+  const wk = doc("server/worker.ts");
+  const sales = doc("server/services/sales-ai.ts");
+  const ap = doc("server/services/autopilot.ts");
+  const vd = doc("server/services/video-ai.ts");
+  const vdd = doc("server/services/video-dai.ts");
+  kiem("tiền theo trang", "mọi điểm vào đặt Trang đang làm việc: yêu cầu từ màn hình (suy từ kênh, không tin số trang từ ngoài) và mọi việc nền",
+    [/chayVoiCachTim\(\(\) => layTrangDangChon\(userId, kenh \?\? null\), next\);/.test(app),
+      /req\.get\("x-kenh"\)/.test(app),
+      /await chayChoKenh\(event\.account_id, \(\) => handleWebhookEvent\(\{/.test(wk),
+      /await chayChoKenh\(hoi\.social_account_id, \(\) => soanCauNhac\(hoi, hoi\.nhac_lai_count\)\)/.test(sales),
+      /await chayChoTrang\(shop\.trang_id, \(\) => lamMotO\(/.test(ap),
+      /await chayChoTrang\(v\.trang_id \?\? null, \(\) => xuLyMotViec\(v\)\);/.test(vd),
+      /await chayChoTrang\(d\.trang_id, \(\) => tienMotDuAn\(d\)\);/.test(vdd),
+      /"X-Kenh": kenhDangChon\(\)!/.test(doc("src/lib/api.ts"))],
+    [true, true, true, true, true, true, true, true]);
+
+  const tq = doc("server/services/tong-quan.ts");
+  const zn = doc("server/services/zernio.ts");
+  const ql = doc("server/routes/quan-ly.ts");
+  kiem("tiền theo trang", "tiền kênh đọc THẲNG số nhà cung cấp chia cho từng kênh (không tự tính bậc giá), cộng về trang; phần không gắn được ghi riêng",
+    [/\{ range: "custom", from: khoang\.from, to: khoang\.to, granularity: "total", groupBy: "account" \}/.test(zn),
+      /const tien = coSoKenh \? \(theoKenh\[k\.id\] \?\? 0\) \* phan : null;/.test(tq),
+      /khongGanUsd: z\.khongGanUsd \+ khongRo/.test(tq),
+      // Không có công thức bậc giá riêng nào trong tổng quan.
+      /\b6\b.*\b3\b.*\b1\b.*USD/.test(tq.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""))],
+    [true, true, true, false]);
+  kiem("tiền theo trang", "một đường tổng quan / sao kê trang cho cả hai tầng; admin con chỉ trong chuỗi mình (ngoài chuỗi → 404)",
+    [/vaiTro === "admin" \? \{ loai: "tong" \} : \{ loai: "chuoi", chaId: req\.user!\.id \}/.test(ql),
+      /WHERE t\.id = \$1 AND \(\$2::bigint IS NULL OR u\.id = \$2 OR u\.parent_id = \$2\)/.test(ql),
+      // MỘT hàm kiểm phạm vi, MỌI đường báo cáo trang đều gọi nó.
+      /if \(!thuoc\) throw new AppError\("Không tìm thấy trang này", 404\);\s*return trangId;/.test(ql) &&
+        // n/n: MỌI chỗ đọc mã trang từ yêu cầu đều đi qua chốt (trước đây đếm cứng "3" — thêm route đúng chuẩn cũng báo hỏng).
+        (ql.match(/const trangId = await trangTrongPhamVi\(req\.user!, req\.(query|body)\??\.trangId\);/g) ?? []).length ===
+          (ql.match(/req\.(query|body)\??\.trangId/g) ?? []).length],
+    [true, true, true]);
+  // Duyệt 05/10/2026: mốc tính theo trang, nhãn đã chốt/tạm tính, đơn theo trang, sổ kênh theo ngày, quảng cáo theo Fanpage.
+  const moc = doc("server/moc-thoi-gian.ts");
+  const od = doc("server/services/orders.ts");
+  const odr = doc("server/routes/orders.ts");
+  const tqUi = doc("src/components/QuanLyTongQuan.tsx");
+  kiem("tiền theo trang", "chỉ tính từ MỐC 05/10/2026 (giờ VN): kỳ bị kẹp từ mốc, sao kê trang cũng từ mốc, kỳ trước mốc báo rõ",
+    [/export const MOC_THEO_TRANG = new Date\("2026-10-05T00:00:00\+07:00"\);/.test(moc),
+      /const tu = dauKy < MOC_THEO_TRANG \? MOC_THEO_TRANG : dauKy;/.test(tq),
+      /tuLuc: MOC_THEO_TRANG,/.test(ql),
+      /\{du\.kyTinh\.truocMoc && \(/.test(tqUi)],
+    [true, true, true, true]);
+  kiem("tiền theo trang", "nhãn ĐÃ CHỐT / TẠM TÍNH đúng cách từng nguồn chốt sổ (AI: đối chiếu xong; kênh: hết kỳ; quảng cáo: sau 28 ngày)",
+    [/ai: aiChuaChot === 0,/.test(tq), /kenh: kt\.hetKy,/.test(tq), /quangCao: Date\.now\(\) >= den\.getTime\(\) \+ 28 \* NGAY_MS,/.test(tq),
+      /count\(\*\) FILTER \(WHERE a\.ma_ncc IS NOT NULL AND a\.doi_chieu_at IS NULL\)::int AS chua_chot/.test(tq),
+      (tqUi.match(/<NhanChot chot=\{/g) ?? []).length >= 6],
+    [true, true, true, true, true]);
+  kiem("tiền theo trang", "đơn hàng ghi trang + kênh NGAY LÚC TẠO (có hội thoại → kênh hội thoại; tạo tay ≥2 trang → bắt buộc chọn), trang phải của đúng tài khoản",
+    [/kenhId = k\.rows\[0\]\?\.social_account_id \?\? null;\s*trangId = k\.rows\[0\]\?\.trang_id \?\? null;/.test(od),
+      /\(SELECT id FROM trang WHERE id = \$16 AND user_id = \$1\), \$17, \$18, \$19\)/.test(od),
+      /throw new AppError\("Tài khoản có nhiều trang — chọn trang \(kênh\) trước khi tạo đơn\.", 400\);/.test(odr),
+      fs.existsSync(path.join(GOC, "server/migrations/041_don_va_kenh_theo_trang.sql"))],
+    [true, true, true, true]);
+  kiem("tiền theo trang", "sổ kênh theo ngày UTC: ghi trạng thái đầu ngày, ghi ngay trước khi đổi Fanpage; tiền kênh chia theo số ngày ở từng trang",
+    [/ON CONFLICT \(ngay, account_id\) DO NOTHING/.test(trangTs),
+      /await ghiKenhTheoNgay\(\);\s*const trangMoi = await zernio\.doiTrangDangGan\(account\.id, pageId\);/.test(con),
+      /await ghiKenhTheoNgay\(\)\.catch\(/.test(wk),
+      /return tong > 0 \? \(ds\.find\(\(x\) => x\.trangId === trangId\)\?\.ngay \?\? 0\) \/ tong : 0;/.test(tq)],
+    [true, true, true, true]);
+  kiem("tiền theo trang", "tiền quảng cáo: qua kết nối Facebook sẵn có, lọc ĐÚNG Fanpage của trang (pageId), giữ đơn vị gốc, ngày theo múi giờ tài khoản quảng cáo",
+    [/nho\(`qc:\$\{tk\.id\}:\$\{pageId\}:\$\{fromDate\}:\$\{toDate\}`, 600, \(\) => congSpend\(\{ \.\.\.goc, pageId \}\)\)/.test(tq),
+      /\.filter\(\(k\) => k\.platform === "facebook" && k\.connected && k\.page_id/.test(tq),
+      /const fromDate = ngayTheoGio\(tu, gio\);/.test(tq),
+      // Phần chi cho Fanpage khác chỉ để biết, không cộng vào trang.
+      /soTien: cuaTrang,\s*ngoaiTrang: Math\.max\(0, tatCa - cuaTrang\),/.test(tq),
+      /for \(const a of d\.ads\) tong \+= Number\(a\.metrics\?\.spend\) \|\| 0;/.test(tq)],
+    [true, true, true, true, true]);
+  // Phần 2 — chuỗi 4 khâu: nối quảng cáo / bình luận → hội thoại → đơn bằng mã thật.
+  const evs = doc("server/services/events.ts");
+  const rc = doc("server/services/reconcile.ts");
+  const slk = doc("server/services/so-lieu-kenh.ts");
+  const bcc = doc("server/services/bao-cao-chuoi.ts");
+  kiem("chuỗi 4 khâu", "nguồn hội thoại lấy từ MÃ THẬT: ad_id / ref của Meta, hoặc khách trả lời tin nhắn riêng từ bình luận của chính họ; không có → tự nhắn",
+    [/const maQuangCao = chu\(thamChieu\?\.ad_id\);/.test(evs),
+      /const loaiCham: "quang_cao" \| "lien_ket" \| null = maQuangCao \? "quang_cao" : maLienKet \? "lien_ket" : null;/.test(evs),
+      /WHERE user_id = \$1 AND social_account_id = \$2 AND author_id = \$3\s*AND private_replied_at IS NOT NULL/.test(evs),
+      /const nguon = loaiCham \?\? \(tuBinhLuan \? "binh_luan" : "tu_nhan"\);/.test(evs),
+      // Lần chạm sau (khách quay lại qua quảng cáo khác) vẫn ghi, trùng thì bỏ.
+      /INSERT INTO hoi_thoai_cham \(conversation_id, user_id, loai, ad_id, ref, post_id, luc\)\s*VALUES \(\$1, \$2, \$3, \$4, \$5, \$6, \$7\) ON CONFLICT DO NOTHING/.test(evs),
+      // Tin vớt lại khi webhook mất cũng mang nguồn.
+      /\{ referral: \{ ad_id: md\.meta_ad_id, ref: md\.meta_ad_ref,/.test(rc) && /const payload = \{\s*metadata,/.test(rc),
+      /if \(loaiCham\) \{\s*await client\.query\(/.test(evs),
+      fs.existsSync(path.join(GOC, "server/migrations/042_nguon_hoi_thoai.sql"))],
+    [true, true, true, true, true, true, true, true]);
+  kiem("chuỗi 4 khâu", "đơn mang nguồn của lần chạm GẦN NHẤT trước khi chốt, chốt cứng lúc tạo; hội thoại cũ 'message' không bị gán nguồn",
+    [/SELECT loai, ad_id, post_id FROM hoi_thoai_cham WHERE conversation_id = \$1 AND luc <= now\(\)\s*ORDER BY luc DESC LIMIT 1/.test(od),
+      /h && h\.origin && h\.origin !== "message"/.test(od)],
+    [true, true]);
+  kiem("chuỗi 4 khâu", "số bài chụp mỗi kênh MỘT lần mỗi ngày (giờ VN) từ worker; quảng cáo đọc theo kỳ, lọc đúng Fanpage",
+    [/AND NOT EXISTS \(SELECT 1 FROM so_bai_ngay b WHERE b\.ngay = \$1::date AND b\.account_id = s\.id\)/.test(slk),
+      /await coHanGio\("chụp số bài", chupSoBaiNgay\(\), HAN_MOI_VIEC_MS\)/.test(wk),
+      /accountId: kenhFb, adAccountId: tk\.id, pageId, fromDate: ngay\(tu\)/.test(slk),
+      fs.existsSync(path.join(GOC, "server/migrations/043_so_bai_ngay.sql"))],
+    [true, true, true, true]);
+  kiem("chuỗi 4 khâu", "báo cáo chuỗi: hội thoại cũ tính riêng 'chưa ghi nguồn'; tỉ lệ chốt = hội thoại mới có đơn; thời gian trả lời lấy trung vị; một đường cho hai tầng, ngoài chuỗi → 404",
+    [/chuaGhiNguon: theoNguon\("message"\)\.so,/.test(bcc),
+      /tiLeChot: tongHoiThoai > 0 \? hoiThoaiCoDon \/ tongHoiThoai : null,/.test(bcc),
+      /percentile_cont\(0\.5\) WITHIN GROUP \(ORDER BY giay\)/.test(bcc),
+      /"\/bao-cao-chuoi",\s*route\(async \(req, res\) => \{\s*const trangId = await trangTrongPhamVi\(req\.user!, req\.query\.trangId\);/.test(ql),
+      /<BaoCaoChuoi t=\{t\} ky=\{ky\} \/>/.test(tqUi)],
+    [true, true, true, true, true]);
+  // Bước 4a — sức khoẻ do CODE THỐNG KÊ chấm (không AI): đúng số chuẩn, ngưỡng p < 0,05 và lệch ≥ 20%, thiếu mẫu thì nói thiếu.
+  const sk = doc("server/services/suc-khoe.ts");
+  kiem("AI điều hành", "phép thử thống kê ra đúng số chuẩn (hai tỉ lệ 30/100 vs 50/100 → p≈0,0039; Poisson 10 vs 20 → p≈0,0987)",
+    [Math.abs(kiemHaiTiLe(30, 100, 50, 100) - 0.0039) < 0.0002, Math.abs(kiemPoisson(10, 1, 20, 1) - 0.0987) < 0.0005,
+      kiemPoisson(0, 1, 0, 1)],
+    [true, true, 1]);
+  kiem("AI điều hành", "chấm mức: chỉ 'tụt'/'đang mạnh' khi p < 0,05 VÀ lệch ≥ 20%, theo đúng hướng tốt của chỉ số",
+    [chamMuc(0.01, -0.3, "cao_tot"), chamMuc(0.01, -0.1, "cao_tot"), chamMuc(0.2, -0.5, "cao_tot"), chamMuc(0.01, -0.3, "thap_tot"),
+      chamMuc(0.01, 0.3, "cao_tot")],
+    ["tut", "on", "on", "dang_manh", "dang_manh"]);
+  kiem("AI điều hành", "sức khoẻ KHÔNG gọi AI; thiếu mẫu → 'chưa đủ dữ liệu'; bài so ở cùng tuổi 2 ngày; đơn chỉ từ mốc; cái đang mạnh vào danh sách bảo vệ; ưu tiên theo tiền",
+    [!/from "\.\/ai\.js"|chatJson|chat\(/.test(sk),
+      /if \(n1 < toiThieu\.mau \|\| n2 < toiThieu\.mau \|\| x1 \+ x2 < toiThieu\.suKien\) \{/.test(sk),
+      /AND ngay >= \(\(dang_luc AT TIME ZONE 'Asia\/Ho_Chi_Minh'\)::date \+ \$4::int\)/.test(sk),
+      /const \[dGan, dNen\] = await Promise\.all\(\[don\(\.\.\.wm\.gan\), don\(\.\.\.wm\.nen\)\]\);/.test(sk),
+      /baoVe: chiSo\.filter\(\(c\) => c\.muc === "dang_manh"\)\.map\(\(c\) => c\.ma\),/.test(sk),
+      /\.sort\(\(a, b\) => \(b\.anhHuongTuan \?\? -1\) - \(a\.anhHuongTuan \?\? -1\)/.test(sk)],
+    [true, true, true, true, true, true]);
+  // Kiểm cứng + phân xử AI điều hành / giám sát (docs mục 11) — chạy THẬT các hàm thuần trên các ca đã gặp ở bộ đề.
+  {
+    const bayGio = new Date("2026-10-09T12:00:00+07:00");
+    const ngay = (n: number) => new Date(bayGio.getTime() - n * 86_400_000);
+    const kho: BangChung[] = [
+      { ma: "TL-2", nguon: "tai_lieu_trang", luc: ngay(30), noiDung: "Bột sắn dây nguyên chất 500g, 120.000đ. Giao 2–4 ngày toàn quốc." },
+      { ma: "TL-4", nguon: "tai_lieu_trang", luc: ngay(30), noiDung: "Miễn phí giao hàng cho đơn từ 300.000đ; dưới 300.000đ phí 30.000đ." },
+      { ma: "MQ-3", nguon: "nhat_ky_he_thong", luc: ngay(1), noiDung: "Quảng cáo đang chạy: tiêu đề \"FREESHIP TOÀN QUỐC\"." },
+      { ma: "TL-HD", nguon: "tai_lieu_trang", luc: ngay(1), noiDung: "Tài liệu của AI bán hàng chưa có câu trả lời về phí giao hàng." },
+      { ma: "TN-Q", nguon: "thu_nghiem", luc: ngay(1), noiDung: "QC-A chi 600.000đ, 4 đơn · QC-B chi 600.000đ, 7 đơn", thongKe: { p: 0.55, duMau: true } },
+      { ma: "CS-1", nguon: "chu_shop_noi", luc: ngay(0), noiDung: "B gần gấp đôi A, tắt A đi." },
+      { ma: "CS-2", nguon: "chu_shop_noi", luc: ngay(0), noiDung: "Bài dạo này dở quá, ít người xem hẳn." },
+      { ma: "LD-4", nguon: "nhat_ky_he_thong", luc: ngay(14), noiDung: "25/09 giờ đăng đổi từ 19:30 sang 03:00 (cài đặt múi giờ bị lỗi)." },
+      { ma: "SK-1", nguon: "thong_ke_he_thong", luc: ngay(0), noiDung: "Hiển thị mỗi bài: 1.290 → 160 · −88% · TỤT", thongKe: { p: 0.001, duMau: true } },
+      { ma: "SK-9", nguon: "thong_ke_he_thong", luc: ngay(0), noiDung: "Tỉ lệ chốt: 6/40 → 5/38 · không khác biệt", thongKe: { p: 0.8, duMau: true } },
+      { ma: "HT-12", nguon: "hoi_thoai", luc: ngay(2), noiDung: "Khách: shop trả lời chậm quá, thôi em mua chỗ khác" },
+      { ma: "BN-1", nguon: "ai_tao", luc: ngay(0), noiDung: "THẢ TIM nếu bạn muốn da trắng bật tông! Cam kết hoàn tiền 100%." },
+      { ma: "NB-7", nguon: "nen_tang_bao", luc: ngay(3), noiDung: "Meta báo 42 lượt mua quy cho quảng cáo", daChot: false },
+      { ma: "SK-C", nguon: "thong_ke_he_thong", luc: ngay(60), noiDung: "Tỉ lệ chốt 30% → 19% p=0,01", thongKe: { p: 0.01, duMau: true }, hanNgay: 30 },
+    ];
+    const bc = (o: Partial<BoiCanh> = {}): BoiCanh => ({ bangChung: kho, cheDo: "tu_dong", tranTien: 500_000, baoVe: ["ti_le_tuong_tac"], bayGio, ...o });
+    const qd = (o: Partial<QuyetDinh>): QuyetDinh => ({ nguyenNhan: [], khangDinh: [], hanhDong: [], quyetDinh: "tiep_tuc", ...o });
+    const loai = (q: QuyetDinh, b = bc()) => kiemQuyetDinh(q, b).map((v) => v.loai);
+    const hoi = { ma: "hoi_chu_shop", nhanVien: "chu_shop", uuTien: 1, canCu: [] };
+
+    kiem("kiểm cứng", "hạng bằng chứng do CODE chấm theo nguồn / mẫu / kiểm định / chốt / độ mới (AI không tự chấm)",
+      ["TL-4", "TN-Q", "SK-1", "SK-9", "HT-12", "BN-1", "NB-7", "CS-1", "SK-C"].map((m) => hangBangChung(kho.find((b) => b.ma === m)!, bayGio).hang),
+      ["A", "C", "B", "C", "C", "D", "C", "B", "C"]);
+    kiem("kiểm cứng", "trích dẫn: khớp nguyên văn (bỏ qua hoa thường / dấu câu); bịa câu, câu quá ngắn, mã không có → sai",
+      [kiemTrich({ ma: "TL-4", trich: "miễn phí giao hàng cho đơn từ 300.000đ" }, new Map(kho.map((b) => [b.ma, b]))).dung,
+        kiemTrich({ ma: "TL-2", trich: "cách đặt hàng" }, new Map(kho.map((b) => [b.ma, b]))).dung,
+        kiemTrich({ ma: "TL-2", trich: "500g" }, new Map(kho.map((b) => [b.ma, b]))).dung,
+        kiemTrich({ ma: "TL-99", trich: "Bột sắn dây nguyên chất" }, new Map(kho.map((b) => [b.ma, b]))).dung],
+      [true, false, false, false]);
+    // Lỗi thật của Opus ở bộ đề (C5): "tài liệu đã có cách đặt hàng" — tài liệu không có. Định dạng có trích dẫn bắt được.
+    kiem("kiểm cứng", "ca C5 (lỗi thật bộ chấm cũ bỏ sót): khẳng định 'biết' trích câu không có trong tài liệu → chặn",
+      loai(qd({ khangDinh: [{ id: "k1", noiDung: "Tài liệu đã có cách đặt hàng", loai: "biet", trichDan: [{ ma: "TL-2", trich: "cách đặt hàng qua inbox" }] }] })),
+      ["trich_sai", "biet_khong_can_cu"]);
+    // Lỗi thật của Sol ở bộ đề (A3): tự nói chưa đủ dữ liệu mà vẫn dừng quảng cáo ngay.
+    const a3 = { khangDinh: [{ id: "k1", noiDung: "4 vs 7 đơn chưa phân biệt được", loai: "biet" as const, trichDan: [{ ma: "TN-Q", trich: "QC-A chi 600.000đ, 4 đơn" }] }] };
+    kiem("kiểm cứng", "ca A3: chưa đủ căn cứ mà làm việc rủi ro (dừng quảng cáo) không hỏi chủ shop → chặn; hỏi trước → qua",
+      [loai(qd({ ...a3, hanhDong: [{ ma: "dung_quang_cao", nhanVien: "quang_cao", uuTien: 1, canCu: ["k1"] }] })),
+        loai(qd({ ...a3, hanhDong: [hoi, { ma: "dung_quang_cao", nhanVien: "quang_cao", uuTien: 2, canCu: ["k1"] }] }))],
+      [["rui_ro_khi_chua_ro"], []]);
+    kiem("kiểm cứng", "mục đích do CODE suy ra (AI không khai được để lách): dừng quảng cáo = tối ưu; hỏi; thu dữ liệu; hoàn tác",
+      ["dung_quang_cao", "hoi_chu_shop", "chay_thu_nghiem", "hoan_tac_thay_doi"].map((ma) => mucDichTinh({ ma, nhanVien: "he_thong", uuTien: 1, canCu: ["k1"] }, qd(a3), bc())),
+      ["toi_uu", "hoi", "thu_du_lieu", "hoan_tac"]);
+    // "Đã rõ": chẩn đoán cần cơ chế hạng A/B + hiệu ứng là SỐ ĐO có ý nghĩa; một hội thoại không đủ; số cũ bị hạ hạng.
+    const coChe = { id: "c", noiDung: "Giờ đăng đổi sang 3 giờ sáng", loai: "biet" as const, trichDan: [{ ma: "LD-4", trich: "giờ đăng đổi từ 19:30 sang 03:00" }] };
+    const nn = { ma: "gio_dang_sai", kieu: "chan_doan" as const, coChe: ["c"], hieuUng: ["h"] };
+    const hu = (ma: string, trich: string) => ({ id: "h", noiDung: "Số tụt", loai: "biet" as const, trichDan: [{ ma, trich }] });
+    kiem("kiểm cứng", "'đã rõ' do CODE tính: số đo quan sát có ý nghĩa → đã rõ (mức vừa); chỉ lời chủ shop / hội thoại / số cũ → chưa đủ",
+      [ketLuanTinh(qd({ nguyenNhan: [nn], khangDinh: [coChe, hu("SK-1", "1.290 → 160 · −88%")] }), bc()),
+        ketLuanTinh(qd({ nguyenNhan: [nn], khangDinh: [coChe, hu("CS-2", "ít người xem hẳn")] }), bc()),
+        ketLuanTinh(qd({ nguyenNhan: [nn], khangDinh: [coChe, hu("HT-12", "shop trả lời chậm quá")] }), bc()),
+        ketLuanTinh(qd({ nguyenNhan: [nn], khangDinh: [coChe, hu("SK-C", "Tỉ lệ chốt 30% → 19%")] }), bc()),
+        ketLuanTinh(qd({}), bc()),
+        mucChac(nn, qd({ nguyenNhan: [nn], khangDinh: [coChe, hu("SK-1", "1.290 → 160 · −88%")] }), bc())],
+      ["da_ro", "chua_du_du_lieu", "chua_du_du_lieu", "chua_du_du_lieu", "chua_du_du_lieu", "vua"]);
+    // Sửa lỗi sai sự thật làm ngay (không tính thử nghiệm); hai việc TỐI ƯU cùng lúc → chặn.
+    const vp = { ma: "bia_thong_tin_san_pham", kieu: "vi_pham" as const, coChe: ["m", "t"], hieuUng: [], daXacNhanMauThuan: true };
+    const kdP1 = [{ id: "m", noiDung: "Quảng cáo ghi freeship toàn quốc", loai: "biet" as const, trichDan: [{ ma: "MQ-3", trich: "FREESHIP TOÀN QUỐC" }] },
+      { id: "t", noiDung: "Chính sách chỉ miễn phí từ 300k", loai: "biet" as const, trichDan: [{ ma: "TL-4", trich: "Miễn phí giao hàng cho đơn từ 300.000đ" }] }];
+    kiem("kiểm cứng", "vi phạm phải đủ HAI phía (câu luật + câu việc bị kiểm) và đã xác nhận mâu thuẫn mới 'chắc'; thiếu xác nhận → vừa; một phía → thấp",
+      [mucChac(vp, qd({ nguyenNhan: [vp], khangDinh: kdP1 }), bc()), mucChac({ ...vp, daXacNhanMauThuan: false }, qd({ nguyenNhan: [vp], khangDinh: kdP1 }), bc()),
+        mucChac({ ...vp, coChe: ["m"] }, qd({ nguyenNhan: [vp], khangDinh: kdP1 }), bc()), mucChac({ ...vp, coChe: ["t"] }, qd({ nguyenNhan: [vp], khangDinh: kdP1 }), bc())],
+      ["cao", "vua", "thap", "thap"]);
+    kiem("kiểm cứng", "ca P1: hai việc SỬA LỖI (vi phạm đã chắc) làm ngay được; vi phạm CHƯA xác nhận thì hai việc là TỐI ƯU cùng lúc → chặn",
+      [loai(qd({ nguyenNhan: [vp], khangDinh: kdP1, hanhDong: [
+        { ma: "doi_thong_diep_quang_cao", nhanVien: "quang_cao", uuTien: 1, canCu: ["m", "t"] },
+        { ma: "them_hoi_dap", nhanVien: "ban_hang", uuTien: 1, canCu: ["t"] }] })),
+        loai(qd({ nguyenNhan: [{ ...vp, daXacNhanMauThuan: false }], khangDinh: kdP1, hanhDong: [
+          { ma: "doi_thong_diep_quang_cao", nhanVien: "quang_cao", uuTien: 1, canCu: ["m"] },
+          { ma: "doi_mau_quang_cao", nhanVien: "quang_cao", uuTien: 1, canCu: ["m"] }] }))],
+      [[], ["nhieu_thay_doi"]]);
+    const daRo = { nguyenNhan: [vp], khangDinh: kdP1 };
+    kiem("kiểm cứng", "quyền chủ shop phải hỏi trước (chế độ đề xuất thì mọi việc đã chờ duyệt); tăng tiền vượt trần → chặn; đụng cái đang mạnh → chặn",
+      [loai(qd({ ...daRo, hanhDong: [{ ma: "sua_tai_lieu", nhanVien: "he_thong", uuTien: 1, canCu: ["t"] }] })),
+        loai(qd({ ...daRo, hanhDong: [{ ma: "sua_tai_lieu", nhanVien: "he_thong", uuTien: 1, canCu: ["t"] }] }), bc({ cheDo: "de_xuat" })),
+        loai(qd({ ...daRo, hanhDong: [{ ma: "tang_ngan_sach", nhanVien: "quang_cao", uuTien: 1, canCu: ["m"], soTien: 800_000 }] })),
+        loai(qd({ ...daRo, hanhDong: [{ ma: "tang_ngan_sach", nhanVien: "quang_cao", uuTien: 1, canCu: ["m"], soTien: 400_000 }] })),
+        loai(qd({ ...daRo, hanhDong: [{ ma: "viet_lai_noi_dung", nhanVien: "noi_dung", uuTien: 1, canCu: ["m"], doiTuong: "ti_le_tuong_tac" }] })),
+        loai(qd({ ...daRo, hanhDong: [{ ma: "viet_lai_noi_dung", nhanVien: "noi_dung", uuTien: 1, canCu: ["m"], doiTuong: "SK-ti_le_tuong_tac" }] }))],
+      [["quyen_chu_shop"], [], ["vuot_tran"], [], ["dong_vao_cai_manh"], ["dong_vao_cai_manh"]]);
+    kiem("kiểm cứng", "ca X7: duyệt đề xuất mà code đã biết vi phạm (nhắn ngoài 24 giờ) → chặn; từ chối → qua",
+      [loai(qd({ quyetDinh: "tiep_tuc" }), bc({ deXuat: { ma: "DX-1", viPham: ["ngoài cửa sổ 24 giờ"] } })),
+        loai(qd({ quyetDinh: "tu_choi" }), bc({ deXuat: { ma: "DX-1", viPham: ["ngoài cửa sổ 24 giờ"] } }))],
+      [["duyet_de_xuat_vi_pham"], []]);
+    // Phản biện của giám sát: chỉ CHẶN khi có trích dẫn đúng + nhắm chỗ chịu lực + bằng chứng không yếu hơn.
+    const qdTang = qd({ nguyenNhan: [nn], khangDinh: [coChe, hu("SK-1", "1.290 → 160 · −88%")],
+      hanhDong: [{ ma: "tang_ngan_sach", nhanVien: "quang_cao", uuTien: 1, canCu: ["h"], soTien: 400_000 }] });
+    const xpb = (nham: { khangDinh?: string; hanhDong?: string }, ma: string, trich: string) => xetPhanBien({ nham, noiDung: "phản đối", trichDan: [{ ma, trich }] }, qdTang, bc()).loai;
+    kiem("kiểm cứng", "phản biện: lời lẽ không trích được → ghi chú; trích đúng nhưng yếu hơn → ghi chú; chịu lực + không yếu hơn → xem lại; chỉ ra việc BỎ SÓT → xem lại",
+      [xpb({ khangDinh: "h" }, "SK-1", "câu này không có trong dữ liệu"),
+        xpb({ khangDinh: "h" }, "HT-12", "shop trả lời chậm quá"),
+        xpb({ khangDinh: "h" }, "SK-1", "Hiển thị mỗi bài: 1.290"),
+        xpb({ hanhDong: "dung_quang_cao" }, "TN-Q", "QC-A chi 600.000đ, 4 đơn")],
+      ["ghi_chu", "ghi_chu", "xem_lai", "xem_lai"]);
+    // Đổi ý: chỉ hợp lệ khi có bằng chứng MỚI — chống bị cuốn theo lời phản biện.
+    const truoc = qd({ ...daRo, hanhDong: [{ ma: "doi_thong_diep_quang_cao", nhanVien: "quang_cao", uuTien: 1, canCu: ["m", "t"] }] });
+    const sauKhongMoi = { ...truoc, hanhDong: [{ ma: "giu_nguyen", nhanVien: "he_thong", uuTien: 1, canCu: ["m"] }] };
+    const sauCoMoi = { ...sauKhongMoi, khangDinh: [...kdP1, { id: "n", noiDung: "AI bán hàng chưa có câu trả lời", loai: "biet" as const, trichDan: [{ ma: "TL-HD", trich: "chưa có câu trả lời về phí giao hàng" }] }] };
+    kiem("kiểm cứng", "đổi ý không có bằng chứng mới → không hợp lệ; có bằng chứng mới → hợp lệ; không đổi → hợp lệ",
+      [doiYHopLe(truoc, sauKhongMoi, new Set(["MQ-3", "TL-4"]), bc()).hopLe, doiYHopLe(truoc, sauCoMoi, new Set(["MQ-3", "TL-4"]), bc()).hopLe,
+        doiYHopLe(truoc, truoc, new Set(), bc()).hopLe],
+      [false, true, true]);
+    // Phân xử: thứ tự cố định, tối đa một vòng.
+    const pbChan = { nham: { khangDinh: "h" }, noiDung: "số tụt chưa chắc", trichDan: [{ ma: "SK-1", trich: "Hiển thị mỗi bài: 1.290" }] };
+    const qdVua = { ...qdTang, hanhDong: [{ ma: "chay_thu_nghiem", nhanVien: "noi_dung", uuTien: 1, canCu: ["h"] }] };
+    kiem("kiểm cứng", "phân xử: vi phạm → trả lại; không phản biện chặn → làm; phản biện chặn → xem lại 1 vòng; sau vòng: đổi ý không bằng chứng mới → hỏi chủ shop; giữ ý ở việc rủi ro cao → hỏi chủ shop; rủi ro vừa → điều hành quyết, ghi sổ",
+      [phanXu({ truoc: qd({ ...a3, hanhDong: [{ ma: "dung_quang_cao", nhanVien: "quang_cao", uuTien: 1, canCu: ["k1"] }] }), phanBien: [], boiCanh: bc() }).ketQua,
+        phanXu({ truoc: qdTang, phanBien: [{ ...pbChan, trichDan: [] }], boiCanh: bc() }).ketQua,
+        phanXu({ truoc: qdTang, phanBien: [pbChan], boiCanh: bc() }).ketQua,
+        phanXu({ truoc: qdTang, phanBien: [pbChan], sau: { ...qdTang, hanhDong: [{ ma: "giu_nguyen", nhanVien: "he_thong", uuTien: 1, canCu: ["h"] }] }, boiCanh: bc() }).ketQua,
+        phanXu({ truoc: qdTang, phanBien: [pbChan], sau: qdTang, boiCanh: bc() }).ketQua,
+        phanXu({ truoc: qdVua, phanBien: [pbChan], sau: qdVua, boiCanh: bc() }).ketQua],
+      ["tra_lai_dieu_hanh", "thuc_hien", "xem_lai", "dung_hoi_chu_shop", "dung_hoi_chu_shop", "dieu_hanh_quyet_ghi_so"]);
+  }
+  // Bảng mã AI điều hành: nguồn duy nhất; bảng rủi ro phủ MỌI mã hành động (thiếu → bộ kiểm báo, không lặng lẽ "cao");
+  // luật đưa vào sổ khớp nguyên văn lời dặn bộ đề 1.2.
+  {
+    const { MA_HANH_DONG, LUAT_HE_THONG } = await import("../server/services/ma-dieu-hanh.js");
+    const { RUI_RO } = await import("../server/services/kiem-cung.js");
+    const { loiDanHeThong } = await import("./bo-de-dieu-hanh/khuon.mjs");
+    kiem("bảng mã điều hành", "mọi mã hành động đều có mức rủi ro; bảng rủi ro không có mã lạ",
+      [Object.keys(MA_HANH_DONG).filter((m) => !(m in RUI_RO)), Object.keys(RUI_RO).filter((m) => !(m in MA_HANH_DONG))], [[], []]);
+    kiem("bảng mã điều hành", "luật đưa vào sổ bằng chứng khớp nguyên văn luật trong lời dặn bộ đề (không lệch)",
+      LUAT_HE_THONG.map((l) => loiDanHeThong().includes(l.noiDung)), LUAT_HE_THONG.map(() => true));
+    kiem("bảng mã điều hành", "bộ đề nhập bảng mã từ máy chủ, không giữ bản riêng",
+      [/from "\.\.\/\.\.\/server\/services\/ma-dieu-hanh\.js"/.test(doc("scripts/bo-de-dieu-hanh/khuon.mts")), /export const MA_HANH_DONG = \{/.test(doc("scripts/bo-de-dieu-hanh/khuon.mts"))],
+      [true, false]);
+  }
+    // Sổ thay đổi (bước 0 AI điều hành, docs mục 14): trigger bắt MỌI lần ghi ở 6 bảng; ghi sổ hỏng không làm hỏng lần
+  // ghi gốc; quảng cáo (đi qua API, trigger không thấy) ghi tay SAU khi API thành công ở đủ 7 chỗ; tự ngắt AI ghi nguồn hệ thống.
+  {
+    const mg = doc("server/migrations/044_so_thay_doi.sql");
+    const adsR = doc("server/routes/ads.ts");
+    const gr = doc("server/services/guardrails.ts");
+    const coTrigger = (bang: string) => new RegExp(`CREATE TRIGGER so_thay_doi_${bang} AFTER INSERT OR UPDATE OR DELETE ON ${bang}\\s+FOR EACH ROW EXECUTE FUNCTION ghi_so_thay_doi\\(`).test(mg);
+    kiem("sổ thay đổi", "trigger ghi sổ gắn đủ 6 bảng cài đặt / tài liệu / hàng rào / quy tắc nhường / kịch bản / kênh",
+      ["ai_configs", "ai_documents", "guardrail_configs", "handoff_rules", "auto_scripts", "social_accounts"].map(coTrigger),
+      [true, true, true, true, true, true]);
+    kiem("sổ thay đổi", "ghi sổ hỏng chỉ cảnh báo (khối EXCEPTION bao quanh), sửa không đổi gì thì không ghi, không đoán người đổi",
+      [/EXCEPTION WHEN OTHERS THEN\s+RAISE WARNING 'so_thay_doi/.test(mg),
+        /IF TG_OP = 'UPDATE' AND sau = '\{\}'::jsonb THEN RETURN NULL; END IF;/.test(mg),
+        /\n\s*NULLIF\(current_setting\('app\.nguon_thay_doi', true\), ''\)\n\s*\);/.test(mg) && !/'nguoi_dung'/.test(mg),
+        /^\s*nguon\s+TEXT\s*$/m.test(mg)],
+      [true, true, true, true]);
+    // Mỗi lời gọi đổi quảng cáo phải có ghiThayDoiNgoai NGAY SAU nó (trước câu trả lời), không phải trước.
+    const sauGoi = (goi: string) => {
+      const i = adsR.indexOf(goi);
+      const ghi = adsR.indexOf("ghiThayDoiNgoai(", i);
+      const traLoi = adsR.indexOf("res.", i);
+      return i > 0 && ghi > i && ghi < traLoi;
+    };
+    kiem("sổ thay đổi", "đủ 7 chỗ đổi quảng cáo đều ghi sổ SAU khi API thành công, trước khi trả lời",
+      ["ads.setCampaignStatus(", "ads.updateCampaignBudget(", "ads.updateAdSetBudget(", "ads.duplicateCampaign(", "ads.boostPost(", "ads.createAudience(", "ads.updateAudience("].map(sauGoi),
+      [true, true, true, true, true, true, true]);
+    kiem("sổ thay đổi", "hệ thống tự ngắt AI ghi nguồn 'hệ thống' trong cùng giao dịch với lần ghi",
+      /await transaction\(async \(c\) => \{\s+await coNguon\(c, "he_thong"\);\s+await c\.query\(\s+`UPDATE social_accounts\s+SET ai_paused_until = \$2/.test(gr), true);
+  }
+  // Sổ bằng chứng (bước 1 AI điều hành, docs mục 14): code gom dữ liệu thật, giữ nguyên văn đầy đủ, chấm nguồn, đánh
+  // dấu phần thiếu / bị cắt / khoảng trống — để "không thấy" không thành "không có".
+  {
+    const luc = new Date("2026-10-09T12:00:00+07:00");
+    const cs = (o: Record<string, unknown>) => ({ khau: "ban_hang", ma: "ti_le_chot", ten: "Tỉ lệ chốt đơn", huong: "cao_tot", donVi: "ti_le",
+      gan: { giaTri: 8 / 66, tuSo: 8, mauSo: 66 }, nen: { giaTri: 54 / 180, tuSo: 54, mauSo: 180 }, muc: "tut", lech: -0.6, p: 0.004, anhHuongTuan: null, ...o }) as never;
+    const bTut = bangChungTuChiSo(cs({}), luc), bThieu = bangChungTuChiSo(cs({ muc: "chua_du", p: 0.01, lech: null, thieu: "cần ít nhất 20 mẫu" }), luc);
+    const bQc = bangChungTuChiSo(cs({ khau: "quang_cao", ma: "ti_le_nhap" }), luc);
+    kiem("sổ bằng chứng", "p in theo chữ số có nghĩa (lỗi thật: p=0,004 từng thành 'p=0'); quá nhỏ ghi '<0,001'",
+      [hienP(0.004), hienP(0.0004), hienP(0.55)], ["=0,004", "<0,001", "=0,55"]);
+    kiem("sổ bằng chứng", "chỉ số → bằng chứng: có ý nghĩa thống kê → hạng B; thiếu mẫu → C; số quảng cáo (Meta báo, chưa xác minh chốt) → C kèm giới hạn",
+      [bTut.ma, hangBangChung(bTut, luc).hang, /12,1% \(8\/66\).*30% \(54\/180\).*p=0,004 .*TỤT/.test(bTut.noiDung), hangBangChung(bThieu, luc).hang,
+        bQc.nguon, hangBangChung(bQc, luc).hang, !!bQc.gioiHan?.length],
+      ["SK-ti_le_chot", "B", true, "C", "nen_tang_bao", "C", true]);
+    kiem("sổ bằng chứng", "khác biệt cài đặt: tìm đúng đường đổi lồng nhau, bỏ phần không đổi, mảng so cả khối",
+      khacBiet({ autoPilot: { gio: ["19:30"], bat: true }, tone: "a" }, { autoPilot: { gio: ["03:00"], bat: true }, tone: "a" }),
+      [{ duong: "autoPilot.gio", truoc: ["19:30"], sau: ["03:00"] }]);
+    const td = (o: Record<string, unknown>) => ({ id: 9, luc, trang_id: 1, bang: "ai_configs", ban_ghi: "18", hanh_dong: "sua", nguon: null, truoc: null, sau: null, ...o }) as never;
+    const bGio = bangChungTuThayDoi(td({ truoc: { settings: { autoPilot: { gio: ["19:30"] } } }, sau: { settings: { autoPilot: { gio: ["03:00"] } } } }), "content");
+    const bDai = bangChungTuThayDoi(td({ truoc: { system_prompt: "a" }, sau: { system_prompt: "x".repeat(500) } }), "sales");
+    kiem("sổ bằng chứng", "dòng sổ thay đổi → bằng chứng nhật ký (hạng A): nêu đường đổi trước → sau, người đổi 'chưa rõ' không đoán; giá trị dài rút gọn THÌ BÁO",
+      [bGio.ma, hangBangChung(bGio, luc).hang, bGio.noiDung.includes('settings.autoPilot.gio: ["19:30"] → ["03:00"]'), bGio.noiDung.includes("người đổi: chưa rõ"),
+        bGio.noiDung.includes("(content)"), !!bGio.gioiHan, !!bDai.gioiHan?.length],
+      ["TD-9", "A", true, true, true, false, true]);
+    const dai = "Giá lẻ 120.000đ. " + "x".repeat(4100) + " Giá sỉ từ 10 hộp: 95.000đ mỗi hộp.";
+    const tl = (id: number, ngay: number, chu: string | null, kind = "sales") => ({ id, kind, filename: `tl${id}.txt`, extracted_text: chu, created_at: new Date(luc.getTime() - ngay * 86_400_000) });
+    const ds = [tl(1, 1, dai), tl(2, 2, "b"), tl(3, 3, "c"), tl(4, 4, "d"), tl(5, 5, "e"), tl(6, 30, "Bảng giá cũ"), tl(7, 1, null)];
+    const kq = bangChungTuTaiLieu(ds);
+    const kho = new Map(kq.bangChung.map((b) => [b.ma, b]));
+    kiem("sổ bằng chứng", "tài liệu: giữ NGUYÊN VĂN đầy đủ (trích được phần sau ký tự 4.000); đánh dấu phần AI nhân viên chỉ thấy một phần / không thấy; chưa đọc được chữ → khoảng trống",
+      [kiemTrich({ ma: "TL-1", trich: "Giá sỉ từ 10 hộp: 95.000đ mỗi hộp" }, kho).dung,
+        /chỉ thấy 4\.000 ký tự đầu/.test(kho.get("TL-1")!.gioiHan?.[0] ?? ""), /KHÔNG thấy tài liệu này/.test(kho.get("TL-6")!.gioiHan?.[0] ?? ""),
+        kho.has("TL-7"), kq.khoangTrong.some((x) => x.includes("tl7.txt") && x.includes("chưa đọc được chữ")), kho.get("TL-2")!.gioiHan === undefined],
+      [true, true, true, false, true, true]);
+    const kho4 = new Map([["TL-4", { ma: "TL-4", nguon: "tai_lieu_trang", luc, noiDung: "Miễn phí giao hàng cho đơn từ 300.000đ; dưới 300.000đ phí 30.000đ. Giao 2–4 ngày." } as BangChung]]);
+    kiem("sổ bằng chứng", "trích dẫn thiếu ngữ cảnh: trả CẢ CÂU + từ điều kiện bị bỏ mất ('từ'); trích đủ điều kiện → không cảnh báo",
+      [nguCanhTrich({ ma: "TL-4", trich: "Miễn phí giao hàng" }, kho4), nguCanhTrich({ ma: "TL-4", trich: "Miễn phí giao hàng cho đơn từ 300.000đ" }, kho4)?.thieuDieuKien],
+      [{ cau: "Miễn phí giao hàng cho đơn từ 300.000đ; dưới 300.000đ phí 30.000đ.", thieuDieuKien: ["từ", "dưới"] }, ["dưới"]]);
+    const so = dungSoBangChung({ luc, tu: new Date(luc.getTime() - 35 * 86_400_000), chiSo: [cs({})], suCo: [], baoVe: [],
+      thayDoi: [{ dong: td({ truoc: { tone: "a" }, sau: { tone: "b" } }), loai: "sales" }], soBatDau: luc, taiLieu: [tl(1, 1, "a")], cauHinh: [] });
+    kiem("sổ bằng chứng", "khoảng trống: sổ thay đổi chưa phủ cả cửa sổ → 'chưa biết' (không phải 'không đổi'); quảng cáo chỉnh ngoài hệ thống; người đổi chưa rõ; loại AI chưa có tài liệu",
+      [so.khoangTrong.some((x) => x.includes("CHƯA BIẾT đã đổi gì")), so.khoangTrong.some((x) => x.includes("Trình quản lý quảng cáo")),
+        so.khoangTrong.some((x) => x.includes("chưa phân biệt chủ shop")), so.khoangTrong.some((x) => x.includes("Chưa có tài liệu nào cho AI ads")),
+        so.khoangTrong.some((x) => x.includes("Chưa có tài liệu nào cho AI sales"))],
+      [true, true, true, true, false]);
+    const kn = doc("server/services/knowledge.ts");
+    kiem("sổ bằng chứng", "giới hạn tài liệu của AI nhân viên và của sổ dùng CHUNG một hằng số (không lệch nhau)",
+      [/ORDER BY created_at DESC LIMIT \$\{SO_TAI_LIEU_TOI_DA\}`/.test(kn), /\.slice\(0, KY_TU_MOI_TAI_LIEU\)/.test(kn), !/slice\(0, 4_000\)|LIMIT 5`/.test(kn)],
+      [true, true, true]);
+  }
+  // Quy trình AI điều hành (bước 3, docs mục 14) — chạy THẬT cả quy trình với AI GIẢ có kịch bản (không tốn tiền):
+  // bỏ sót lỗi bị bắt; đề xuất đúng không bị chặn nhầm; việc bình thường hoàn thành với số lượt AI tối thiểu.
+  {
+    const luc = new Date("2026-10-09T12:00:00+07:00");
+    const bc0 = (ma: string, nguon: BangChung["nguon"], noiDung: string, o: Partial<BangChung> = {}): BangChung => ({ ma, nguon, noiDung, luc, ...o });
+    const soMau = (them: BangChung[] = []) => ({ luc, tu: new Date(luc.getTime() - 35 * 86_400_000), baoVe: [], khoangTrong: ["Sổ thay đổi chỉ có từ 09/10."],
+      bangChung: [
+        bc0("SK-ti_le_chot", "thong_ke_he_thong", "Tỉ lệ chốt đơn: 7 ngày gần 19% (40/210) — 28 ngày trước 30% (60/200) · p=0,01 · lệch −37% · TỤT", { thongKe: { p: 0.01, duMau: true } }),
+        bc0("TD-5", "nhat_ky_he_thong", "02/10 09:00 · sửa cài đặt AI (sales) #18 · settings.buoc: \"tư vấn\" → \"chốt ngay sau khi giới thiệu\" · người đổi: chưa rõ"),
+        bc0("TL-4", "tai_lieu_trang", "# chinh-sach.txt\nMiễn phí giao hàng cho đơn từ 300.000đ; dưới 300.000đ phí 30.000đ."),
+        bc0("CH-ads", "nhat_ky_he_thong", "Cài đặt hiện tại của AI ads · tiêu đề quảng cáo đang chạy: FREESHIP TOÀN QUỐC"),
+        ...them,
+      ] });
+    const kdChot = [
+      { id: "k1", noi_dung: "Lời dặn bán hàng đổi sang chốt ngay", loai: "biet", trich_dan: [{ ma: "TD-5", trich: "chốt ngay sau khi giới thiệu" }] },
+      { id: "k2", noi_dung: "Tỉ lệ chốt tụt có ý nghĩa", loai: "biet", trich_dan: [{ ma: "SK-ti_le_chot", trich: "p=0,01 · lệch −37% · TỤT" }] }];
+    const qdChot = { khang_dinh: kdChot, nguyen_nhan: [{ ma: "ep_chot_som", kieu: "chan_doan", co_che: ["k1"], hieu_ung: ["k2"] }],
+      hanh_dong: [{ ma: "hoan_tac_thay_doi", nhan_vien: "he_thong", uu_tien: 1, doi_tuong: "TD-5", can_cu: ["k1", "k2"] }], quyet_dinh: "tiep_tuc" };
+    const kiemOn = { tra_loi: [{ id: "KH-1", ket_qua: "khong" }], phan_bien: [], ghi_chu: [] };
+    const giaLap = (kichBan: { dieu_hanh: unknown[]; kiem: unknown[] }) => {
+      const goi: string[] = [];
+      const f: GoiAi = async (vai) => { goi.push(vai); const ds = kichBan[vai]; if (!ds.length) throw new Error(`hết kịch bản ${vai}`); return { du: ds.shift(), tien: 0.01 }; };
+      return { f, goi };
+    };
+    const chay = async (so: ReturnType<typeof soMau>, kb: { dieu_hanh: unknown[]; kiem: unknown[] }, cheDo: "tu_dong" | "de_xuat" = "tu_dong") => {
+      const g = giaLap(kb);
+      const k = await dieuHanhMotLan({ vanDe: "Tỉ lệ chốt đơn TỤT", so, cheDo, tranTien: 500_000, goi: g.f });
+      return { k, goi: g.goi.join(",") };
+    };
+
+    // Bình thường: chẩn đoán đúng → qua với 2 lượt AI; hệ thống tính "đã rõ" mức vừa; đề xuất viết bằng code, có câu gốc.
+    const a = await chay(soMau(), { dieu_hanh: [qdChot], kiem: [kiemOn] });
+    kiem("quy trình điều hành", "việc bình thường: chẩn đoán đúng → qua sau 2 lượt AI (điều hành + kiểm), đã rõ mức vừa, đề xuất có câu gốc + khoảng trống",
+      [a.k.ketQua, a.goi, a.k.ketLuan, a.k.mucChac, hienDeXuat(a.k, soMau()).includes("«chốt ngay sau khi giới thiệu»") || hienDeXuat(a.k, soMau()).includes("chốt ngay sau khi giới thiệu"), hienDeXuat(a.k, soMau()).includes("Hệ thống CHƯA BIẾT")],
+      ["thuc_hien", "dieu_hanh,kiem", "da_ro", [{ ma: "ep_chot_som", muc: "vua" }], true, true]);
+
+    // Bỏ sót sự cố (lỗi nghiêm trọng) → code bắt → sửa một lần; sửa xong qua; vẫn bỏ sót → chủ shop.
+    const soSc = soMau([bc0("SC-1", "nhat_ky_he_thong", "Sự cố kenh: Kênh cần nối lại — Fanpage Bánh")]);
+    const coSc = { ...qdChot, khang_dinh: [...kdChot, { id: "k3", noi_dung: "Kênh cần nối lại", loai: "biet", trich_dan: [{ ma: "SC-1", trich: "Kênh cần nối lại — Fanpage Bánh" }] }],
+      hanh_dong: [{ ma: "hoi_chu_shop", nhan_vien: "chu_shop", uu_tien: 1, can_cu: ["k3"] }, ...qdChot.hanh_dong.map((h) => ({ ...h, uu_tien: 2 }))] };
+    const b1 = await chay(soSc, { dieu_hanh: [qdChot, coSc], kiem: [kiemOn] });
+    const b2 = await chay(soSc, { dieu_hanh: [qdChot, qdChot, qdChot], kiem: [kiemOn] });
+    kiem("quy trình điều hành", "bỏ sót sự cố bị CODE bắt (không trông vào AI kiểm): sửa một lần nhắc tới sự cố → qua; vẫn bỏ sót → dừng, chủ shop quyết",
+      [b1.k.ketQua, b1.goi, b2.k.ketQua, b2.k.viPham.map((v) => v.loai)],
+      ["thuc_hien", "dieu_hanh,kiem,dieu_hanh", "dung_hoi_chu_shop", ["bo_sot_su_co"]]);
+
+    // Trích bịa (ca C5) → bị trả lại ngay ở bước khuôn/trích, KHÔNG tốn lượt kiểm chéo.
+    const bia = { ...qdChot, khang_dinh: [...kdChot, { id: "k9", noi_dung: "Tài liệu đã có cách đặt hàng", loai: "biet", trich_dan: [{ ma: "TL-4", trich: "đặt hàng qua inbox" }] }] };
+    const c = await chay(soMau(), { dieu_hanh: [bia, qdChot], kiem: [kiemOn] });
+    const c2 = await chay(soMau(), { dieu_hanh: [bia, bia], kiem: [kiemOn] });
+    const { loiTuLanChay } = await import("../server/services/so-loi.js");
+    kiem("sổ lỗi", "lỗi AI đã mắc ở vòng TRƯỚC (đã được sửa) vẫn vào sổ lỗi, mức đã xác nhận (máy đo); lần chạy sạch → không có dòng nào",
+      [loiTuLanChay(c.k).map((l) => l.loai), loiTuLanChay(a.k)], [["trich_sai", "biet_khong_can_cu"], []]);
+    const sl = doc("server/services/so-loi.ts");
+    kiem("sổ lỗi", "chỉ chủ của đề xuất, khi đề xuất còn chờ, mới duyệt / bác được; bác → sổ lỗi mức NGHI VẤN (chưa phải lỗi); lỗi kiểm cứng → đã xác nhận",
+      [/WHERE id = \$1 AND user_id = \$2 AND trang_thai = 'cho_duyet' RETURNING trang_id/.test(sl),
+        /'chu_shop_bac','chu_shop_bac',\$4,'nghi_van'\)/.test(sl), /'kiem_cung',\$4,\$5,'da_xac_nhan'\)/.test(sl),
+        !/loiDanDieuHanh|system_prompt/.test(sl)],
+      [true, true, true, true]);
+    kiem("quy trình điều hành", "trích bịa (ca C5) bị trả lại ngay ở bước khuôn/trích — sửa xong mới tới kiểm chéo; bịa lần nữa → dừng NGAY, không tốn lượt kiểm",
+      [c.k.ketQua, c.goi, c.k.nhatKy[1].buoc, c2.k.ketQua, c2.goi, c2.k.viPham.map((v) => v.loai)],
+      ["thuc_hien", "dieu_hanh,dieu_hanh,kiem", "sửa khuôn / trích dẫn", "dung_hoi_chu_shop", "dieu_hanh,dieu_hanh", ["trich_sai", "biet_khong_can_cu"]]);
+
+    // Việc rủi ro khi chưa đủ căn cứ (ca A3): dừng quảng cáo không hỏi → trả lại; thêm hỏi chủ shop trước → qua.
+    const a3 = { khang_dinh: [{ id: "k1", noi_dung: "Chủ shop muốn tắt", loai: "biet", trich_dan: [{ ma: "CH-ads", trich: "FREESHIP TOÀN QUỐC" }] }], nguyen_nhan: [],
+      hanh_dong: [{ ma: "dung_quang_cao", nhan_vien: "quang_cao", uu_tien: 1, can_cu: ["k1"] }], quyet_dinh: "tiep_tuc" };
+    const a3Hoi = { ...a3, hanh_dong: [{ ma: "hoi_chu_shop", nhan_vien: "chu_shop", uu_tien: 1, can_cu: ["k1"] }, { ma: "dung_quang_cao", nhan_vien: "quang_cao", uu_tien: 2, can_cu: ["k1"] }] };
+    const d = await chay(soMau(), { dieu_hanh: [a3, a3Hoi], kiem: [{ tra_loi: [], phan_bien: [] }] });
+    kiem("quy trình điều hành", "việc rủi ro khi chưa đủ căn cứ (ca A3) → trả lại; xếp hỏi chủ shop trước → qua (không dừng thừa)",
+      [d.k.ketQua, d.goi, d.k.ketLuan], ["thuc_hien", "dieu_hanh,kiem,dieu_hanh", "chua_du_du_lieu"]);
+
+    // KHÔNG chặn nhầm đề xuất đúng: quảng cáo sai sự thật → hai việc SỬA LỖI cùng lúc; kiểm chéo xác nhận mâu thuẫn → qua.
+    const kdFs = [{ id: "m", noi_dung: "Quảng cáo ghi freeship toàn quốc", loai: "biet", trich_dan: [{ ma: "CH-ads", trich: "FREESHIP TOÀN QUỐC" }] },
+      { id: "t", noi_dung: "Chính sách chỉ miễn phí từ 300.000đ", loai: "biet", trich_dan: [{ ma: "TL-4", trich: "Miễn phí giao hàng cho đơn từ 300.000đ; dưới 300.000đ phí 30.000đ" }] }];
+    const qdFs = { khang_dinh: kdFs, nguyen_nhan: [{ ma: "bia_thong_tin_san_pham", kieu: "vi_pham", co_che: ["m", "t"], hieu_ung: [] }],
+      hanh_dong: [{ ma: "doi_thong_diep_quang_cao", nhan_vien: "quang_cao", uu_tien: 1, can_cu: ["m", "t"] }, { ma: "them_hoi_dap", nhan_vien: "ban_hang", uu_tien: 1, can_cu: ["t"] }], quyet_dinh: "tiep_tuc" };
+    const e1 = await chay(soMau(), { dieu_hanh: [qdFs], kiem: [{ tra_loi: [{ id: "MT-1", ket_qua: "co", trich_dan: [{ ma: "TL-4", trich: "dưới 300.000đ phí 30.000đ" }] }], phan_bien: [] }] });
+    const e2 = await chay(soMau(), { dieu_hanh: [qdFs, qdFs], kiem: [{ tra_loi: [{ id: "MT-1", ket_qua: "khong" }], phan_bien: [] }] });
+    kiem("quy trình điều hành", "KHÔNG chặn nhầm: vi phạm có thật được xác nhận → hai việc sửa lỗi làm ngay (2 lượt AI); không xác nhận → coi là 2 việc tối ưu → bị giữ lại",
+      [e1.k.ketQua, e1.goi, e1.k.mucChac, e2.k.ketQua],
+      ["thuc_hien", "dieu_hanh,kiem", [{ ma: "bia_thong_tin_san_pham", muc: "cao" }], "dung_hoi_chu_shop"]);
+
+    // Bị cuốn theo: phản biện không trích dẫn → chỉ ghi chú; phản biện đúng → AI điều hành đổi ý KHÔNG có bằng chứng mới → chủ shop.
+    const pbKhong = { tra_loi: [{ id: "KH-1", ket_qua: "khong" }], phan_bien: [{ khang_dinh: "k2", noi_dung: "số này đáng ngờ", trich_dan: [] }], ghi_chu: [] };
+    const f1 = await chay(soMau(), { dieu_hanh: [qdChot], kiem: [pbKhong] });
+    const pbCo = { tra_loi: [{ id: "KH-1", ket_qua: "co", giai_thich: "có thể do nguồn khách", trich_dan: [{ ma: "SK-ti_le_chot", trich: "7 ngày gần 19% (40/210)" }] }], phan_bien: [] };
+    const doiKhongMoi = { ...qdChot, hanh_dong: [{ ma: "giu_nguyen", nhan_vien: "he_thong", uu_tien: 1, can_cu: ["k2"] }] };
+    const f2 = await chay(soMau(), { dieu_hanh: [qdChot, doiKhongMoi], kiem: [pbCo] });
+    kiem("quy trình điều hành", "chống bị cuốn theo: phản biện không trích dẫn → ghi chú, vẫn làm; đổi ý chỉ vì phản biện (không bằng chứng mới) → dừng, chủ shop quyết",
+      [f1.k.ketQua, f1.goi, f2.k.ketQua, f2.k.lyDo.includes("không có bằng chứng mới")],
+      ["thuc_hien", "dieu_hanh,kiem", "dung_hoi_chu_shop", true]);
+
+    // Câu hỏi kiểm hẹp do code soạn: mâu thuẫn cho vi phạm, giả thuyết khác cho chẩn đoán, thiếu điều kiện khi trích cụt.
+    const cut = { ...qdFs, khang_dinh: [kdFs[0], { ...kdFs[1], trich_dan: [{ ma: "TL-4", trich: "Miễn phí giao hàng cho đơn" }] }] };
+    const { docQuyetDinh } = await import("../server/services/dieu-hanh.js");
+    kiem("quy trình điều hành", "câu hỏi kiểm hẹp do CODE soạn: vi phạm → hỏi mâu thuẫn; chẩn đoán → hỏi giả thuyết khác; trích cụt mất điều kiện → hỏi sai nghĩa",
+      [cauHoiKiem(docQuyetDinh(qdChot).qd, khoBangChung(soMau())).map((c) => c.id), cauHoiKiem(docQuyetDinh(cut).qd, khoBangChung(soMau())).map((c) => c.id)],
+      [["KH-1"], ["MT-1", "NC-t-TL-4"]]);
+  }
+  // Màn hình chạy thử AI điều hành (10/10/2026): mọi route qua chốt phạm vi chuỗi; chạy có khoá theo trang (bấm hai lần
+  // không trả tiền hai lần); duyệt / bác kiểm phạm vi theo trang CỦA ĐỀ XUẤT; giao diện không dùng hộp của trình duyệt.
+  {
+    const ql = doc("server/routes/quan-ly.ts");
+    const ui = doc("src/components/DieuHanhThu.tsx");
+    kiem("AI điều hành chạy thử", "3 route đọc / chạy kiểm phạm vi chuỗi; duyệt / bác kiểm phạm vi theo trang của đề xuất; khoá chạy theo trang",
+      [(ql.match(/"\/dieu-hanh\/(so|chay|de-xuat)",[\s\S]{0,80}?route\(async \(req, res\) => \{\s*const trangId = await trangTrongPhamVi\(req\.user!, req\.(query|body)\??\.trangId\);/g) ?? []).length,
+        /if \(!dx\) throw new AppError\("Không tìm thấy đề xuất", 404\);\s*await trangTrongPhamVi\(req\.user!, dx\.trang_id\);/.test(ql),
+        /if \(dangChayDieuHanh\.has\(trangId\)\) throw[\s\S]*?dangChayDieuHanh\.add\(trangId\);\s*try \{[\s\S]*?\} finally \{\s*dangChayDieuHanh\.delete\(trangId\);/.test(ql),
+        /cheDo: "de_xuat"/.test(ql)],
+      [3, true, true, true]);
+    kiem("AI điều hành chạy thử", "giao diện: hỏi lại bằng hộp của app trước khi tốn tiền; không hộp của trình duyệt",
+      [/await hoiXacNhan\(\{\s*tieuDe: 'Chạy thử AI điều hành\?'/.test(ui), !/\b(window\.)?(confirm|prompt|alert)\(/.test(ui)], [true, true]);
+  }
+  kiem("giấu nhà cung cấp", "lỗi đọc hoá đơn kênh / quảng cáo không đưa câu gốc (có tên nhà cung cấp) ra màn hình",
+    [/loi: "Chưa đọc được hoá đơn kết nối kênh, thử tải lại sau ít phút\."/.test(tq),
+      /loi: "Chưa đọc được số quảng cáo"/.test(tq),
+      /loi: e instanceof Error \? e\.message/.test(tq)],
+    [true, true, false]);
+}
+
 console.log(`\nĐã kiểm ${tong} điểm.`);
 if (hong === 0) {
   console.log("Tất cả đều đạt.\n");

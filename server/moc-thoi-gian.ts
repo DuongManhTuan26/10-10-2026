@@ -14,3 +14,10 @@ export const DAU_NGAY_VN =
 
 export const DAU_THANG_VN =
   "(date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh')";
+
+/**
+ * MỐC bắt đầu tính số THEO TRANG (chủ dự án duyệt 05/10/2026): "những cái gì đã qua rồi không thể tính chính xác được
+ * hãy bỏ qua đi, chỉ bắt buộc chính xác tuyệt đối từ bây giờ trở đi". Từ 00:00 ngày 05/10/2026 giờ Việt Nam mọi lượt
+ * AI đã mang trang (sổ AI ghi trang từ 23:41 ngày 04/10); trước mốc không hiện ở Tổng quan / Chi tiết.
+ */
+export const MOC_THEO_TRANG = new Date("2026-10-05T00:00:00+07:00");

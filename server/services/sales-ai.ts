@@ -8,6 +8,7 @@ import { sendHandoffAlert } from "./telegram.js";
 import { taoDon, daCoDon } from "./orders.js";
 import { sendMessageSafely } from "./outbound.js";
 import { xinSuatTraLoiAI } from "./chong-lam-dung.js";
+import { chayChoKenh } from "./ngu-canh-trang.js";
 
 /**
  * Bộ não AI bán hàng.
@@ -1324,8 +1325,8 @@ const CHO_TRUOC_KHI_VOT_MS = 3 * 60_000;
 const VOT_MOI_LUOT = 20;
 
 export async function runDueBoSot(): Promise<number> {
-  const ungVien = await query<{ id: string }>(
-    `SELECT c.id
+  const ungVien = await query<{ id: string; social_account_id: string | null }>(
+    `SELECT c.id, c.social_account_id
        FROM conversations c
        JOIN LATERAL (
          SELECT sender_type, created_at
@@ -1347,7 +1348,7 @@ export async function runDueBoSot(): Promise<number> {
   let daVot = 0;
   for (const hc of ungVien.rows) {
     try {
-      if (await handleIncomingMessage(hc.id)) daVot += 1;
+      if (await chayChoKenh(hc.social_account_id, () => handleIncomingMessage(hc.id))) daVot += 1;
     } catch (error) {
       console.error(
         `[vớt tin bỏ sót] Hội thoại ${hc.id} không xử lý được:`,
@@ -1404,7 +1405,7 @@ export async function runDueFollowUps(): Promise<number> {
       if (cuoi?.sender_type === "customer") continue;
 
       try {
-        const cau = await soanCauNhac(hoi, hoi.nhac_lai_count);
+        const cau = await chayChoKenh(hoi.social_account_id, () => soanCauNhac(hoi, hoi.nhac_lai_count));
         if (!cau.trim()) continue;
 
         const ketQua = await sendMessageSafely({

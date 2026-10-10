@@ -2,7 +2,7 @@ import { pool, query } from "./db.js";
 import { handleWebhookEvent } from "./services/events.js";
 import { runDueCommentActions } from "./services/comment-ai.js";
 import { reconcileInbox } from "./services/reconcile.js";
-import { runDueAutoPilot, runDueAutoPublishes } from "./services/autopilot.js";
+import { runDueAutoPilot, runDueAutoPublishes, runDueVideoTuDong } from "./services/autopilot.js";
 import { runDueFollowUps, runDueBoSot } from "./services/sales-ai.js";
 import { runDueAccountSync } from "./services/accounts.js";
 import { runDuePostRecheck } from "./services/post-status.js";
@@ -14,6 +14,9 @@ import { runDueVideoJobs } from "./services/video-ai.js";
 import { runDueVideoProjects } from "./services/video-dai.js";
 import { runDueCanhBaoChiPhi } from "./services/chi-phi.js";
 import { doiChieuLuotAi } from "./services/so-ai.js";
+import { chayChoKenh } from "./services/ngu-canh-trang.js";
+import { ghiKenhTheoNgay } from "./services/trang.js";
+import { chupSoBaiNgay } from "./services/so-lieu-kenh.js";
 
 /**
  * Worker xử lý hàng đợi sự kiện.
@@ -147,7 +150,8 @@ async function claimBatch(): Promise<EventRow[]> {
 
 async function processEvent(event: EventRow): Promise<void> {
   try {
-    await handleWebhookEvent({
+    // Mỗi sự kiện thuộc một kênh → một Trang: tiền AI trả lời khách / bình luận ghi đúng trang đó.
+    await chayChoKenh(event.account_id, () => handleWebhookEvent({
       // attempts đã được cộng 1 lúc nhận việc, nên đây chính là lần thử hiện tại.
       attempt: event.attempts + 1,
       maxAttempts: MAX_ATTEMPTS,
@@ -155,7 +159,7 @@ async function processEvent(event: EventRow): Promise<void> {
       eventType: event.event_type,
       accountId: event.account_id,
       payload: event.payload,
-    });
+    }));
 
     await query(
       `UPDATE webhook_events SET status = 'done', processed_at = now(), last_error = NULL
@@ -378,6 +382,14 @@ export function startWorker(): void {
           );
         }
 
+        // Bài lịch tự đăng đang chờ video: video xong thì gắn và đăng, lỗi / quá lâu thì đăng kèm ảnh thay thế.
+        try {
+          const daXuLy = await coHanGio("bài chờ video", runDueVideoTuDong(), HAN_MOI_VIEC_MS);
+          if (daXuLy > 0) console.log(`[tự động] Đã xử lý ${daXuLy} bài chờ video.`);
+        } catch (error) {
+          console.error("[tự động] Lỗi khi xử lý bài chờ video:", error instanceof Error ? error.message : error);
+        }
+
         try {
           const daDang = await coHanGio("đăng bài hết giờ chờ", runDueAutoPublishes(), HAN_MOI_VIEC_MS);
           if (daDang > 0) console.log(`[tự động] Đã đăng ${daDang} bài hết giờ chờ.`);
@@ -434,6 +446,14 @@ export function startWorker(): void {
        */
       if (Date.now() - lanDongBoKenhCuoi >= RECONCILE_INTERVAL_MS) {
         lanDongBoKenhCuoi = Date.now();
+        // Sổ kênh theo ngày (chia tiền kênh khi đổi Fanpage giữa tháng) — ghi trạng thái đầu tiên của mỗi ngày UTC.
+        await ghiKenhTheoNgay().catch((error) =>
+          console.error("[sổ kênh theo ngày]", error instanceof Error ? error.message : error)
+        );
+        // Số từng bài đăng, mỗi kênh một lần mỗi ngày (báo cáo chuỗi 4 AI).
+        await coHanGio("chụp số bài", chupSoBaiNgay(), HAN_MOI_VIEC_MS).catch((error) =>
+          console.error("[số bài]", error instanceof Error ? error.message : error)
+        );
         try {
           const soShop = await coHanGio("đồng bộ kênh", runDueAccountSync(), HAN_MOI_VIEC_MS);
           if (soShop > 0) console.log(`[đồng bộ kênh] Đã làm mới ${soShop} shop.`);

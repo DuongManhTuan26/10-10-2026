@@ -1,4 +1,5 @@
-import { query, queryOne } from "../db.js";
+import { query, queryOne, transaction } from "../db.js";
+import { coNguon } from "./so-thay-doi.js";
 import { getRateLimitState } from "./zernio.js";
 
 /**
@@ -600,13 +601,17 @@ export async function evaluateAutoPause(params: {
     `tỷ lệ gửi thất bại ${rate}% trong một giờ (${failed}/${total} tin), ` +
     `vượt ngưỡng ${config.failure_rate_threshold}%`;
 
-  await query(
-    `UPDATE social_accounts
-        SET ai_paused_until = $2, ai_pause_reason = $3, ai_paused_at = now(),
-            updated_at = now()
-      WHERE id = $1`,
-    [params.socialAccountId, until, reason]
-  );
+  // Sổ thay đổi: đây là HỆ THỐNG tự ngắt, không phải chủ shop — ghi nguồn trong cùng giao dịch (trigger đọc).
+  await transaction(async (c) => {
+    await coNguon(c, "he_thong");
+    await c.query(
+      `UPDATE social_accounts
+          SET ai_paused_until = $2, ai_pause_reason = $3, ai_paused_at = now(),
+              updated_at = now()
+        WHERE id = $1`,
+      [params.socialAccountId, until, reason]
+    );
+  });
 
   console.error(
     `[hàng rào] TẠM NGẮT AI trên kênh ${params.socialAccountId}: ${reason}. ` +

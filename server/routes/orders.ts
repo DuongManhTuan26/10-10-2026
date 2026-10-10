@@ -99,9 +99,34 @@ ordersRouter.post(
     const body = req.body ?? {};
     // Toàn bộ xử lý nằm ở services/orders.ts để AI bán hàng tự chủ dùng chung
     // đúng một đường mã — xem phần đầu tệp đó để biết vì sao.
+    const conversationId = typeof body.conversationId === "string" ? body.conversationId : null;
+    /*
+     * Đơn tạo tay KHÔNG có hội thoại: phải biết thuộc trang nào. Một trang → trang đó. Từ hai trang → bắt buộc chọn
+     * (kênh đang chọn gửi qua đầu X-Kenh, máy chủ kiểm kênh thuộc đúng tài khoản). Có hội thoại thì trang lấy theo
+     * kênh hội thoại trong taoDon.
+     */
+    let trangId: number | null = null;
+    if (!conversationId) {
+      const ds = await query<{ id: number }>("SELECT id FROM trang WHERE user_id = $1", [req.user!.id]);
+      if (ds.rows.length === 1) trangId = ds.rows[0].id;
+      else if (ds.rows.length > 1) {
+        const kenh = req.get("x-kenh");
+        const r = kenh
+          ? await queryOne<{ trang_id: number | null }>(
+              "SELECT trang_id FROM social_accounts WHERE id = $1 AND user_id = $2",
+              [kenh, req.user!.id]
+            )
+          : null;
+        if (!r?.trang_id) {
+          throw new AppError("Tài khoản có nhiều trang — chọn trang (kênh) trước khi tạo đơn.", 400);
+        }
+        trangId = r.trang_id;
+      }
+    }
     const order = await taoDon({
       userId: req.user!.id,
-      conversationId: typeof body.conversationId === "string" ? body.conversationId : null,
+      conversationId,
+      trangId,
       customerName: typeof body.customerName === "string" ? body.customerName : null,
       phone: typeof body.phone === "string" ? body.phone : null,
       address: typeof body.address === "string" ? body.address : null,

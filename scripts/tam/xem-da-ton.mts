@@ -1,0 +1,10 @@
+import fs from "node:fs";
+const G = "http://127.0.0.1:3000";
+const cu = JSON.parse(fs.readFileSync("scripts/tam/chuoi-thu.json", "utf8"));
+const dn = await fetch(G + "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: cu.email, password: cu.mk }) });
+const c0 = dn.headers.get("set-cookie")!.split(";")[0];
+const mo = await fetch(G + `/api/quan-ly/trang/${cu.trangId}/mo`, { method: "POST", headers: { Cookie: c0 } });
+const c = mo.headers.get("set-cookie")!.split(";")[0];
+const j: any = await (await fetch(G + "/api/ai/video/du-an", { headers: { Cookie: c } })).json();
+for (const d of j.data) console.log(`#${d.id} ${d.trang_thai} ${d.canh_xong}/${d.phan_canh.length} đã tốn ${d.da_ton} | gia_thuc ${d.gia_thuc}`);
+process.exit(0);

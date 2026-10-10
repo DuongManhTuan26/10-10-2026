@@ -202,23 +202,28 @@ export interface DongTaiKhoan {
  * Sổ chi phí AI của app trong một kỳ: theo nhóm việc (mỗi nhóm có từng việc
  * cụ thể) và theo từng tài khoản (mỗi tài khoản một dòng riêng, độc lập).
  */
-export async function soChiPhiApp(soNgay: number) {
+export async function soChiPhiApp(soNgay: number, phamViChuoi?: number) {
   const ky = kySaoKe(soNgay);
+  // Phạm vi một chuỗi (admin con): chỉ tiền của chính admin con và các trang của họ.
+  const thamSoChuoi = phamViChuoi === undefined ? [] : [phamViChuoi];
+  const dkChuoi = (vt: number) =>
+    phamViChuoi === undefined ? "" : ` AND (a.user_id = $${vt} OR a.user_id IN (SELECT id FROM users WHERE parent_id = $${vt}))`;
+  const n = ky.thamSo.length + 1;
   const [theoViec, theoTaiKhoan, tong] = await Promise.all([
     query<{ viec: string | null; lan: number; usd: string }>(
       `SELECT a.viec, count(*)::int AS lan, coalesce(sum(${TIEN}), 0)::text AS usd FROM ai_usage a
-        WHERE ${ky.dk} GROUP BY a.viec`,
-      ky.thamSo
+        WHERE ${ky.dk}${dkChuoi(n)} GROUP BY a.viec`,
+      [...ky.thamSo, ...thamSoChuoi]
     ),
     query<{ user_id: number | null; email: string | null; ten: string | null; role: string | null; parent_id: number | null; cha_ten: string | null; lan: number; usd: string }>(
       `SELECT a.user_id, u.email, u.name AS ten, u.role, u.parent_id, coalesce(p.name, p.email) AS cha_ten,
               count(*)::int AS lan, coalesce(sum(${TIEN}), 0)::text AS usd
          FROM ai_usage a LEFT JOIN users u ON u.id = a.user_id LEFT JOIN users p ON p.id = u.parent_id
-        WHERE ${ky.dk}
+        WHERE ${ky.dk}${dkChuoi(n)}
         GROUP BY a.user_id, u.email, u.name, u.role, u.parent_id, p.name, p.email`,
-      ky.thamSo
+      [...ky.thamSo, ...thamSoChuoi]
     ),
-    queryOne<{ usd: string }>(`SELECT coalesce(sum(${TIEN}), 0)::text AS usd FROM ai_usage a`),
+    queryOne<{ usd: string }>(`SELECT coalesce(sum(${TIEN}), 0)::text AS usd FROM ai_usage a WHERE TRUE${dkChuoi(1)}`, thamSoChuoi),
   ]);
 
   // Gom việc vào nhóm. Dòng cũ chưa có việc thì đứng riêng một nhóm, không đoán.
@@ -284,14 +289,40 @@ export const LUOT_MOI_TRANG = 50;
  * Từng lượt bị tính tiền, mới nhất trước. Lọc theo tài khoản (kèm các tài
  * khoản con của nó nếu muốn), theo nhóm, theo việc.
  */
-export async function nhatKyLuot(loc: { soNgay: number; taiKhoan?: number | null; kemCon?: boolean; nhom?: string; viec?: string; trang?: number }) {
+export async function nhatKyLuot(loc: {
+  soNgay: number;
+  taiKhoan?: number | null;
+  kemCon?: boolean;
+  nhom?: string;
+  viec?: string;
+  trang?: number;
+  /** Chỉ trong một chuỗi (admin con + trang của họ) — luôn áp, mọi lọc khác thu hẹp thêm bên trong. */
+  phamViChuoi?: number;
+  /** Chỉ lượt của MỘT trang (sao kê từng trang ở màn hình quản lý). */
+  trangId?: number;
+  /** Theo tháng lịch giờ Việt Nam thay cho soNgay — khớp kỳ của màn hình Tổng quan. */
+  kyThang?: "thang_nay" | "thang_truoc";
+  /** Chỉ lượt từ thời điểm này (mốc bắt đầu tính theo trang). */
+  tuLuc?: Date;
+}) {
   const ky = kySaoKe(loc.soNgay);
-  const dk = [ky.dk];
-  const thamSo: unknown[] = [...ky.thamSo];
+  const dk = [
+    loc.kyThang === "thang_nay"
+      ? `a.created_at >= ${DAU_THANG_VN}`
+      : loc.kyThang === "thang_truoc"
+        ? `a.created_at >= (${DAU_THANG_VN} - interval '1 month') AND a.created_at < ${DAU_THANG_VN}`
+        : ky.dk,
+  ];
+  // Theo tháng thì không dùng tham số số ngày của kySaoKe — để lại là lệch số thứ tự tham số.
+  const thamSo: unknown[] = loc.kyThang ? [] : [...ky.thamSo];
   const them = (giaTri: unknown) => {
     thamSo.push(giaTri);
     return `$${thamSo.length}`;
   };
+  if (loc.phamViChuoi !== undefined) {
+    const c = them(loc.phamViChuoi);
+    dk.push(`(a.user_id = ${c} OR a.user_id IN (SELECT id FROM users WHERE parent_id = ${c}))`);
+  }
   if (loc.taiKhoan !== undefined) {
     if (loc.taiKhoan === null) dk.push("a.user_id IS NULL");
     else if (loc.kemCon) {
@@ -299,6 +330,8 @@ export async function nhatKyLuot(loc: { soNgay: number; taiKhoan?: number | null
       dk.push(`(a.user_id = ${tk} OR a.user_id IN (SELECT id FROM users WHERE parent_id = ${tk}))`);
     } else dk.push(`a.user_id = ${them(loc.taiKhoan)}`);
   }
+  if (loc.trangId !== undefined) dk.push(`a.trang_id = ${them(loc.trangId)}`);
+  if (loc.tuLuc) dk.push(`a.created_at >= ${them(loc.tuLuc)}`);
   if (loc.viec) dk.push(loc.viec === "chua_phan_loai" ? "a.viec IS NULL" : `a.viec = ${them(loc.viec)}`);
   if (loc.nhom) {
     if (loc.nhom === "chua_phan_loai") dk.push("a.viec IS NULL");
@@ -607,6 +640,48 @@ export async function saoKe(soNgay: number) {
     so,
     doiChieu,
     linkNap: LINK_NAP,
+  };
+}
+
+/**
+ * Sao kê của MỘT CHUỖI (admin con): cùng dạng với saoKe() để màn hình chi phí dùng chung một khung, nhưng chỉ tiền
+ * của chuỗi đó. Số dư / đối chiếu / ngưỡng / link nạp là việc của quản trị tổng — không trả về.
+ *
+ * Kết nối kênh: nhà cung cấp chỉ báo tổng cả hệ thống, không tách theo tài khoản → chia theo TỈ LỆ số kênh đang nối
+ * của chuỗi, và báo rõ là ước tính (uocTinh) — không đưa ra như số thật.
+ */
+export async function saoKeChuoi(chaId: number, soNgay: number) {
+  const [kenhHT, so, dem] = await Promise.all([
+    docNhaCungCapKenh(),
+    soChiPhiApp(soNgay, chaId),
+    queryOne<{ chuoi: number; tat_ca: number }>(
+      `SELECT count(*) FILTER (WHERE user_id = $1 OR user_id IN (SELECT id FROM users WHERE parent_id = $1))::int AS chuoi,
+              count(*)::int AS tat_ca
+         FROM social_accounts WHERE connected`,
+      [chaId]
+    ),
+  ]);
+  const kenhChuoi = dem?.chuoi ?? 0;
+  const kenhTatCa = dem?.tat_ca ?? 0;
+  const kenh: TinhHinhKenh & { uocTinh?: { kenhChuoi: number; kenhTatCa: number } } = kenhHT.ok
+    ? {
+        ok: true,
+        conHoatDong: kenhHT.conHoatDong,
+        lyDoTamDung: kenhHT.lyDoTamDung ?? null,
+        tieuKyNayUsd: kenhTatCa > 0 ? ((kenhHT.tieuKyNayUsd ?? 0) * kenhChuoi) / kenhTatCa : 0,
+        uocTinh: { kenhChuoi, kenhTatCa },
+      }
+    : { ok: false, loi: kenhHT.loi };
+  return {
+    luc: new Date().toISOString(),
+    ai: { ok: true } as TinhHinhAI,
+    kenh,
+    nguong: null,
+    canhBao: [] as ReturnType<typeof danhGia>,
+    so,
+    doiChieu: null,
+    linkNap: null,
+    phamVi: "chuoi" as const,
   };
 }
 

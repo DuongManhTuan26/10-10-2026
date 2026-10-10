@@ -13,6 +13,7 @@
  *   - mọi lượt đều ghi vào ai_usage để biết shop nào tiêu bao nhiêu.
  */
 
+import { loiNhaCungCap } from "./loi-ncc.js";
 import { query, queryOne } from "../db.js";
 import { env } from "../env.js";
 import { AppError } from "../http.js";
@@ -22,6 +23,7 @@ import { MODEL_VIDEO_DUOC_CHON } from "./model-duoc-chon.js";
 import { hoanDiaChiKho, laDiaChiKho } from "./media-proxy.js";
 import * as zernio from "./zernio.js";
 import { anhTheoKhung } from "./video-cong-cu.js";
+import { chayChoTrang } from "./ngu-canh-trang.js";
 
 const GOC_API = "https://openrouter.ai/api/v1";
 
@@ -39,6 +41,14 @@ export interface ModelVideo {
   /** Phân khúc và thứ hạng — để khách thấy vì sao mô hình này được chọn. */
   phanKhuc?: string;
   xepHang?: string;
+  ghiChu?: string;
+  /** Số giây tối thiểu bị tính tiền (đã đo thật — model-duoc-chon.ts). */
+  giayTinhToiThieu?: number;
+  /**
+   * Mức giảm giá nhà cung cấp đang áp (OpenRouter `endpoints[].pricing.discount`, 0–1). Đo 04/10/2026: Wan 3.0 giảm
+   * 15% — bỏ qua trường này thì báo giá lệch so với tiền thật bị trừ. Đọc sống vì đây là ưu đãi có thời hạn.
+   */
+  giamGia?: number;
 }
 
 export interface LuaChonVideo {
@@ -47,6 +57,18 @@ export interface LuaChonVideo {
   khung: string;
   coTieng: boolean;
   coAnhMoDau: boolean;
+  /** Người dùng chọn — xem luatVideo(). */
+  chuTrongVideo?: ChuTrongVideo;
+  /** Người dùng bật/tắt — xem LuatNoiDung. */
+  chanNhanHieuGia?: boolean;
+  chanNguoiThat?: boolean;
+  /** Đưa video vào (nối dài) — bảng giá có mức riêng `video_tokens_with_video_input`. */
+  coVideoVao?: boolean;
+  /**
+   * Số giây của video đưa vào. Hướng dẫn tính tiền của BytePlus: token khi có video vào =
+   * (giây video vào + giây video ra) × rộng × cao × fps ÷ 1024 — phải cộng cả giây vào.
+   */
+  giayVideoVao?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,10 +126,19 @@ export async function layDanhSachModel(): Promise<ModelVideo[]> {
      * hình hạng bét.
      */
     const tatCa = tho.map((m) => chuanHoaModel(banGhi(m))).filter((m): m is ModelVideo => m !== null && m.soGiay.length > 0);
-    const ds = MODEL_VIDEO_DUOC_CHON.flatMap((c) => {
+    const daChon = MODEL_VIDEO_DUOC_CHON.flatMap((c) => {
       const m = tatCa.find((x) => x.id === c.id);
-      return m ? [{ ...m, phanKhuc: c.phanKhuc, xepHang: c.xepHang }] : [];
+      return m
+        ? [{
+            ...m,
+            phanKhuc: c.phanKhuc,
+            xepHang: c.xepHang,
+            ...(c.ghiChu ? { ghiChu: c.ghiChu } : {}),
+            ...(c.giayTinhToiThieu ? { giayTinhToiThieu: c.giayTinhToiThieu } : {}),
+          }]
+        : [];
     });
+    const ds = await Promise.all(daChon.map(async (m) => ({ ...m, giamGia: await layGiamGia(m.id) })));
     boNho = { luc: Date.now(), ds };
     return ds;
   } catch (error) {
@@ -117,6 +148,27 @@ export async function layDanhSachModel(): Promise<ModelVideo[]> {
       `Chưa lấy được danh sách model video: ${error instanceof Error ? error.message : String(error)}`,
       502
     );
+  }
+}
+
+/**
+ * Mức giảm giá đang áp cho mô hình (OpenRouter `/models/{id}/endpoints` → `pricing.discount`).
+ * Không đọc được thì coi như 0 — báo giá cao hơn thật một chút, không bao giờ thấp hơn tiền bị trừ.
+ * Nhiều nhà cung cấp thì lấy mức giảm THẤP nhất (không biết OpenRouter chọn bên nào).
+ */
+async function layGiamGia(id: string): Promise<number> {
+  try {
+    const r = await fetch(`${GOC_API}/models/${id}/endpoints`, {
+      headers: { Authorization: `Bearer ${env.openrouter.apiKey}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!r.ok) return 0;
+    const ds = banGhi(banGhi(await r.json()).data).endpoints;
+    const muc = (Array.isArray(ds) ? ds : []).map((e) => Number(banGhi(banGhi(e).pricing).discount));
+    const hop = muc.filter((x) => Number.isFinite(x) && x >= 0 && x < 1);
+    return hop.length === muc.length && hop.length > 0 ? Math.min(...hop) : 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -181,7 +233,8 @@ export function kichThuocKhop(model: ModelVideo, doNet: string, khung: string): 
  *     Đã đối chiếu: ra đúng giá niêm yết 480p của Seedance 2.0, 2.0 Fast,
  *     2.0 Mini và 2.5 (0,0673 / 0,0403 / 0,0336 / 0,1028 USD mỗi giây).
  */
-export function giaMoiGiay(model: ModelVideo, lc: LuaChonVideo): number | null {
+/** Giá theo GIÂY (bảng giá kiểu duration_seconds / cents), hoặc undefined nếu mô hình tính theo token. */
+function giaTheoGiay(model: ModelVideo, lc: LuaChonVideo): number | undefined {
   const g = model.giaSku;
   const net = lc.doNet.toLowerCase();
   const tieng = lc.coTieng && model.coTieng;
@@ -195,8 +248,29 @@ export function giaMoiGiay(model: ModelVideo, lc: LuaChonVideo): number | null {
     "duration_seconds",
   ];
   for (const k of thuTu) if (g[k] !== undefined) return g[k];
+  // Kiểu giá theo XU (cent) mỗi giây: FLUX.3, Runway, Grok. Đã thấy 02/10/2026:
+  // thiếu nhánh này thì 4 mô hình đó báo "chưa tính được giá".
+  for (const k of [`cents_per_video_output_second_${net}`, `cents_per_second_output_${net}`, "cents_per_second_output"]) {
+    if (g[k] !== undefined) return g[k] / 100;
+  }
+  return undefined;
+}
+
+/** Giá token khi có video vào (nối dài), hoặc undefined nếu mô hình không có mức giá này. */
+function giaTokenVideoVao(model: ModelVideo, lc: LuaChonVideo): number | undefined {
+  const g = model.giaSku;
+  return lc.coVideoVao ? g[`video_tokens_${lc.doNet.toLowerCase()}_with_video_input`] ?? g.video_tokens_with_video_input : undefined;
+}
+
+export function giaMoiGiay(model: ModelVideo, lc: LuaChonVideo): number | null {
+  const theoGiay = giaTheoGiay(model, lc);
+  if (theoGiay !== undefined) return theoGiay;
+  const g = model.giaSku;
+  const net = lc.doNet.toLowerCase();
+  const tieng = lc.coTieng && model.coTieng;
 
   const giaToken =
+    giaTokenVideoVao(model, lc) ??
     g[`video_tokens_${net}`] ??
     (!tieng ? g.video_tokens_without_audio : undefined) ??
     g.video_tokens;
@@ -204,6 +278,44 @@ export function giaMoiGiay(model: ModelVideo, lc: LuaChonVideo): number | null {
   const dt = dienTichTinhTien(model, lc.doNet);
   if (!dt) return null;
   return ((dt * 24) / 1024) * giaToken;
+}
+
+/**
+ * Tổng giá ước tính MỘT video: tiền theo giây + phí cố định theo ảnh đưa vào.
+ *
+ * - `cents_per_image_input` (Grok): tính mỗi ảnh đưa vào, cả ảnh mở đầu.
+ * - Có ảnh tham chiếu thì HeyGen tính theo bảng giá riêng `reference_duration_seconds_*`,
+ *   MiniMax H3 cộng `reference_images` mỗi ảnh (chưa đối chiếu thật: tính theo
+ *   từng ảnh để ước tính không thấp hơn giá thật).
+ * Giá thật vẫn lấy từ nhà cung cấp khi đối chiếu sổ AI; đây chỉ là giá báo trước.
+ */
+export function giaVideo(model: ModelVideo, lc: LuaChonVideo, soThamChieu = 0): number | null {
+  const g = model.giaSku;
+  const net = lc.doNet.toLowerCase();
+  const moiGiay =
+    (soThamChieu > 0 ? (g[`reference_duration_seconds_${net}`] ?? g.reference_duration_seconds) : undefined) ??
+    giaMoiGiay(model, lc);
+  if (moiGiay === null) return null;
+  const soAnh = (lc.coAnhMoDau ? 1 : 0) + soThamChieu;
+  const phiAnh = ((g.cents_per_image_input ?? 0) / 100) * soAnh + (g.reference_images ?? 0) * soThamChieu;
+  // Tính theo token có video vào: cộng cả giây video vào (BytePlus, xem giayVideoVao).
+  const giayVao = giaTheoGiay(model, lc) === undefined && giaTokenVideoVao(model, lc) !== undefined ? lc.giayVideoVao ?? 0 : 0;
+  // Số giây bị tính có mức tối thiểu (Wan 3.0: 5 giây) và nhà cung cấp có thể đang giảm giá — cả hai đo thật 04/10/2026.
+  const giayTinh = Math.max(lc.soGiay, model.giayTinhToiThieu ?? 0);
+  return (moiGiay * (giayTinh + giayVao) + phiAnh) * (1 - (model.giamGia ?? 0));
+}
+
+/**
+ * Phân khúc theo GIÁ THẬT của đúng lựa chọn đang chọn (USD mỗi giây).
+ *
+ * Đã thấy 02/10/2026: nhãn cố định theo mô hình lệch với thứ tự giá — ở 720p
+ * Kling Standard ("Tầm trung") đứng trước Seedance Fast ("Tiết kiệm"), vì giá
+ * mỗi mô hình đổi theo độ nét.
+ */
+export function phanKhucTheoGia(usdMoiGiay: number): string {
+  if (usdMoiGiay < 0.09) return "Tiết kiệm";
+  if (usdMoiGiay < 0.15) return "Tầm trung";
+  return "Cao cấp";
 }
 
 /** Lý do model không làm được lựa chọn này, hoặc null nếu làm được. */
@@ -222,19 +334,6 @@ export function lyDoKhongHop(model: ModelVideo, lc: LuaChonVideo): string | null
 }
 
 // ---------------------------------------------------------------------------
-// Bật / tắt theo trang
-// ---------------------------------------------------------------------------
-
-export async function videoDangBat(trangId: number | null): Promise<boolean> {
-  if (!trangId) return false;
-  const row = await queryOne<{ settings: Record<string, unknown> | null }>(
-    "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
-    [trangId]
-  );
-  return row?.settings?.videoBat === true;
-}
-
-// ---------------------------------------------------------------------------
 // Trợ lý viết lời mô tả video
 // ---------------------------------------------------------------------------
 
@@ -247,16 +346,60 @@ export const MUC_DICH_VIDEO: Record<string, string> = {
 };
 
 /**
- * Luật an toàn, áp cho MỌI video, người dùng không sửa được.
- *
- * Model video viết chữ tiếng Việt gần như luôn sai dấu, sai chữ; và tự bịa nhãn
- * hiệu, huy hiệu chứng nhận thì thành quảng cáo sai sự thật — cùng lý do như
- * luật ảnh trong image-ai.ts.
+ * Chữ trong video do NGƯỜI DÙNG chọn qua lời nhắc — không cố định.
+ * Chủ dự án (03/10/2026): "có chữ hay không là do prompt điều hướng cho AI, không phải mặc định".
+ * Trước đây app CẤM chữ cố định cho mọi video — quy định tự đặt, không có nguồn; đã bỏ.
+ *   - "theo_noi_dung": chỉ có chữ ở chỗ lời mô tả yêu cầu, viết đúng như lời mô tả.
+ *   - "khong": không có chữ nào.
  */
-export const LUAT_VIDEO =
-  "Strict rules: no on-screen text, captions, subtitles, numbers, logos, brand names, " +
-  "watermarks, certification badges or award seals anywhere in the video. " +
-  "Do not depict celebrities or any real identifiable person.";
+export type ChuTrongVideo = "theo_noi_dung" | "khong";
+export const CHU_TRONG_VIDEO: ChuTrongVideo[] = ["theo_noi_dung", "khong"];
+
+/**
+ * Hai luật nội dung do NGƯỜI DÙNG bật/tắt — không gài cứng.
+ * Chủ dự án (03/10/2026): "ai cho phép mày tự ý áp luật cứng này cho AI" → chuyển thành lựa chọn.
+ * Căn cứ để người dùng tự quyết (hiện trên màn hình):
+ *   - Điều 32 Bộ luật Dân sự 2015: dùng hình ảnh của người khác phải được đồng ý; mục đích thương mại phải trả thù lao.
+ *   - Chính sách quảng cáo Meta: tuyên bố sai / gây hiểu lầm (vd. tự nhận "được chứng nhận") bị từ chối.
+ */
+/**
+ * Hướng kịch bản NGƯỜI DÙNG bật/tắt cho AI viết lời mô tả / AI đạo diễn — không gài cứng.
+ * Chủ dự án (03/10/2026): luật cứng chỉ lấy từ hướng dẫn nhà sản xuất và 10 tiêu chí kỹ thuật;
+ * mọi thứ khác là lựa chọn của người dùng hoặc do lời nhắc điều hướng.
+ */
+export interface HuongKichBan {
+  /** Mở đầu gây chú ý trong 2 giây → vấn đề → giải pháp → lợi ích → kêu gọi hành động. */
+  cauTrucQuangCao?: boolean;
+  /** Chỉ nói đúng những gì nội dung nêu — không bịa giá, con số, khuyến mãi, giải thưởng, tính năng. */
+  giuSuThat?: boolean;
+  /** Người và nơi chốn theo bối cảnh Việt Nam. */
+  boiCanhVietNam?: boolean;
+}
+
+export interface LuatNoiDung {
+  /** Không bịa tên thương hiệu, logo, huy hiệu chứng nhận, giải thưởng mà lời mô tả không yêu cầu. */
+  chanNhanHieuGia?: boolean;
+  /** Không vẽ người nổi tiếng / người thật nhận ra được. */
+  chanNguoiThat?: boolean;
+  /** Vẽ lại từ ảnh mẫu: xoá watermark và chữ chèn thêm của người khác. */
+  xoaWatermark?: boolean;
+}
+
+export const LUAT_NHAN_HIEU_GIA_VIDEO =
+  "No invented brand names, logos, certification badges or award seals that the description does not ask for.";
+export const LUAT_NGUOI_THAT_VIDEO = "Do not depict celebrities or any real identifiable person.";
+
+export function luatVideo(chu: ChuTrongVideo = "theo_noi_dung", luat: LuatNoiDung = {}): string {
+  const them = [luat.chanNhanHieuGia ? LUAT_NHAN_HIEU_GIA_VIDEO : "", luat.chanNguoiThat ? LUAT_NGUOI_THAT_VIDEO : ""]
+    .filter(Boolean)
+    .join(" ");
+  const chuLuat =
+    chu === "khong"
+      ? "Rules: no on-screen text, captions, subtitles, numbers, logos or brand names anywhere in the video."
+      : "Rules: show on-screen text ONLY where the description above explicitly asks for it, spelled exactly as written there; " +
+        "no other text, captions or subtitles.";
+  return them ? `${chuLuat} ${them}` : chuLuat;
+}
 
 export async function vietLoiMoTaVideo(params: {
   userId: number;
@@ -264,11 +407,14 @@ export async function vietLoiMoTaVideo(params: {
   mucDich: string;
   soGiay: number;
   coAnhMoDau: boolean;
+  chuTrongVideo?: ChuTrongVideo;
+  huong?: HuongKichBan;
+  luat?: LuatNoiDung;
 }): Promise<{ loiMoTa: string; tomTat: string }> {
   const noiDung = params.noiDung.trim().slice(0, 1_200);
   if (!noiDung) throw new AppError("Cần nội dung bài viết để AI biết video nói về gì.", 400);
   const mucDich = MUC_DICH_VIDEO[params.mucDich] ?? MUC_DICH_VIDEO.khoe_san_pham;
-  const soCanh = params.soGiay <= 8 ? "ONE continuous shot" : params.soGiay <= 15 ? "2 shots" : "3 shots";
+  const huong = params.huong ?? {};
 
   const kq = await chatJson({
     task: "content",
@@ -287,16 +433,27 @@ export async function vietLoiMoTaVideo(params: {
           "You write prompts for AI video generation models, for short sales videos on Facebook.",
           "Return JSON: {\"loiMoTa\": English video prompt, \"tomTat\": one Vietnamese sentence describing the video}.",
           "Prompt rules:",
-          `- Exactly ${params.soGiay} seconds, ${soCanh}.`,
-          "- The first 2 seconds must grab attention (striking motion or close-up).",
+          `- Exactly ${params.soGiay} seconds.`,
+          // Cách viết lời nhắc theo hướng dẫn nhà sản xuất (Google Veo: Subject, Action, Style, Camera, Ambiance).
           "- Describe subject, action, setting, camera movement, lighting and mood concretely.",
-          "- Commercial quality, realistic, Vietnamese everyday context when people or places appear.",
+          // Các hướng dưới đây là LỰA CHỌN của người dùng — không gài cứng.
+          huong.cauTrucQuangCao ? "- The first 2 seconds must grab attention (striking motion or close-up)." : "",
+          huong.boiCanhVietNam ? "- Vietnamese everyday context when people or places appear." : "",
+          huong.giuSuThat ? "- Only show what the post states — never invent prices, numbers, discounts, awards or features." : "",
           params.coAnhMoDau
+            // Tiêu chí 1: không tự ý thay đổi chi tiết quan trọng (sản phẩm trong ảnh của người dùng).
             ? "- The video STARTS from the provided product photo: keep the product exactly as in the photo, animate from it."
-            : "- Keep product packaging plain and unbranded.",
-          "- Never ask for on-screen text, captions, logos or brand names.",
+            : params.chuTrongVideo === "khong"
+              ? "- Keep product packaging plain and unbranded."
+              : `- Show the product packaging as the post describes it${params.luat?.chanNhanHieuGia ? "; do not invent brands or labels" : ""}.`,
+          // Chữ trong video do người dùng chọn — không cố định (chủ dự án 03/10/2026).
+          params.chuTrongVideo === "khong"
+            ? "- Never ask for on-screen text, captions, logos or brand names."
+            : "- On-screen text only if the post asks for it: write the exact words in quotes.",
           "- Max 110 words. No markdown.",
-        ].join("\n"),
+        ]
+          .filter(Boolean)
+          .join("\n"),
       },
       { role: "user", content: `Video goal: ${mucDich}.\n\nSales post:\n"""${noiDung}"""` },
     ],
@@ -359,16 +516,22 @@ export async function guiViecVideo(p: {
   /** Địa chỉ gốc trong kho (đã kiểm). */
   anhMoDau?: string;
   anhThamChieu?: string[];
+  /**
+   * NỐI DÀI: video đoạn trước (địa chỉ kho) đưa vào làm video tham chiếu.
+   * Theo hướng dẫn chính thức Seedance 2.5 (BytePlus): video vai reference_video, tỷ lệ khung
+   * "adaptive" (tự giữ theo video gốc) → KHÔNG gửi aspect_ratio / size; lời nhắc phải có ý "extend/continue".
+   */
+  videoNoiDai?: string;
   duAnId?: number;
   thuTu?: number;
 }): Promise<ViecVideo> {
-  const lc = { ...p.lc, coAnhMoDau: Boolean(p.anhMoDau) };
-  const moiGiay = giaMoiGiay(p.model, lc);
-  const giaUocTinh = moiGiay === null ? null : moiGiay * lc.soGiay;
+  const lc = { ...p.lc, coAnhMoDau: Boolean(p.anhMoDau), coVideoVao: Boolean(p.videoNoiDai) };
+  // Có ảnh mở đầu thì ảnh tham chiếu không được gửi (xem nhánh else-if bên dưới).
+  const giaUocTinh = giaVideo(p.model, lc, p.anhMoDau || p.videoNoiDai ? 0 : (p.anhThamChieu?.length ?? 0));
 
   const than: Record<string, unknown> = {
     model: p.model.id,
-    prompt: `${p.loiMoTa}\n\n${LUAT_VIDEO}`,
+    prompt: `${p.loiMoTa}\n\n${luatVideo(lc.chuTrongVideo, lc)}`,
     duration: lc.soGiay,
     resolution: lc.doNet,
     aspect_ratio: lc.khung,
@@ -376,7 +539,11 @@ export async function guiViecVideo(p: {
   const kichThuoc = kichThuocKhop(p.model, lc.doNet, lc.khung);
   if (kichThuoc) than.size = kichThuoc;
   if (p.model.coTieng) than.generate_audio = lc.coTieng;
-  if (p.anhMoDau) {
+  if (p.videoNoiDai) {
+    delete than.aspect_ratio;
+    delete than.size;
+    than.input_references = [{ type: "video_url", video_url: { url: p.videoNoiDai } }];
+  } else if (p.anhMoDau) {
     than.frame_images = [{ type: "image_url", image_url: { url: p.anhMoDau }, frame_type: "first_frame" }];
   } else if (p.anhThamChieu?.length) {
     // Có khung mở đầu thì nhà cung cấp bỏ qua ảnh tham chiếu, nên chỉ gửi khi không có.
@@ -421,7 +588,7 @@ export async function goiTaoViec(than: Record<string, unknown>): Promise<string>
   const maViec = optionalString(j.id);
   if (!r.ok || !maViec) {
     const loi = optionalString(banGhi(j.error).message) ?? optionalString(j.error) ?? `HTTP ${r.status}`;
-    throw new AppError(`Tạo video thất bại: ${loi}`, maLoi(r.status));
+    throw new AppError(`Tạo video thất bại: ${loiNhaCungCap(r.status, loi)}`, maLoi(r.status));
   }
   return maViec;
 }
@@ -434,9 +601,6 @@ export async function taoVideo(params: {
   lc: LuaChonVideo;
   anhMoDau?: string;
 }): Promise<ViecVideo> {
-  if (!(await videoDangBat(params.trangId))) {
-    throw new AppError("Tạo video AI đang tắt. Bật trong phần soạn bài trước khi tạo.", 409);
-  }
   const loiMoTa = params.loiMoTa.trim().slice(0, 2_000);
   if (!loiMoTa) throw new AppError("Cần lời mô tả video.", 400);
 
@@ -478,6 +642,8 @@ export interface ViecDangTao {
   qua_han: boolean;
   du_an_id: number | null;
   la_sua: boolean;
+  /** Trang của video — để tiền video ghi đúng trang. */
+  trang_id?: number | null;
 }
 
 /** Video này sinh ra từ tính năng nào — để sao kê ghi đúng việc. */
@@ -521,7 +687,8 @@ async function xuLyMotViec(v: ViecDangTao): Promise<void> {
     const loi = optionalString(j.error) ?? optionalString(banGhi(j.error).message) ?? trangThai;
     // Việc hỏng mà nhà cung cấp vẫn báo có tính tiền thì vẫn phải vào sổ.
     await ghiTienVideo(v, j, `Nhà cung cấp báo hỏng: ${loi}`.slice(0, 300));
-    await ketThuc(v.id, `Nhà cung cấp AI báo lỗi: ${loi}`);
+    // Lời cho khách: không lộ tên/đường dẫn nhà cung cấp (sổ AI ở trên vẫn giữ nguyên văn để tra).
+    await ketThuc(v.id, `AI tạo video báo lỗi: ${loiNhaCungCap(r.status, loi)}`);
     return;
   }
   if (trangThai !== "completed") {
@@ -578,12 +745,12 @@ export async function runDueVideoJobs(): Promise<number> {
            AND (dang_xu_ly_tu IS NULL OR dang_xu_ly_tu < now() - interval '10 minutes')
          ORDER BY created_at LIMIT 5)
      RETURNING id, user_id, ma_viec, model, created_at < now() - interval '${TOI_DA_PHUT} minutes' AS qua_han,
-               du_an_id, video_nguon IS NOT NULL AS la_sua`
+               du_an_id, video_nguon IS NOT NULL AS la_sua, trang_id`
   );
   let daChot = 0;
   for (const v of viec.rows) {
     try {
-      await xuLyMotViec(v);
+      await chayChoTrang(v.trang_id ?? null, () => xuLyMotViec(v));
     } catch (error) {
       console.error(`[video AI] Việc ${v.id}:`, error instanceof Error ? error.message : error);
     } finally {

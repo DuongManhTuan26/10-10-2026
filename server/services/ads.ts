@@ -100,6 +100,22 @@ export async function listAdAccounts(accountId: string): Promise<AdAccount[]> {
   return data.accounts ?? [];
 }
 
+/**
+ * Danh sách quảng cáo kèm số liệu trong khoảng ngày (GET /v1/ads). Lọc `pageId` = chỉ quảng cáo có nội dung chạy dưới
+ * Fanpage đó — một tài khoản quảng cáo chạy cho mọi Fanpage trong Business Manager, nên tiền từng trang phải lọc theo
+ * Fanpage. `metrics.spend` tính theo đơn vị tiền của tài khoản quảng cáo.
+ */
+export async function listAds(q: Record<string, string>): Promise<{
+  ads: { metrics?: { spend?: number } | null }[];
+  pagination?: { page?: number; pages?: number; total?: number };
+}> {
+  const d = await request<{ ads?: { metrics?: { spend?: number } | null }[]; pagination?: { page?: number; pages?: number; total?: number } }>(
+    "/ads",
+    { query: q }
+  );
+  return { ads: d.ads ?? [], pagination: d.pagination };
+}
+
 // ---------------------------------------------------------------------------
 // Chiến dịch
 // ---------------------------------------------------------------------------

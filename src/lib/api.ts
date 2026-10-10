@@ -40,6 +40,55 @@ export interface AutoPilotConfig {
   guard: "publish" | "notify" | "approve";
   notifyMinutes: number;
   accountIds: string[];
+  /** Tự vẽ ảnh theo nội dung từng bài, đăng kèm. */
+  anh: AnhTuDong;
+  /** Tự tạo video theo nội dung từng bài, đăng kèm — có trần tiền mỗi tháng. */
+  video: VideoTuDong;
+}
+
+export interface VideoTuDong {
+  bat: boolean;
+  model: string;
+  soGiay: number;
+  doNet: string;
+  khung: string;
+  coTieng: boolean;
+  mucDich: string;
+  chuTrongVideo: 'theo_noi_dung' | 'khong';
+  chanNhanHieuGia: boolean;
+  chanNguoiThat: boolean;
+  /** Trần tiền video tự động mỗi tháng (USD). 0 = chưa đặt. */
+  tranThangUsd: number;
+}
+
+/** Mô hình và thông số vẽ ảnh do người dùng chọn. */
+export interface LuaChonVeAnh {
+  model: string;
+  doNet?: string;
+  chatLuong?: string;
+  khung?: string;
+}
+
+export interface AnhTuDong extends LuaChonVeAnh {
+  bat: boolean;
+  chuTrongAnh: 'theo_noi_dung' | 'khong';
+  chanNhanHieuGia: boolean;
+  chanNguoiThat: boolean;
+}
+
+/** Một mô hình vẽ ảnh kèm giá một ảnh (USD) theo từng mức "độNét|chấtLượng". */
+export interface ModelAnh {
+  id: string;
+  ten: string;
+  xepHang: string;
+  phanKhuc: string | null;
+  doNet: string[];
+  chatLuong: string[];
+  khung: string[];
+  soAnhThamChieu: number;
+  lyDo: string | null;
+  gia: number | null;
+  giaTheoMuc: Record<string, number | null>;
 }
 
 export interface AutoPilotRun {
@@ -95,6 +144,15 @@ export const KHOA_TRANG_DANG_CHON = "zn_active_account";
  * Máy chủ không tin con số này: nó suy ra Trang từ kênh rồi mới kiểm chủ sở
  * hữu. Sửa tay trong trình duyệt cũng không chạm được sang tài khoản khác.
  */
+/** Kênh đang chọn — gửi kèm MỌI yêu cầu (đầu X-Kenh) để tiền AI ghi đúng trang. Máy chủ tự kiểm kênh thuộc ai. */
+function kenhDangChon(): string | null {
+  try {
+    return localStorage.getItem(KHOA_TRANG_DANG_CHON);
+  } catch {
+    return null;
+  }
+}
+
 function duongCoTrang(path: string): string {
   if (!path.startsWith("/ai/")) return path;
   if (/[?&]accountId=/.test(path)) return path;
@@ -129,7 +187,10 @@ async function request<T>(
   try {
     response = await fetch(`/api${duongCoTrang(path)}`, {
       method,
-      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+      headers: {
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(kenhDangChon() ? { "X-Kenh": kenhDangChon()! } : {}),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
       // Cookie phiên phải được gửi kèm, nếu không mọi request đều là 401.
       credentials: "same-origin",
@@ -230,6 +291,23 @@ export interface TaiKhoanQuanTri {
   telegram: boolean | null;
   /** Dòng của chính người đang xem. */
   la_toi: boolean;
+}
+
+/**
+ * MỘT dòng tài khoản ở màn hình QUẢN LÝ dùng chung (quản trị tổng và admin con) — cùng một bộ cột ở cả hai
+ * (server/services/quan-ly-chung.ts). Chủ dự án 04/10/2026: hai màn hình phải giống 100%, chỉ khác phạm vi.
+ */
+export interface TaiKhoanQuanLy extends TrangVanHanh {
+  role: 'admin' | 'admin_con' | 'shop';
+  /** Admin con đứng trên tài khoản trang này; null nếu đứng riêng. */
+  parent_id: number | null;
+  /** Dòng của chính người đang xem. */
+  la_toi: boolean;
+  tai_lieu: number;
+  hoi_thoai: number;
+  bai: number;
+  don: number;
+  telegram: boolean | null;
 }
 
 export interface NhatKyQuanTri {
@@ -454,8 +532,11 @@ export interface SaoKeChiPhi {
     ok: boolean; loi?: string; goi?: string; conHoatDong?: boolean; tieuKyNayUsd?: number; tinDungConUsd?: number;
     tamDungLuc?: string | null; lyDoTamDung?: string | null; canTraUsd?: number | null; linkHoaDon?: string | null;
     lyDoTuChoiThe?: string | null; lanThuTienTiepTheo?: string | null;
+    /** Phạm vi chuỗi: tiền kênh chia theo tỉ lệ số kênh đang nối (nhà cung cấp chỉ báo tổng cả hệ thống). */
+    uocTinh?: { kenhChuoi: number; kenhTatCa: number };
   };
-  nguong: NguongCanhBao;
+  /** null ở phạm vi chuỗi (ngưỡng cảnh báo là việc của quản trị tổng). */
+  nguong: NguongCanhBao | null;
   /** tomTat: một dòng ngắn cho dòng chính; noiDung: câu đầy đủ. */
   canhBao: { ma: string; mucDo: 'nguy_cap' | 'can_lam' | 'luu_y'; noiDung: string; tomTat: string; link?: string }[];
   so: {
@@ -482,10 +563,135 @@ export interface SaoKeChiPhi {
     /** lechUsd: phần lệch thật, đã trừ các lượt đang chờ nhà cung cấp chốt. */
     sauMoc: { nhaCungCapUsd: number; soDaChotUsd: number; soChoUsd: number; soLuotCho: number; chenhUsd: number; lechUsd: number };
   } | null;
-  linkNap: { openrouter: string; kenh: string; database: string };
+  /** null ở phạm vi chuỗi (nạp tiền là việc của quản trị tổng). */
+  linkNap: { openrouter: string; kenh: string; database: string } | null;
+  phamVi?: 'chuoi';
 }
 
 /** Một lượt AI bị tính tiền trong sổ. */
+/** Màn hình Tổng quan quản lý (server/services/tong-quan.ts) — cùng dạng cho cả hai tầng. */
+export type KyTongQuan = 'thang_nay' | 'thang_truoc';
+export interface TienAiTongQuan {
+  tongUsd: number;
+  theoNhom: Partial<Record<'ban_hang' | 'marketing' | 'phan_tich' | 'anh' | 'video' | 'day_ai' | 'chua_phan_loai', number>>;
+}
+export interface TrangTongQuan {
+  id: number;
+  ten: string;
+  hoatDong: boolean;
+  kenh: { id: string; nenTang: string; ten: string; dangNoi: boolean; canNoiLai: boolean; tienUsd: number | null }[];
+  tienAi: TienAiTongQuan;
+  tienKenhUsd: number | null;
+  /** Tiền quảng cáo của đúng Fanpage của trang, theo từng tài khoản quảng cáo; ngoaiTrang chỉ để biết, không cộng. */
+  quangCao: { ten: string; tienTe: string; soTien: number | null; ngoaiTrang: number | null; lechMuiGio?: string; loi?: string }[];
+  coFanpage: boolean;
+  donHang: { so: number; doanhThu: number };
+}
+export interface TaiKhoanTongQuan {
+  id: number;
+  ten: string;
+  email: string;
+  role: 'admin' | 'admin_con' | 'shop';
+  parentId: number | null;
+  hoatDong: boolean;
+  laToi: boolean;
+  trang: TrangTongQuan[];
+  tienAiKhongTrang: TienAiTongQuan;
+}
+export interface TongQuanQuanLy {
+  ky: KyTongQuan;
+  phamVi: 'tong' | 'chuoi';
+  /** Kỳ đã kẹp từ mốc bắt đầu tính theo trang. truocMoc = cả kỳ nằm trước mốc (không có số). */
+  kyTinh: { tu: string; den: string; keoTuMoc: boolean; truocMoc: boolean; moc: string };
+  /** Đã chốt hay còn tạm tính, theo cách từng nguồn chốt sổ. */
+  chot: { ai: boolean; kenh: boolean; quangCao: boolean };
+  tong: {
+    taiKhoan: number;
+    taiKhoanHoatDong: number;
+    trang: number;
+    trangHoatDong: number;
+    tienAiUsd: number;
+    tienAiTaiKhoanDaXoaUsd: number;
+    tienQuangCao: { tienTe: string; soTien: number }[];
+    coFanpage: boolean;
+    donHang: number;
+    doanhThu: number;
+  };
+  nguonKenh: { ok: true; tu: string; den: string; khongGanUsd: number; tongUsd: number } | { ok: false; loi: string };
+  taiKhoan: TaiKhoanTongQuan[];
+}
+
+/** Báo cáo chuỗi 4 khâu của một trang (server/services/bao-cao-chuoi.ts). */
+export interface BaoCaoChuoi {
+  kyTinh: { tu: string; den: string; truocMoc: boolean };
+  noiDung: {
+    baiDang: number; baiAi: number; baiLoi: number; tienAiUsd: number;
+    hienThi: number; tiepCan: number; tuongTac: number; binhLuan: number;
+    hoiThoaiTuBai: number; donTuBai: number; doanhThuTuBai: number;
+  };
+  quangCao: {
+    coFanpage: boolean; loi: string | null;
+    theoTienTe: { tienTe: string; chiTieu: number; hienThi: number; nhap: number; troChuyen: number | null }[];
+    soQuangCao: number; quangCaoLoi: { ten: string; trangThai: string }[];
+    hoiThoaiTuQuangCao: number; donTuQuangCao: number; doanhThuTuQuangCao: number;
+  };
+  banHang: {
+    hoiThoaiMoi: number;
+    theoNguon: { quangCao: number; binhLuan: number; lienKet: number; tuNhan: number; chuaGhiNguon: number };
+    tinAiTraLoi: number; traLoiTrungViGiay: number | null; soLanTraLoi: number;
+    nhuongNguoi: { ly_do: string; so: number }[];
+    soDon: number; donHuy: number; doanhThu: number; giaTriDonTB: number | null; tiLeChot: number | null; tienAiUsd: number;
+  };
+}
+
+/** Sức khoẻ từng khâu của một trang (server/services/suc-khoe.ts). */
+export type MucSucKhoe = 'dang_manh' | 'on' | 'tut' | 'chua_du';
+export interface ChiSoSucKhoe {
+  khau: 'noi_dung' | 'quang_cao' | 'ban_hang';
+  ma: string;
+  ten: string;
+  huong: 'cao_tot' | 'thap_tot';
+  donVi: 'ti_le' | 'moi_ngay' | 'moi_bai' | 'moi_100k';
+  gan: { giaTri: number | null; tuSo: number; mauSo: number };
+  nen: { giaTri: number | null; tuSo: number; mauSo: number };
+  muc: MucSucKhoe;
+  lech: number | null;
+  p: number | null;
+  thieu?: string;
+  anhHuongTuan: number | null;
+}
+/** AI điều hành (chạy thử) — sổ bằng chứng do code gom, hạng do code chấm. */
+export interface SoDieuHanh {
+  bangChung: { ma: string; nguon: string; noiDung: string; hang: 'A' | 'B' | 'C' | 'D'; lyDoHang: string[]; gioiHan: string[] }[];
+  khoangTrong: string[];
+  vanDeTuDong: string | null;
+  soDo: { so: number; duyet: number; bac: number; cho: number; dung_chu_shop: number; tien_tb: number | null; giay_tb: number | null; loi_xac_nhan: number } | null;
+}
+
+export interface DeXuatDieuHanh {
+  id: number;
+  luc: string;
+  van_de: string;
+  ket_qua: string;
+  ly_do: string;
+  ket_luan: string;
+  trang_thai: 'cho_duyet' | 'da_duyet' | 'bac';
+  ly_do_chu_shop: string | null;
+  so_luot_ai: number;
+  tien_usd: number;
+  thoi_gian_ms: number;
+  noi_dung: string | null;
+}
+
+export interface SucKhoeTrang {
+  luc: string;
+  cuaSo: { gan: string[]; nen: string[] };
+  chiSo: ChiSoSucKhoe[];
+  suCo: { khau: string; ten: string; chiTiet: string }[];
+  uuTien: string[];
+  baoVe: string[];
+}
+
 export interface LuotChiPhi {
   id: number;
   luc: string;
@@ -526,6 +732,11 @@ export interface LuaChonVideo {
   khung: string;
   coTieng: boolean;
   coAnhMoDau: boolean;
+  /** Chữ trong video: theo lời mô tả, hoặc không có chữ. */
+  chuTrongVideo?: ChuTrongVideo;
+  /** Người dùng bật/tắt — không bịa nhãn hiệu/huy hiệu; không vẽ người thật. */
+  chanNhanHieuGia?: boolean;
+  chanNguoiThat?: boolean;
 }
 
 /** Một model video kèm giá ước tính cho lựa chọn đang chọn. */
@@ -544,12 +755,82 @@ export interface ModelVideo {
   /** Phân khúc giá và thứ hạng — vì sao mô hình này được chọn. */
   phanKhuc: string | null;
   xepHang: string | null;
+  /** Điều cần biết trước khi chọn (vd. Wan 3.0 luôn có tiếng). */
+  ghiChu?: string | null;
+  /** Nối dài gốc của hãng (đoạn sau làm tiếp đoạn trước). */
+  noiDai?: boolean;
+  /** Nhiều cảnh trong một lần tạo. */
+  nhieuCanh?: boolean;
+  /** Nói tiếng Việt gốc trong video. */
+  tiengVietGoc?: boolean;
+  /** Số giây tối đa một lần tạo. */
+  giayToiDa?: number | null;
+  /** Video dài: giá TRỌN video (USD) theo đúng lựa chọn — uocTinh thường gặp, toiDa khi phải vẽ khung/vẽ lại. */
+  giaCaVideo?: { uocTinh: number; toiDa: number } | null;
+}
+
+/** Lựa chọn của video dài để máy chủ báo giá trọn video. */
+export interface LuaChonBaoGiaDai {
+  tongGiay: number;
+  cheDo: CheDoVideoDai;
+  giongDoc: boolean;
+  giongGoc: boolean;
+  modelGiong: string;
+  nhac: boolean;
+  tuKiem: boolean;
+  soThamChieu: number;
+  /** Mô hình vẽ khung mở đầu đã chọn — để báo giá đúng tiền khung. */
+  khungModel?: string;
+  khungDoNet?: string;
+  khungChatLuong?: string;
 }
 
 export interface CanhVideo {
   soGiay: number;
   moTa: string;
   tomTat: string;
+  /** true: quay tiếp cảnh trước như một cú máy liền; false: cắt sang cảnh mới. Cảnh 1 luôn false. */
+  noiTiep: boolean;
+  /** Lời đọc tiếng Việt — đọc bằng giọng AI và hiện thành phụ đề. */
+  loiDoc: string;
+}
+
+/** Giọng đọc, nhạc nền, phụ đề của video dài. */
+export type ChuTrongVideo = 'theo_noi_dung' | 'khong';
+export type CheDoVideoDai = 'ghep_canh' | 'noi_dai';
+
+export interface AmThanhVideo {
+  /** Chữ trong video: theo lời mô tả, hoặc không có chữ. */
+  chuTrongVideo: ChuTrongVideo;
+  /** Lời dẫn do chính mô hình video nói tiếng Việt (chỉ mô hình tiengVietGoc). */
+  giongGoc: boolean;
+  /** Người dùng bật/tắt — không bịa nhãn hiệu/huy hiệu; không vẽ người thật. */
+  chanNhanHieuGia?: boolean;
+  chanNguoiThat?: boolean;
+  /** Hướng kịch bản người dùng bật/tắt cho AI đạo diễn. */
+  cauTrucQuangCao?: boolean;
+  giuSuThat?: boolean;
+  boiCanhVietNam?: boolean;
+  /** Mô hình giọng đọc AI riêng (khi giongDoc). */
+  modelGiong?: string;
+  giongDoc: boolean;
+  nhac: boolean;
+  phuDe: boolean;
+  moTaNhac?: string;
+  /** Mô hình vẽ khung mở đầu cho cảnh cắt (ghép nhiều cảnh). */
+  veAnh?: LuaChonVeAnh;
+  /** Kiểu kịch bản: tự do / quảng cáo bán hàng / người thật review (UGC) / phim ngắn có sản phẩm. */
+  kieuKichBan?: KieuKichBan;
+}
+
+export type KieuKichBan = 'tu_do' | 'quang_cao' | 'ugc' | 'phim_ngan';
+
+export type LoaiThuVien = 'san_pham' | 'nhan_vat';
+export interface MucThuVien {
+  id: number;
+  loai: LoaiThuVien;
+  ten: string;
+  created_at: string;
 }
 
 export interface DuAnVideo {
@@ -570,6 +851,16 @@ export interface DuAnVideo {
   loi: string | null;
   created_at: string;
   canh_xong?: number;
+  che_do?: CheDoVideoDai;
+  /** Tiền đã tiêu tới lúc này (cảnh đã tạo + khung, giọng, nhạc), USD. */
+  da_ton?: number;
+  /** Tự kiểm định và vẽ lại cảnh lỗi. */
+  tu_kiem?: boolean;
+  /** Đã tự vẽ lại mấy cảnh lỗi. */
+  so_lan_ve_lai?: number;
+  /** Cảnh vẫn còn lỗi (hết lượt vẽ lại) hoặc chưa kiểm được. */
+  canh_bao_kiem_dinh?: { canh: number; ghiChu: string }[];
+  am_thanh?: Partial<AmThanhVideo>;
 }
 
 export interface ModelSuaVideo {
@@ -628,6 +919,8 @@ export interface Post {
   stats: { likes?: number; comments?: number; shares?: number };
   last_error: string | null;
   created_at: string;
+  /** Đang chờ video AI xong rồi mới đăng. */
+  cho_video_id?: number | null;
 }
 
 /** Nhãn tiếng Việt cho từng trạng thái bài đăng, dùng trên giao diện. */
@@ -690,13 +983,14 @@ export const api = {
       request<{ data: NguongCanhBao }>('/admin/chi-phi/nguong', { method: 'PUT', body: nguong }),
     /** Gửi thử một cảnh báo tới Telegram của chính quản trị đang bấm. */
     thuCanhBaoChiPhi: () => post<{ success: boolean }>('/admin/chi-phi/thu-canh-bao'),
-    accounts: () => get<{ data: TaiKhoanQuanTri[] }>('/admin/accounts'),
+    accounts: () => get<{ data: TaiKhoanQuanLy[] }>('/admin/accounts'),
     audit: () => get<{ data: NhatKyQuanTri[] }>('/admin/audit'),
     /**
      * Tạo tài khoản hộ. Vai trò phải gửi lên rõ ràng — máy chủ coi giá trị lạ
      * là 'shop', nên thiếu trường này là lặng lẽ tạo ra tài khoản đứng riêng.
      */
-    create: (payload: { email: string; name?: string; role: 'admin_con' | 'shop' }) =>
+    /** matKhau: quản trị tự đặt (≥8 ký tự); bỏ trống thì hệ thống sinh. */
+    create: (payload: { email: string; name?: string; role: 'admin_con' | 'shop'; matKhau?: string }) =>
       post<{ data: { id: number; email: string; name: string; matKhauTam: string } }>(
         '/admin/accounts',
         payload
@@ -705,8 +999,9 @@ export const api = {
       patch<{ data: TaiKhoanQuanTri }>(`/admin/accounts/${id}`, payload),
     setLocked: (id: number, locked: boolean) =>
       post<{ data: { id: number; is_active: boolean } }>(`/admin/accounts/${id}/lock`, { locked }),
-    resetPassword: (id: number) =>
-      post<{ data: { matKhauTam: string } }>(`/admin/accounts/${id}/reset-password`),
+    /** matKhau: quản trị tự đặt (≥8 ký tự); bỏ trống thì hệ thống sinh. */
+    resetPassword: (id: number, matKhau?: string) =>
+      post<{ data: { matKhauTam: string } }>(`/admin/accounts/${id}/reset-password`, matKhau ? { matKhau } : {}),
     /**
      * Chuyển một tài khoản đứng riêng thành tài khoản quản lý chuỗi.
      *
@@ -1241,16 +1536,50 @@ export const api = {
    * bấm "mở" để bước hẳn vào tài khoản đó.
    */
   quanLy: {
+    /** Tổng quan tài sản: tài khoản → trang → tiền từng loại. Cùng một đường cho cả hai tầng. */
+    tongQuan: (ky: KyTongQuan) => get<{ data: TongQuanQuanLy }>(`/quan-ly/tong-quan?ky=${ky}`),
+    /** Sức khoẻ từng khâu của một trang (thống kê, không AI). */
+    sucKhoe: (trangId: number) => get<{ data: SucKhoeTrang }>(`/quan-ly/suc-khoe?trangId=${trangId}`),
+    /** AI điều hành (chạy thử): sổ bằng chứng — chỉ đọc, không tốn tiền. */
+    dieuHanhSo: (trangId: number) => get<{ data: SoDieuHanh }>(`/quan-ly/dieu-hanh/so?trangId=${trangId}`),
+    /** Chạy thử MỘT lần (tốn tiền AI). vanDe rỗng = hệ thống tự chọn vấn đề từ bảng sức khoẻ. */
+    dieuHanhChay: (trangId: number, vanDe: string) =>
+      post<{ data: { id: number; ketQua: string; soLuotAi: number; tienUsd: number; giay: number } }>("/quan-ly/dieu-hanh/chay", { trangId, vanDe }),
+    dieuHanhDeXuat: (trangId: number) => get<{ data: DeXuatDieuHanh[] }>(`/quan-ly/dieu-hanh/de-xuat?trangId=${trangId}`),
+    dieuHanhQuyet: (id: number, duyet: boolean, lyDo?: string) =>
+      post<{ success: true }>(`/quan-ly/dieu-hanh/de-xuat/${id}/quyet`, { duyet, lyDo }),
+    /** Báo cáo chuỗi 4 khâu của một trang. */
+    baoCaoChuoi: (trangId: number, ky: KyTongQuan) =>
+      get<{ data: BaoCaoChuoi }>(`/quan-ly/bao-cao-chuoi?trangId=${trangId}&ky=${ky}`),
+    /** Sao kê từng lượt AI của một trang. */
+    saoKeTrang: (trangId: number, ky: KyTongQuan, trang: number) =>
+      get<{ data: { luot: LuotChiPhi[]; tongLan: number; tongUsd: number; trang: number; soTrang: number } }>(
+        `/quan-ly/sao-ke-trang?trangId=${trangId}&ky=${ky}&trang=${trang}`
+      ),
     trang: () => get<{ data: TrangCon[] }>("/quan-ly/trang"),
-    /** Bảng điều hành cả chuỗi: mọi trang, mọi số liệu, một lượt gọi. */
-    tongQuan: () => get<{ data: TrangVanHanh[] }>("/quan-ly/tong-quan"),
+    /** Màn hình quản lý dùng chung: chính mình + các trang — cùng bộ cột với quản trị tổng. */
+    danhSach: () => get<{ data: TaiKhoanQuanLy[] }>("/quan-ly/danh-sach"),
+    nhatKy: () => get<{ data: NhatKyQuanTri[] }>("/quan-ly/nhat-ky"),
+    /** Chi phí tháng này của chuỗi — cùng dạng với chi phí hệ thống. */
+    chiPhi: (ngay = 0) => get<{ data: SaoKeChiPhi }>(`/quan-ly/chi-phi?ngay=${ngay}`),
+    luotChiPhi: (loc: LocLuot) => {
+      const q = new URLSearchParams({ ngay: String(loc.ngay ?? 0), trang: String(loc.trang ?? 1) });
+      if (loc.tk !== undefined) q.set('tk', String(loc.tk));
+      if (loc.kemCon) q.set('kemCon', '1');
+      if (loc.nhom) q.set('nhom', loc.nhom);
+      if (loc.viec) q.set('viec', loc.viec);
+      return get<{ data: { luot: LuotChiPhi[]; tongLan: number; tongUsd: number; trang: number; soTrang: number } }>(
+        `/quan-ly/chi-phi/luot?${q}`
+      );
+    },
     /** Báo cáo chi tiết một trang, xem ngay tại tài khoản quản lý. */
     baoCao: (id: number, ngay: number) =>
       get<{ data: BaoCaoTrang }>(`/quan-ly/trang/${id}/bao-cao?ngay=${ngay}`),
-    lapTrang: (ten: string) =>
+    /** matKhau: tự đặt (≥8 ký tự); bỏ trống thì hệ thống sinh. */
+    lapTrang: (ten: string, matKhau?: string) =>
       post<{ data: { id: number; tenDangNhap: string; name: string; matKhauTam: string } }>(
         "/quan-ly/trang",
-        { ten }
+        matKhau ? { ten, matKhau } : { ten }
       ),
     doiTen: (id: number, ten: string) =>
       patch<{ data: { id: number; name: string } }>(`/quan-ly/trang/${id}`, { ten }),
@@ -1300,7 +1629,7 @@ export const api = {
         body: { stages },
       }),
     autoPilot: () =>
-      get<{ data: { config: AutoPilotConfig; runs: AutoPilotRun[] } }>("/ai/auto-pilot"),
+      get<{ data: { config: AutoPilotConfig; runs: AutoPilotRun[]; tienVideoThang: number } }>("/ai/auto-pilot"),
     saveAutoPilot: (config: AutoPilotConfig) =>
       request<{ data: { config: AutoPilotConfig } }>("/ai/auto-pilot", {
         method: "PUT",
@@ -1322,7 +1651,7 @@ export const api = {
     ) => post<{ data: AiDocument }>(`/ai/configs/${kind}/documents`, payload),
     removeDocument: (kind: string, id: number) =>
       del<{ success: boolean }>(`/ai/configs/${kind}/documents/${id}`),
-    generatePost: (topic: string, goal: string, count = 3) =>
+    generatePost: (topic: string, goal: string, count = 1) =>
       post<{ options: string[]; usage: { costUsd: number } }>("/ai/generate-post", {
         topic,
         goal,
@@ -1330,6 +1659,17 @@ export const api = {
       }),
     /** AI tạo ảnh minh hoạ cho bài. Mỗi lượt tốn tiền nên chỉ gọi khi chủ shop bấm. */
     generateImage: (payload: {
+      /** Chữ trong ảnh: theo yêu cầu, hoặc không có chữ. */
+      chuTrongAnh?: ChuTrongVideo;
+      chanNhanHieuGia?: boolean;
+      chanNguoiThat?: boolean;
+      /** Vẽ lại từ ảnh mẫu: xoá watermark và chữ chèn thêm. */
+      xoaWatermark?: boolean;
+      /** Mô hình và thông số người dùng chọn. */
+      model: string;
+      doNet?: string;
+      chatLuong?: string;
+      khung?: string;
       content: string;
       /** Mô tả riêng cho ảnh này. Bỏ trống thì AI dựa vào nội dung bài. */
       prompt?: string;
@@ -1343,6 +1683,16 @@ export const api = {
           moTa: string; phongCach: string; tuAnhMau: boolean;
         };
       }>('/ai/generate-image', payload),
+    /** Thư viện ảnh sản phẩm / nhân vật của Trang. */
+    thuVien: () => get<{ data: MucThuVien[] }>('/ai/thu-vien'),
+    themThuVien: (payload: { loai: LoaiThuVien; ten: string; url: string }) =>
+      post<{ data: MucThuVien }>('/ai/thu-vien', payload),
+    /** Đưa ảnh thư viện lên kho, trả địa chỉ dùng được làm ảnh mẫu / ảnh tham chiếu. */
+    dungThuVien: (id: number) => post<{ data: { url: string } }>(`/ai/thu-vien/${id}/dung`),
+    xoaThuVien: (id: number) => del<{ success: boolean }>(`/ai/thu-vien/${id}`),
+    /** Mô hình vẽ ảnh kèm giá một ảnh, xếp rẻ tới đắt. */
+    imageModels: (coAnhMau = false) =>
+      get<{ data: { models: ModelAnh[]; nguon: string } }>(`/ai/image/models?coAnhMau=${coAnhMau}`),
     /** Phong cách vẽ ảnh đang đặt. */
     imageStyle: () => get<{ data: { phongCach: string; macDinh: string } }>('/ai/image-style'),
     /** Lưu phong cách vẽ ảnh làm mặc định cho lần sau và cho lịch tự đăng. */
@@ -1351,27 +1701,39 @@ export const api = {
         settings: { anhPhongCach: phongCach },
       }),
     /** Model video kèm giá cho đúng lựa chọn, xếp rẻ tới đắt. */
-    videoModels: (lc: LuaChonVideo) => {
+    videoModels: (lc: LuaChonVideo, duAn?: LuaChonBaoGiaDai) => {
       const q = new URLSearchParams({
         soGiay: String(lc.soGiay),
         doNet: lc.doNet,
         khung: lc.khung,
         coTieng: String(lc.coTieng),
         coAnhMoDau: String(lc.coAnhMoDau),
+        ...(duAn ? Object.fromEntries(Object.entries(duAn).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])) : {}),
       });
       return get<{
-        data: { bat: boolean; luaChon: LuaChonVideo; models: ModelVideo[]; mucDich: Record<string, string> };
+        data: { luaChon: LuaChonVideo; models: ModelVideo[]; mucDich: Record<string, string> };
       }>(`/ai/video/models?${q}`);
     },
-    /** Bật hoặc tắt tạo video AI cho trang đang chọn. */
-    batVideo: (bat: boolean) =>
-      patch<{ data: AiConfig }>('/ai/configs/content/settings', { settings: { videoBat: bat } }),
     /** AI viết lời mô tả video từ nội dung bài. */
-    videoLoiMoTa: (payload: { noiDung: string; mucDich: string; soGiay: number; coAnhMoDau: boolean }) =>
+    videoLoiMoTa: (payload: {
+      noiDung: string;
+      mucDich: string;
+      soGiay: number;
+      coAnhMoDau: boolean;
+      chuTrongVideo?: ChuTrongVideo;
+      chanNhanHieuGia?: boolean;
+      cauTrucQuangCao?: boolean;
+      giuSuThat?: boolean;
+      boiCanhVietNam?: boolean;
+    }) =>
       post<{ data: { loiMoTa: string; tomTat: string } }>('/ai/video/loi-mo-ta', payload),
     /** Gửi việc tạo video; trả về ngay, video xong sau vài phút. */
     taoVideo: (payload: LuaChonVideo & { model: string; loiMoTa: string; anhMoDau?: string }) =>
       post<{ data: ViecVideo }>('/ai/video', payload),
+    /** Video "theo bài": bài chờ video xong rồi tự đăng (hoặc giao lịch nếu đã hẹn giờ). */
+    videoTheoBai: (
+      payload: LuaChonVideo & { postId: number; model: string; noiDung: string; mucDich: string } & Record<string, unknown>
+    ) => post<{ data: { videoId: number; gia: number } }>('/ai/video/theo-bai', payload),
     /** Các video của trang đang chọn, mới nhất trước. */
     videoViec: () => get<{ data: ViecVideo[] }>('/ai/video/viec'),
     /** AI chia ý tưởng thành cảnh và báo giá — chưa tạo video. */
@@ -1385,18 +1747,23 @@ export const api = {
       coTieng: boolean;
       anhThamChieu?: string[];
       congThucTrend?: string;
+      amThanh?: AmThanhVideo;
+      tuKiem?: boolean;
+      cheDo?: CheDoVideoDai;
     }) => post<{ data: DuAnVideo }>('/ai/video/du-an', payload),
     /** Sửa phân cảnh khi còn là nháp. */
-    suaDuAnVideo: (id: number, payload: { nhatQuan: string; phanCanh: CanhVideo[] }) =>
+    suaDuAnVideo: (id: number, payload: { nhatQuan: string; phanCanh: CanhVideo[]; amThanh?: AmThanhVideo }) =>
       request<{ data: DuAnVideo }>(`/ai/video/du-an/${id}`, { method: 'PUT', body: payload }),
     /** Duyệt phân cảnh và bắt đầu tạo — từ đây mới tốn tiền video. */
     batDauDuAnVideo: (id: number) => post<{ data: DuAnVideo }>(`/ai/video/du-an/${id}/bat-dau`),
+    /** Dự án bị lỗi: làm tiếp, giữ các cảnh đã tạo (đủ cảnh thì chỉ ghép lại). */
+    tiepTucDuAnVideo: (id: number) => post<{ data: DuAnVideo }>(`/ai/video/du-an/${id}/tiep-tuc`),
     /** Các dự án video dài của trang. */
     duAnVideo: () => get<{ data: DuAnVideo[] }>('/ai/video/du-an'),
     /** Model sửa video (video → video), xếp rẻ tới đắt. */
     modelSuaVideo: () => get<{ data: ModelSuaVideo[] }>('/ai/video/sua/models'),
     /** Sửa một video có sẵn theo yêu cầu. */
-    suaVideo: (payload: { model: string; videoNguon: string; yeuCau: string }) =>
+    suaVideo: (payload: { model: string; videoNguon: string; yeuCau: string; chanNhanHieuGia?: boolean; chanNguoiThat?: boolean }) =>
       post<{ data: ViecVideo }>('/ai/video/sua', payload),
     /** AI xem video trend và rút ra công thức. */
     phanTichTrend: (videoNguon: string) =>

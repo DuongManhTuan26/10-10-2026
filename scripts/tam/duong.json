@@ -1,0 +1,572 @@
+[
+ {
+  "method": "POST",
+  "path": "/api/webhooks/zernio",
+  "tep": "server/routes/webhooks.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/auth/register",
+  "tep": "server/routes/auth.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/auth/login",
+  "tep": "server/routes/auth.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/auth/change-password",
+  "tep": "server/routes/auth.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/auth/logout",
+  "tep": "server/routes/auth.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/auth/me",
+  "tep": "server/routes/auth.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/connections/oauth/callback",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/connections/platforms",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/connections/accounts",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/connections/pending-selection",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/connections/select-pages",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/connections/sync",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/connections/connect-url",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/connections/available-profiles",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/connections/adopt-profile",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/connections/accounts/:id/pages",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/connections/accounts/:id/page",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/connections/accounts/:id",
+  "tep": "server/routes/connections.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/inbox/conversations",
+  "tep": "server/routes/inbox.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/inbox/counts",
+  "tep": "server/routes/inbox.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/inbox/conversations/:id",
+  "tep": "server/routes/inbox.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/inbox/conversations/:id/messages",
+  "tep": "server/routes/inbox.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/inbox/conversations/:id/status",
+  "tep": "server/routes/inbox.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/inbox/sync",
+  "tep": "server/routes/inbox.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/dashboard/stats",
+  "tep": "server/routes/dashboard.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/dashboard/sparklines",
+  "tep": "server/routes/dashboard.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/dashboard/activity",
+  "tep": "server/routes/dashboard.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/dashboard/chart",
+  "tep": "server/routes/dashboard.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/orders",
+  "tep": "server/routes/orders.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/orders",
+  "tep": "server/routes/orders.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/orders/:id",
+  "tep": "server/routes/orders.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ai/configs/:kind",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/ai/configs/:kind",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ai/sales-autonomy",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/ai/sales-autonomy",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ai/sales-stages",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/ai/sales-stages",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ai/auto-pilot",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/ai/auto-pilot",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/ai/configs/:kind/settings",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ai/configs/:kind/documents",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/ai/configs/:kind/documents/:id",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ai/image-style",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ai/generate-image",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ai/generate-post",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ai/conversations/:id/extract",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ai/conversations/:id/suggest",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ai/handoff-rules",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/ai/handoff-rules/:key",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ai/test",
+  "tep": "server/routes/ai.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/posts",
+  "tep": "server/routes/posts.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/posts",
+  "tep": "server/routes/posts.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/posts/:id",
+  "tep": "server/routes/posts.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/posts/:id/platform-content",
+  "tep": "server/routes/posts.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/posts/:id/unpublish",
+  "tep": "server/routes/posts.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/posts/:id/publish",
+  "tep": "server/routes/posts.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/posts/media/presign",
+  "tep": "server/routes/posts.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/posts/:id/recheck",
+  "tep": "server/routes/posts.ts"
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/posts/:id",
+  "tep": "server/routes/posts.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/settings/telegram",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/settings/telegram/link",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/settings/telegram/unlink",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/settings/telegram",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/settings/telegram/test",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/settings/auto-scripts",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/settings/auto-scripts/stats",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/settings/auto-scripts",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/settings/auto-scripts/:id",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/settings/auto-scripts/:id",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/settings/usage",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/settings/safety",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/settings/ads/analytics",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/settings/guardrails",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/settings/guardrails",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/settings/guardrails/resume/:accountId",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/settings/guardrails/blocked",
+  "tep": "server/routes/settings.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ads/overview",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/ads/tai-khoan-quang-cao",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ads/boostable-posts",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ads/campaigns/status",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/ads/campaigns/:id/budget",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ads/campaigns/:id/ad-sets",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/ads/ad-sets/:id/budget",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ads/campaigns/:id/duplicate",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/ads/campaigns/:id/analytics",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ads/boost",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ads/audiences",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "PUT",
+  "path": "/api/ads/audiences/:id",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ads/reach-estimate",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/ads/analyze",
+  "tep": "server/routes/ads.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/analytics/overview",
+  "tep": "server/routes/analytics.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/analytics/analyze",
+  "tep": "server/routes/analytics.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/analytics/reports",
+  "tep": "server/routes/analytics.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/admin/accounts",
+  "tep": "server/routes/admin.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/admin/audit",
+  "tep": "server/routes/admin.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/admin/accounts",
+  "tep": "server/routes/admin.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/admin/accounts/:id/thanh-chu-chuoi",
+  "tep": "server/routes/admin.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/admin/accounts/:id",
+  "tep": "server/routes/admin.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/admin/accounts/:id/lock",
+  "tep": "server/routes/admin.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/admin/accounts/:id/reset-password",
+  "tep": "server/routes/admin.ts"
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/admin/accounts/:id",
+  "tep": "server/routes/admin.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/quan-ly/trang",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/quan-ly/tong-quan",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/quan-ly/trang",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/quan-ly/trang/:id",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/quan-ly/trang/:id/khoa",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/quan-ly/trang/:id/ten-dang-nhap",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/quan-ly/trang/:id/mat-khau",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/quan-ly/trang/:id/bao-cao",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/quan-ly/trang/:id",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/quan-ly/trang/:id/mo",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "POST",
+  "path": "/api/quan-ly/quay-lai",
+  "tep": "server/routes/quan-ly.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/api/health",
+  "tep": "server/app.ts"
+ },
+ {
+  "method": "GET",
+  "path": "/media/:ma",
+  "tep": "server/app.ts"
+ }
+]
