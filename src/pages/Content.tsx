@@ -37,7 +37,7 @@ const FILTER_TO_STATUS: Record<string, PostStatus> = {
 const CAN_XU_LY: PostStatus[] = ['publishing', 'failed'];
 
 export default function Content() {
-  const { accounts, activeAccountId, activeTrangId } = useActivePage();
+  const { accounts, activeAccountId, activeTrangId, trangDangChon } = useActivePage();
 
   const [activeFilter, setActiveFilter] = useState('Chờ duyệt (0)');
   const [postMode, setPostMode] = useState<'manual' | 'auto'>('manual');
@@ -160,13 +160,13 @@ export default function Content() {
     }
   };
 
-  /** Kênh sẽ đăng: trang đang chọn, hoặc mọi kênh đăng được nếu đang xem tất cả. */
-  const targetAccountIds = activeAccountId
-    ? [activeAccountId]
-    : accounts.filter((a) => a.connected).map((a) => a.id);
-
-  /* Kênh đăng được: chỉ những kênh đang thật sự kết nối. */
-  const kenhKetNoi = accounts.filter((a) => a.connected);
+  /*
+   * Kênh đăng được: chỉ kênh ĐANG KẾT NỐI của TRANG đang chọn (bộ não của trang này — 10/10/2026). Bản cũ "chưa chọn
+   * thì mọi kênh" sẽ đăng lan sang kênh của trang khác = nhầm bộ não.
+   */
+  const kenhKetNoi = (trangDangChon?.kenh ?? accounts).filter((a) => a.connected);
+  /** Kênh sẽ đăng (đăng nhanh / sửa bài): các kênh của trang đang chọn. */
+  const targetAccountIds = kenhKetNoi.map((a) => a.id);
 
   /** Đang gõ phong cách của riêng mình, không phải một mẫu dựng sẵn. */
 
@@ -267,7 +267,8 @@ export default function Content() {
     setCheDoKenh('tu-chon');
     // Đang đứng ở một trang cụ thể thì đúng trang đó; ngược lại lấy kênh chính
     // (Fanpage và Instagram) — nơi khách nhắn tin và ra đơn.
-    setKenhTuChon(activeAccountId ? [activeAccountId] : kenhMacDinh(kenhKetNoi));
+    // Mặc định: kênh chính (Fanpage, Instagram) của trang đang chọn — nơi khách nhắn và ra đơn.
+    setKenhTuChon(kenhMacDinh(kenhKetNoi));
   };
 
   const moHopSoanBai = () => {

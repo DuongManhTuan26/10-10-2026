@@ -106,7 +106,8 @@ connectionsRouter.get(
        */
       `SELECT id, platform, username, display_name, profile_picture, profile_url,
               followers_count, connected, needs_reconnection, token_expires_at,
-              last_synced_at, created_at, trang_id
+              last_synced_at, created_at, trang_id,
+              (SELECT t.ten FROM trang t WHERE t.id = social_accounts.trang_id) AS trang_ten
          FROM social_accounts
         WHERE user_id = $1
         ORDER BY platform, display_name`,
@@ -413,7 +414,7 @@ connectionsRouter.post(
       // Kèm trang_id y như lệnh liệt kê ở trên — hai nơi cùng nuôi một bộ chọn.
       `SELECT id, platform, username, display_name, profile_picture, profile_url,
               followers_count, connected, needs_reconnection, token_expires_at,
-              trang_id
+              trang_id, (SELECT t.ten FROM trang t WHERE t.id = social_accounts.trang_id) AS trang_ten
          FROM social_accounts WHERE user_id = $1 ORDER BY platform, display_name`,
       [user.id]
     );

@@ -159,9 +159,17 @@ async function quangCaoCuaFanpage(kenhFb: string, pageId: string, tu: Date, den:
   );
 }
 
-export async function layTongQuan(phamVi: PhamVi, toiId: number, ky: KyTongQuan) {
+/**
+ * Phạm vi tổng quan: hai tầng quản lý dùng PhamVi chung; "tai_khoan" = MỘT tài khoản tự xem bộ não các trang của mình
+ * (trang AI Điều Hành, 10/10/2026) — cùng đúng một cách tính tiền, không viết bản thứ hai.
+ */
+export type PhamViTongQuan = PhamVi | { loai: "tai_khoan"; userId: number };
+
+export async function layTongQuan(phamVi: PhamViTongQuan, toiId: number, ky: KyTongQuan) {
   const trongPhamVi =
-    phamVi.loai === "tong" ? "TRUE" : `(u.id = ${Number(phamVi.chaId)} OR u.parent_id = ${Number(phamVi.chaId)})`;
+    phamVi.loai === "tong" ? "TRUE"
+      : phamVi.loai === "tai_khoan" ? `(u.id = ${Number(phamVi.userId)})`
+        : `(u.id = ${Number(phamVi.chaId)} OR u.parent_id = ${Number(phamVi.chaId)})`;
   const kt = kyTinh(ky);
   const { tu, den } = kt;
 

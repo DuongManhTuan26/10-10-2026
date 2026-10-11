@@ -138,3 +138,13 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
   sang `tong-quan.ts`).
 - **Đã làm:** khôi phục phép kiểm công thức (đúng cách sao kê). KHÔNG xoá cột.
 - **Cần quyết:** giữ (để dùng sau) hay bỏ cột thừa.
+
+## TD-12 — Đường máy chủ của trang "AI Thống Kê - Phân Tích" cũ còn đó, không giao diện nào gọi
+
+- **Loại:** CHỜ CHỦ DỰ ÁN / dọn sau — không phải lỗi hiển thị.
+- **Bối cảnh (10/10/2026):** chủ dự án duyệt gộp trang cũ vào **AI Điều Hành** (bộ não, theo trang đang chọn), bỏ AI
+  phân tích cũ. Giao diện cũ đã gỡ; `GET /api/analytics/overview`, `POST /api/analytics/analyze` (gọi AI, có chốt chống
+  đốt tiền), `GET /api/analytics/reports` (`server/routes/analytics.ts`) còn lại, không màn hình nào gọi.
+- **Vì sao chưa gỡ ngay:** nhiều phép kiểm cũ canh tệp này (các lỗi đã sửa về số liệu, giờ Việt Nam) — gỡ cần sửa
+  phép kiểm có chủ đích, làm riêng một đợt.
+- **Còn lại:** gỡ 3 đường + phép kiểm liên quan; hoặc giữ nếu chủ dự án muốn dùng lại.

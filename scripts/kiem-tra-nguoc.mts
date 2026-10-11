@@ -2896,10 +2896,10 @@ const DUC: PhepDuc[] = [
     thay: "avg(giay)::float",
   },
   {
-    ten: "báo cáo chuỗi không chặn trang ngoài phạm vi",
-    tep: "server/routes/quan-ly.ts",
-    tim: "    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);\n    res.json({ success: true, data: await baoCaoChuoi(",
-    thay: "    const trangId = Number(req.query.trangId);\n    res.json({ success: true, data: await baoCaoChuoi(",
+    ten: "báo cáo chuỗi của bộ não lấy trang tuỳ ý (không kiểm trang của mình)",
+    tep: "server/routes/dieu-hanh.ts",
+    tim: "    const trangId = await trangCuaToi(userId);\n    const ky = docKy(req.query.ky);",
+    thay: "    const trangId = Number(req.query.trangId);\n    const ky = docKy(req.query.ky);",
   },
   {
     ten: "sao kê trang bỏ kiểm phạm vi chuỗi",
@@ -2956,10 +2956,10 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
-    ten: "sức khoẻ trang bỏ kiểm phạm vi chuỗi",
-    tep: "server/routes/quan-ly.ts",
-    tim: "  \"/suc-khoe\",\n  route(async (req, res) => {\n    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);",
-    thay: "  \"/suc-khoe\",\n  route(async (req, res) => {\n    const trangId = Number(req.query.trangId);",
+    ten: "sổ bằng chứng / sức khoẻ của bộ não lấy trang tuỳ ý",
+    tep: "server/routes/dieu-hanh.ts",
+    tim: "    const trangId = await trangCuaToi(userId);\n    const [so, sk, soDo]",
+    thay: "    const trangId = Number(req.query.trangId);\n    const [so, sk, soDo]",
   },
   {
     ten: "menu neo cứng một phía, màn hẹp là bị cắt mất chữ",
@@ -3395,10 +3395,10 @@ const DUC: PhepDuc[] = [
     thay: "  const group2 = false\n    ? []",
   },
   {
-    ten: "chủ chuỗi thấy bộ chọn Fanpage luôn báo chưa có trang nào",
+    ten: "chủ chuỗi thấy khối não + ô chọn trang luôn rỗng",
     tep: "src/components/Sidebar.tsx",
-    tim: '        {!laChuChuoi && (\n        <div className="shrink-0 relative"',
-    thay: '        {true && (\n        <div className="shrink-0 relative"',
+    tim: "          {group2.length > 0 && (\n",
+    thay: "          {(\n",
   },
   {
     ten: "hồ sơ thật không thay mã tạm của Trang",
@@ -4545,6 +4545,60 @@ const DUC: PhepDuc[] = [
     tep: "server/services/so-loi.ts",
     tim: "for (const v of [...k.viPhamCacVong.flatMap((x) => x.viPham), ...k.viPham]) {",
     thay: "for (const v of [...k.viPham]) {",
+  },
+  {
+    ten: "bộ não AI: soạn bài đăng lan sang kênh của trang khác",
+    tep: "src/pages/Content.tsx",
+    tim: "const kenhKetNoi = (trangDangChon?.kenh ?? accounts).filter((a) => a.connected);",
+    thay: "const kenhKetNoi = accounts.filter((a) => a.connected);",
+  },
+  {
+    ten: "bộ não AI: hộp thư không theo trang đang chọn",
+    tep: "src/pages/Inbox.tsx",
+    tim: "const accounts = trangDangChon?.kenh ?? tatCaKenh;",
+    thay: "const accounts = tatCaKenh;",
+  },
+  {
+    ten: "bộ não AI: AI Quảng Cáo không bắt chọn trang",
+    tep: "src/App.tsx",
+    tim: "<Route path=\"/ads\" element={<CanTrangNao ten=\"AI Quảng Cáo\"><Ads /></CanTrangNao>} />",
+    thay: "<Route path=\"/ads\" element={<Ads />} />",
+  },
+  {
+    ten: "bộ não AI: không bao giờ bắt chọn trang",
+    tep: "src/lib/ActivePage.tsx",
+    tim: "canChonTrang: trangs.length > 1 && !trangDangChon,",
+    thay: "canChonTrang: false,",
+  },
+  {
+    ten: "bộ não AI: chọn trang lấy kênh bất kỳ, không phải kênh chính",
+    tep: "src/lib/ActivePage.tsx",
+    tim: "setActiveAccountId(kenhMacDinh(ketNoi)[0] ?? ketNoi[0]?.id ?? t.kenh[0].id);",
+    thay: "setActiveAccountId(t.kenh[0].id);",
+  },
+  {
+    ten: "bộ não AI: duyệt / bác đề xuất của người khác",
+    tep: "server/routes/dieu-hanh.ts",
+    tim: "if (!dx || dx.user_id !== req.user!.id) throw",
+    thay: "if (!dx) throw",
+  },
+  {
+    ten: "bộ não AI: trang của bộ não không kiểm thuộc người đăng nhập",
+    tep: "server/routes/dieu-hanh.ts",
+    tim: "const r = trangId ? await queryOne(\"SELECT 1 FROM trang WHERE id = $1 AND user_id = $2\", [trangId, userId]) : null;",
+    thay: "const r = trangId ? await queryOne(\"SELECT 1 FROM trang WHERE id = $1\", [trangId]) : null;",
+  },
+  {
+    ten: "bộ não AI: mục AI Điều Hành rơi khỏi khối não",
+    tep: "src/components/Sidebar.tsx",
+    tim: "        { name: 'AI Điều Hành', icon: 'monitoring', path: '/dieu-hanh' },\n",
+    thay: "",
+  },
+  {
+    ten: "bộ não AI: ô chọn trang không nằm trong khối não",
+    tep: "src/components/Sidebar.tsx",
+    tim: "              <ChonTrangNao />\n",
+    thay: "",
   },
 ];
 

@@ -15,7 +15,8 @@ import Pricing from './pages/Pricing';
 // Một màn hình quản lý dùng chung cho quản trị tổng và chủ chuỗi (chủ dự án 04/10/2026: giống 100%, chỉ khác phạm vi).
 import QuanLy from './pages/QuanLy';
 import DangXemThay from './components/DangXemThay';
-import Analytics from './pages/Analytics';
+import DieuHanh from './pages/DieuHanh';
+import CanTrangNao from './components/CanTrangNao';
 import Auth from './pages/Auth';
 import Onboarding from './pages/Onboarding';
 import SetupComplete from './pages/SetupComplete';
@@ -203,9 +204,11 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/orders" element={<Orders />} />
-            <Route path="/content" element={<Content />} />
-            <Route path="/auto-scripts" element={<AutoScripts />} />
-            <Route path="/ads" element={<Ads />} />
+            {/* 4 mục AI = BỘ NÃO của MỘT trang: đang "Tất cả trang" mà có nhiều trang thì bắt chọn trang trước. */}
+            <Route path="/content" element={<CanTrangNao ten="AI Viết - Đăng Bài"><Content /></CanTrangNao>} />
+            <Route path="/auto-scripts" element={<CanTrangNao ten="AI Bán Hàng"><AutoScripts /></CanTrangNao>} />
+            <Route path="/ads" element={<CanTrangNao ten="AI Quảng Cáo"><Ads /></CanTrangNao>} />
+            <Route path="/dieu-hanh" element={<CanTrangNao ten="AI Điều Hành"><DieuHanh /></CanTrangNao>} />
             <Route path="/telegram" element={<TelegramAlerts />} />
             <Route path="/connections" element={<Connections />} />
             <Route path="/pricing" element={<Pricing />} />
@@ -215,7 +218,8 @@ export default function App() {
             */}
             {user?.role === 'admin' && <Route path="/admin" element={<QuanLy user={user} />} />}
             {user?.role === 'admin' && <Route path="/quan-ly" element={<Navigate to="/admin" replace />} />}
-            <Route path="/analytics" element={<Analytics />} />
+            {/* Trang "AI Thống Kê - Phân Tích" cũ đã gộp vào AI Điều Hành (10/10/2026). */}
+            <Route path="/analytics" element={<Navigate to="/dieu-hanh" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           )}

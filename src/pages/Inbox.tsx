@@ -26,7 +26,9 @@ function displayStatus(conv: Conversation): DisplayStatus {
 
 export default function Inbox() {
   const navigate = useNavigate();
-  const { accounts, activeAccountId, setActiveAccountId } = useActivePage();
+  const { accounts: tatCaKenh, activeAccountId, setActiveAccountId, trangDangChon } = useActivePage();
+  // Đã chọn một trang → chỉ kênh của trang đó; "Tất cả trang" → mọi kênh (Hộp thư là màn hình chung).
+  const accounts = trangDangChon?.kenh ?? tatCaKenh;
 
   const [activeTab, setActiveTab] = useState('Tất cả');
   const [selectedId, setSelectedId] = useState('');
@@ -498,7 +500,7 @@ export default function Inbox() {
 
       {/* Top Menu Bar: Connected Accounts (Horizontal) */}
       <nav className="h-[52px] bg-surface-container-low border-b border-outline-variant/50 flex items-center px-4 shrink-0 overflow-x-auto no-scrollbar gap-2 z-10">
-        <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mr-1 shrink-0">Trang:</span>
+        <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mr-1 shrink-0">Kênh:</span>
         
         {accounts.map(acc => {
           const platformCfg = getPlatformConfig(acc.platform);

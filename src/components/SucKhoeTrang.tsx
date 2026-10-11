@@ -5,9 +5,8 @@
  * chỉ kết luận khi có ý nghĩa thống kê VÀ lệch đủ lớn; thiếu mẫu thì nói thẳng "chưa đủ dữ liệu". Màu theo nghĩa: đang
  * mạnh xanh lá, tụt đỏ, sự cố cam, ổn / chưa đủ xám. Cái đang mạnh nằm trong danh sách BẢO VỆ — AI điều hành không đụng.
  */
-import { useEffect, useState } from 'react';
 import { clsx } from 'clsx';
-import { api, ApiError, type ChiSoSucKhoe, type MucSucKhoe, type SucKhoeTrang as DuLieu } from '../lib/api';
+import { type ChiSoSucKhoe, type MucSucKhoe, type SucKhoeTrang as DuLieu } from '../lib/api';
 
 const NHAN_MUC: Record<MucSucKhoe, { chu: string; mau: string; icon: string }> = {
   dang_manh: { chu: 'Đang mạnh', mau: 'bg-green-500/15 text-green-400', icon: 'trending_up' },
@@ -23,24 +22,7 @@ function giaTri(c: ChiSoSucKhoe, v: number | null) {
   return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 }
 
-export default function SucKhoeTrang({ trangId }: { trangId: number }) {
-  const [du, setDu] = useState<DuLieu | null>(null);
-  const [loi, setLoi] = useState('');
-  useEffect(() => {
-    let huy = false;
-    setDu(null);
-    setLoi('');
-    api.quanLy
-      .sucKhoe(trangId)
-      .then(({ data }) => !huy && setDu(data))
-      .catch((e) => !huy && setLoi(e instanceof ApiError ? e.message : 'Chưa tải được sức khoẻ'));
-    return () => {
-      huy = true;
-    };
-  }, [trangId]);
-
-  if (loi) return <p className="text-sm text-red-400">{loi}</p>;
-  if (!du) return <p className="text-sm text-on-surface-variant">Đang chấm sức khoẻ…</p>;
+export default function SucKhoeTrang({ du }: { du: DuLieu }) {
   const theoMa = new Map<string, ChiSoSucKhoe>(du.chiSo.map((c) => [c.ma, c]));
 
   return (

@@ -24,9 +24,6 @@ import {
 } from '../lib/api';
 import { chi, chiDu, mauChi, vnd } from '../lib/tien-chi';
 import { DongLuot } from './NhatKyChiPhi';
-import BaoCaoChuoi from './BaoCaoChuoi';
-import SucKhoeTrang from './SucKhoeTrang';
-import DieuHanhThu from './DieuHanhThu';
 
 /** Các loại tiền, đúng thứ tự hiện. Tiền AI theo nhóm việc của sổ AI; "kenh" = tiền hoá đơn kết nối kênh tính cho từng kênh. */
 export const LOAI_TIEN = [
@@ -450,23 +447,7 @@ export function BaoCaoMotTrang({ t, ky, chot }: { t: TrangTongQuan; ky: KyTongQu
         </div>
       </div>
 
-      {/* Sức khoẻ từng khâu — thống kê chấm, không AI (bước 4a của AI điều hành) */}
-      <div>
-        <h4 className="font-mono text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">Sức khoẻ (7 ngày gần so với 28 ngày trước)</h4>
-        <SucKhoeTrang trangId={t.id} />
-      </div>
-
-      {/* AI điều hành — chạy thử ở chế độ đề xuất (không thực thi gì) */}
-      <div>
-        <h4 className="font-mono text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">AI điều hành — chạy thử (chế độ đề xuất)</h4>
-        <DieuHanhThu trangId={t.id} />
-      </div>
-
-      {/* Chuỗi 4 khâu: Nội dung → Quảng cáo → Bán hàng → Tổng (phần 2) */}
-      <div>
-        <h4 className="font-mono text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">Chuỗi 4 khâu</h4>
-        <BaoCaoChuoi t={t} ky={ky} />
-      </div>
+      {/* Sức khoẻ, chuỗi 4 khâu và AI điều hành thuộc BỘ NÃO của trang → trang "AI Điều Hành" ở khối não (10/10/2026). */}
 
       {/* Sao kê từng lượt AI của trang */}
       <div>

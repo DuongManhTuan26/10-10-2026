@@ -50,6 +50,7 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
       case '/content': return 'Bài đăng';
       case '/auto-scripts': return 'Kịch bản tự động';
       case '/ads': return 'Quảng cáo';
+      case '/dieu-hanh': return 'AI Điều Hành';
       case '/telegram': return 'Cảnh báo Telegram';
       case '/connections': return 'Kết nối';
       case '/pricing': return 'Gói dịch vụ';

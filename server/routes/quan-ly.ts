@@ -30,14 +30,6 @@ import { DAU_NGAY_VN, DAU_THANG_VN, MOC_THEO_TRANG } from "../moc-thoi-gian.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
 import { layDanhSachQuanLy } from "../services/quan-ly-chung.js";
 import { layTongQuan } from "../services/tong-quan.js";
-import { baoCaoChuoi } from "../services/bao-cao-chuoi.js";
-import { sucKhoeTrang } from "../services/suc-khoe.js";
-import { chanLamDungAI } from "../services/chong-lam-dung.js";
-import { chayChoTrang } from "../services/ngu-canh-trang.js";
-import { soBangChungTrang } from "../services/so-bang-chung.js";
-import { hangBangChung } from "../services/kiem-cung.js";
-import { dieuHanhMotLan, goiAiThat, khoBangChung } from "../services/dieu-hanh.js";
-import { chuShopQuyet, deXuatGanDay, luuDeXuat, soDoDieuHanh, trangCuaDeXuat } from "../services/so-loi.js";
 import { NHOM_VIEC, VIEC } from "../services/so-ai.js";
 import { nhatKyLuot, saoKeChuoi } from "../services/chi-phi.js";
 import {
@@ -287,111 +279,7 @@ quanLyRouter.get(
   })
 );
 
-/**
- * Báo cáo chuỗi 4 khâu của MỘT TRANG (services/bao-cao-chuoi.ts) — cùng một đường, cùng chốt phạm vi với sao kê trang.
- */
-quanLyRouter.get(
-  "/bao-cao-chuoi",
-  route(async (req, res) => {
-    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);
-    res.json({ success: true, data: await baoCaoChuoi(trangId, req.query.ky === "thang_truoc" ? "thang_truoc" : "thang_nay") });
-  })
-);
-
-/** Sức khoẻ từng khâu của MỘT TRANG — code thống kê chấm (services/suc-khoe.ts), cùng chốt phạm vi. */
-quanLyRouter.get(
-  "/suc-khoe",
-  route(async (req, res) => {
-    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);
-    res.json({ success: true, data: await sucKhoeTrang(trangId) });
-  })
-);
-
-// ------------------------------------------------------------------------------------------- AI điều hành (chạy thử)
-/*
- * Màn hình chạy thử AI điều hành (chủ dự án 10/10/2026: "bật màn hình chạy thử cho tao kiểm tra"). Chế độ ĐỀ XUẤT:
- * không thực thi gì — chỉ ra đề xuất để chủ shop duyệt / bác. Cùng chốt phạm vi chuỗi như các route khác.
- */
-async function chuCuaTrang(trangId: number): Promise<number> {
-  const r = await queryOne<{ user_id: number }>("SELECT user_id::int AS user_id FROM trang WHERE id = $1", [trangId]);
-  if (!r) throw new AppError("Không tìm thấy trang này", 404);
-  return r.user_id;
-}
-
-/** Vấn đề do CODE chọn từ bảng sức khoẻ: sự cố trước, rồi chỉ số tụt ảnh hưởng tiền nhiều nhất. Không có → null. */
-function vanDeTuDong(sk: Awaited<ReturnType<typeof sucKhoeTrang>>): string | null {
-  if (sk.suCo.length) return `Sự cố: ${sk.suCo.map((s) => `${s.ten} (${s.chiTiet})`).join("; ")}`;
-  const tut = sk.uuTien.map((ma) => sk.chiSo.find((c) => c.ma === ma)).find((c) => c?.muc === "tut");
-  return tut ? `Chỉ số TỤT: ${tut.ten}` : null;
-}
-
-/** Sổ bằng chứng của trang — chỉ đọc, KHÔNG gọi AI, không tốn tiền. */
-quanLyRouter.get(
-  "/dieu-hanh/so",
-  route(async (req, res) => {
-    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);
-    const chu = await chuCuaTrang(trangId);
-    const [so, sk, soDo] = await Promise.all([soBangChungTrang(chu, trangId), sucKhoeTrang(trangId),
-      soDoDieuHanh(trangId, new Date(Date.now() - 30 * 86_400_000))]);
-    const kho = khoBangChung(so);
-    res.json({ success: true, data: {
-      bangChung: kho.map((b) => ({ ma: b.ma, nguon: b.nguon, noiDung: b.noiDung, hang: hangBangChung(b, so.luc).hang, lyDoHang: hangBangChung(b, so.luc).lyDo, gioiHan: b.gioiHan ?? [] })),
-      khoangTrong: so.khoangTrong,
-      vanDeTuDong: vanDeTuDong(sk),
-      soDo,
-    } });
-  })
-);
-
-/** Đang chạy theo trang — bấm hai lần không trả tiền hai lần. */
-const dangChayDieuHanh = new Set<number>();
-
-/** Chạy thử MỘT lần quy trình AI điều hành (tốn tiền AI — có chốt chống đốt tiền). Kết quả lưu, chờ chủ shop duyệt. */
-quanLyRouter.post(
-  "/dieu-hanh/chay",
-  chanLamDungAI,
-  route(async (req, res) => {
-    const trangId = await trangTrongPhamVi(req.user!, req.body?.trangId);
-    const chu = await chuCuaTrang(trangId);
-    const goTay = typeof req.body?.vanDe === "string" ? req.body.vanDe.trim().slice(0, 500) : "";
-    if (dangChayDieuHanh.has(trangId)) throw new AppError("Trang này đang chạy thử, chờ lượt trước xong", 409);
-    dangChayDieuHanh.add(trangId);
-    try {
-      const [so, sk] = await Promise.all([soBangChungTrang(chu, trangId), sucKhoeTrang(trangId)]);
-      const vanDe = goTay ? `Chủ shop hỏi: ${goTay}` : vanDeTuDong(sk);
-      if (!vanDe) throw new AppError("Bảng sức khoẻ không có vấn đề nào cần xử lý — gõ câu hỏi nếu muốn AI điều hành xem", 400);
-      // Tiền AI tính vào đúng trang này (sổ AI đọc trang từ ngữ cảnh).
-      const k = await chayChoTrang(trangId, () => dieuHanhMotLan({ vanDe, so, cheDo: "de_xuat", goi: goiAiThat(chu) }));
-      const id = await luuDeXuat({ userId: chu, trangId, vanDe, k, so });
-      res.json({ success: true, data: { id, ketQua: k.ketQua, soLuotAi: k.soLuotAi, tienUsd: k.tienUsd, giay: k.thoiGianMs / 1000 } });
-    } finally {
-      dangChayDieuHanh.delete(trangId);
-    }
-  })
-);
-
-/** Đề xuất gần đây của trang. */
-quanLyRouter.get(
-  "/dieu-hanh/de-xuat",
-  route(async (req, res) => {
-    const trangId = await trangTrongPhamVi(req.user!, req.query.trangId);
-    res.json({ success: true, data: await deXuatGanDay(trangId) });
-  })
-);
-
-/** Duyệt / bác một đề xuất (chế độ đề xuất: duyệt = ghi nhận, CHƯA thực thi gì). */
-quanLyRouter.post(
-  "/dieu-hanh/de-xuat/:id/quyet",
-  route(async (req, res) => {
-    const dx = await trangCuaDeXuat(Number(req.params.id));
-    if (!dx) throw new AppError("Không tìm thấy đề xuất", 404);
-    await trangTrongPhamVi(req.user!, dx.trang_id);
-    const ok = await chuShopQuyet({ id: Number(req.params.id), userId: dx.user_id, duyet: req.body?.duyet === true,
-      lyDo: typeof req.body?.lyDo === "string" ? req.body.lyDo.trim().slice(0, 1000) : undefined });
-    if (!ok) throw new AppError("Đề xuất này đã được quyết rồi", 409);
-    res.json({ success: true });
-  })
-);
+// Sức khoẻ, chuỗi 4 khâu và AI điều hành thuộc BỘ NÃO của từng trang → routes/dieu-hanh.ts (chủ dự án 10/10/2026).
 
 /** Chi phí tháng này của CHUỖI — cùng khung với chi phí hệ thống của quản trị tổng, chỉ tiền của chuỗi mình. */
 quanLyRouter.get(

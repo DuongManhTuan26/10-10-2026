@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api, KHOA_TRANG_DANG_CHON, type SocialAccount } from './api';
+import { kenhMacDinh } from './gioi-han-kenh';
 
 /**
  * Trang đang được chọn.
@@ -10,6 +11,18 @@ import { api, KHOA_TRANG_DANG_CHON, type SocialAccount } from './api';
  * cáo tính theo trang. Vì vậy lựa chọn này phải nằm ở một chỗ chung thay vì
  * mỗi màn hình tự giữ riêng.
  */
+
+/**
+ * Một TRANG = một BỘ NÃO AI (4 AI cố định: viết bài, quảng cáo, bán hàng, điều hành — chủ dự án 10/10/2026). Ô chọn
+ * liệt kê theo trang, không theo kênh: các kênh của cùng một trang dùng chung một bộ não.
+ */
+export interface TrangNao {
+  /** Khoá ổn định: "t<id>" cho trang thật; kênh chưa gắn trang đứng riêng "k<id kênh>". */
+  khoa: string;
+  id: number | null;
+  ten: string;
+  kenh: SocialAccount[];
+}
 
 interface ActivePageValue {
   accounts: SocialAccount[];
@@ -26,6 +39,14 @@ interface ActivePageValue {
    */
   activeTrangId: number | null;
   setActiveAccountId: (id: string | null) => void;
+  /** Danh sách trang (bộ não), mỗi trang kèm các kênh của nó. */
+  trangs: TrangNao[];
+  /** Trang đang chọn; chỉ có MỘT trang thì luôn là trang đó; null = đang "Tất cả trang" khi có nhiều trang. */
+  trangDangChon: TrangNao | null;
+  /** Chọn trang (null = tất cả trang): lưu kênh chính của trang làm đại diện — máy chủ suy trang từ kênh. */
+  chonTrang: (khoa: string | null) => void;
+  /** Có nhiều trang mà chưa chọn — 4 mục AI của bộ não phải bắt chọn một trang. */
+  canChonTrang: boolean;
   loading: boolean;
   reload: () => Promise<void>;
 }
@@ -81,8 +102,31 @@ export function ActivePageProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  const trangs = useMemo<TrangNao[]>(() => {
+    const ds = new Map<string, TrangNao>();
+    for (const k of accounts) {
+      const khoa = k.trang_id != null ? `t${k.trang_id}` : `k${k.id}`;
+      const t = ds.get(khoa) ?? { khoa, id: k.trang_id, ten: k.trang_ten || k.display_name || k.username, kenh: [] };
+      t.kenh.push(k);
+      ds.set(khoa, t);
+    }
+    return [...ds.values()];
+  }, [accounts]);
+
+  const chonTrang = useCallback((khoa: string | null) => {
+    if (!khoa) return setActiveAccountId(null);
+    const t = trangs.find((x) => x.khoa === khoa);
+    if (!t) return;
+    const ketNoi = t.kenh.filter((k) => k.connected);
+    // Kênh chính (Fanpage / Instagram — nơi khách nhắn và ra đơn) làm đại diện; cùng trang thì cùng bộ não.
+    setActiveAccountId(kenhMacDinh(ketNoi)[0] ?? ketNoi[0]?.id ?? t.kenh[0].id);
+  }, [trangs, setActiveAccountId]);
+
   const value = useMemo<ActivePageValue>(() => {
     const dangChon = accounts.find((account) => account.id === activeAccountId) ?? null;
+    const trangDangChon = dangChon
+      ? trangs.find((t) => t.kenh.some((k) => k.id === dangChon.id)) ?? null
+      : trangs.length === 1 ? trangs[0] : null;
     // Chưa chọn kênh nào thì máy chủ dùng Trang đầu tiên — lấy đúng cái đó để
     // màn hình và máy chủ cùng nói về một Trang.
     const trangDangDung =
@@ -95,10 +139,14 @@ export function ActivePageProvider({ children }: { children: ReactNode }) {
       activeAccountId,
       activeTrangId: trangDangDung,
       setActiveAccountId,
+      trangs,
+      trangDangChon,
+      chonTrang,
+      canChonTrang: trangs.length > 1 && !trangDangChon,
       loading,
       reload,
     };
-  }, [accounts, activeAccountId, setActiveAccountId, loading, reload]);
+  }, [accounts, activeAccountId, setActiveAccountId, trangs, chonTrang, loading, reload]);
 
   return <ActivePageContext.Provider value={value}>{children}</ActivePageContext.Provider>;
 }

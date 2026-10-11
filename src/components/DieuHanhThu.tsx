@@ -1,5 +1,5 @@
 /**
- * AI ĐIỀU HÀNH — CHẠY THỬ (chủ dự án 10/10/2026: "bật màn hình chạy thử cho tao kiểm tra"; docs mục 14).
+ * AI ĐIỀU HÀNH — chạy thử, nằm trong trang AI Điều Hành của BỘ NÃO (trang đang chọn). trangId chỉ để nạp lại khi đổi trang.
  *
  * Chế độ ĐỀ XUẤT: không thực thi gì. Ba phần, dòng chính ngắn — bấm mới hiện chi tiết:
  *   1. Sổ bằng chứng (code gom, hạng do code chấm) + những gì hệ thống CHƯA BIẾT — chỉ đọc, không tốn tiền.
@@ -34,7 +34,7 @@ const TEN_TRANG_THAI: Record<DeXuatDieuHanh['trang_thai'], { chu: string; mau: s
 const usd = (x: number) => `${x.toLocaleString('vi-VN', { maximumFractionDigits: 3 })} USD`;
 const loiChu = (e: unknown, macDinh: string) => (e instanceof ApiError ? e.message : macDinh);
 
-export default function DieuHanhThu({ trangId }: { trangId: number }) {
+export default function DieuHanhThu({ trangId }: { trangId: number | null }) {
   const [so, setSo] = useState<SoDieuHanh | null>(null);
   const [deXuat, setDeXuat] = useState<DeXuatDieuHanh[] | null>(null);
   const [loi, setLoi] = useState('');
@@ -46,7 +46,7 @@ export default function DieuHanhThu({ trangId }: { trangId: number }) {
 
   const tai = useCallback(async () => {
     try {
-      const [a, b] = await Promise.all([api.quanLy.dieuHanhSo(trangId), api.quanLy.dieuHanhDeXuat(trangId)]);
+      const [a, b] = await Promise.all([api.dieuHanh.so(), api.dieuHanh.deXuat()]);
       setSo(a.data);
       setDeXuat(b.data);
       setLoi('');
@@ -75,7 +75,7 @@ export default function DieuHanhThu({ trangId }: { trangId: number }) {
     if (!dongY) return;
     setDangChay(true);
     try {
-      const { data } = await api.quanLy.dieuHanhChay(trangId, vanDe.trim());
+      const { data } = await api.dieuHanh.chay(vanDe.trim());
       setVanDe('');
       await tai();
       setMoDeXuat(data.id);
@@ -94,7 +94,7 @@ export default function DieuHanhThu({ trangId }: { trangId: number }) {
       lyDo = nhap;
     }
     try {
-      await api.quanLy.dieuHanhQuyet(d.id, duyet, lyDo);
+      await api.dieuHanh.quyet(d.id, duyet, lyDo);
       await tai();
     } catch (e) {
       await baoTin({ tieuDe: 'Chưa ghi được', noiDung: loiChu(e, 'Có lỗi') });

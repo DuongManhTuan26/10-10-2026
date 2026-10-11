@@ -2724,7 +2724,9 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonNoi = fs.readFileSync(path.join(GOC, "server/routes/connections.ts"), "utf8");
   kiem("đổi Trang đổi não", "danh sách kênh gửi kèm trang_id cho giao diện",
     /last_synced_at, created_at, trang_id/.test(nguonNoi) &&
-      /token_expires_at,\s*\n\s*trang_id\s*\n\s*FROM social_accounts WHERE user_id = \$1/.test(nguonNoi), true);
+      // Kèm TÊN trang (10/10/2026): ô chọn liệt kê theo trang = bộ não, không theo kênh.
+      /token_expires_at,\s*\n\s*trang_id, \(SELECT t\.ten FROM trang t WHERE t\.id = social_accounts\.trang_id\) AS trang_ten\s*\n\s*FROM social_accounts WHERE user_id = \$1/.test(nguonNoi) &&
+      (nguonNoi.match(/AS trang_ten/g) ?? []).length === 2, true);
 
   /*
    * Kênh nối về SAU khi mở tài khoản cũng phải có Trang.
@@ -3414,8 +3416,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("phân tầng", "chủ chuỗi không thấy màn hình bán hàng trống rỗng",
     /const group1 = laChuChuoi\s*\n\s*\? \[\]/.test(nguonMenu) &&
       /const group2 = laChuChuoi\s*\n\s*\? \[\]/.test(nguonMenu), true);
+  // Ô chọn trang nằm trong khối Bộ não AI, chỉ hiện khi có 4 mục AI (chủ chuỗi: group2 rỗng → không có khối).
   kiem("phân tầng", "chủ chuỗi không thấy bộ chọn Fanpage luôn rỗng",
-    /\{!laChuChuoi && \(\s*\n\s*<div className="shrink-0 relative"/.test(nguonMenu), true);
+    /\{group2\.length > 0 && \(\s*\n\s*<div className="rounded-2xl border border-\[#00e5ff\]\/20[\s\S]{0,600}?<ChonTrangNao \/>/.test(nguonMenu) &&
+      (nguonMenu.match(/<ChonTrangNao \/>/g) ?? []).length === 1, true);
 }
 
 // ---------------------------------------------------------------------------
@@ -3928,7 +3932,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     ["server/routes/ai.ts", "/video/du-an/:id/bat-dau"],
     ["server/routes/ai.ts", "/video/sua"],
     ["server/routes/ai.ts", "/video/trend/phan-tich"],
-    ["server/routes/quan-ly.ts", "/dieu-hanh/chay"],
+    ["server/routes/dieu-hanh.ts", "/chay"],
   ];
   for (const [tep, duong] of DUONG_TON_TIEN_AI) {
     const ma = fs.readFileSync(path.join(GOC, tep), "utf8");
@@ -3936,7 +3940,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
       ma.includes(`.post(\n  "${duong}",\n  chanLamDungAI,\n  route(`), true);
   }
   // Không sót đường nào: mọi route gọi hàm AI trả tiền đều phải nằm trong danh sách trên.
-  const soDuongGoiAI = ["server/routes/ai.ts", "server/routes/analytics.ts", "server/routes/ads.ts", "server/routes/quan-ly.ts"]
+  const soDuongGoiAI = ["server/routes/ai.ts", "server/routes/analytics.ts", "server/routes/ads.ts", "server/routes/quan-ly.ts", "server/routes/dieu-hanh.ts"]
     .map((t) => boChuThichTS(fs.readFileSync(path.join(GOC, t), "utf8")))
     .flatMap((ma) => ma.split(/\n(?=\w+Router\.(?:get|post|put|patch|delete)\()/))
     .filter((khoi) => /\b(chat|chatJson|taoAnhChoBai|docChuTuAnh|generatePostContent|extractOrderInfo|suggestReply|vietLoiMoTaVideo|taoVideo|taoDuAn|batDauDuAn|suaVideo|phanTichTrend|dieuHanhMotLan)\s*(<[^>]*>)?\(/.test(khoi))
@@ -5028,7 +5032,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     /\.nen-app \{[\s\S]{0,600}?background-size: auto, auto, 24px 24px, 24px 24px;/.test(nguonCss) &&
       /<div className="flex h-screen w-full bg-background nen-app">/.test(fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8")), true);
   kiem("giao diện", "trang không tự phủ nền đặc che mất nền chung",
-    ["Dashboard", "Ads", "Content", "AutoScripts", "Orders", "QuanLy", "Connections", "Inbox", "Analytics", "TelegramAlerts", "Pricing"]
+    ["Dashboard", "Ads", "Content", "AutoScripts", "Orders", "QuanLy", "Connections", "Inbox", "DieuHanh", "TelegramAlerts", "Pricing"]
       .filter((t) => /<main className="[^"]*\bbg-background\b(?!\/)/.test(fs.readFileSync(path.join(GOC, `src/pages/${t}.tsx`), "utf8"))), []);
   // Thứ NỔI trên nội dung phải đặc — thẻ kính trong suốt thì chữ trang sau lẫn vào.
   kiem("giao diện", "hộp thoại dùng nền đặc riêng, không dùng màu thẻ kính",
@@ -5412,8 +5416,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/chuaGhiNguon: theoNguon\("message"\)\.so,/.test(bcc),
       /tiLeChot: tongHoiThoai > 0 \? hoiThoaiCoDon \/ tongHoiThoai : null,/.test(bcc),
       /percentile_cont\(0\.5\) WITHIN GROUP \(ORDER BY giay\)/.test(bcc),
-      /"\/bao-cao-chuoi",\s*route\(async \(req, res\) => \{\s*const trangId = await trangTrongPhamVi\(req\.user!, req\.query\.trangId\);/.test(ql),
-      /<BaoCaoChuoi t=\{t\} ky=\{ky\} \/>/.test(tqUi)],
+      // Chuyển vào BỘ NÃO (10/10/2026): báo cáo của trang đang chọn, trang phải là của chính người đăng nhập.
+      /"\/bao-cao",\s*route\(async \(req, res\) => \{\s*const userId = req\.user!\.id;\s*const trangId = await trangCuaToi\(userId\);[\s\S]{0,300}?baoCaoChuoi\(trangId, ky\)/.test(doc("server/routes/dieu-hanh.ts")),
+      /<BaoCaoChuoi t=\{du\.trang\} du=\{du\.chuoi\} \/>/.test(doc("src/pages/DieuHanh.tsx")) && !/BaoCaoChuoi|SucKhoeTrang|DieuHanhThu/.test(tqUi)],
     [true, true, true, true, true]);
   // Bước 4a — sức khoẻ do CODE THỐNG KÊ chấm (không AI): đúng số chuẩn, ngưỡng p < 0,05 và lệch ≥ 20%, thiếu mẫu thì nói thiếu.
   const sk = doc("server/services/suc-khoe.ts");
@@ -5743,18 +5748,40 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       [cauHoiKiem(docQuyetDinh(qdChot).qd, khoBangChung(soMau())).map((c) => c.id), cauHoiKiem(docQuyetDinh(cut).qd, khoBangChung(soMau())).map((c) => c.id)],
       [["KH-1"], ["MT-1", "NC-t-TL-4"]]);
   }
-  // Màn hình chạy thử AI điều hành (10/10/2026): mọi route qua chốt phạm vi chuỗi; chạy có khoá theo trang (bấm hai lần
-  // không trả tiền hai lần); duyệt / bác kiểm phạm vi theo trang CỦA ĐỀ XUẤT; giao diện không dùng hộp của trình duyệt.
+  // BỘ NÃO AI (chủ dự án 10/10/2026): 4 AI cố định — viết bài, quảng cáo, bán hàng, điều hành — là MỘT khối gắn với
+  // trang đang chọn; AI điều hành không còn ở màn hình quản trị; 4 mục bắt chọn một trang; không đăng lan sang trang khác.
   {
-    const ql = doc("server/routes/quan-ly.ts");
+    const dh = doc("server/routes/dieu-hanh.ts");
     const ui = doc("src/components/DieuHanhThu.tsx");
-    kiem("AI điều hành chạy thử", "3 route đọc / chạy kiểm phạm vi chuỗi; duyệt / bác kiểm phạm vi theo trang của đề xuất; khoá chạy theo trang",
-      [(ql.match(/"\/dieu-hanh\/(so|chay|de-xuat)",[\s\S]{0,80}?route\(async \(req, res\) => \{\s*const trangId = await trangTrongPhamVi\(req\.user!, req\.(query|body)\??\.trangId\);/g) ?? []).length,
-        /if \(!dx\) throw new AppError\("Không tìm thấy đề xuất", 404\);\s*await trangTrongPhamVi\(req\.user!, dx\.trang_id\);/.test(ql),
-        /if \(dangChayDieuHanh\.has\(trangId\)\) throw[\s\S]*?dangChayDieuHanh\.add\(trangId\);\s*try \{[\s\S]*?\} finally \{\s*dangChayDieuHanh\.delete\(trangId\);/.test(ql),
-        /cheDo: "de_xuat"/.test(ql)],
-      [3, true, true, true]);
-    kiem("AI điều hành chạy thử", "giao diện: hỏi lại bằng hộp của app trước khi tốn tiền; không hộp của trình duyệt",
+    const menu = doc("src/components/Sidebar.tsx");
+    const app = doc("src/App.tsx");
+    const ap = doc("src/lib/ActivePage.tsx");
+    const nhom2 = /const group2 = laChuChuoi\s*\n\s*\? \[\]\s*\n\s*: \[([\s\S]*?)\];/.exec(menu)?.[1] ?? "";
+    kiem("bộ não AI", "khối não trên menu: đúng 4 mục cố định theo thứ tự, mục 4 là AI Điều Hành; ô chọn trang đứng đầu khối",
+      [[...nhom2.matchAll(/name: '([^']+)'/g)].map((m) => m[1]),
+        /Bộ não AI của trang\s*<\/div>\s*<ChonTrangNao \/>\s*<div style=\{\{ height: '10px' \}\}><\/div>\s*\{renderNavGroup\(group2\)\}/.test(menu)],
+      [["AI Viết - Đăng Bài", "AI Quảng Cáo", "AI Bán Hàng", "AI Điều Hành"], true]);
+    kiem("bộ não AI", "cả 4 mục AI bắt chọn MỘT trang khi đang 'Tất cả trang' (nhiều trang); trang cũ chuyển hướng sang AI Điều Hành",
+      [["/content", "/auto-scripts", "/ads", "/dieu-hanh"].filter((d) => new RegExp(`path="${d}" element=\\{<CanTrangNao ten="[^"]+"><\\w+ \\/><\\/CanTrangNao>\\}`).test(app)).length,
+        /path="\/analytics" element=\{<Navigate to="\/dieu-hanh" replace \/>\}/.test(app),
+        /canChonTrang: trangs\.length > 1 && !trangDangChon,/.test(ap)],
+      [4, true, true]);
+    kiem("bộ não AI", "ô chọn liệt kê theo TRANG; chọn trang lưu kênh chính của trang làm đại diện",
+      [/const khoa = k\.trang_id != null \? `t\$\{k\.trang_id\}` : `k\$\{k\.id\}`;/.test(ap),
+        /setActiveAccountId\(kenhMacDinh\(ketNoi\)\[0\] \?\? ketNoi\[0\]\?\.id \?\? t\.kenh\[0\]\.id\);/.test(ap)],
+      [true, true]);
+    kiem("bộ não AI", "không đăng lan sang kênh của trang khác; hộp thư theo trang đang chọn",
+      [/const kenhKetNoi = \(trangDangChon\?\.kenh \?\? accounts\)\.filter\(\(a\) => a\.connected\);\s*\/\*\* [^\n]*\*\/\s*const targetAccountIds = kenhKetNoi\.map\(\(a\) => a\.id\);/.test(doc("src/pages/Content.tsx")),
+        /const accounts = trangDangChon\?\.kenh \?\? tatCaKenh;/.test(doc("src/pages/Inbox.tsx"))],
+      [true, true]);
+    kiem("bộ não AI", "mọi đường AI điều hành làm việc với trang CỦA CHÍNH người đăng nhập (n/n); duyệt / bác chỉ đề xuất của mình; khoá chạy theo trang; chế độ đề xuất",
+      [(dh.match(/await trangCuaToi\(/g) ?? []).length === (dh.match(/dieuHanhRouter\.(get|post)\(/g) ?? []).length - 1,
+        /if \(!dx \|\| dx\.user_id !== req\.user!\.id\) throw new AppError\("Không tìm thấy đề xuất", 404\);/.test(dh),
+        /SELECT 1 FROM trang WHERE id = \$1 AND user_id = \$2/.test(dh),
+        /if \(dangChayDieuHanh\.has\(trangId\)\) throw[\s\S]*?dangChayDieuHanh\.add\(trangId\);\s*try \{[\s\S]*?\} finally \{\s*dangChayDieuHanh\.delete\(trangId\);/.test(dh),
+        /cheDo: "de_xuat"/.test(dh), !/dieu-hanh|DieuHanh/.test(doc("server/routes/quan-ly.ts").replace(/\/\/.*$/gm, ""))],
+      [true, true, true, true, true, true]);
+    kiem("bộ não AI", "giao diện: hỏi lại bằng hộp của app trước khi tốn tiền; không hộp của trình duyệt",
       [/await hoiXacNhan\(\{\s*tieuDe: 'Chạy thử AI điều hành\?'/.test(ui), !/\b(window\.)?(confirm|prompt|alert)\(/.test(ui)], [true, true]);
   }
   kiem("giấu nhà cung cấp", "lỗi đọc hoá đơn kênh / quảng cáo không đưa câu gốc (có tên nhà cung cấp) ra màn hình",

@@ -590,3 +590,31 @@ lời dặn AI — người soát biến lỗi đã xác nhận thành phép ki�
 - Bước 6 — giao diện chế độ 2 (xem đề xuất, duyệt / bác) + ô chat; nối "chọn vấn đề" từ bảng sức khoẻ.
 - Đo kết quả kinh doanh sau thay đổi và cơ hội bỏ lỡ: cần bước thử nghiệm + hoàn tác (thứ tự đã duyệt: sau chế độ 2).
 - Chưa chứng minh kiến trúc mới tốt hơn — mới chứng minh từng chốt chặn chạy đúng trên ca dựng sẵn.
+
+---
+
+## 15. Bộ não AI — 4 AI cố định gắn với từng trang (chủ dự án 10/10/2026)
+
+**Nguyên tắc (chủ dự án):** 4 AI — viết/đăng bài, quảng cáo, bán hàng chốt đơn, điều hành (nhận báo cáo năng suất,
+hiệu suất của 3 AI kia, đối chiếu, rà soát hằng ngày → giữ điểm tốt, tìm nguyên nhân + giải pháp điểm chưa tốt → vòng
+lặp tối ưu) — là MỘT bộ não liền mạch, cố định; mỗi trang / chuỗi một bộ não độc lập; chọn trang N → bộ não N. Chỉ
+trang, mục tiêu, sản phẩm, lời dặn, nguồn dữ liệu thay đổi.
+
+**Đã sửa:**
+- Em từng đặt AI điều hành trong báo cáo trang của màn hình Quản lý tài khoản — tách khỏi 3 AI kia. Đã gỡ hẳn khỏi đó
+  (cùng Sức khoẻ, Chuỗi 4 khâu — chủ dự án duyệt chuyển vào bộ não).
+- Menu: khối **"Bộ não AI của trang"** — ô chọn trang đứng đầu khối (bản cũ nằm sát chữ LOGO, chủ dự án không nhận ra
+  là tính năng), ngay dưới là 4 mục cố định; mục 4 đổi "AI Thống Kê - Phân Tích" → **"AI Điều Hành"** (`/dieu-hanh`,
+  đường cũ chuyển hướng).
+- Ô chọn liệt kê theo **trang** (mỗi trang ghi các kênh của nó) — Instagram + TikTok của cùng một trang là MỘT bộ não.
+  Chọn trang lưu kênh chính của trang làm đại diện (máy chủ suy trang từ kênh như cũ, không đổi đường tiền / đơn).
+- 4 mục AI: đang "Tất cả trang" mà có nhiều trang → hiện danh sách trang để chọn (không làm trộn bộ não). "Tất cả
+  trang" vẫn dùng cho màn hình chung (Bảng điều khiển, Hộp thư, Đơn hàng).
+- Soạn bài chỉ đăng lên kênh của trang đang chọn (bản cũ "chưa chọn thì mọi kênh" sẽ đăng lan sang trang khác);
+  Hộp thư theo trang đang chọn.
+- Trang AI Điều Hành (cùng khung, thẻ, biểu đồ với trang cũ): thẻ số, doanh thu theo ngày và nguồn khách của RIÊNG
+  trang, báo cáo 3 AI nhân viên (chuỗi 4 khâu, tiền tính bằng đúng hàm Tổng quan), điểm tốt / chưa tốt (sức khoẻ),
+  rà soát và đề xuất (chạy thử). Đường dữ liệu riêng `/api/dieu-hanh` — trang luôn của chính người đăng nhập.
+- Kiểm chứng: bộ kiểm 1084/1084; đục 9 lỗ nguyên tắc bộ não bắt 9/9; thử trên trình duyệt (khối não, chốt bắt chọn
+  trang gom đúng 2 kênh của "Chạm Tay Vạn Điều Hay" thành một trang, chọn trang đổi đúng báo cáo; lựa chọn của chủ
+  dự án trả về như cũ sau khi thử).

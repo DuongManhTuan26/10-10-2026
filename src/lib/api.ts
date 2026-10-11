@@ -453,6 +453,8 @@ export interface SocialAccount {
    * phải đếm trang_id khác nhau, không được đếm số kênh.
    */
   trang_id: number | null;
+  /** Tên trang (bộ não) — để ô chọn liệt kê theo TRANG, không theo kênh. */
+  trang_ten?: string | null;
 }
 
 export type ConversationStatus = "ai" | "waiting_human" | "human" | "done";
@@ -660,6 +662,17 @@ export interface ChiSoSucKhoe {
   thieu?: string;
   anhHuongTuan: number | null;
 }
+/** Báo cáo bộ não của trang đang chọn (AI điều hành nhận). */
+export interface BaoCaoDieuHanh {
+  trangId: number;
+  trang: TrangTongQuan | null;
+  kyTinh: TongQuanQuanLy['kyTinh'];
+  chot: TongQuanQuanLy['chot'];
+  chuoi: BaoCaoChuoi;
+  sucKhoe: SucKhoeTrang;
+  theoNgay: { ngay: string; doanhThu: number; don: number; hoiThoai: number }[];
+}
+
 /** AI điều hành (chạy thử) — sổ bằng chứng do code gom, hạng do code chấm. */
 export interface SoDieuHanh {
   bangChung: { ma: string; nguon: string; noiDung: string; hang: 'A' | 'B' | 'C' | 'D'; lyDoHang: string[]; gioiHan: string[] }[];
@@ -1505,27 +1518,19 @@ export const api = {
       }>("/ads/analyze"),
   },
 
-  analytics: {
-    overview: (range = "7days") =>
-      get<{
-        days: number;
-        stats: {
-          revenue: number; ordersCount: number; conversationsCount: number;
-          closeRate: number; aiMessages: number; aiClosed: number;
-          handoffs: number; newCustomers: number; leadsWithPhone: number;
-        };
-        trends: Record<string, number | null>;
-        series: Array<{ name: string; revenue: number; orders: number; aiInteractions: number }>;
-        sources: Array<{ name: string; value: number; count: number }>;
-      }>(`/analytics/overview?range=${range}`),
-    analyze: (range = "7days") =>
-      post<{
-        data: { hasData: boolean; findings: string; recommendation: string; actions: string[] };
-      }>("/analytics/analyze", { range }),
-    reports: () =>
-      get<{ data: Array<{ report_date: string; findings: string; recommendation: string }> }>(
-        "/analytics/reports"
-      ),
+  /**
+   * AI ĐIỀU HÀNH — thành viên thứ 4 của bộ não, làm việc với TRANG ĐANG CHỌN (đầu X-Kenh), như 3 AI kia.
+   */
+  dieuHanh: {
+    /** Báo cáo năng suất / hiệu suất 3 AI nhân viên: tiền, chuỗi 4 khâu, theo ngày, sức khoẻ. */
+    baoCao: (ky: KyTongQuan) => get<{ data: BaoCaoDieuHanh }>(`/dieu-hanh/bao-cao?ky=${ky}`),
+    /** Sổ bằng chứng — chỉ đọc, không tốn tiền. */
+    so: () => get<{ data: SoDieuHanh }>("/dieu-hanh/so"),
+    /** Chạy thử MỘT lần (tốn tiền AI). vanDe rỗng = hệ thống tự chọn vấn đề từ bảng sức khoẻ. */
+    chay: (vanDe: string) =>
+      post<{ data: { id: number; ketQua: string; soLuotAi: number; tienUsd: number; giay: number } }>("/dieu-hanh/chay", { vanDe }),
+    deXuat: () => get<{ data: DeXuatDieuHanh[] }>("/dieu-hanh/de-xuat"),
+    quyet: (id: number, duyet: boolean, lyDo?: string) => post<{ success: true }>(`/dieu-hanh/de-xuat/${id}/quyet`, { duyet, lyDo }),
   },
 
   /**
@@ -1538,19 +1543,6 @@ export const api = {
   quanLy: {
     /** Tổng quan tài sản: tài khoản → trang → tiền từng loại. Cùng một đường cho cả hai tầng. */
     tongQuan: (ky: KyTongQuan) => get<{ data: TongQuanQuanLy }>(`/quan-ly/tong-quan?ky=${ky}`),
-    /** Sức khoẻ từng khâu của một trang (thống kê, không AI). */
-    sucKhoe: (trangId: number) => get<{ data: SucKhoeTrang }>(`/quan-ly/suc-khoe?trangId=${trangId}`),
-    /** AI điều hành (chạy thử): sổ bằng chứng — chỉ đọc, không tốn tiền. */
-    dieuHanhSo: (trangId: number) => get<{ data: SoDieuHanh }>(`/quan-ly/dieu-hanh/so?trangId=${trangId}`),
-    /** Chạy thử MỘT lần (tốn tiền AI). vanDe rỗng = hệ thống tự chọn vấn đề từ bảng sức khoẻ. */
-    dieuHanhChay: (trangId: number, vanDe: string) =>
-      post<{ data: { id: number; ketQua: string; soLuotAi: number; tienUsd: number; giay: number } }>("/quan-ly/dieu-hanh/chay", { trangId, vanDe }),
-    dieuHanhDeXuat: (trangId: number) => get<{ data: DeXuatDieuHanh[] }>(`/quan-ly/dieu-hanh/de-xuat?trangId=${trangId}`),
-    dieuHanhQuyet: (id: number, duyet: boolean, lyDo?: string) =>
-      post<{ success: true }>(`/quan-ly/dieu-hanh/de-xuat/${id}/quyet`, { duyet, lyDo }),
-    /** Báo cáo chuỗi 4 khâu của một trang. */
-    baoCaoChuoi: (trangId: number, ky: KyTongQuan) =>
-      get<{ data: BaoCaoChuoi }>(`/quan-ly/bao-cao-chuoi?trangId=${trangId}&ky=${ky}`),
     /** Sao kê từng lượt AI của một trang. */
     saoKeTrang: (trangId: number, ky: KyTongQuan, trang: number) =>
       get<{ data: { luot: LuotChiPhi[]; tongLan: number; tongUsd: number; trang: number; soTrang: number } }>(

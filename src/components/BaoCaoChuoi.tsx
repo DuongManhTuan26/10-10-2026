@@ -5,9 +5,9 @@
  * nút thắt. Các khâu nối bằng mã thật (quảng cáo / bình luận → hội thoại → đơn); hội thoại có từ trước khi ghi nguồn
  * hiện riêng "chưa ghi nguồn", không gán bừa. Chỉ số cuối (chủ dự án chốt): tiền bỏ ra mỗi đơn + doanh thu/chi phí.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { clsx } from 'clsx';
-import { api, ApiError, type BaoCaoChuoi as DuLieu, type KyTongQuan, type TrangTongQuan } from '../lib/api';
+import { type BaoCaoChuoi as DuLieu, type TrangTongQuan } from '../lib/api';
 import { chi, mauChi, TY_GIA } from '../lib/tien-chi';
 import { tienTrang, tong, tienGoc } from './QuanLyTongQuan';
 
@@ -43,30 +43,14 @@ function Khau({ so: thuTu, icon, ten, children }: { so: number; icon: string; te
   );
 }
 
-export default function BaoCaoChuoi({ t, ky }: { t: TrangTongQuan; ky: KyTongQuan }) {
-  const [du, setDu] = useState<DuLieu | null>(null);
-  const [loi, setLoi] = useState('');
-  useEffect(() => {
-    let huy = false;
-    setDu(null);
-    setLoi('');
-    api.quanLy
-      .baoCaoChuoi(t.id, ky)
-      .then(({ data }) => !huy && setDu(data))
-      .catch((e) => !huy && setLoi(e instanceof ApiError ? e.message : 'Chưa tải được báo cáo chuỗi'));
-    return () => {
-      huy = true;
-    };
-  }, [t.id, ky]);
-
-  if (loi) return <p className="text-sm text-red-400">{loi}</p>;
-  if (!du) return <p className="text-sm text-on-surface-variant">Đang tải báo cáo chuỗi…</p>;
+export default function BaoCaoChuoi({ t, du }: { t: TrangTongQuan | null; du: DuLieu }) {
   const { noiDung: nd, quangCao: qc, banHang: bh } = du;
 
   // --- Tổng: tiền AI + kênh (USD) và quảng cáo (đơn vị gốc) của trang, từ Tổng quan ---
-  const usd = tong(tienTrang(t));
-  const qcVnd = t.quangCao.filter((q) => q.tienTe === 'VND').reduce((s, q) => s + (q.soTien ?? 0), 0);
-  const qcKhac = t.quangCao.filter((q) => q.tienTe && q.tienTe !== 'VND' && (q.soTien ?? 0) > 0);
+  // Tiền của trang (AI + kênh + quảng cáo) lấy từ cùng hàm Tổng quan; chưa có thì coi như 0 và ghi rõ ở dòng tiền.
+  const usd = t ? tong(tienTrang(t)) : 0;
+  const qcVnd = (t?.quangCao ?? []).filter((q) => q.tienTe === 'VND').reduce((s, q) => s + (q.soTien ?? 0), 0);
+  const qcKhac = (t?.quangCao ?? []).filter((q) => q.tienTe && q.tienTe !== 'VND' && (q.soTien ?? 0) > 0);
   const donThat = bh.soDon - bh.donHuy;
   const tongChiVnd = qcVnd + usd * TY_GIA;
 
@@ -155,6 +139,9 @@ export default function BaoCaoChuoi({ t, ky }: { t: TrangTongQuan; ky: KyTongQua
         </Khau>
 
         <Khau so={4} icon="query_stats" ten="Tổng">
+          {!t ? (
+            <Dong nhan="Tổng chi" gia="Chưa đọc được tiền của trang" phu="Không tính tiền mỗi đơn / doanh thu trên chi phí khi thiếu số tiền" />
+          ) : (<>
           <Dong
             nhan="Tổng chi"
             gia={<>{chi(usd)}{qcVnd > 0 && <> · {tienGoc(qcVnd, 'VND')}</>}</>}
@@ -171,6 +158,7 @@ export default function BaoCaoChuoi({ t, ky }: { t: TrangTongQuan; ky: KyTongQua
             mau={tongChiVnd > 0 ? (bh.doanhThu >= tongChiVnd ? 'text-green-400' : 'text-red-400') : undefined}
             phu={`Quy đổi USD theo ${TY_GIA.toLocaleString('vi-VN')} ₫/USD${qcKhac.length ? ' · có quảng cáo khác đơn vị ₫ chưa cộng' : ''}`}
           />
+          </>)}
         </Khau>
       </div>
     </div>
