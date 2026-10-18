@@ -9,7 +9,8 @@ Bản 19/10/2026. Ghi rõ từng dòng là **đã chốt + đã đạt**, **đã
 HỆ THỐNG
 ├── ADMIN TỔNG — hoangtuan3310tn (một người, hai vai)
 │     ├── Vai 1: QUẢN TRỊ toàn hệ thống — mục "Quản Lý Tài Khoản" (chỉ admin thấy)
-│     │     ├── Tạo / sửa / khoá / xoá tài khoản; admin TỰ GÕ ĐƯỢC mật khẩu ở mọi chỗ tạo / cấp lại (luật 04/10, đạt)
+│     │     ├── Tạo / sửa / khoá / xoá tài khoản; mật khẩu admin BẮT BUỘC TỰ GÕ ở mọi chỗ tạo / cấp lại — để trống thì
+│     │     │     không cho lưu (chốt 19/10 — CHƯA ĐẠT: mã còn tự sinh khi để trống)
 │     │     │     · Khoá = chặn đăng nhập VÀ AI dừng hẳn mọi việc tự chạy (chốt 18/10 — CHƯA ĐẠT, đang làm mục f)
 │     │     │       Mở khoá: việc tới hạn trong lúc khoá KHÔNG tự bùng ra (chốt 19/10 — CHƯA ĐẠT)
 │     │     │     · Xoá = xem trước → ngắt mọi kênh + xoá mọi hồ sơ của tài khoản bên nhà cung cấp → xoá dữ liệu (đạt)
@@ -23,9 +24,10 @@ HỆ THỐNG
       • Tự đăng ký hoặc admin tạo hộ → luôn là BẢN SAO 100% phần dùng thường của admin (chốt 18/10, đạt)
       • Không còn admin con / chủ chuỗi / tài khoản con (bỏ 18/10, migration 054, đạt)
       • Số CỬA HÀNG không giới hạn (không tự đặt hạn mức — luật 19/09)
-      • Hiện trạng mã (chưa chốt — mục 8.2): tài khoản mới có sẵn "Cửa hàng đầu tiên"; hồ sơ nền tảng của nó được cấp lúc
-        đăng ký, còn tài khoản chủ chuỗi cũ thì cấp ở lần mở Kết nối kênh đầu tiên (vd. user 113 còn "cho-cap-113").
-        Cấp hồ sơ NGAY khi tạo cửa hàng là việc của A4.
+      • Tài khoản mới có sẵn "Cửa hàng đầu tiên" (chốt 19/10, đạt). Hồ sơ nền tảng của nó cấp lúc đăng ký; tài khoản chủ
+        chuỗi cũ thì cấp ở lần mở Kết nối kênh đầu tiên (vd. user 113 còn "cho-cap-113") — cấp NGAY là việc của A4.
+      • Màn Tổng quan: số liệu CẢ TÀI KHOẢN (cộng mọi cửa hàng); sơ đồ 4 AI theo cửa hàng đang chọn (chốt 19/10)
+      • Gói dịch vụ: một tài khoản một gói; số đã dùng (tin AI, đơn, bài, kênh) tính theo CẢ TÀI KHOẢN (chốt 19/10)
 ```
 
 ## 2. Menu — giống hệt nhau ở mọi tài khoản (đạt)
@@ -99,13 +101,7 @@ duyệt "BrewManager AI".
 ## 8. Chưa chốt — chờ chủ dự án
 
 1. Áp hạn mức số KÊNH theo gói dịch vụ (màn Gói dịch vụ đang bán theo số kênh nhưng chưa áp ở đâu).
-2. Tài khoản mới có sẵn "Cửa hàng đầu tiên" (mã đang làm vậy) hay để trống, người dùng tự tạo.
-3. Mật khẩu: ô để trống thì hệ thống tự sinh (mã đang làm vậy) — có giữ không, hay bắt admin LUÔN tự gõ.
-   Căn cứ hiện có: lời chủ dự án 04/10 "tao là admin tổng, tao thích đổi mật khẩu như nào tao phải biết chứ" (đòi tự gõ
-   ĐƯỢC); bản sửa hôm đó ghi "để trống mới để hệ thống sinh ngẫu nhiên" và chủ dự án chưa phản đối, nhưng cũng chưa nói rõ.
-4. Màn Tổng quan hiện số của CỬA HÀNG đang chọn hay tổng CẢ TÀI KHOẢN.
-5. Số dùng ở Gói dịch vụ (tin AI, đơn, bài) tính theo tài khoản — đúng không.
-6. Hồ sơ nền tảng đang tìm theo TÊN tài khoản lúc cấp → hai tài khoản trùng tên có thể dính chung hộp (bảo mật, để cuối).
-7. Đổi email tài khoản chưa đăng xuất phiên cũ (bảo mật, để cuối).
-8. Tên sản phẩm (tab trình duyệt còn "BrewManager AI", thanh bên còn "LOGO").
-9. Đường hỗ trợ (VITE_SUPPORT_URL) — đang hiện "Sắp có".
+2. Hồ sơ nền tảng đang tìm theo TÊN tài khoản lúc cấp → hai tài khoản trùng tên có thể dính chung hộp (bảo mật, để cuối).
+3. Đổi email tài khoản chưa đăng xuất phiên cũ (bảo mật, để cuối).
+4. Tên sản phẩm (tab trình duyệt còn "BrewManager AI", thanh bên còn "LOGO").
+5. Đường hỗ trợ (VITE_SUPPORT_URL) — đang hiện "Sắp có".
