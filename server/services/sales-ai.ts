@@ -9,6 +9,7 @@ import { taoDon, daCoDon } from "./orders.js";
 import { sendMessageSafely } from "./outbound.js";
 import { xinSuatTraLoiAI } from "./chong-lam-dung.js";
 import { chayChoKenh } from "./ngu-canh-trang.js";
+import { DK_SAU_MO_KHOA, DK_TAI_KHOAN_MO, TaiKhoanKhoaError } from "./tai-khoan-mo.js";
 
 /**
  * Bộ não AI bán hàng.
@@ -1340,6 +1341,9 @@ export async function runDueBoSot(): Promise<number> {
         AND cuoi.sender_type = 'customer'
         AND cuoi.created_at < now() - ($1 || ' milliseconds')::interval
         AND c.last_customer_message_at > now() - interval '24 hours'
+        AND ${DK_TAI_KHOAN_MO("c.user_id")}
+        -- Tin khách nhắn lúc tài khoản đang khoá: không trả lời bù (mục f).
+        AND ${DK_SAU_MO_KHOA("c.user_id", "cuoi.created_at")}
       ORDER BY cuoi.created_at
       LIMIT $2`,
     [String(CHO_TRUOC_KHI_VOT_MS), VOT_MOI_LUOT]
@@ -1350,6 +1354,7 @@ export async function runDueBoSot(): Promise<number> {
     try {
       if (await chayChoKenh(hc.social_account_id, () => handleIncomingMessage(hc.id))) daVot += 1;
     } catch (error) {
+      if (error instanceof TaiKhoanKhoaError) continue;
       console.error(
         `[vớt tin bỏ sót] Hội thoại ${hc.id} không xử lý được:`,
         error instanceof Error ? error.message : error
@@ -1362,7 +1367,8 @@ export async function runDueBoSot(): Promise<number> {
 export async function runDueFollowUps(): Promise<number> {
   const shops = await query<{ user_id: number; settings: Record<string, unknown> }>(
     `SELECT user_id, settings FROM ai_configs
-      WHERE kind = 'sales' AND settings->'tuChu'->>'bat' = 'true'`
+      WHERE kind = 'sales' AND settings->'tuChu'->>'bat' = 'true'
+        AND ${DK_TAI_KHOAN_MO("ai_configs.user_id")}`
   );
 
   let daNhac = 0;
@@ -1387,8 +1393,14 @@ export async function runDueFollowUps(): Promise<number> {
           AND NOT EXISTS (
                 SELECT 1 FROM orders o
                  WHERE o.conversation_id = c.id AND o.status <> 'cancelled')
+          -- Lần nhắc tới hạn lúc tài khoản đang khoá thì bỏ, không nhắc bù sau khi mở (mục f).
+          AND ${DK_SAU_MO_KHOA(
+            "c.user_id",
+            `((SELECT max(m2.sent_at) FROM messages m2
+                WHERE m2.conversation_id = c.id AND m2.sender_type = 'ai') + ($3 || ' minutes')::interval)`
+          )}
         LIMIT 20`,
-      [shop.user_id, tuChu.nhacToiDa]
+      [shop.user_id, tuChu.nhacToiDa, String(tuChu.nhacSauPhut)]
     );
 
     for (const hoi of ungVien.rows) {
@@ -1430,6 +1442,7 @@ export async function runDueFollowUps(): Promise<number> {
         );
         daNhac += 1;
       } catch (error) {
+        if (error instanceof TaiKhoanKhoaError) break;
         console.error(
           `[nhắc lại] Lỗi ở hội thoại ${hoi.id}:`,
           error instanceof Error ? error.message : error

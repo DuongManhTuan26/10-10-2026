@@ -19,6 +19,7 @@ import { giaAnh } from "./model-anh.js";
 import { hoanDiaChiKho } from "./media-proxy.js";
 import { ghiLuotAi } from "./so-ai.js";
 import { chayFfmpeg, duaLenKho, voiThuMucTam } from "./video-cong-cu.js";
+import { chanNeuTaiKhoanKhoa } from "./tai-khoan-mo.js";
 
 /**
  * Giá ước tính một khung khi CHƯA biết mô hình (dự án cũ, phép kiểm). Báo giá thật dùng giá của
@@ -125,6 +126,8 @@ async function veAnh(p: {
   const deBai = p.deBai;
 
   // API vẽ ảnh của OpenRouter (POST /api/v1/images), như ảnh bài đăng (image-ai.ts).
+  // Lưới tiền (mục f): tài khoản đang khoá thì không gửi yêu cầu trả phí.
+  await chanNeuTaiKhoanKhoa(p.userId);
   const r = await fetch("https://openrouter.ai/api/v1/images", {
     method: "POST",
     headers: {

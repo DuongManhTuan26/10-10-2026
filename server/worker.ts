@@ -17,6 +17,7 @@ import { doiChieuLuotAi } from "./services/so-ai.js";
 import { chayChoKenh } from "./services/ngu-canh-trang.js";
 import { ghiKenhTheoNgay } from "./services/trang.js";
 import { chupSoBaiNgay } from "./services/so-lieu-kenh.js";
+import { kenhThuocTaiKhoanKhoa, TaiKhoanKhoaError } from "./services/tai-khoan-mo.js";
 
 /**
  * Worker xử lý hàng đợi sự kiện.
@@ -148,7 +149,21 @@ async function claimBatch(): Promise<EventRow[]> {
   }
 }
 
+/** Sự kiện dẫn tới AI trả lời — bỏ qua khi tài khoản đang khoá (mục f). Kết quả đăng bài / đổi kênh vẫn xử lý. */
+export const SU_KIEN_GOI_AI = new Set(["message.received", "comment.received"]);
+
+async function boQuaVIKhoa(event: EventRow, lyDo: string): Promise<void> {
+  await query(
+    `UPDATE webhook_events SET status = 'ignored', processed_at = now(), last_error = $2 WHERE id = $1`,
+    [event.id, lyDo]
+  );
+}
+
 async function processEvent(event: EventRow): Promise<void> {
+  if (SU_KIEN_GOI_AI.has(event.event_type) && (await kenhThuocTaiKhoanKhoa(event.account_id))) {
+    await boQuaVIKhoa(event, "Bỏ qua: tài khoản đang khoá — AI dừng hẳn");
+    return;
+  }
   try {
     // Mỗi sự kiện thuộc một kênh → một Trang: tiền AI trả lời khách / bình luận ghi đúng trang đó.
     await chayChoKenh(event.account_id, () => handleWebhookEvent({
@@ -167,6 +182,11 @@ async function processEvent(event: EventRow): Promise<void> {
       [event.id]
     );
   } catch (error) {
+    // Tài khoản bị khoá giữa chừng (lưới tiền chặn lượt AI): bỏ qua, không thử lại, không tính lỗi.
+    if (error instanceof TaiKhoanKhoaError) {
+      await boQuaVIKhoa(event, `Bỏ qua: ${error.message}`);
+      return;
+    }
     const message = error instanceof Error ? error.message : String(error);
     const attempts = event.attempts + 1;
     // Hết lượt thử thì dừng hẳn, không quay vòng vô tận trên một sự kiện hỏng.

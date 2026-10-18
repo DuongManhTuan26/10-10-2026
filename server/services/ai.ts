@@ -3,6 +3,7 @@ import { loiNhaCungCap } from "./loi-ncc.js";
 import { query } from "../db.js";
 import { AppError } from "../http.js";
 import { ghiLuotAi, type Viec } from "./so-ai.js";
+import { chanNeuTaiKhoanKhoa } from "./tai-khoan-mo.js";
 
 /**
  * Cổng gọi AI qua OpenRouter (giao thức tương thích OpenAI).
@@ -132,6 +133,9 @@ async function complete(options: CompleteOptions): Promise<AiResult<string>> {
     json = false,
     retries = 2,
   } = options;
+
+  // Lưới tiền (mục f): tài khoản đang khoá thì không gửi lượt AI nào.
+  await chanNeuTaiKhoanKhoa(userId);
 
   let lastError: AiError | undefined;
 

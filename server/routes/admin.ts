@@ -24,6 +24,7 @@ import { layDanhSachQuanLy } from "../services/quan-ly-chung.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
 import { lapKeHoachXoa, thucHienXoa } from "../services/xoa-tai-khoan.js";
 import { phuThuocXoaThat } from "../services/xoa-tai-khoan-that.js";
+import { khoaTaiKhoan, moKhoaTaiKhoan } from "../services/tai-khoan-mo.js";
 import { hashPassword } from "../auth.js";
 import { luuNguong, nhatKyLuot, saoKe } from "../services/chi-phi.js";
 import { NHOM_VIEC, VIEC } from "../services/so-ai.js";
@@ -214,16 +215,10 @@ adminRouter.post(
     const khoa = req.body?.locked !== false;
     const dich = await layTaiKhoanDich(req.params.id, req.user!.id, "khoa");
 
-    await query("UPDATE users SET is_active = $2, updated_at = now() WHERE id = $1", [
-      dich.id,
-      !khoa,
-    ]);
-
-    // Khoá thì cắt luôn mọi phiên đang mở, không để họ dùng tiếp tới khi hết hạn.
-    // Gồm cả phiên xem thay họ đã mở vào các trang con (mo_boi).
-    if (khoa) {
-      await query("DELETE FROM sessions WHERE user_id = $1 OR mo_boi = $1", [dich.id]);
-    }
+    // Khoá: chặn đăng nhập + cắt mọi phiên (kể cả phiên quản trị mở vào) + AI dừng hẳn (lọc ở mọi bộ chạy nền).
+    // Mở khoá: dọn việc quá hạn rồi mới mở, trong một giao dịch — xem services/tai-khoan-mo.ts (mục f).
+    if (khoa) await khoaTaiKhoan(dich.id);
+    else await moKhoaTaiKhoan(dich.id);
 
     await ghiNhatKyQuanTri({
       adminId: req.user!.id,

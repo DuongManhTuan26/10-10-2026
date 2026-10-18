@@ -166,18 +166,30 @@ export default function QuanLy({ user }: { user: User | null }) {
     }
   };
 
+  // Mục f (chốt 18–19/10/2026): khoá = AI dừng hẳn; mở khoá = việc tới hạn lúc khoá không tự bùng ra.
   const doiKhoa = async (tk: TaiKhoanQuanLy) => {
-    if (
-      tk.is_active &&
-      !(await hoiXacNhan({
-        tieuDe: `Khoá tài khoản ${tk.email}?`,
-        noiDung:
-          'Họ sẽ bị đẩy ra khỏi ứng dụng ngay lập tức và không đăng nhập lại được. ' +
-          'Dữ liệu vẫn giữ nguyên, mở khoá lúc nào cũng được.',
-        nutDongY: 'Khoá tài khoản',
-        nguyHiem: true,
-      }))
-    ) return;
+    const dongY = tk.is_active
+      ? await hoiXacNhan({
+          tieuDe: `Khoá tài khoản ${tk.email}?`,
+          noiDung:
+            'Họ sẽ bị đẩy ra khỏi ứng dụng ngay lập tức và không đăng nhập lại được.\n' +
+            '• AI dừng hẳn mọi việc tự chạy: trả lời khách, bình luận, viết và đăng bài, video.\n' +
+            '• Bài đã hẹn giờ sẵn bên nền tảng vẫn đăng đúng giờ.\n' +
+            'Dữ liệu vẫn giữ nguyên, mở khoá lúc nào cũng được.',
+          nutDongY: 'Khoá tài khoản',
+          nguyHiem: true,
+        })
+      : await hoiXacNhan({
+          tieuDe: `Mở khoá tài khoản ${tk.email}?`,
+          noiDung:
+            'Họ đăng nhập lại được và AI chạy lại từ bây giờ. Việc tới hạn trong lúc khoá KHÔNG tự chạy bù:\n' +
+            '• Tin nhắn, bình luận đến lúc khoá: không trả lời bù.\n' +
+            '• Bài tự đăng đã quá giờ, bài đang chờ video: vào mục Chờ duyệt, không tự đăng.\n' +
+            '• Lượt nhắc khách đã quá hạn: bỏ.\n' +
+            '• Video đang tạo dở: tạm dừng, chờ bấm "Tạo tiếp".',
+          nutDongY: 'Mở khoá',
+        });
+    if (!dongY) return;
     await lam(tk, () => api.admin.setLocked(tk.id, tk.is_active), 'Không đổi được trạng thái khoá');
   };
 

@@ -7,6 +7,7 @@ import { touchCustomerMessage } from "./outbound.js";
 import { syncAccountsForUser } from "./accounts.js";
 import { chuCuaHoSo } from "./trang.js";
 import { xinSuatDocAnh } from "./chong-lam-dung.js";
+import { TaiKhoanKhoaError } from "./tai-khoan-mo.js";
 
 /**
  * Chuyển sự kiện webhook thành dữ liệu nghiệp vụ.
@@ -360,6 +361,8 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
   try {
     await handleIncomingMessage(message.conversationId);
   } catch (error) {
+    // Tài khoản bị khoá: không phải lỗi AI — không nhường quyền cho người, để worker bỏ qua sự kiện (mục f).
+    if (error instanceof TaiKhoanKhoaError) throw error;
     const loi = error instanceof Error ? error.message : String(error);
     console.error(
       `[sự kiện] AI không xử lý được hội thoại ${message.conversationId}:`,

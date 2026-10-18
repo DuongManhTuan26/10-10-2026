@@ -2,6 +2,7 @@ import { query, queryOne } from "../db.js";
 import * as zernio from "./zernio.js";
 import { loadConfig, xinPhepGuiBinhLuan } from "./guardrails.js";
 import { commentReplyAllowed } from "./guardrails.js";
+import { DK_TAI_KHOAN_MO } from "./tai-khoan-mo.js";
 
 /**
  * Xử lý bình luận mới: trả lời công khai và nhắn tin riêng cho người bình luận.
@@ -719,6 +720,7 @@ export async function runDueCommentActions(): Promise<number> {
        FROM comments
       WHERE dm_due_at IS NOT NULL AND dm_due_at <= now()
         AND private_replied_at IS NULL AND pending_dm_text IS NOT NULL
+        AND ${DK_TAI_KHOAN_MO("comments.user_id")}
       ORDER BY dm_due_at
       LIMIT 50`
   );
@@ -790,6 +792,7 @@ export async function runDueCommentActions(): Promise<number> {
       WHERE public_reply_due_at IS NOT NULL AND public_reply_due_at <= now()
         AND public_replied_at IS NULL AND pending_reply_text IS NOT NULL
         AND (private_replied_at IS NOT NULL OR dm_due_at IS NULL)
+        AND ${DK_TAI_KHOAN_MO("comments.user_id")}
       ORDER BY public_reply_due_at
       LIMIT 50`
   );

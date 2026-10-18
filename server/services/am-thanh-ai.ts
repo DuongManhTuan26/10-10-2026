@@ -16,6 +16,7 @@ import { env } from "../env.js";
 import { AppError } from "../http.js";
 import { MODEL_GIONG_DOC_DUOC_CHON, MODEL_NHAC_NEN } from "./model-duoc-chon.js";
 import { ghiLuotAi } from "./so-ai.js";
+import { chanNeuTaiKhoanKhoa } from "./tai-khoan-mo.js";
 
 const GOC_API = "https://openrouter.ai/api/v1";
 
@@ -64,6 +65,8 @@ export async function docThanhGiong(p: {
   const model = p.model ?? MODEL_GIONG_DOC_DUOC_CHON[0].id;
   if (!MODEL_GIONG_DOC_DUOC_CHON.some((m) => m.id === model)) throw new AppError("Mô hình giọng đọc không có trong danh sách.", 400);
 
+  // Lưới tiền (mục f): tài khoản đang khoá thì không gửi yêu cầu trả phí.
+  await chanNeuTaiKhoanKhoa(p.userId);
   const r = await fetch(`${GOC_API}/audio/speech`, {
     method: "POST",
     headers: dauGoi(),
@@ -146,6 +149,8 @@ export async function taoNhacNen(p: {
     `Instrumental only, no vocals, no lyrics. About ${soGiay} seconds long.` +
     (p.coLoiDoc ? " Leaves room for a voice-over." : "");
 
+  // Lưới tiền (mục f): tài khoản đang khoá thì không gửi yêu cầu trả phí.
+  await chanNeuTaiKhoanKhoa(p.userId);
   const r = await fetch(`${GOC_API}/chat/completions`, {
     method: "POST",
     headers: dauGoi(),
@@ -216,6 +221,8 @@ export const MODEL_NGHE = "google/gemini-3.5-transcribe";
  */
 export async function ngheThanhChu(p: { userId: number; am: Buffer; dinhDang: "wav" | "mp3"; model?: string }): Promise<string> {
   if (!env.openrouter.apiKey) throw new AppError("Chưa cấu hình khoá AI.", 503);
+  // Lưới tiền (mục f): tài khoản đang khoá thì không gửi yêu cầu trả phí.
+  await chanNeuTaiKhoanKhoa(p.userId);
   const r = await fetch(`${GOC_API}/audio/transcriptions`, {
     method: "POST",
     headers: dauGoi(),

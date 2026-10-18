@@ -9,6 +9,7 @@ import { LuatNoiDungChon } from './LuatNoiDungChon';
 import { HuongKichBanChon } from './HuongKichBanChon';
 import { ChonMoHinhAnh } from './ChonMoHinhAnh';
 import { hoiXacNhan } from './HopHoi';
+import { laDungDoKhoa } from '../lib/tai-khoan-khoa';
 
 /**
  * Video dài nhiều cảnh: kịch bản → video, ảnh tham chiếu → video, trend → video.
@@ -814,10 +815,16 @@ export default function VideoDaiPanel({
                 <span
                   className={clsx(
                     'shrink-0 font-bold',
-                    d.trang_thai === 'xong' ? 'text-primary' : d.trang_thai === 'loi' ? 'text-error' : 'text-on-surface'
+                    d.trang_thai === 'xong'
+                      ? 'text-primary'
+                      : laDungDoKhoa(d)
+                        ? 'text-amber-400'
+                        : d.trang_thai === 'loi'
+                          ? 'text-error'
+                          : 'text-on-surface'
                   )}
                 >
-                  {TEN_TRANG_THAI[d.trang_thai]}
+                  {laDungDoKhoa(d) ? 'Tạm dừng' : TEN_TRANG_THAI[d.trang_thai]}
                   {d.trang_thai === 'dang_tao' && ` (${d.canh_xong ?? 0}/${d.phan_canh.length})`}
                 </span>
               </div>
@@ -849,7 +856,9 @@ export default function VideoDaiPanel({
                   </div>
                 </>
               )}
-              {d.trang_thai === 'loi' && <p className="text-xs text-error">{d.loi}</p>}
+              {d.trang_thai === 'loi' && (
+                <p className={clsx('text-xs', laDungDoKhoa(d) ? 'text-amber-400' : 'text-error')}>{d.loi}</p>
+              )}
               {(d.so_lan_ve_lai ?? 0) > 0 && (
                 <p className="text-[11px] text-on-surface-variant">Đã tự vẽ lại {d.so_lan_ve_lai} cảnh bị lỗi.</p>
               )}

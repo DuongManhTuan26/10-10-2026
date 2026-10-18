@@ -38,6 +38,7 @@ import { sendTelegramMessage, escapeHtml } from "./telegram.js";
 import { gioiHanChatNhat } from "../../src/lib/gioi-han-kenh.js";
 import { chayChoTrang } from "./ngu-canh-trang.js";
 import { cauLenhKenhLich } from "./kenh-dang.js";
+import { DK_TAI_KHOAN_MO, sauMoKhoa, TaiKhoanKhoaError } from "./tai-khoan-mo.js";
 
 /** Toàn bộ lịch tính theo giờ Việt Nam: sản phẩm bán cho chủ shop Việt Nam. */
 const VN_OFFSET_MS = 7 * 60 * 60 * 1_000;
@@ -231,8 +232,8 @@ function mocCuaKhung(khoaNgay: string, gio: string): Date {
  * Xét cả hôm nay và hôm qua theo giờ Việt Nam, vì một khung giờ sát nửa đêm có
  * thể vẫn nằm trong cửa sổ khi ngày đã sang hôm sau.
  */
-export function oLichToiHan(cau: AutoPilotConfig, bayGio: Date): Array<{ khoa: string; gio: string }> {
-  const ra: Array<{ khoa: string; gio: string }> = [];
+export function oLichToiHan(cau: AutoPilotConfig, bayGio: Date): Array<{ khoa: string; gio: string; moc: number }> {
+  const ra: Array<{ khoa: string; gio: string; moc: number }> = [];
 
   for (const lui of [0, 1]) {
     const { khoaNgay, thu } = ngayVN(new Date(bayGio.getTime() - lui * 86_400_000));
@@ -242,7 +243,7 @@ export function oLichToiHan(cau: AutoPilotConfig, bayGio: Date): Array<{ khoa: s
       const moc = mocCuaKhung(khoaNgay, gio).getTime();
       const cach = bayGio.getTime() - moc;
       if (cach >= 0 && cach <= CUA_SO_MS) {
-        ra.push({ khoa: `${khoaNgay} ${gio}`, gio });
+        ra.push({ khoa: `${khoaNgay} ${gio}`, gio, moc });
       }
     }
   }
@@ -268,9 +269,12 @@ export async function runDueAutoPilot(bayGio = new Date()): Promise<number> {
    * Mỗi Trang có lịch đăng và văn phong riêng. Gom theo tài khoản thì tài
    * khoản nhiều Trang chỉ chạy được lịch của một Trang.
    */
-  const shops = await query<DongCauHinh>(
-    `SELECT user_id, trang_id, settings FROM ai_configs
-      WHERE kind = 'content' AND settings->'autoPilot'->>'enabled' = 'true'`
+  const shops = await query<DongCauHinh & { mo_khoa_luc: Date | null }>(
+    `SELECT user_id, trang_id, settings,
+            (SELECT mo_khoa_luc FROM users WHERE id = ai_configs.user_id) AS mo_khoa_luc
+       FROM ai_configs
+      WHERE kind = 'content' AND settings->'autoPilot'->>'enabled' = 'true'
+        AND ${DK_TAI_KHOAN_MO("ai_configs.user_id")}`
   );
 
   let daLam = 0;
@@ -279,6 +283,8 @@ export async function runDueAutoPilot(bayGio = new Date()): Promise<number> {
     if (!cau.enabled) continue;
 
     for (const o of oLichToiHan(cau, bayGio)) {
+      // Ô lịch tới giờ lúc tài khoản đang khoá: không viết bù sau khi mở (cửa sổ nhận ô rộng 20 phút) — mục f.
+      if (!sauMoKhoa(o.moc, shop.mo_khoa_luc)) continue;
       /*
        * Giành chỗ TRƯỚC khi gọi AI.
        *
@@ -298,6 +304,11 @@ export async function runDueAutoPilot(bayGio = new Date()): Promise<number> {
         const xong = await chayChoTrang(shop.trang_id, () => lamMotO(shop.user_id, shop.trang_id, cau, cho.id, o.khoa));
         if (xong) daLam += 1;
       } catch (error) {
+        // Tài khoản bị khoá giữa lượt: bỏ qua lặng lẽ (không ghi lỗi, không báo) — mục f.
+        if (error instanceof TaiKhoanKhoaError) {
+          await query(`UPDATE auto_pilot_runs SET status = 'skipped', note = $2 WHERE id = $1`, [cho.id, error.message]);
+          continue;
+        }
         const loi = error instanceof Error ? error.message : String(error);
         await query(
           `UPDATE auto_pilot_runs SET status = 'failed', note = $2 WHERE id = $1`,
@@ -425,6 +436,7 @@ async function lamMotO(
       media = [{ url: anh.url, type: "image" }];
       tienAnh = anh.costUsd;
     } catch (error) {
+      if (error instanceof TaiKhoanKhoaError) throw error;
       loiAnh = error instanceof Error ? error.message : String(error);
     }
   }
@@ -446,6 +458,7 @@ async function lamMotO(
     try {
       choVideo = await batDauVideoTuDong({ userId, trangId, noiDung, v: cau.video, anhMoDau: media[0]?.url });
     } catch (error) {
+      if (error instanceof TaiKhoanKhoaError) throw error;
       const lyDo = error instanceof Error ? error.message : String(error);
       ghiChuVideo = ` Không làm được video (${lyDo.slice(0, 200)})`;
       if (!media.length) {
@@ -454,6 +467,7 @@ async function lamMotO(
           media = [{ url: thay.url, type: "image" }];
           ghiChuVideo += `, đã đăng kèm ảnh thay thế (${thay.costUsd.toFixed(4)} USD).`;
         } catch (e) {
+          if (e instanceof TaiKhoanKhoaError) throw e;
           ghiChuVideo += `; ảnh thay thế cũng hỏng (${(e instanceof Error ? e.message : String(e)).slice(0, 120)}).`;
         }
       } else {
@@ -567,6 +581,7 @@ export async function runDueAutoPublishes(): Promise<number> {
       WHERE status = 'pending_approval'
         AND auto_publish_at IS NOT NULL
         AND auto_publish_at <= now()
+        AND ${DK_TAI_KHOAN_MO("posts.user_id")}
       ORDER BY auto_publish_at LIMIT 10`
   );
 
@@ -750,6 +765,7 @@ export async function runDueVideoTuDong(): Promise<number> {
        FROM posts p JOIN video_ai v ON v.id = p.cho_video_id
       WHERE p.cho_video_id IS NOT NULL AND p.status = 'pending_approval'
         AND (v.trang_thai IN ('xong', 'loi') OR v.created_at < now() - ($1 || ' minutes')::interval)
+        AND ${DK_TAI_KHOAN_MO("p.user_id")}
       ORDER BY p.id LIMIT 10`,
     [String(CHO_VIDEO_TOI_DA_PHUT)]
   );
@@ -782,6 +798,8 @@ export async function runDueVideoTuDong(): Promise<number> {
           media = [...media, { url: thay.url, type: "image" }];
           ghiChu += ", đã đăng kèm ảnh thay thế.";
         } catch (e) {
+          // Tài khoản bị khoá giữa lượt: bài nằm lại Chờ duyệt, không báo (mục f).
+          if (e instanceof TaiKhoanKhoaError) continue;
           ghiChu += `; ảnh thay thế cũng hỏng (${(e instanceof Error ? e.message : String(e)).slice(0, 120)}), bài chờ bạn duyệt.`;
           await query("UPDATE posts SET media = $2::jsonb WHERE id = $1", [b.id, JSON.stringify(media)]);
           await baoTelegram(b.user_id, `🤖 <b>Bài tự động đang chờ bạn duyệt</b>\n${escapeHtml(ghiChu)}`);

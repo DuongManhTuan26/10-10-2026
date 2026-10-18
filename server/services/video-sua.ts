@@ -14,6 +14,7 @@ import { thongTin, taiVe, voiThuMucTam } from "./video-cong-cu.js";
 import { COT_VIEC, diaChiKhoHopLe, goiTaoViec, luatVideo, type LuatNoiDung, type ViecVideo } from "./video-ai.js";
 import path from "node:path";
 import { MODEL_SUA_VIDEO_DUOC_CHON } from "./model-duoc-chon.js";
+import { chanNeuTaiKhoanKhoa } from "./tai-khoan-mo.js";
 
 export interface ModelSuaVideo {
   id: string;
@@ -116,6 +117,8 @@ export async function suaVideo(p: {
     throw new AppError(`Video nguồn dài ${Math.round(soGiay)} giây, tối đa ${TOI_DA_GIAY_NGUON} giây. Cắt ngắn rồi thử lại.`, 400);
   }
 
+  // Lưới tiền (mục f): tài khoản đang khoá thì không gửi yêu cầu trả phí.
+  await chanNeuTaiKhoanKhoa(p.userId);
   const maViec = await goiTaoViec({
     model: model.id,
     // Sửa video: chữ theo đúng yêu cầu sửa của người dùng.

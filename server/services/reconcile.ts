@@ -1,6 +1,7 @@
 import { query, queryOne } from "../db.js";
 import * as zernio from "./zernio.js";
 import { handleWebhookEvent } from "./events.js";
+import { DK_TAI_KHOAN_MO, sauMoKhoa, TaiKhoanKhoaError } from "./tai-khoan-mo.js";
 
 /**
  * LƯỚI AN TOÀN KHI WEBHOOK CHẾT.
@@ -71,6 +72,7 @@ interface KetQua {
 async function raSoatBinhLuan(account: {
   id: string;
   user_id: number;
+  mo_khoa_luc: Date | null;
 }): Promise<number> {
   let them = 0;
 
@@ -101,6 +103,8 @@ async function raSoatBinhLuan(account: {
 
     for (const c of dsBinhLuan) {
       if (!c.id) continue;
+      // Bình luận đến lúc tài khoản đang khoá: không trả lời bù (mục f).
+      if (c.createdTime && !sauMoKhoa(Date.parse(c.createdTime), account.mo_khoa_luc)) continue;
       const daCo = await queryOne("SELECT 1 FROM comments WHERE id = $1", [c.id]);
       if (daCo) continue;
 
@@ -151,9 +155,14 @@ export async function reconcileInbox(): Promise<KetQua> {
     return ket;
   }
 
-  const accounts = await query<{ id: string; user_id: number; platform: string }>(
-    `SELECT id, user_id, platform FROM social_accounts
-      WHERE connected = TRUE AND platform <> 'metaads'`
+  // Tài khoản đang khoá: không rà (rà = nạp tin rồi AI trả lời). mo_khoa_luc: tin / bình luận đến lúc khoá thì
+  // sau khi mở cũng không trả lời bù (mục f).
+  const accounts = await query<{ id: string; user_id: number; platform: string; mo_khoa_luc: Date | null }>(
+    `SELECT id, user_id, platform,
+            (SELECT mo_khoa_luc FROM users WHERE id = social_accounts.user_id) AS mo_khoa_luc
+       FROM social_accounts
+      WHERE connected = TRUE AND platform <> 'metaads'
+        AND ${DK_TAI_KHOAN_MO("social_accounts.user_id")}`
   );
 
   for (const account of accounts.rows) {
@@ -234,6 +243,7 @@ export async function reconcileInbox(): Promise<KetQua> {
         // Quá cũ so với thứ mình đã có, hoặc quá 24 giờ — là lịch sử, bỏ qua.
         if (!Number.isFinite(luc) || luc <= moc) continue;
         if (Date.now() - luc > CUA_SO_XET_MS) continue;
+        if (!sauMoKhoa(luc, account.mo_khoa_luc)) continue;
 
         // Đã có trong database rồi thì thôi.
         const daCo = await queryOne(
@@ -316,6 +326,13 @@ export async function reconcileInbox(): Promise<KetQua> {
           ket.tinMoi++;
         } catch (error) {
           const loi = error instanceof Error ? error.message : String(error);
+          if (error instanceof TaiKhoanKhoaError) {
+            await query(
+              "UPDATE webhook_events SET status='ignored', last_error=$2, processed_at=now() WHERE event_id=$1",
+              [eventId, loi]
+            );
+            continue;
+          }
           await query(
             "UPDATE webhook_events SET status='failed', last_error=$2 WHERE event_id=$1",
             [eventId, loi.slice(0, 1_000)]

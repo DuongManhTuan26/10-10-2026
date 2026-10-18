@@ -11,8 +11,9 @@ HỆ THỐNG
 │     ├── Vai 1: QUẢN TRỊ toàn hệ thống — mục "Quản Lý Tài Khoản" (chỉ admin thấy)
 │     │     ├── Tạo / sửa / khoá / xoá tài khoản; mật khẩu admin BẮT BUỘC TỰ GÕ ở mọi chỗ tạo / cấp lại — để trống thì
 │     │     │     không cho lưu (chốt 19/10 — CHƯA ĐẠT: mã còn tự sinh khi để trống)
-│     │     │     · Khoá = chặn đăng nhập VÀ AI dừng hẳn mọi việc tự chạy (chốt 18/10 — CHƯA ĐẠT, đang làm mục f)
-│     │     │       Mở khoá: việc tới hạn trong lúc khoá KHÔNG tự bùng ra (chốt 19/10 — CHƯA ĐẠT)
+│     │     │     · Khoá = chặn đăng nhập VÀ AI dừng hẳn mọi việc tự chạy (chốt 18/10 — mã xong mục f 19/10, CHỜ kiểm
+│     │     │       duyệt + thử khoá thật). Bài hẹn giờ sẵn bên nền tảng vẫn đăng.
+│     │     │       Mở khoá: việc tới hạn trong lúc khoá KHÔNG tự bùng ra (chốt 19/10 — như trên)
 │     │     │     · Xoá = xem trước → ngắt mọi kênh + xoá mọi hồ sơ của tài khoản bên nhà cung cấp → xoá dữ liệu (đạt)
 │     │     ├── "Mở tài khoản": admin đăng nhập thẳng vào tài khoản khác để hỗ trợ (cơ chế mo_boi). 04/10 chỉ bỏ chữ /
 │     │     │     màu "đang xem" — KHÔNG bỏ cơ chế. Chỉ còn nút "Quay lại quản lý". (đạt)

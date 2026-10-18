@@ -22,6 +22,7 @@ import { AppError } from "../http.js";
 import { hoanDiaChiKho } from "./media-proxy.js";
 import { ghiLuotAi } from "./so-ai.js";
 import * as zernio from "./zernio.js";
+import { chanNeuTaiKhoanKhoa } from "./tai-khoan-mo.js";
 
 /**
  * Mô hình vẽ khung mở đầu / ảnh mẫu nhân vật của VIDEO DÀI (việc nội bộ, khung-video.ts).
@@ -306,6 +307,9 @@ export async function taoAnhChoBai(params: {
   const chu: ChuTrongAnh = params.chuTrongAnh === "khong" ? "khong" : "theo_noi_dung";
   const moTa = `${phongCach}\n\n${deBai}\n\n${anhMau ? luatAnhTuMau(chu, params.luat) : luatAnh(chu, params.luat)}`;
 
+  // Lưới tiền (mục f): tài khoản đang khoá thì không gửi yêu cầu trả phí. Đặt NGOÀI khối try bên dưới — khối đó đổi
+  // mọi lỗi thành 502 "không gọi được dịch vụ", sẽ nuốt mất lỗi khoá.
+  await chanNeuTaiKhoanKhoa(params.userId);
   let response: Response;
   try {
     /*

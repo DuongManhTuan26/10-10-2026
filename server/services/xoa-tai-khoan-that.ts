@@ -5,6 +5,7 @@
 import { query } from "../db.js";
 import * as zernio from "./zernio.js";
 import { ghiKenhTheoNgay } from "./trang.js";
+import { khoaTaiKhoan as khoaTaiKhoanChung } from "./tai-khoan-mo.js";
 import type { KenhNcc, PhuThuocXoa } from "./xoa-tai-khoan.js";
 
 /** Kênh thật trong một hồ sơ — kèm hồ sơ vượt hạn mức, không lọc trạng thái (tài liệu GET /v1/accounts). */
@@ -47,9 +48,8 @@ export const phuThuocXoaThat: PhuThuocXoa = {
   },
   lietKeKenh: lietKeKenhHoSo,
   async khoaTaiKhoan(userId) {
-    // Cùng cơ chế nút "Khoá tài khoản" (routes/admin.ts): chặn đăng nhập + giết mọi phiên, kể cả phiên quản trị mở vào.
-    await query("UPDATE users SET is_active = FALSE, updated_at = now() WHERE id = $1", [userId]);
-    await query("DELETE FROM sessions WHERE user_id = $1 OR mo_boi = $1", [userId]);
+    // Đúng hàm của nút "Khoá tài khoản": chặn đăng nhập + giết mọi phiên + ghi mốc khoá (AI dừng hẳn — mục f).
+    await khoaTaiKhoanChung(userId);
   },
   async chotSoKenhNgay() {
     await ghiKenhTheoNgay();

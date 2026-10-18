@@ -24,6 +24,7 @@ import { hoanDiaChiKho, laDiaChiKho } from "./media-proxy.js";
 import * as zernio from "./zernio.js";
 import { anhTheoKhung } from "./video-cong-cu.js";
 import { chayChoTrang } from "./ngu-canh-trang.js";
+import { chanNeuTaiKhoanKhoa } from "./tai-khoan-mo.js";
 
 const GOC_API = "https://openrouter.ai/api/v1";
 
@@ -550,6 +551,8 @@ export async function guiViecVideo(p: {
     than.input_references = p.anhThamChieu.map((url) => ({ type: "image_url", image_url: { url } }));
   }
 
+  // Lưới tiền (mục f): tài khoản đang khoá thì không gửi yêu cầu trả phí.
+  await chanNeuTaiKhoanKhoa(p.userId);
   const maViec = await goiTaoViec(than);
   const row = await queryOne<ViecVideo>(
     `INSERT INTO video_ai

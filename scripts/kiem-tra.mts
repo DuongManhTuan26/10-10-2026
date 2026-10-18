@@ -43,6 +43,8 @@ import { khoangTheoKy, lichChay, ngayVN, ngayDayDu } from "../src/lib/ky-ngay.js
 import { lenhDoiTrangThai, lenhNhanBan, NEN_TANG_NHAN_BAN } from "../server/services/ads.js";
 import { docChienDich, nhanTrangThaiChienDich } from "../src/lib/chien-dich.js";
 import { chonHoSo, thucHienXoa, lapKeHoachXoa, donHoSo, type PhuThuocXoa, type KenhNcc } from "../server/services/xoa-tai-khoan.js";
+import { cauLenhDonQuaHan, chanNeuTaiKhoanKhoa, DK_SAU_MO_KHOA, DK_TAI_KHOAN_MO, khoaTaiKhoan, moKhoaTaiKhoan, sauMoKhoa, TaiKhoanKhoaError } from "../server/services/tai-khoan-mo.js";
+import { GHI_CHU_DUNG_DO_KHOA, laDungDoKhoa } from "../src/lib/tai-khoan-khoa.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
 import { errorHandler, chiNhanMaSo } from "../server/http.js";
@@ -1759,10 +1761,14 @@ kiem("quản trị", "không khoá hay xoá được tài khoản quản trị k
   /dich\.role === "admin"/.test(nguonQuanTri), true);
 kiem("quản trị", "xoá phải gõ đúng email để xác nhận",
   /xacNhan\.trim\(\)\.toLowerCase\(\) !== dich\.email\.toLowerCase\(\)/.test(nguonQuanTri), true);
+// Mục f (19/10/2026): khoá đi qua khoaTaiKhoan (services/tai-khoan-mo.ts) — xoá phiên nằm trong cùng giao dịch ở đó.
+const nguonKhoaChung = fs.readFileSync(path.join(GOC, "server/services/tai-khoan-mo.ts"), "utf8");
 kiem("quản trị", "khoá thì cắt luôn mọi phiên đang mở",
-  /if \(khoa\) \{[\s\S]{0,120}?DELETE FROM sessions WHERE user_id/.test(nguonQuanTri), true);
-kiem("quản trị", "đổi mật khẩu cũng cắt mọi phiên cũ",
-  (nguonQuanTri.match(/DELETE FROM sessions WHERE user_id = \$1/g) ?? []).length, 2);
+  /if \(khoa\) await khoaTaiKhoan\(dich\.id\);/.test(nguonQuanTri) &&
+    /export async function khoaTaiKhoan\([\s\S]{0,700}?DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/.test(nguonKhoaChung), true);
+kiem("quản trị", "đổi mật khẩu cũng cắt mọi phiên cũ (khoá: 1 chỗ ở hàm khoá chung, cấp lại mật khẩu: 1 chỗ ở đây)",
+  [(nguonQuanTri.match(/DELETE FROM sessions WHERE user_id = \$1/g) ?? []).length,
+    (nguonKhoaChung.match(/DELETE FROM sessions WHERE user_id = \$1/g) ?? []).length], [1, 1]);
 kiem("quản trị", "mọi thao tác đều ghi nhật ký",
   ["tao_tai_khoan", "sua_tai_khoan", "khoa_tai_khoan", "cap_lai_mat_khau", "xoa_tai_khoan"]
     .filter((v) => !nguonQuanTri.includes(v)).join(", "), "");
@@ -2959,7 +2965,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonAd0 = fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8");
   // Khoá / đổi mật khẩu mà không xoá phiên thì người đang đăng nhập dùng tiếp như thường — khoá như không khoá.
   kiem("phân tầng", "khoá hoặc đặt lại mật khẩu thì giết luôn phiên đang mở (kể cả phiên quản trị đang mở vào)",
-    (nguonAd0.match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length >= 2, true);
+    (nguonAd0.match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length +
+      (fs.readFileSync(path.join(GOC, "server/services/tai-khoan-mo.ts"), "utf8").match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length >= 2, true);
 
   const nguonTk3 = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
   // Mọi tài khoản mới là tài khoản dùng thường — không đường nào tạo ra vai trò quản lý.
@@ -3805,8 +3812,9 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonQuanTri = boChuThichTS(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8"));
   kiem("bảo mật", "phiên mở hộ chết ngay khi người mở mất quyền (bị khoá, hạ vai trò); chỉ quản trị tổng mở hộ, không mở hộ quản trị khác",
     /s\.mo_boi IS NULL OR EXISTS \([\s\S]{0,120}c\.id = s\.mo_boi AND c\.is_active = TRUE\s*AND c\.role = 'admin' AND u\.role <> 'admin'\)\)/.test(nguonPhien), true);
-  kiem("bảo mật", "khoá và cấp lại mật khẩu huỷ cả phiên xem thay",
-    (nguonQuanTri.match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length, 2);
+  kiem("bảo mật", "khoá và cấp lại mật khẩu huỷ cả phiên xem thay (khoá nằm ở hàm khoá chung — mục f)",
+    (nguonQuanTri.match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length +
+      (boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/tai-khoan-mo.ts"), "utf8")).match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length, 2);
   kiem("bảo mật", "tự đổi mật khẩu huỷ cả phiên xem thay",
     /DELETE FROM sessions WHERE \(user_id = \$1 OR mo_boi = \$1\) AND id <> \$2/.test(nguonDangKy), true);
 
@@ -6013,7 +6021,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/\.\.\.\(tuyChon\.includeOverLimit \? \{ includeOverLimit: "true" \} : \{\}\)/.test(zn),
       /zernio\.listAccounts\(profileId, \{ includeOverLimit: true \}\)/.test(that),
       /e instanceof zernio\.ZernioError && e\.status === 404/.test(that),
-      /DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/.test(that)],
+      /await khoaTaiKhoanChung\(userId\);/.test(that) &&
+        /export async function khoaTaiKhoan\([\s\S]{0,700}?DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/.test(fs.readFileSync(path.join(GOC, "server/services/tai-khoan-mo.ts"), "utf8"))],
     [true, true, true, true]);
   kiem("xoá tài khoản", "đường quản trị: xem trước + xoá dùng bộ mới; xoá dở ghi nhật ký riêng; xoá cửa hàng dùng chung luật dọn hồ sơ",
     [/"\/accounts\/:id\/xem-truoc-xoa"[\s\S]{0,200}?lapKeHoachXoa\(dich\.id, phuThuocXoaThat\)/.test(adX),
@@ -6060,6 +6069,182 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/\.listCampaigns\(\{ accountId: resolved\.accountId, adAccountId: resolved\.adAccountId, \.\.\.khoangTheoKy\(datePreset\) \}\)/.test(rtB2),
       /total: tron > 0 \? tienQc\(tron, c\.tienTe\) : null,/.test(uiB2), ngayDayDu("2026-10-04T18:30:00Z")],
     [true, true, "05/10/2026"]);
+}
+
+// ---------------------------------------------------------------------------
+// Mục f (chốt 18–19/10/2026): khoá tài khoản = AI dừng hẳn; mở khoá = việc tới hạn lúc khoá không tự bùng ra.
+// ---------------------------------------------------------------------------
+{
+  // Lưới tiền — hành vi.
+  const thuChan = async (userId: number | null, dangMo: boolean | null) => {
+    let daHoi = false;
+    try {
+      await chanNeuTaiKhoanKhoa(userId, async () => ((daHoi = true), dangMo));
+      return { chan: false, daHoi };
+    } catch (e) {
+      return { chan: e instanceof TaiKhoanKhoaError && (e as TaiKhoanKhoaError).status === 423, daHoi };
+    }
+  };
+  kiem("khoá tài khoản", "lưới tiền: khoá → chặn (423); mở / không thấy tài khoản → cho qua; việc hệ thống (userId null) → không hỏi",
+    [await thuChan(7, false), await thuChan(7, true), await thuChan(7, null), await thuChan(null, false)],
+    [{ chan: true, daHoi: true }, { chan: false, daHoi: true }, { chan: false, daHoi: true }, { chan: false, daHoi: false }]);
+
+  // Mốc mở khoá — nhánh NULL (điều kiện 2 của phiên kiểm duyệt).
+  const moKhoa = new Date("2026-10-19T03:00:00Z");
+  kiem("khoá tài khoản", "chưa từng khoá (mo_khoa_luc NULL) → vẫn chạy; tới hạn trước lúc mở → bỏ; sau / đúng lúc mở → chạy",
+    [sauMoKhoa(Date.parse("2020-01-01T00:00:00Z"), null), sauMoKhoa(Date.parse("2026-10-19T02:59:59Z"), moKhoa),
+      sauMoKhoa(moKhoa.getTime(), moKhoa), sauMoKhoa(new Date("2026-10-19T03:00:01Z"), moKhoa)],
+    [true, false, true, true]);
+  kiem("khoá tài khoản", "điều kiện SQL: đang mở = is_active; sau mở khoá CÓ nhánh 'mo_khoa_luc IS NULL OR'",
+    [DK_TAI_KHOAN_MO("p.user_id"), DK_SAU_MO_KHOA("c.user_id", "cuoi.created_at")],
+    ["EXISTS (SELECT 1 FROM users u_mo WHERE u_mo.id = p.user_id AND u_mo.is_active)",
+      "EXISTS (SELECT 1 FROM users u_mk WHERE u_mk.id = c.user_id AND (u_mk.mo_khoa_luc IS NULL OR cuoi.created_at >= u_mk.mo_khoa_luc))"]);
+
+  // Dọn lúc mở khoá: từng câu kẹp đúng tài khoản; video chỉ 'dang_tao' (không đụng 'dang_ghep').
+  const don = cauLenhDonQuaHan(42);
+  kiem("khoá tài khoản", "dọn khi mở khoá: 5 câu, câu nào cũng 'WHERE user_id = $1' với đúng mã tài khoản",
+    [don.length, don.every((l) => /WHERE user_id = \$1 /.test(l.sql) && l.thamSo[0] === 42)], [5, true]);
+  kiem("khoá tài khoản", "dọn: bài tự đăng QUÁ GIỜ mới gỡ mốc; bài chờ video → approve; video 'dang_tao' → 'loi' + ghi chú Tạm dừng",
+    [/status = 'pending_approval' AND auto_publish_at IS NOT NULL AND auto_publish_at <= now\(\)/.test(don[0].sql),
+      /SET cho_video_guard = 'approve'/.test(don[1].sql) && /cho_video_id IS NOT NULL/.test(don[1].sql),
+      /AND trang_thai = 'dang_tao'$/.test(don[2].sql.trim()), don[2].thamSo[1] === GHI_CHU_DUNG_DO_KHOA,
+      /dm_due_at <= now\(\)/.test(don[3].sql) && /public_reply_due_at <= now\(\)/.test(don[4].sql)],
+    [true, true, true, true, true]);
+
+  // Thứ tự trong giao dịch (điều kiện 1): dọn TRƯỚC khi bật is_active; tài khoản đang mở thì không dọn gì.
+  const ghiLai = async (dangMo: boolean, ham: typeof moKhoaTaiKhoan) => {
+    const cau: string[] = [];
+    let soGiaoDich = 0;
+    await ham(9, async (fn) => {
+      soGiaoDich++;
+      await fn({
+        query: (async (sql: string) => {
+          cau.push(sql.replace(/\s+/g, " ").trim().slice(0, 40));
+          return { rows: [{ is_active: dangMo }] };
+        }) as never,
+      });
+    });
+    return { soGiaoDich, cau };
+  };
+  const mo = await ghiLai(false, moKhoaTaiKhoan);
+  kiem("khoá tài khoản", "mở khoá: MỘT giao dịch; giữ dòng (FOR UPDATE) → 5 câu dọn → cuối cùng mới is_active = TRUE",
+    [mo.soGiaoDich, mo.cau.length, mo.cau[0].startsWith("SELECT is_active FROM users"), mo.cau.slice(1, 6).every((c) => c.startsWith("UPDATE posts") || c.startsWith("UPDATE du_an_video") || c.startsWith("UPDATE comments")),
+      mo.cau[6].startsWith("UPDATE users SET is_active = TRUE")],
+    [1, 7, true, true, true]);
+  kiem("khoá tài khoản", "bấm 'Mở khoá' trên tài khoản VỐN ĐANG MỞ: không dọn gì (không gỡ lịch tự đăng của người ta)",
+    (await ghiLai(true, moKhoaTaiKhoan)).cau.length, 1);
+  const kh = await ghiLai(true, khoaTaiKhoan);
+  kiem("khoá tài khoản", "khoá: một giao dịch — tắt is_active + ghi khoa_luc, rồi xoá mọi phiên (cả phiên quản trị mở vào)",
+    [kh.soGiaoDich, kh.cau.length, /^UPDATE users SET khoa_luc/.test(kh.cau[0]), /^DELETE FROM sessions/.test(kh.cau[1])], [1, 2, true, true]);
+
+  // Giao diện nhận ra "Tạm dừng do khoá" (điều kiện 4) — không nhầm với lỗi thật.
+  kiem("khoá tài khoản", "video dài: ghi chú khoá → 'Tạm dừng' (cam); lỗi thật vẫn là Lỗi",
+    [laDungDoKhoa({ trang_thai: "loi", loi: GHI_CHU_DUNG_DO_KHOA }), laDungDoKhoa({ trang_thai: "loi", loi: "Cảnh 2 lỗi: hết tiền AI" }),
+      laDungDoKhoa({ trang_thai: "dang_tao", loi: GHI_CHU_DUNG_DO_KHOA })],
+    [true, false, false]);
+  const panel = boChuThich(fs.readFileSync(path.join(GOC, "src/components/VideoDaiPanel.tsx"), "utf8"));
+  kiem("khoá tài khoản", "VideoDaiPanel: nhãn 'Tạm dừng' + chữ cam khi dừng do khoá; nút Tạo tiếp vẫn hiện cho mọi 'loi'",
+    [/\{laDungDoKhoa\(d\) \? 'Tạm dừng' : TEN_TRANG_THAI\[d\.trang_thai\]\}/.test(panel),
+      /laDungDoKhoa\(d\) \? 'text-amber-400' : 'text-error'/.test(panel), /\{d\.trang_thai === 'loi' && \(\s*<button/.test(panel)],
+    [true, true, true]);
+
+  // Danh sách việc của worker (điều kiện 5): MỌI hàm dịch vụ được gọi trong startWorker — bất kể dạng
+  // coHanGio("…", X()), void X(), await X() trong .then — phải nằm trong bảng CHẶN ∪ GIỮ ∪ CÔNG CỤ.
+  const nguonWorker = boChuThich(fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8"));
+  const tenNhap = new Set(
+    [...nguonWorker.matchAll(/^import \{([^}]+)\} from "\.\/services\/[^"]+";/gm)]
+      .flatMap((m) => m[1].split(",").map((x) => x.replace(/^\s*type\s+/, "").trim()).filter(Boolean))
+  );
+  const thanStart = nguonWorker.slice(nguonWorker.indexOf("export function startWorker"), nguonWorker.indexOf("export function stopWorker"));
+  const viecGoi = [...new Set([...thanStart.matchAll(/\b([A-Za-z_]\w*)\(/g)].map((m) => m[1]))]
+    .filter((t) => tenNhap.has(t) || t === "drainQueue" || t === "tuSuaWebhook")
+    .sort();
+  const CHAN = ["drainQueue", "reconcileInbox", "runDueAutoPilot", "runDueAutoPublishes", "runDueBoSot", "runDueCommentActions",
+    "runDueFollowUps", "runDueVideoProjects", "runDueVideoTuDong"];
+  const GIU = ["chupSoBaiNgay", "doiChieuLuotAi", "ghiKenhTheoNgay", "layNhatKyWebhook", "runDueAccountSync", "runDueCanhBaoChiPhi",
+    "runDuePostRecheck", "runDueVideoJobs", "tuSuaWebhook"];
+  const CONG_CU = ["escapeHtml", "sendTelegramMessage"];
+  console.log(`  [khoá tài khoản] worker gọi ${viecGoi.length} hàm dịch vụ: CHẶN ${CHAN.length} · GIỮ ${GIU.length} · công cụ ${CONG_CU.length}`);
+  kiem("khoá tài khoản", "worker: việc mới phải được xếp CHẶN hay GIỮ trước (bảng = đúng danh sách gọi)",
+    viecGoi, [...CHAN, ...GIU, ...CONG_CU].sort());
+
+  // Lớp 1 — câu chọn việc của từng việc CHẶN có lọc tài khoản đang mở.
+  const thanHam = (tep: string, ten: string) => {
+    const n = boChuThich(fs.readFileSync(path.join(GOC, tep), "utf8"));
+    const dau = n.search(new RegExp(`(export )?async function ${ten}\\(`));
+    if (dau < 0) return "";
+    const cuoi = n.indexOf("\n}\n", dau);
+    return n.slice(dau, cuoi < 0 ? undefined : cuoi);
+  };
+  const noiCHAN: [string, string, RegExp][] = [
+    ["server/worker.ts", "processEvent", /SU_KIEN_GOI_AI\.has\(event\.event_type\) && \(await kenhThuocTaiKhoanKhoa\(event\.account_id\)\)/],
+    ["server/services/reconcile.ts", "reconcileInbox", /\$\{DK_TAI_KHOAN_MO\("social_accounts\.user_id"\)\}/],
+    ["server/services/autopilot.ts", "runDueAutoPilot", /\$\{DK_TAI_KHOAN_MO\("ai_configs\.user_id"\)\}/],
+    ["server/services/autopilot.ts", "runDueAutoPublishes", /\$\{DK_TAI_KHOAN_MO\("posts\.user_id"\)\}/],
+    ["server/services/autopilot.ts", "runDueVideoTuDong", /\$\{DK_TAI_KHOAN_MO\("p\.user_id"\)\}/],
+    ["server/services/sales-ai.ts", "runDueBoSot", /\$\{DK_TAI_KHOAN_MO\("c\.user_id"\)\}/],
+    ["server/services/sales-ai.ts", "runDueFollowUps", /\$\{DK_TAI_KHOAN_MO\("ai_configs\.user_id"\)\}/],
+    ["server/services/video-dai.ts", "runDueVideoProjects", /\$\{DK_TAI_KHOAN_MO\("du_an_video\.user_id"\)\}/],
+  ];
+  kiem("khoá tài khoản", "lớp 1: mọi việc CHẶN lọc tài khoản đang mở ngay trong câu chọn việc (bình luận: cả 2 câu)",
+    [...noiCHAN.map(([tep, ten, mau]) => `${ten}:${mau.test(thanHam(tep, ten))}`),
+      `runDueCommentActions:${(thanHam("server/services/comment-ai.ts", "runDueCommentActions").match(/\$\{DK_TAI_KHOAN_MO\("comments\.user_id"\)\}/g) ?? []).length}`],
+    [...noiCHAN.map(([, ten]) => `${ten}:true`), "runDueCommentActions:2"]);
+  kiem("khoá tài khoản", "không trả lời / nhắc / viết bù: vớt tin + nhắc khách dùng DK_SAU_MO_KHOA; rà hộp thư (tin + bình luận) + ô lịch dùng sauMoKhoa",
+    [/\$\{DK_SAU_MO_KHOA\("c\.user_id", "cuoi\.created_at"\)\}/.test(thanHam("server/services/sales-ai.ts", "runDueBoSot")),
+      /\$\{DK_SAU_MO_KHOA\(\s*"c\.user_id",/.test(thanHam("server/services/sales-ai.ts", "runDueFollowUps")),
+      /if \(!sauMoKhoa\(luc, account\.mo_khoa_luc\)\) continue;/.test(thanHam("server/services/reconcile.ts", "reconcileInbox")),
+      /if \(c\.createdTime && !sauMoKhoa\(Date\.parse\(c\.createdTime\), account\.mo_khoa_luc\)\) continue;/.test(thanHam("server/services/reconcile.ts", "raSoatBinhLuan")),
+      /if \(!sauMoKhoa\(o\.moc, shop\.mo_khoa_luc\)\) continue;/.test(thanHam("server/services/autopilot.ts", "runDueAutoPilot"))],
+    [true, true, true, true, true]);
+
+  // Lớp 2 — lưới tiền trước MỌI lời gọi AI trả phí (POST tới OpenRouter), và đúng 2 chỗ gọi goiTaoViec (điều kiện 3).
+  const tepMayChu = moiTepMayChu(path.join(GOC, "server"));
+  const thieuLuoi: string[] = [];
+  let soDiemTraPhi = 0;
+  for (const tep of tepMayChu) {
+    const n = boChuThich(fs.readFileSync(tep, "utf8"));
+    const thanGoiTaoViec = (() => {
+      const d = n.indexOf("export async function goiTaoViec(");
+      return d < 0 ? [-1, -1] : [d, n.indexOf("\n}\n", d)];
+    })();
+    for (const m of n.matchAll(/fetch\(\s*(`\$\{GOC_API\}\/|"https:\/\/openrouter\.ai\/api\/v1\/)/g)) {
+      const vt = m.index ?? 0;
+      if (!/method: "POST"/.test(n.slice(vt, vt + 200))) continue;
+      if (vt > thanGoiTaoViec[0] && vt < thanGoiTaoViec[1]) continue;
+      soDiemTraPhi++;
+      if (!/await chanNeuTaiKhoanKhoa\(/.test(n.slice(Math.max(0, vt - 900), vt))) thieuLuoi.push(`${path.relative(GOC, tep)}@${vt}`);
+    }
+  }
+  const goiTao = tepMayChu.flatMap((tep) => {
+    const n = boChuThich(fs.readFileSync(tep, "utf8"));
+    return [...n.matchAll(/await goiTaoViec\(/g)].map((m) => /await chanNeuTaiKhoanKhoa\([^)]*\);\s*\n\s*(const \w+ = )?$/.test(n.slice(0, m.index)));
+  });
+  console.log(`  [khoá tài khoản] ${soDiemTraPhi} lời gọi AI trả phí + ${goiTao.length} chỗ gọi goiTaoViec có lưới tiền`);
+  kiem("khoá tài khoản", "lớp 2: 6 lời gọi AI trả phí đều có lưới tiền ngay trước; goiTaoViec đúng 2 chỗ gọi, chỗ nào cũng có lưới ngay dòng trên",
+    [soDiemTraPhi, thieuLuoi, goiTao], [6, [], [true, true]]);
+
+  // 423 ở bộ chạy nền = bỏ qua lặng lẽ, không đánh lỗi / không nhường quyền cho người.
+  const ev = boChuThich(fs.readFileSync(path.join(GOC, "server/services/events.ts"), "utf8"));
+  kiem("khoá tài khoản", "lỗi khoá: hàng đợi ghi 'ignored' (không failed); hội thoại KHÔNG chuyển người; lượt tự viết ghi 'skipped'; video dài không đánh lỗi",
+    [/if \(error instanceof TaiKhoanKhoaError\) \{\s*await boQuaVIKhoa\(event,/.test(thanHam("server/worker.ts", "processEvent")),
+      /\} catch \(error\) \{\s*if \(error instanceof TaiKhoanKhoaError\) throw error;\s*const loi = error instanceof Error/.test(ev),
+      /if \(error instanceof TaiKhoanKhoaError\) \{\s*await query\(`UPDATE auto_pilot_runs SET status = 'skipped'/.test(thanHam("server/services/autopilot.ts", "runDueAutoPilot")),
+      /if \(error instanceof TaiKhoanKhoaError\) continue;\s*const loi = error instanceof Error/.test(thanHam("server/services/video-dai.ts", "runDueVideoProjects"))],
+    [true, true, true, true]);
+
+  // Nút khoá / mở khoá + xoá tài khoản đi qua đúng hàm chung; hộp hỏi nói rõ luật.
+  const ad = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8"));
+  const xt = boChuThich(fs.readFileSync(path.join(GOC, "server/services/xoa-tai-khoan-that.ts"), "utf8"));
+  const ql = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
+  kiem("khoá tài khoản", "đường khoá dùng khoaTaiKhoan / moKhoaTaiKhoan; xoá tài khoản khoá bằng cùng hàm; không còn UPDATE is_active rời",
+    [/if \(khoa\) await khoaTaiKhoan\(dich\.id\);\s*else await moKhoaTaiKhoan\(dich\.id\);/.test(ad), /await khoaTaiKhoanChung\(userId\);/.test(xt),
+      /SET is_active = \$2/.test(ad) || /is_active = FALSE/.test(xt)],
+    [true, true, false]);
+  kiem("khoá tài khoản", "hộp hỏi: khoá nói AI dừng hẳn + bài hẹn giờ bên nền tảng vẫn đăng; mở khoá liệt kê 4 luật không chạy bù",
+    [/AI dừng hẳn mọi việc tự chạy/.test(ql), /Bài đã hẹn giờ sẵn bên nền tảng vẫn đăng đúng giờ/.test(ql),
+      /không trả lời bù/.test(ql), /vào mục Chờ duyệt, không tự đăng/.test(ql), /Lượt nhắc khách đã quá hạn: bỏ/.test(ql), /chờ bấm "Tạo tiếp"/.test(ql)],
+    [true, true, true, true, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

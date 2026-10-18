@@ -38,6 +38,7 @@ import {
 } from "./video-ai.js";
 import { giaKhungVideo, type LuaChonVeAnh } from "./image-ai.js";
 import { chayChoTrang } from "./ngu-canh-trang.js";
+import { DK_TAI_KHOAN_MO, TaiKhoanKhoaError } from "./tai-khoan-mo.js";
 
 /** Cách làm video dài: ghép nhiều cảnh (mọi mô hình) hoặc NỐI DÀI gốc của hãng. */
 export type CheDoVideoDai = "ghep_canh" | "noi_dai";
@@ -671,6 +672,7 @@ async function tienMotDuAn(d: DuAnVideo & { user_id: number; trang_id: number })
     try {
       kq = await kiemDinhCanh({ userId: d.user_id, url: vuaXong.url, moTa: cv.moTa, soGiay: cv.soGiay });
     } catch (error) {
+      if (error instanceof TaiKhoanKhoaError) throw error;
       // Không kiểm được (AI lỗi, mạng...) thì cho qua và ghi lại — không vì bước kiểm mà hỏng cả dự án.
       const loi = error instanceof Error ? error.message : String(error);
       await query("UPDATE video_ai SET kiem_dinh = $2 WHERE id = $1", [vuaXong.id, `khong_kiem_duoc: ${loi}`.slice(0, 300)]);
@@ -901,7 +903,8 @@ async function giongVuaCanh(userId: number, duAnId: number, am: AmThanh, c: Canh
     try {
       const nghe = await ngheThanhChu({ userId, am: b, dinhDang: "wav" });
       return giongDocSai(c.loiDoc, nghe) ? doGiong(chiChuCai(c.loiDoc), chiChuCai(nghe)) : 1;
-    } catch {
+    } catch (error) {
+      if (error instanceof TaiKhoanKhoaError) throw error;
       return 1;
     }
   };
@@ -979,6 +982,7 @@ export async function runDueVideoProjects(): Promise<number> {
         SELECT id FROM du_an_video
          WHERE trang_thai IN ('dang_tao', 'dang_ghep')
            AND (dang_xu_ly_tu IS NULL OR dang_xu_ly_tu < now() - interval '15 minutes')
+           AND ${DK_TAI_KHOAN_MO("du_an_video.user_id")}
          ORDER BY updated_at LIMIT 3)
      RETURNING ${COT_DU_AN}, user_id, trang_id`
   );
@@ -987,6 +991,8 @@ export async function runDueVideoProjects(): Promise<number> {
     try {
       await chayChoTrang(d.trang_id, () => tienMotDuAn(d));
     } catch (error) {
+      // Tài khoản bị khoá giữa lượt: để nguyên, không đánh lỗi — mở khoá sẽ chuyển sang "Tạm dừng" (mục f).
+      if (error instanceof TaiKhoanKhoaError) continue;
       const loi = error instanceof Error ? error.message : String(error);
       console.error(`[video dài] Dự án ${d.id}:`, loi);
       // Lỗi khi tạo cảnh hay khi ghép thì dừng hẳn, không thử lại mù quáng — mỗi
