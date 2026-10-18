@@ -6104,9 +6104,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const don = cauLenhDonQuaHan(42);
   kiem("khoá tài khoản", "dọn khi mở khoá: 5 câu, câu nào cũng 'WHERE user_id = $1' với đúng mã tài khoản",
     [don.length, don.every((l) => /WHERE user_id = \$1 /.test(l.sql) && l.thamSo[0] === 42)], [5, true]);
-  kiem("khoá tài khoản", "dọn: bài tự đăng QUÁ GIỜ mới gỡ mốc; bài chờ video → approve; video 'dang_tao' → 'loi' + ghi chú Tạm dừng",
+  kiem("khoá tài khoản", "dọn: bài tự đăng QUÁ GIỜ mới gỡ mốc; bài chờ video → approve (TRỪ bài hẹn giờ tương lai); video 'dang_tao' → 'loi' + ghi chú Tạm dừng",
     [/status = 'pending_approval' AND auto_publish_at IS NOT NULL AND auto_publish_at <= now\(\)/.test(don[0].sql),
-      /SET cho_video_guard = 'approve'/.test(don[1].sql) && /cho_video_id IS NOT NULL/.test(don[1].sql),
+      /SET cho_video_guard = 'approve'/.test(don[1].sql) && /cho_video_id IS NOT NULL AND \(scheduled_for IS NULL OR scheduled_for <= now\(\)\)/.test(don[1].sql),
       /AND trang_thai = 'dang_tao'$/.test(don[2].sql.trim()), don[2].thamSo[1] === GHI_CHU_DUNG_DO_KHOA,
       /dm_due_at <= now\(\)/.test(don[3].sql) && /public_reply_due_at <= now\(\)/.test(don[4].sql)],
     [true, true, true, true, true]);

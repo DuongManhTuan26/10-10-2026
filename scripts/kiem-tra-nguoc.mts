@@ -3709,6 +3709,12 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
+    ten: "mở khoá kéo cả bài chờ video có hẹn giờ tương lai về Chờ duyệt",
+    tep: "server/services/tai-khoan-mo.ts",
+    tim: "AND cho_video_id IS NOT NULL AND (scheduled_for IS NULL OR scheduled_for <= now())`",
+    thay: "AND cho_video_id IS NOT NULL`",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

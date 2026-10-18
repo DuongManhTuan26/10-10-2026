@@ -68,7 +68,8 @@ async function docDangMo(id: number): Promise<boolean | null> {
 /**
  * Các câu dọn việc quá hạn lúc mở khoá — hàm thuần (bộ kiểm tra soi từng câu có kẹp đúng tài khoản).
  *  - bài tự đăng quá giờ → gỡ mốc tự đăng, bài ở lại mục Chờ duyệt;
- *  - bài đang chờ video → video xong thì vào Chờ duyệt (không tự đăng);
+ *  - bài đang chờ video (không hẹn giờ, hoặc giờ hẹn đã qua) → video xong thì vào Chờ duyệt (không tự đăng);
+ *    bài hẹn giờ còn ở tương lai giữ nguyên, đăng đúng giờ;
  *  - video dài đang tạo → dừng ở trạng thái có nút "Tạo tiếp", ghi chú rõ lý do (không phải lỗi thật);
  *  - tin riêng / trả lời công khai bình luận đã hẹn mà quá giờ → bỏ, ghi lý do.
  */
@@ -80,8 +81,9 @@ export function cauLenhDonQuaHan(userId: number): { sql: string; thamSo: unknown
       thamSo: [userId],
     },
     {
+      // Bài có giờ hẹn còn ở tương lai giữ nguyên chế độ đăng — chủ dự án chốt "hẹn giờ → đăng đúng giờ".
       sql: `UPDATE posts SET cho_video_guard = 'approve', updated_at = now()
-             WHERE user_id = $1 AND cho_video_id IS NOT NULL`,
+             WHERE user_id = $1 AND cho_video_id IS NOT NULL AND (scheduled_for IS NULL OR scheduled_for <= now())`,
       thamSo: [userId],
     },
     {
