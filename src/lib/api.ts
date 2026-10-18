@@ -1001,8 +1001,8 @@ export const api = {
      * Tạo tài khoản hộ. Vai trò phải gửi lên rõ ràng — máy chủ coi giá trị lạ
      * là 'shop', nên thiếu trường này là lặng lẽ tạo ra tài khoản đứng riêng.
      */
-    /** matKhau: quản trị tự đặt (≥8 ký tự); bỏ trống thì hệ thống sinh. */
-    create: (payload: { email: string; name?: string; matKhau?: string }) =>
+    /** matKhau: quản trị BẮT BUỘC tự đặt (luật loiMatKhau, src/lib/mat-khau.ts). */
+    create: (payload: { email: string; name?: string; matKhau: string }) =>
       post<{ data: { id: number; email: string; name: string; matKhauTam: string } }>(
         '/admin/accounts',
         payload
@@ -1011,9 +1011,9 @@ export const api = {
       patch<{ data: TaiKhoanQuanTri }>(`/admin/accounts/${id}`, payload),
     setLocked: (id: number, locked: boolean) =>
       post<{ data: { id: number; is_active: boolean } }>(`/admin/accounts/${id}/lock`, { locked }),
-    /** matKhau: quản trị tự đặt (≥8 ký tự); bỏ trống thì hệ thống sinh. */
-    resetPassword: (id: number, matKhau?: string) =>
-      post<{ data: { matKhauTam: string } }>(`/admin/accounts/${id}/reset-password`, matKhau ? { matKhau } : {}),
+    /** matKhau: quản trị BẮT BUỘC tự đặt (luật loiMatKhau, src/lib/mat-khau.ts). */
+    resetPassword: (id: number, matKhau: string) =>
+      post<{ data: { matKhauTam: string } }>(`/admin/accounts/${id}/reset-password`, { matKhau }),
     /**
      * Chuyển một tài khoản đứng riêng thành tài khoản quản lý chuỗi.
      *

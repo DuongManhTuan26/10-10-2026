@@ -14,6 +14,7 @@ import * as zernio from "../services/zernio.js";
 import { ensureProfile } from "../services/accounts.js";
 import { taoTaiKhoan, laTenDangNhapNoiBo } from "../services/tai-khoan.js";
 import { canXacThucEmail, taoVeXacThuc, xacNhanMa } from "../services/xac-thuc-email.js";
+import { loiMatKhau } from "../../src/lib/mat-khau.js";
 
 export const authRouter = Router();
 
@@ -72,7 +73,8 @@ authRouter.post(
      */
     const taiKhoan = await taoTaiKhoan({
       email: requireString(req.body, "email", "email"),
-      password: requireString(req.body, "password", "mật khẩu"),
+      // Không qua requireString (nó cắt dấu cách): luật mật khẩu chung tự từ chối dấu cách ở mép (src/lib/mat-khau.ts).
+      password: typeof req.body?.password === "string" ? req.body.password : "",
       name: typeof req.body?.name === "string" ? req.body.name : "",
     });
 
@@ -254,11 +256,10 @@ authRouter.post(
   route(async (req, res) => {
     const body = req.body ?? {};
     const hienTai = requireString(body, "currentPassword", "mật khẩu hiện tại");
-    const moi = requireString(body, "newPassword", "mật khẩu mới");
-
-    if (moi.length < 8) {
-      throw new AppError("Mật khẩu mới phải có ít nhất 8 ký tự");
-    }
+    // Mật khẩu mới: đúng chuỗi người dùng gõ, cùng một luật với mọi chỗ đặt mật khẩu (src/lib/mat-khau.ts).
+    const moi = typeof body.newPassword === "string" ? body.newPassword : "";
+    const loiMoi = loiMatKhau(moi);
+    if (loiMoi) throw new AppError(loiMoi);
     if (moi === hienTai) {
       throw new AppError("Mật khẩu mới phải khác mật khẩu hiện tại");
     }

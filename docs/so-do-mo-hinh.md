@@ -10,7 +10,7 @@ HỆ THỐNG
 ├── ADMIN TỔNG — hoangtuan3310tn (một người, hai vai)
 │     ├── Vai 1: QUẢN TRỊ toàn hệ thống — mục "Quản Lý Tài Khoản" (chỉ admin thấy)
 │     │     ├── Tạo / sửa / khoá / xoá tài khoản; mật khẩu admin BẮT BUỘC TỰ GÕ ở mọi chỗ tạo / cấp lại — để trống thì
-│     │     │     không cho lưu (chốt 19/10 — CHƯA ĐẠT: mã còn tự sinh khi để trống)
+│     │     │     không cho lưu (chốt 19/10 — mã xong 19/10, CHỜ kiểm duyệt; một luật chung src/lib/mat-khau.ts)
 │     │     │     · Khoá = chặn đăng nhập VÀ AI dừng hẳn mọi việc tự chạy (chốt 18/10 — mã xong mục f 19/10, CHỜ kiểm
 │     │     │       duyệt + thử khoá thật). Bài hẹn giờ sẵn bên nền tảng vẫn đăng.
 │     │     │       Mở khoá: việc tới hạn trong lúc khoá KHÔNG tự bùng ra (chốt 19/10 — như trên)

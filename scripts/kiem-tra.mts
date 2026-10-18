@@ -61,6 +61,7 @@ import { chuanBiDoc } from "../server/services/am-thanh-ai.js";
 import { DE_BAI_XEM_CLIP, MODEL_XEM_CLIP, phanLoaiSoDo } from "../server/services/kiem-dinh-video.js";
 import { giaSuaVideo } from "../server/services/video-sua.js";
 import { docMatKhauTuDat } from "../server/services/tai-khoan.js";
+import { loiMatKhau } from "../src/lib/mat-khau.js";
 import { MODEL_VIDEO_DUOC_CHON, MODEL_SUA_VIDEO_DUOC_CHON, MODEL_GIONG_DOC_DUOC_CHON, MODEL_NHAC_NEN, MODEL_NHIEU_CANH, MODEL_NOI_DAI, MODEL_TIENG_VIET_GOC } from "../server/services/model-duoc-chon.js";
 import { cheEmail, SAI_TOI_DA, MA_MOI_GIO_TOI_DA, SONG_PHUT } from "../server/services/xac-thuc-email.js";
 import { danhGia, chuanHoaNguong, NGUONG_MAC_DINH, trangThaiLuot, trangThaiTong, phanLech } from "../server/services/chi-phi.js";
@@ -1791,8 +1792,9 @@ kiem("quản trị", "tài khoản mới nhận đủ bộ cấu hình riêng",
  * Phép kiểm trước bắt oan chính dòng CHÚ THÍCH giải thích "không dùng
  * Math.random" — chú thích nói đúng thì lại bị coi là vi phạm.
  */
-kiem("quản trị", "mật khẩu tạm sinh bằng crypto, không dùng Math.random",
-  /crypto\.randomBytes\(16\)/.test(nguonTaiKhoan) &&
+// 19/10/2026 (chủ dự án): bỏ hẳn mật khẩu tự sinh — quản trị bắt buộc tự gõ. Không còn hàm sinh, không Math.random.
+kiem("quản trị", "không còn mật khẩu tự sinh (quản trị bắt buộc tự gõ), không dùng Math.random",
+  !/sinhMatKhauTam|randomBytes/.test(nguonTaiKhoan) &&
     dongNgoaiChuThich(nguonTaiKhoan).filter(({ d }) => d.includes("Math.random")).length === 0,
   true);
 
@@ -3202,25 +3204,48 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   {
     const nguonAdminRt = fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8");
     const nguonTk = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
-    const thu = (body: unknown) => { try { const r = docMatKhauTuDat(body); return [r.tuDat, r.tuDat ? r.matKhau : r.matKhau.length]; } catch (e) { return (e as Error).message; } };
-    kiem("phân tầng", "hàm chung: tự đặt ≥8 ký tự dùng đúng mật khẩu đó; ngắn quá thì báo; bỏ trống thì sinh 16 ký tự",
-      [thu({ matKhau: "matkhau123" }), thu({ matKhau: "ngan" }), thu({}), thu({ matKhau: "" }), thu(null)],
-      [[true, "matkhau123"], "Mật khẩu phải có ít nhất 8 ký tự", [false, 16], [false, 16], [false, 16]]);
+    // 19/10/2026 (chủ dự án): mật khẩu BẮT BUỘC tự gõ — để trống không cho lưu, bỏ hẳn đường tự sinh. Một luật chung
+    // loiMatKhau (src/lib/mat-khau.ts): không cắt dấu cách, từ chối dấu cách ở mép (màn đăng nhập cắt mép).
+    const thu = (body: unknown) => { try { return docMatKhauTuDat(body).matKhau; } catch (e) { return (e as Error).message; } };
+    const TRONG = "Vui lòng tự đặt mật khẩu (ít nhất 8 ký tự).";
+    const MEP = "Mật khẩu không được bắt đầu hoặc kết thúc bằng dấu cách.";
+    kiem("phân tầng", "hàm chung: tự đặt dùng ĐÚNG chuỗi đã gõ; trống / thiếu / không phải chữ → bắt buộc gõ; ngắn → báo; dấu cách ở mép → từ chối",
+      [thu({ matKhau: "matkhau123" }), thu({ matKhau: "abc d1234" }), thu({}), thu({ matKhau: "" }), thu(null), thu({ matKhau: 12345678 }),
+        thu({ matKhau: "ngan" }), thu({ matKhau: "        " }), thu({ matKhau: "       a" }), thu({ matKhau: "abcd1234 " }), thu({ matKhau: "x".repeat(201) })],
+      ["matkhau123", "abc d1234", TRONG, TRONG, TRONG, TRONG, "Mật khẩu phải có ít nhất 8 ký tự.", MEP, MEP, MEP, "Mật khẩu dài quá 200 ký tự."]);
+    kiem("phân tầng", "luật chung dùng ở giao diện y hệt máy chủ (7 ký tự lỗi, 8 ký tự đạt)",
+      [loiMatKhau("1234567"), loiMatKhau("12345678")], ["Mật khẩu phải có ít nhất 8 ký tự.", null]);
     // 18/10/2026: bỏ tầng chủ chuỗi → còn 2 chỗ cấp mật khẩu (tạo / đặt lại ở màn Quản lý của quản trị tổng).
-    kiem("phân tầng", "cả 2 chỗ cấp mật khẩu đều cho quản trị tự đặt (tạo / đặt lại tài khoản)",
+    const tatCaMa = [...moiTepMayChu(path.join(GOC, "server")), ...moiTepGiaoDien(path.join(GOC, "src"))]
+      .map((t) => boChuThich(fs.readFileSync(t, "utf8"))).join("\n");
+    kiem("phân tầng", "cả 2 chỗ cấp mật khẩu đi qua hàm chung; không còn hàm tự sinh mật khẩu ở bất kỳ đâu",
       [(nguonAdminRt.match(/const \{ matKhau: matKhauTam \} = docMatKhauTuDat\(req\.body\);/g) ?? []).length,
-        // Không route nào gọi thẳng hàm sinh ngẫu nhiên nữa.
-        /sinhMatKhauTam\(/.test(nguonAdminRt + nguonQL),
-        /export function docMatKhauTuDat\(/.test(nguonTk)],
-      [2, false, true]);
+        /sinhMatKhauTam/.test(tatCaMa),
+        /export function docMatKhauTuDat\(body: unknown\): \{ matKhau: string \} \{\s*const v = [^\n]+\n\s*const loi = loiMatKhau\(v\);\s*if \(loi\) throw new AppError\(loi\);/.test(nguonTk),
+        /const loiMk = loiMatKhau\(params\.password\);\s*if \(loiMk\) throw new AppError\(loiMk\);/.test(nguonTk)],
+      [2, false, true, true]);
     const nguonAdminUi = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
-    kiem("phân tầng", "giao diện: ô gõ mật khẩu (chữ hiện rõ) khi tạo và đặt lại tài khoản; không còn hộp confirm cấp mật khẩu ngẫu nhiên",
+    kiem("phân tầng", "giao diện: ô gõ mật khẩu (chữ hiện rõ) khi tạo và đặt lại; gửi ĐÚNG chuỗi đã gõ; còn lỗi (kể cả trống) thì nút lưu tắt; không còn chữ 'tự sinh'",
       [/\{ ten: 'Đặt lại mật khẩu', onChon: \(\) => setDatMatKhau\(\{ tk: t, mk: '' \}\) \}/.test(nguonAdminUi),
-        /await api\.admin\.resetPassword\(tk\.id, mk \|\| undefined\)/.test(nguonAdminUi),
-        /matKhau: mk \|\| undefined \}\)/.test(nguonAdminUi) && /value=\{matKhauMoi\}/.test(nguonAdminUi),
+        /const mk = datMatKhau\.mk;\s*if \(loiMatKhau\(mk\)\) return;[\s\S]{0,120}await api\.admin\.resetPassword\(tk\.id, mk\)/.test(nguonAdminUi),
+        /matKhau: matKhauMoi \}\)/.test(nguonAdminUi) && /value=\{matKhauMoi\}/.test(nguonAdminUi),
+        /const loiMkTao = loiMatKhau\(matKhauMoi\);/.test(nguonAdminUi) && /disabled=\{dangTao \|\| !emailMoi\.trim\(\) \|\| Boolean\(loiMkTao\)\}/.test(nguonAdminUi),
+        /const loiMkDat = datMatKhau \? loiMatKhau\(datMatKhau\.mk\) : null;/.test(nguonAdminUi) && /disabled=\{dangLam === datMatKhau\.tk\.id \|\| Boolean\(loiMkDat\)\}/.test(nguonAdminUi),
+        /tự sinh|Mật khẩu tạm|matKhauMoi\.trim\(\)|datMatKhau\.mk\.trim\(\)/.test(boChuThich(nguonAdminUi)),
         (nguonAdminUi.match(/type="text"\s*autoComplete="new-password"/g) ?? []).length,
         /Cấp lại mật khẩu cho \$\{tk\.email\}\?/.test(nguonAdminUi)],
-      [true, true, true, 2, false]);
+      [true, true, true, true, true, false, 2, false]);
+    // Ý 2 của phiên kiểm duyệt 19/10: tự đổi mật khẩu + tự đăng ký cùng một luật (≥ 8, không cắt, không dấu cách ở mép).
+    const nguonAuthRt = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/auth.ts"), "utf8"));
+    const nguonDoiMk = fs.readFileSync(path.join(GOC, "src/components/DoiMatKhau.tsx"), "utf8");
+    const nguonAuthUi = fs.readFileSync(path.join(GOC, "src/pages/Auth.tsx"), "utf8");
+    kiem("phân tầng", "tự đổi mật khẩu + tự đăng ký: đọc chuỗi thô (không requireString) và kiểm bằng loiMatKhau ở cả máy chủ lẫn giao diện",
+      [/const moi = typeof body\.newPassword === "string" \? body\.newPassword : "";\s*const loiMoi = loiMatKhau\(moi\);\s*if \(loiMoi\) throw new AppError\(loiMoi\);/.test(nguonAuthRt),
+        /requireString\(body, "newPassword"/.test(nguonAuthRt),
+        /password: typeof req\.body\?\.password === "string" \? req\.body\.password : "",/.test(nguonAuthRt),
+        /const loiMoi = loiMatKhau\(moi\);\s*if \(loiMoi\) \{ setLoi\(loiMoi\); return; \}/.test(nguonDoiMk),
+        /const loiMk = loiMatKhau\(password\);\s*if \(loiMk\) \{\s*setError\(loiMk\);/.test(nguonAuthUi)],
+      [true, false, true, true, true]);
   }
 
   // 18/10/2026: nút "sang cửa hàng khác" thuộc tầng chủ chuỗi (danh sách tài khoản anh em) — đã bỏ.
@@ -3279,7 +3304,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * chuỗi" đã bỏ cùng tầng chủ chuỗi.
    */
   kiem("phân tầng", "tự đăng ký ra tài khoản dùng thường (không truyền vai trò nào)",
-    [/const taiKhoan = await taoTaiKhoan\(\{\s*email: requireString\(req\.body, "email", "email"\),\s*password: requireString\(req\.body, "password", "mật khẩu"\),\s*name: [^\n]+\n\s*\}\);/.test(nguonAuthRoute),
+    [/const taiKhoan = await taoTaiKhoan\(\{\s*email: requireString\(req\.body, "email", "email"\),\s*password: typeof req\.body\?\.password === "string" \? req\.body\.password : "",\s*name: [^\n]+\n\s*\}\);/.test(boChuThich(nguonAuthRoute)),
       /admin_con/.test(nguonAuthRoute)],
     [true, false]);
   kiem("phân tầng", "quản trị tạo hộ: chỉ một loại, không nhận vai trò từ trình duyệt",
@@ -3311,7 +3336,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonApiClient = fs.readFileSync(path.join(GOC, "src/lib/api.ts"), "utf8");
   kiem("phân tầng", "giao diện tạo tài khoản không còn chọn loại; lớp gọi API không gửi vai trò",
     [/vaiTroMoi|Chủ chuỗi|Thành chủ chuỗi/.test(nguonManHinhQT),
-      /create: \(payload: \{ email: string; name\?: string; matKhau\?: string \}\)/.test(nguonApiClient),
+      /create: \(payload: \{ email: string; name\?: string; matKhau: string \}\)/.test(nguonApiClient),
       /admin_con/.test(nguonApiClient)],
     [false, true, false]);
   // MỘT bộ tuyến đường, đúng MỘT tuyến bắt-tất-cả.

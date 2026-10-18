@@ -131,7 +131,7 @@ adminRouter.post(
     }
 
     // Chỉ một loại: tài khoản dùng thường, bản sao phần dùng thường của quản trị tổng (chủ dự án 18/10/2026).
-    // Quản trị tự đặt mật khẩu; bỏ trống thì hệ thống sinh (docMatKhauTuDat).
+    // Quản trị BẮT BUỘC tự gõ mật khẩu — để trống thì không cho lưu (docMatKhauTuDat, chủ dự án 19/10/2026).
     const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);
     const taiKhoan = await taoTaiKhoan({ email, password: matKhauTam, name });
 
@@ -250,7 +250,7 @@ adminRouter.post(
         400
       );
     }
-    // Quản trị tự đặt mật khẩu mới; bỏ trống thì hệ thống sinh (docMatKhauTuDat).
+    // Quản trị BẮT BUỘC tự gõ mật khẩu mới — để trống thì không cho lưu (docMatKhauTuDat). Kiểm TRƯỚC khi ghi.
     const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);
 
     await query("UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1", [

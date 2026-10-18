@@ -1870,10 +1870,11 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
-    ten: "quay lại dùng Math.random cho mật khẩu tạm",
+    // 19/10/2026: mật khẩu bắt buộc tự gõ — lỗ trỏ lại theo mã mới.
+    ten: "quay lại có mật khẩu tự sinh (bằng Math.random)",
     tep: "server/services/tai-khoan.ts",
-    tim: "  const byte = crypto.randomBytes(16);\n  let ra = \"\";\n  for (const b of byte) ra += chu[b % chu.length];",
-    thay: "  let ra = \"\";\n  for (let i = 0; i < 12; i++) ra += chu[Math.floor(Math.random() * chu.length)];",
+    tim: "export function docMatKhauTuDat(",
+    thay: "export function sinhMatKhauTam(): string {\n  return Math.random().toString(36).slice(2);\n}\nexport function docMatKhauTuDat(",
   },
   {
     ten: "tạo tài khoản mới mà thiếu bộ cấu hình riêng",
@@ -2740,28 +2741,32 @@ const DUC: PhepDuc[] = [
     thay: "  if (!b) return 100;",
   },
   {
-    ten: "quản trị tổng cấp lại mật khẩu mà không được tự đặt (lỗi lặp lại 04/10/2026)",
+    // 19/10/2026: mật khẩu bắt buộc tự gõ — lỗ trỏ lại theo mã mới.
+    ten: "quản trị tổng cấp lại mật khẩu không qua hàm chung (lỗi lặp lại 04/10/2026)",
     tep: "server/routes/admin.ts",
-    tim: "    // Quản trị tự đặt mật khẩu mới; bỏ trống thì hệ thống sinh (docMatKhauTuDat).\n    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);",
-    thay: "    const matKhauTam = sinhMatKhauTam();",
+    tim: "    // Quản trị BẮT BUỘC tự gõ mật khẩu mới — để trống thì không cho lưu (docMatKhauTuDat). Kiểm TRƯỚC khi ghi.\n    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);",
+    thay: "    const matKhauTam = String(req.body?.matKhau ?? \"\");",
   },
   {
-    ten: "quản trị tổng tạo tài khoản mà không được tự đặt mật khẩu",
+    // 19/10/2026: mật khẩu bắt buộc tự gõ — lỗ trỏ lại theo mã mới.
+    ten: "quản trị tổng tạo tài khoản không qua hàm chung mật khẩu",
     tep: "server/routes/admin.ts",
-    tim: "    // Quản trị tự đặt mật khẩu; bỏ trống thì hệ thống sinh (docMatKhauTuDat).\n    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);",
-    thay: "    const matKhauTam = sinhMatKhauTam();",
+    tim: "    // Quản trị BẮT BUỘC tự gõ mật khẩu — để trống thì không cho lưu (docMatKhauTuDat, chủ dự án 19/10/2026).\n    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);",
+    thay: "    const matKhauTam = String(req.body?.matKhau ?? \"\");",
   },
   {
+    // 19/10/2026: mật khẩu bắt buộc tự gõ — lỗ trỏ lại theo mã mới.
     ten: "nhận mật khẩu tự đặt ngắn hơn 8 ký tự",
-    tep: "server/services/tai-khoan.ts",
-    tim: "  if (tuDat && tuDat.length < 8) throw new AppError",
-    thay: "  if (false) throw new AppError",
+    tep: "src/lib/mat-khau.ts",
+    tim: "  if (mk.length < DO_DAI_TOI_THIEU) return",
+    thay: "  if (false) return",
   },
   {
+    // 19/10/2026: mật khẩu bắt buộc tự gõ — lỗ trỏ lại theo mã mới.
     ten: "hộp đặt mật khẩu không gửi mật khẩu đã gõ",
     tep: "src/pages/QuanLy.tsx",
-    tim: "api.admin.resetPassword(tk.id, mk || undefined)",
-    thay: "api.admin.resetPassword(tk.id)",
+    tim: "api.admin.resetPassword(tk.id, mk)",
+    thay: "api.admin.resetPassword(tk.id, '')",
   },
   {
     // Đúng cảnh đã làm chết máy chủ: khoá bị kết nối mồ côi giữ.
@@ -3713,6 +3718,54 @@ const DUC: PhepDuc[] = [
     tep: "server/services/tai-khoan-mo.ts",
     tim: "AND cho_video_id IS NOT NULL AND (scheduled_for IS NULL OR scheduled_for <= now())`",
     thay: "AND cho_video_id IS NOT NULL`",
+  },
+  {
+    ten: "mật khẩu để trống lại được nhận (không bắt buộc tự gõ)",
+    tep: "src/lib/mat-khau.ts",
+    tim: "if (typeof mk !== 'string' || mk === '') return",
+    thay: "if (typeof mk !== 'string') return",
+  },
+  {
+    ten: "mật khẩu có dấu cách ở mép lọt qua (đăng nhập cắt mép → không vào được)",
+    tep: "src/lib/mat-khau.ts",
+    tim: "  if (mk.trim() !== mk) return 'Mật khẩu không được bắt đầu hoặc kết thúc bằng dấu cách.';\n",
+    thay: "",
+  },
+  {
+    ten: "nút Tạo tài khoản bật khi mật khẩu còn lỗi / để trống",
+    tep: "src/pages/QuanLy.tsx",
+    tim: "disabled={dangTao || !emailMoi.trim() || Boolean(loiMkTao)}",
+    thay: "disabled={dangTao || !emailMoi.trim()}",
+  },
+  {
+    ten: "nút Đặt mật khẩu bật khi mật khẩu còn lỗi / để trống",
+    tep: "src/pages/QuanLy.tsx",
+    tim: "disabled={dangLam === datMatKhau.tk.id || Boolean(loiMkDat)}",
+    thay: "disabled={dangLam === datMatKhau.tk.id}",
+  },
+  {
+    ten: "giao diện cắt dấu cách trước khi gửi mật khẩu đặt lại",
+    tep: "src/pages/QuanLy.tsx",
+    tim: "    const mk = datMatKhau.mk;\n",
+    thay: "    const mk = datMatKhau.mk.trim();\n",
+  },
+  {
+    ten: "máy chủ tạo / cấp lại mật khẩu không kiểm luật",
+    tep: "server/services/tai-khoan.ts",
+    tim: "  if (loi) throw new AppError(loi);\n  return { matKhau: v as string };",
+    thay: "  return { matKhau: v as string };",
+  },
+  {
+    ten: "tạo tài khoản (đăng ký) bỏ luật mật khẩu chung",
+    tep: "server/services/tai-khoan.ts",
+    tim: "  if (loiMk) throw new AppError(loiMk);",
+    thay: "",
+  },
+  {
+    ten: "tự đổi mật khẩu bỏ luật chung (≥ 8 ký tự)",
+    tep: "server/routes/auth.ts",
+    tim: "    if (loiMoi) throw new AppError(loiMoi);",
+    thay: "",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

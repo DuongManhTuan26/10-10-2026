@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import HopThoai, { NHAN_O, NUT_CHINH, NUT_PHU, O_NHAP } from './HopThoai';
+import { loiMatKhau } from '../lib/mat-khau';
 
 /**
  * Hộp đổi mật khẩu.
@@ -18,7 +19,8 @@ export default function DoiMatKhau({ onClose }: { onClose: () => void }) {
 
   const luu = async () => {
     setLoi('');
-    if (moi.length < 8) { setLoi('Mật khẩu mới phải có ít nhất 8 ký tự.'); return; }
+    const loiMoi = loiMatKhau(moi);
+    if (loiMoi) { setLoi(loiMoi); return; }
     if (moi !== nhapLai) { setLoi('Hai ô mật khẩu mới không khớp nhau.'); return; }
 
     setDangLuu(true);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api, ApiError, type User } from '../lib/api';
+import { loiMatKhau } from '../lib/mat-khau';
 
 export default function Auth({ onLogin, onRegister }: {
   onLogin: (user: User) => void,
@@ -46,6 +47,12 @@ export default function Auth({ onLogin, onRegister }: {
         const confirm = String(formData.get('confirmPassword') ?? '');
         if (confirm && confirm !== password) {
           setError('Mật khẩu nhập lại không khớp');
+          return;
+        }
+        // Cùng một luật với mọi chỗ đặt mật khẩu (src/lib/mat-khau.ts) — máy chủ kiểm lại y hệt.
+        const loiMk = loiMatKhau(password);
+        if (loiMk) {
+          setError(loiMk);
           return;
         }
         const kq = await api.auth.register(email, password, name);

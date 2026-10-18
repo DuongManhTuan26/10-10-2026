@@ -10,11 +10,11 @@
  * bất cứ thứ gì với tài khoản khác.
  */
 
-import crypto from "node:crypto";
 
 import { queryOne, transaction } from "../db.js";
 import { hashPassword } from "../auth.js";
 import { AppError } from "../http.js";
+import { loiMatKhau } from "../../src/lib/mat-khau.js";
 import { ensureProfile } from "./accounts.js";
 
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -94,9 +94,8 @@ export async function taoTaiKhoan(params: {
   if (laTenDangNhapNoiBo(email)) {
     throw new AppError("Địa chỉ email không hợp lệ");
   }
-  if (params.password.length < 8) {
-    throw new AppError("Mật khẩu phải có ít nhất 8 ký tự");
-  }
+  const loiMk = loiMatKhau(params.password);
+  if (loiMk) throw new AppError(loiMk);
 
   const dangCo = await queryOne("SELECT id FROM users WHERE lower(email) = $1", [email]);
   if (dangCo) {
@@ -172,35 +171,18 @@ export async function taoTaiKhoan(params: {
 }
 
 /**
- * Mật khẩu tạm khi quản trị tạo tài khoản hộ.
- *
- * Dùng crypto chứ KHÔNG dùng Math.random: đây là thứ cấp quyền vào tài khoản
- * của một shop, đoán được nó là vào được toàn bộ dữ liệu khách hàng của họ.
- *
- * Bỏ các ký tự dễ đọc nhầm (0/O, 1/l/I) vì mật khẩu này thường phải đọc qua
- * điện thoại cho chủ shop.
- */
-export function sinhMatKhauTam(): string {
-  const chu = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const byte = crypto.randomBytes(16);
-  let ra = "";
-  for (const b of byte) ra += chu[b % chu.length];
-  return ra;
-}
-
-/**
- * Mật khẩu khi quản trị TẠO hoặc CẤP LẠI tài khoản: người quản trị TỰ ĐẶT; bỏ trống thì hệ thống sinh ngẫu nhiên.
+ * Mật khẩu khi quản trị TẠO hoặc CẤP LẠI tài khoản: người quản trị BẮT BUỘC TỰ GÕ (chủ dự án 19/10/2026: để trống
+ * thì không cho lưu — bỏ hẳn đường hệ thống tự sinh).
  *
  * Lỗi đã lặp lại (chủ dự án 04/10/2026: "tao là admin tổng, tao thích đổi mật khẩu như nào tao phải biết chứ,
  * lỗi này đã xảy ra trước đây"). Lần trước chỉ sửa đúng một chỗ (cấp lại mật khẩu trang ở Quản lý Trang); tạo
  * tài khoản, cấp lại mật khẩu ở Quản trị hệ thống và lập trang mới vẫn chỉ sinh ngẫu nhiên. MỌI chỗ cấp mật khẩu
- * đều đi qua hàm này để không còn chỗ nào bị sót.
+ * đều đi qua hàm này để không còn chỗ nào bị sót. Luật mật khẩu: loiMatKhau (src/lib/mat-khau.ts), chung mọi nơi.
  */
-export function docMatKhauTuDat(body: unknown): { matKhau: string; tuDat: boolean } {
+export function docMatKhauTuDat(body: unknown): { matKhau: string } {
   const v = body && typeof body === "object" ? (body as Record<string, unknown>).matKhau : undefined;
-  const tuDat = typeof v === "string" ? v : "";
-  if (tuDat && tuDat.length < 8) throw new AppError("Mật khẩu phải có ít nhất 8 ký tự");
-  if (tuDat.length > 200) throw new AppError("Mật khẩu dài quá 200 ký tự");
-  return { matKhau: tuDat || sinhMatKhauTam(), tuDat: Boolean(tuDat) };
+  const loi = loiMatKhau(v);
+  if (loi) throw new AppError(loi);
+  return { matKhau: v as string };
 }
 

@@ -41,6 +41,7 @@ import {
   type TienTheoLoai,
 } from '../components/QuanLyTongQuan';
 import { chi, mauChi } from '../lib/tien-chi';
+import { loiMatKhau } from '../lib/mat-khau';
 
 const TEN_VIEC: Record<string, string> = {
   tao_tai_khoan: 'Tạo tài khoản',
@@ -102,8 +103,8 @@ export default function QuanLy({ user }: { user: User | null }) {
   const [tenMoi, setTenMoi] = useState('');
   const [matKhauMoi, setMatKhauMoi] = useState('');
   const [dangTao, setDangTao] = useState(false);
-  /** Mật khẩu chỉ hiện ĐÚNG MỘT LẦN. tuDat: người quản lý tự gõ. */
-  const [matKhauVua, setMatKhauVua] = useState<{ ten: string; tenDangNhap: string; mk: string; tuDat: boolean } | null>(null);
+  /** Mật khẩu (quản trị tự gõ) chỉ hiện ĐÚNG MỘT LẦN. */
+  const [matKhauVua, setMatKhauVua] = useState<{ ten: string; tenDangNhap: string; mk: string } | null>(null);
   // Sửa thông tin
   const [dangSua, setDangSua] = useState<TaiKhoanQuanLy | null>(null);
   const [suaTen, setSuaTen] = useState('');
@@ -268,13 +269,15 @@ export default function QuanLy({ user }: { user: User | null }) {
   const luuMatKhauMoi = async () => {
     if (!datMatKhau) return;
     const { tk } = datMatKhau;
-    const mk = datMatKhau.mk.trim();
+    // Gửi đúng chuỗi đã gõ (không cắt dấu cách) — luật chung loiMatKhau, máy chủ kiểm lại y hệt.
+    const mk = datMatKhau.mk;
+    if (loiMatKhau(mk)) return;
     await lam(
       tk,
       async () => {
-        const { data } = await api.admin.resetPassword(tk.id, mk || undefined);
+        const { data } = await api.admin.resetPassword(tk.id, mk);
         setDatMatKhau(null);
-        setMatKhauVua({ ten: tk.name, tenDangNhap: tk.email, mk: data.matKhauTam, tuDat: Boolean(mk) });
+        setMatKhauVua({ ten: tk.name, tenDangNhap: tk.email, mk: data.matKhauTam });
       },
       'Không đặt được mật khẩu'
     );
@@ -285,9 +288,8 @@ export default function QuanLy({ user }: { user: User | null }) {
     setLoi('');
     setDangTao(true);
     try {
-      const mk = matKhauMoi.trim();
-      const { data } = await api.admin.create({ email: emailMoi.trim(), name: tenMoi.trim(), matKhau: mk || undefined });
-      setMatKhauVua({ ten: data.name, tenDangNhap: data.email, mk: data.matKhauTam, tuDat: Boolean(mk) });
+      const { data } = await api.admin.create({ email: emailMoi.trim(), name: tenMoi.trim(), matKhau: matKhauMoi });
+      setMatKhauVua({ ten: data.name, tenDangNhap: data.email, mk: data.matKhauTam });
       setMoTao(false);
       setEmailMoi('');
       setTenMoi('');
@@ -562,7 +564,9 @@ export default function QuanLy({ user }: { user: User | null }) {
   /** Một nhóm gốc = một tài khoản (tầng chủ chuỗi đã bỏ 18/10/2026). */
   const veNhom = (g: NhomGoc) => veTaiKhoan(g.goc, String(g.so));
 
-  const mkTaoChuaDu = Boolean(matKhauMoi.trim()) && matKhauMoi.trim().length < 8;
+  // Mật khẩu BẮT BUỘC tự gõ (chủ dự án 19/10/2026): còn lỗi (kể cả để trống) thì nút lưu tắt.
+  const loiMkTao = loiMatKhau(matKhauMoi);
+  const loiMkDat = datMatKhau ? loiMatKhau(datMatKhau.mk) : null;
 
   return (
     <main className="p-4 md:p-8 max-w-[1600px] mx-auto w-full">
@@ -712,7 +716,7 @@ export default function QuanLy({ user }: { user: User | null }) {
           co="vua"
           bieuTuong="person_add"
           tieuDe="Tạo tài khoản mới"
-          phuDe="Tài khoản dùng thường, giống hệt phần dùng thường của bạn: tự tạo nhiều cửa hàng, mỗi cửa hàng nối nhiều mạng xã hội và có bộ não AI riêng. Bạn tự đặt mật khẩu, hoặc để trống cho hệ thống sinh."
+          phuDe="Tài khoản dùng thường, giống hệt phần dùng thường của bạn: tự tạo nhiều cửa hàng, mỗi cửa hàng nối nhiều mạng xã hội và có bộ não AI riêng. Bạn tự đặt mật khẩu cho tài khoản này."
           onDong={() => setMoTao(false)}
           dongKhiBamNgoai={false}
           chan={
@@ -723,7 +727,7 @@ export default function QuanLy({ user }: { user: User | null }) {
               <button
                 type="button"
                 onClick={taoTaiKhoan}
-                disabled={dangTao || !emailMoi.trim() || mkTaoChuaDu}
+                disabled={dangTao || !emailMoi.trim() || Boolean(loiMkTao)}
                 className={NUT_CHINH}
               >
                 {dangTao ? 'Đang tạo…' : 'Tạo tài khoản'}
@@ -744,16 +748,16 @@ export default function QuanLy({ user }: { user: User | null }) {
               </label>
               <label className="block sm:col-span-2">
                 <span className={NHAN_O}>Mật khẩu</span>
-                {/* Người quản lý tự đặt, chữ hiện rõ. Để trống thì hệ thống sinh. */}
+                {/* Người quản lý BẮT BUỘC tự đặt, chữ hiện rõ. */}
                 <input
                   type="text"
                   autoComplete="new-password"
                   value={matKhauMoi}
                   onChange={(e) => setMatKhauMoi(e.target.value)}
-                  placeholder="Ít nhất 8 ký tự — để trống thì hệ thống tự sinh"
+                  placeholder="Bắt buộc — ít nhất 8 ký tự"
                   className={O_NHAP}
                 />
-                {mkTaoChuaDu && <span className="block text-sm text-error mt-1.5">Còn thiếu {8 - matKhauMoi.trim().length} ký tự (ít nhất 8).</span>}
+                {matKhauMoi && loiMkTao && <span className="block text-sm text-error mt-1.5">{loiMkTao}</span>}
               </label>
             </div>
           </div>
@@ -809,10 +813,10 @@ export default function QuanLy({ user }: { user: User | null }) {
               <button
                 type="button"
                 onClick={luuMatKhauMoi}
-                disabled={dangLam === datMatKhau.tk.id || (Boolean(datMatKhau.mk.trim()) && datMatKhau.mk.trim().length < 8)}
+                disabled={dangLam === datMatKhau.tk.id || Boolean(loiMkDat)}
                 className={NUT_CHINH}
               >
-                {dangLam === datMatKhau.tk.id ? 'Đang đặt…' : datMatKhau.mk.trim() ? 'Đặt mật khẩu này' : 'Để hệ thống tự sinh'}
+                {dangLam === datMatKhau.tk.id ? 'Đang đặt…' : 'Đặt mật khẩu này'}
               </button>
             </>
           }
@@ -831,10 +835,8 @@ export default function QuanLy({ user }: { user: User | null }) {
               className={O_NHAP}
             />
           </label>
-          <p className={clsx('text-sm mt-2', datMatKhau.mk.trim() && datMatKhau.mk.trim().length < 8 ? 'text-error' : 'text-on-surface-variant')}>
-            {datMatKhau.mk.trim() && datMatKhau.mk.trim().length < 8
-              ? `Còn thiếu ${8 - datMatKhau.mk.trim().length} ký tự (ít nhất 8).`
-              : 'Để trống thì hệ thống tự sinh một mật khẩu ngẫu nhiên.'}
+          <p className={clsx('text-sm mt-2', datMatKhau.mk && loiMkDat ? 'text-error' : 'text-on-surface-variant')}>
+            {datMatKhau.mk && loiMkDat ? loiMkDat : 'Bắt buộc, ít nhất 8 ký tự.'}
           </p>
         </HopThoai>
       )}
@@ -843,7 +845,7 @@ export default function QuanLy({ user }: { user: User | null }) {
         <HopThoai
           co="vua"
           bieuTuong="key"
-          tieuDe={matKhauVua.tuDat ? 'Đã đặt mật khẩu' : 'Mật khẩu tạm'}
+          tieuDe="Đã đặt mật khẩu"
           phuDe={`Cho ${matKhauVua.ten || matKhauVua.tenDangNhap} — chỉ hiện đúng một lần, hệ thống không lưu lại.`}
           onDong={() => setMatKhauVua(null)}
           dongKhiBamNgoai={false}
