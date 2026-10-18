@@ -316,52 +316,10 @@ adsRouter.patch(
 // Đường danh sách nhóm quảng cáo (GET /api/ads/campaigns/:id/ad-sets) đã BỎ 18/10/2026: nó gọi GET /v1/ads/ad-sets —
 // tài liệu nhà cung cấp KHÔNG có đường danh sách này (chỉ có /v1/ads/ad-sets/{id} và /v1/ads/tree). Sổ tồn đọng TD-13.
 
-adsRouter.patch(
-  "/ad-sets/:id/budget",
-  route(async (req, res) => {
-    const body = req.body ?? {};
-
-    const amount = Number(body.amount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new AppError("Ngân sách phải là một số lớn hơn 0");
-    }
-
-    /*
-     * Đối chiếu chủ sở hữu TRƯỚC khi đổi ngân sách.
-     *
-     * Đây là route duy nhất trong phần quảng cáo không ràng buộc gì theo shop:
-     * nó nhận thẳng adSetId từ đường dẫn rồi gửi cho Zernio. Mà bản PUT của
-     * Zernio không nhận accountId, còn khoá API thì dùng chung cho cả nền tảng
-     * — nghĩa là không có gì ngăn shop A đổi ngân sách của shop B.
-     *
-     * Bản GET thì CÓ nhận accountId, nên đọc trước bằng tài khoản của shop
-     * đang đăng nhập: đọc được thì đúng là của họ, không đọc được thì thôi.
-     */
-    const resolved = await resolveAdAccount(req.user!.id);
-    if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
-
-    let adSet: Record<string, unknown>;
-    try {
-      adSet = await ads.getAdSet({ adSetId: req.params.id, accountId: resolved.accountId });
-    } catch {
-      throw new AppError("Không tìm thấy nhóm quảng cáo này trong tài khoản của bạn", 404);
-    }
-
-    const result = await ads.updateAdSetBudget({
-      adSetId: req.params.id,
-      amount,
-      budgetType: body.budgetType === "lifetime" ? "lifetime" : "daily",
-      platform:
-        typeof body.platform === "string"
-          ? body.platform
-          : typeof adSet.platform === "string"
-            ? adSet.platform
-            : "facebook",
-    });
-    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_nhom", banGhi: req.params.id, hanhDong: "sua", sau: { ngan_sach: amount, loai_ngan_sach: body.budgetType === "lifetime" ? "lifetime" : "daily" }, nguon: "nguoi_dung" });
-    res.json({ success: true, data: result });
-  })
-);
+// Đường sửa ngân sách NHÓM quảng cáo (PATCH /api/ads/ad-sets/:id/budget) đã TẮT 19/10/2026 (phiên kiểm duyệt đề nghị):
+// không màn nào gọi, mà kiểm chủ sở hữu qua GET /v1/ads/ad-sets/{id}?accountId không đủ — accountId chỉ "used to resolve
+// the Meta token" (tài liệu 28755), hai cửa hàng dùng chung một tài khoản Facebook thì lọt. Làm lại cùng TD-13, khi đó so
+// account_id của nhóm với tài khoản quảng cáo của cửa hàng.
 
 adsRouter.post(
   "/campaigns/:id/duplicate",

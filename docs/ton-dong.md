@@ -158,3 +158,6 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
 - Cách làm khi có chiến dịch thật: gọi MỘT lần GET /v1/ads/tree?campaignId=…&accountId=…&adAccountId=… (chỉ đọc, không
   tốn tiền) để xem dạng thật của adSets, rồi dựng danh sách nhóm theo dạng đó; sửa ngân sách nhóm dùng
   PUT /v1/ads/ad-sets/{id} {platform, budget} (28791) — đường /api/ads/ad-sets/:id/budget đã có kiểm chủ sở hữu qua getAdSet.
+- 19/10/2026: đường PATCH /api/ads/ad-sets/:id/budget đã TẮT (không màn nào gọi; kiểm chủ sở hữu qua GET
+  /v1/ads/ad-sets/{id}?accountId không đủ — accountId chỉ để lấy token, tài liệu 28755). Làm lại thì phải so account_id
+  của nhóm quảng cáo với tài khoản quảng cáo của cửa hàng đang chọn.

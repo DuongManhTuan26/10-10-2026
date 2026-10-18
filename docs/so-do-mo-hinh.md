@@ -9,7 +9,7 @@ Bản 19/10/2026. Ghi rõ từng dòng là **đã chốt + đã đạt**, **đã
 HỆ THỐNG
 ├── ADMIN TỔNG — hoangtuan3310tn (một người, hai vai)
 │     ├── Vai 1: QUẢN TRỊ toàn hệ thống — mục "Quản Lý Tài Khoản" (chỉ admin thấy)
-│     │     ├── Tạo / sửa / khoá / xoá tài khoản; MẬT KHẨU DO ADMIN TỰ GÕ ở mọi chỗ tạo / cấp lại (luật 04/10)
+│     │     ├── Tạo / sửa / khoá / xoá tài khoản; admin TỰ GÕ ĐƯỢC mật khẩu ở mọi chỗ tạo / cấp lại (luật 04/10, đạt)
 │     │     │     · Khoá = chặn đăng nhập VÀ AI dừng hẳn mọi việc tự chạy (chốt 18/10 — CHƯA ĐẠT, đang làm mục f)
 │     │     │       Mở khoá: việc tới hạn trong lúc khoá KHÔNG tự bùng ra (chốt 19/10 — CHƯA ĐẠT)
 │     │     │     · Xoá = xem trước → ngắt mọi kênh + xoá mọi hồ sơ của tài khoản bên nhà cung cấp → xoá dữ liệu (đạt)
@@ -72,7 +72,7 @@ CỬA HÀNG
 
 - **Telegram**: MỘT Telegram cho cả tài khoản, mỗi tin ghi rõ tên cửa hàng (chốt 18/10 — phần "ghi tên cửa hàng" CHƯA ĐẠT, A4).
 
-## 5. Luồng người dùng (chốt 17/10, đạt)
+## 5. Luồng người dùng (chốt 17/10 — đạt phần dẫn; còn chữ cũ ở bước 3 và danh sách trống ở bước 4 — CHƯA ĐẠT hẳn)
 
 Tạo cửa hàng mới → đặt tên → tự dẫn xuống bảng "Kết nối kênh cho cửa hàng" → cả bảng sáng viền + mũi tên chỉ xuống →
 chọn tự do bất kỳ mạng nào → nối xong ô đó sáng ✓ → mũi tên vẫn chỉ để nối tiếp → "Xong, không nối thêm" thì tắt →
@@ -88,16 +88,21 @@ mở bộ não của cửa hàng để dạy AI.
   Không có nút "Kết thúc" (chốt 18/10 — chỉ Tạm dừng). Ngân sách tầng nhóm (ABO) chưa sửa được trong app (TD-13).
 - Số theo cửa hàng chỉ tính từ mốc 05/10/2026; mỗi số có nhãn "đã chốt" / "tạm tính".
 
-## 7. Tên gọi (đạt)
+## 7. Tên gọi (đã chốt — CHƯA ĐẠT: còn chữ cũ, sửa khi làm lại từng màn theo phiếu C/D)
 
 Cửa hàng (đơn vị có bộ não) · Kênh (tài khoản mạng xã hội) · Fanpage (Facebook Page). Chữ "Zernio" không bao giờ hiện
 cho khách. Chữ cho khách dùng "Vui lòng", không "Hãy".
+Còn chữ cũ trước mặt khách (phiên kiểm duyệt thấy 19/10): Kết nối kênh bước 3 "Mỗi tài khoản một Fanpage… lập tài khoản
+riêng"; câu báo "chưa gắn Fanpage" khi lưu ở bộ não (trangCuaReq); Quản lý tài khoản "Chưa nối Fanpage nào"; tab trình
+duyệt "BrewManager AI".
 
 ## 8. Chưa chốt — chờ chủ dự án
 
 1. Áp hạn mức số KÊNH theo gói dịch vụ (màn Gói dịch vụ đang bán theo số kênh nhưng chưa áp ở đâu).
 2. Tài khoản mới có sẵn "Cửa hàng đầu tiên" (mã đang làm vậy) hay để trống, người dùng tự tạo.
-3. Mật khẩu: ô để trống thì hệ thống tự sinh (mã đang làm vậy) — có giữ không, hay bắt admin luôn tự gõ.
+3. Mật khẩu: ô để trống thì hệ thống tự sinh (mã đang làm vậy) — có giữ không, hay bắt admin LUÔN tự gõ.
+   Căn cứ hiện có: lời chủ dự án 04/10 "tao là admin tổng, tao thích đổi mật khẩu như nào tao phải biết chứ" (đòi tự gõ
+   ĐƯỢC); bản sửa hôm đó ghi "để trống mới để hệ thống sinh ngẫu nhiên" và chủ dự án chưa phản đối, nhưng cũng chưa nói rõ.
 4. Màn Tổng quan hiện số của CỬA HÀNG đang chọn hay tổng CẢ TÀI KHOẢN.
 5. Số dùng ở Gói dịch vụ (tin AI, đơn, bài) tính theo tài khoản — đúng không.
 6. Hồ sơ nền tảng đang tìm theo TÊN tài khoản lúc cấp → hai tài khoản trùng tên có thể dính chung hộp (bảo mật, để cuối).

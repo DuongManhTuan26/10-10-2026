@@ -1334,12 +1334,6 @@ const DUC: PhepDuc[] = [
     thay: "        AND updated_at IS NOT NULL",
   },
   {
-    ten: "bỏ đối chiếu chủ sở hữu khi đổi ngân sách nhóm quảng cáo",
-    tep: "server/routes/ads.ts",
-    tim: "adSet = await ads.getAdSet({ adSetId: req.params.id, accountId: resolved.accountId });",
-    thay: "adSet = {};",
-  },
-  {
     ten: "bỏ trường platform bắt buộc khi đổi ngân sách nhóm QC",
     tep: "server/services/ads.ts",
     tim: "      platform: params.platform,\n      budget: { amount: params.amount, type: params.budgetType },",

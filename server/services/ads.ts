@@ -278,46 +278,7 @@ export async function updateCampaignBudget(params: {
   });
 }
 
-/**
- * Đọc một nhóm quảng cáo.
- *
- * Có accountId trong truy vấn nên Zernio tự ràng buộc theo tài khoản của shop:
- * đây là cách duy nhất đối chiếu được "nhóm này có thuộc về shop đang đăng nhập
- * không" trước khi đổi ngân sách. Bản PUT không nhận accountId, mà khoá API là
- * khoá dùng chung của cả nền tảng — nên nếu không tự đối chiếu thì không có gì
- * ngăn shop này sửa ngân sách của shop khác.
- */
-export async function getAdSet(params: {
-  adSetId: string;
-  accountId: string;
-}): Promise<Record<string, unknown>> {
-  const data = await request<Record<string, unknown>>(
-    `/ads/ad-sets/${encodeURIComponent(params.adSetId)}`,
-    { query: { accountId: params.accountId } }
-  );
-  return (data.adSet as Record<string, unknown>) ?? data;
-}
 
-/** Sửa ngân sách ở tầng nhóm quảng cáo (chiến dịch dùng ABO). */
-export async function updateAdSetBudget(params: {
-  adSetId: string;
-  amount: number;
-  budgetType: "daily" | "lifetime";
-  /**
-   * BẮT BUỘC theo đặc tả Zernio. Tài liệu ghi thẳng lý do: "platform campaign
-   * IDs are not globally unique". Bản trước không gửi trường này nên lời gọi
-   * không bao giờ thành công.
-   */
-  platform: string;
-}): Promise<unknown> {
-  return request(`/ads/ad-sets/${encodeURIComponent(params.adSetId)}`, {
-    method: "PUT",
-    body: {
-      platform: params.platform,
-      budget: { amount: params.amount, type: params.budgetType },
-    },
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Số liệu

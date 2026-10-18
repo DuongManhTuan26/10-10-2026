@@ -396,7 +396,6 @@ function hamCoTruong(nguon: string, ten: string, truong: string): boolean {
 }
 for (const [ham, truong] of [
   ["updateCampaignBudget", "platform"],
-  ["updateAdSetBudget", "platform"],
   ["updateAudience", "accountId"],
 ] as const) {
   kiem("quảng cáo", `${ham} gửi kèm ${truong}`, hamCoTruong(nguonAdsSv, ham, truong), true);
@@ -406,8 +405,9 @@ kiem("quảng cáo", "đổi trạng thái / nhân bản / ngân sách / xem chi
   [(nguonAdsRt.match(/if \(!\(await ads\.chienDichThuocTaiKhoan\(\{ campaignId: req\.params\.id, accountId: resolved\.accountId, adAccountId: resolved\.adAccountId \}\)\)\) \{/g) ?? []).length,
     /query: \{ campaignId: p\.campaignId, accountId: p\.accountId, adAccountId: p\.adAccountId, limit: 1 \}/.test(nguonAdsSv)],
   [4, true]);
-kiem("quảng cáo", "đổi ngân sách nhóm QC phải đọc kiểm chủ sở hữu trước",
-  /getAdSet\(\{ adSetId: req\.params\.id, accountId: resolved\.accountId \}\)/.test(nguonAdsRt), true);
+// 19/10/2026: đường sửa ngân sách NHÓM quảng cáo đã TẮT (kiểm chủ sở hữu qua accountId không đủ — TD-13).
+kiem("quảng cáo", "đường sửa ngân sách nhóm QC đã tắt cho tới khi làm TD-13",
+  [/"\/ad-sets\/:id\/budget"/.test(nguonAdsRt), /export async function (getAdSet|updateAdSetBudget)\(/.test(nguonAdsSv)], [false, false]);
 kiem("quảng cáo", "mọi route quảng cáo đều xác định tài khoản của shop",
   (nguonAdsRt.match(/resolveAdAccount\(req\.user!\.id\)/g) ?? []).length >= 8, true);
 
@@ -5495,9 +5495,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       const traLoi = adsR.indexOf("res.", i);
       return i > 0 && ghi > i && ghi < traLoi;
     };
-    kiem("sổ thay đổi", "đủ 7 chỗ đổi quảng cáo đều ghi sổ SAU khi API thành công, trước khi trả lời",
-      ["ads.doiTrangThaiChienDich(", "ads.updateCampaignBudget(", "ads.updateAdSetBudget(", "ads.nhanBanChienDich(", "ads.boostPost(", "ads.createAudience(", "ads.updateAudience("].map(sauGoi),
-      [true, true, true, true, true, true, true]);
+    kiem("sổ thay đổi", "đủ 6 chỗ đổi quảng cáo đều ghi sổ SAU khi API thành công, trước khi trả lời",
+      ["ads.doiTrangThaiChienDich(", "ads.updateCampaignBudget(", "ads.nhanBanChienDich(", "ads.boostPost(", "ads.createAudience(", "ads.updateAudience("].map(sauGoi),
+      [true, true, true, true, true, true]);
     kiem("sổ thay đổi", "hệ thống tự ngắt AI ghi nguồn 'hệ thống' trong cùng giao dịch với lần ghi",
       /await transaction\(async \(c\) => \{\s+await coNguon\(c, "he_thong"\);\s+await c\.query\(\s+`UPDATE social_accounts\s+SET ai_paused_until = \$2/.test(gr), true);
   }
