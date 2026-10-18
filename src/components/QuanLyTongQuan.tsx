@@ -27,14 +27,19 @@ import { DongLuot } from './NhatKyChiPhi';
 
 /** Các loại tiền, đúng thứ tự hiện. Tiền AI theo nhóm việc của sổ AI; "kenh" = tiền hoá đơn kết nối kênh tính cho từng kênh. */
 export const LOAI_TIEN = [
-  { id: 'ban_hang', ten: 'Chatbot bán hàng', mau: '#22d3ee' },
-  { id: 'marketing', ten: 'Marketing', mau: '#f472b6' },
-  { id: 'phan_tich', ten: 'Phân tích', mau: '#818cf8' },
-  { id: 'anh', ten: 'Tạo ảnh', mau: '#facc15' },
-  { id: 'video', ten: 'Tạo video', mau: '#c084fc' },
-  { id: 'day_ai', ten: 'Dạy AI', mau: '#2dd4bf' },
+  /*
+   * Màu theo MIỀN của AI làm ra khoản tiền (quy tắc xanh–đỏ–tím–vàng, 12/10/2026): bán hàng tím ③ · viết bài / ảnh / video
+   * thuộc ① Nội dung (các sắc xanh lá) · phân tích thuộc ④ Điều hành (vàng) · dạy AI lam (thông tin) · kênh + chưa phân
+   * loại xám.
+   */
+  { id: 'ban_hang', ten: 'Chatbot bán hàng', mau: '#b38bff' },
+  { id: 'marketing', ten: 'Viết bài', mau: '#4ade80' },
+  { id: 'phan_tich', ten: 'Phân tích', mau: '#facc15' },
+  { id: 'anh', ten: 'Tạo ảnh', mau: '#86efac' },
+  { id: 'video', ten: 'Tạo video', mau: '#16a34a' },
+  { id: 'day_ai', ten: 'Dạy AI', mau: '#60a5fa' },
   { id: 'chua_phan_loai', ten: 'Chưa phân loại', mau: '#64748b' },
-  { id: 'kenh', ten: 'Kết nối kênh', mau: '#60a5fa' },
+  { id: 'kenh', ten: 'Kết nối kênh', mau: '#94a3b8' },
 ] as const;
 export type LoaiTien = (typeof LOAI_TIEN)[number]['id'];
 export type TienTheoLoai = Partial<Record<LoaiTien, number>>;
@@ -51,21 +56,21 @@ export const tong = (t: TienTheoLoai) => Object.values(t).reduce((s, v) => s + (
 const tienAi = (t: TienTheoLoai) => tong(t) - (t.kenh ?? 0);
 export { tienAi };
 
-/** Nhóm gốc của cây: một chuỗi (admin con + các tài khoản của nó) hoặc một tài khoản đứng riêng. */
+/**
+ * Nhóm gốc của cây = MỘT tài khoản. Tầng chủ chuỗi đã bỏ (chủ dự án 18/10/2026): mọi tài khoản đứng ngang hàng, mỗi
+ * tài khoản giữ nhiều cửa hàng. `con` luôn rỗng — giữ trường để các phép cộng tiền dùng chung không phải viết lại.
+ */
 export interface NhomGoc {
   so: number;
   goc: TaiKhoanTongQuan;
   con: TaiKhoanTongQuan[];
 }
 
-/** Dựng cây Chuỗi → Tài khoản → Trang, đánh số 1, 1.1, 1.1.1. Mình đứng đầu, rồi các chuỗi, rồi tài khoản đứng riêng. */
+/** Dựng cây Tài khoản → Cửa hàng, đánh số 1, 1.1. Mình đứng đầu, rồi các tài khoản khác. */
 export function gomCay(du: TongQuanQuanLy): NhomGoc[] {
-  const ids = new Set(du.taiKhoan.map((t) => t.id));
-  const thuTu = (t: TaiKhoanTongQuan) => (t.laToi ? 0 : t.role === 'admin_con' ? 1 : 2);
-  return du.taiKhoan
-    .filter((t) => t.parentId === null || !ids.has(t.parentId))
-    .sort((a, b) => thuTu(a) - thuTu(b))
-    .map((goc, i) => ({ so: i + 1, goc, con: du.taiKhoan.filter((c) => c.parentId === goc.id) }));
+  return [...du.taiKhoan]
+    .sort((a, b) => Number(b.laToi) - Number(a.laToi))
+    .map((goc, i) => ({ so: i + 1, goc, con: [] }));
 }
 export const tienNhom = (g: NhomGoc) => [g.goc, ...g.con].reduce((a, tk) => congVao(a, tienTaiKhoan(tk)), {} as TienTheoLoai);
 export const trangCuaNhom = (g: NhomGoc) => [g.goc, ...g.con].flatMap((tk) => tk.trang);
@@ -238,7 +243,7 @@ export function TongQuanTaiSan({
       {/* Số chính */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         <OSo nhan="Tài khoản hoạt động" so={`${du.tong.taiKhoanHoatDong}/${du.tong.taiKhoan}`} phu="đang mở / tổng số" />
-        <OSo nhan="Trang hoạt động" so={`${du.tong.trangHoatDong}/${du.tong.trang}`} phu="có kênh đang nối / tổng số" />
+        <OSo nhan="Cửa hàng hoạt động" so={`${du.tong.trangHoatDong}/${du.tong.trang}`} phu="có kênh đang nối / tổng số" />
         <OSo
           nhan="Tiền AI"
           chot={<NhanChot chot={du.chot.ai} giai={GIAI_CHOT.ai} />}
@@ -280,7 +285,7 @@ export function TongQuanTaiSan({
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <BieuDo tieuDe="Số trang theo tài khoản" phu="Xanh: trang có kênh đang nối · Xám: chưa nối kênh">
+        <BieuDo tieuDe="Số cửa hàng theo tài khoản" phu="Xanh: cửa hàng có kênh đang nối · Xám: chưa nối kênh">
           {nhomTien.map(({ g, trang }) => {
             const hd = trang.filter((t) => t.hoatDong).length;
             return (
@@ -307,9 +312,9 @@ export function TongQuanTaiSan({
         </BieuDo>
       </div>
 
-      <BieuDo tieuDe="Tiền theo trang" phu="Từng trang, nhiều tiền nhất ở trên — số đánh theo cây ở phần Chi tiết">
+      <BieuDo tieuDe="Tiền theo cửa hàng" phu="Từng cửa hàng, nhiều tiền nhất ở trên — số đánh theo cây ở phần Chi tiết">
         {dsTrang.length === 0 ? (
-          <p className="text-sm text-on-surface-variant">Chưa có trang nào.</p>
+          <p className="text-sm text-on-surface-variant">Chưa có cửa hàng nào.</p>
         ) : (
           dsTrang.map(({ so, t, tien }) => (
             <DongBieuDo key={t.id} nhan={`${so} ${t.ten}`} so={<span className={mauChi(tong(tien))}>{chi(tong(tien))}</span>}>
@@ -324,9 +329,9 @@ export function TongQuanTaiSan({
       {(() => {
         const khongTrang = du.taiKhoan.reduce((s, t) => s + t.tienAiKhongTrang.tongUsd, 0);
         const dong = [
-          khongTrang > 1e-9 && `Tiền AI không thuộc trang nào (tài khoản quản lý chuỗi tự dùng — không có trang): ${chi(khongTrang)}`,
+          khongTrang > 1e-9 && `Tiền AI không thuộc cửa hàng nào (lượt cũ trước khi tính theo cửa hàng): ${chi(khongTrang)}`,
           du.tong.tienAiTaiKhoanDaXoaUsd > 1e-9 && `Tiền AI của tài khoản đã xoá: ${chi(du.tong.tienAiTaiKhoanDaXoaUsd)}`,
-          kenhOk && kenhOk.khongGanUsd > 1e-9 && `Tiền kết nối kênh không gắn được trang (kênh đã gỡ, phí chung): ${chi(kenhOk.khongGanUsd)}`,
+          kenhOk && kenhOk.khongGanUsd > 1e-9 && `Tiền kết nối kênh không gắn được cửa hàng (kênh đã gỡ, phí chung): ${chi(kenhOk.khongGanUsd)}`,
         ].filter(Boolean) as string[];
         return dong.length > 0 ? (
           <div className="rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-sm text-on-surface-variant space-y-1">
@@ -416,7 +421,7 @@ export function BaoCaoMotTrang({ t, ky, chot }: { t: TrangTongQuan; ky: KyTongQu
         <div>
           <TieuDe chu="Quảng cáo" nhan={t.coFanpage ? <NhanChot chot={chot.quangCao} giai={GIAI_CHOT.quangCao} /> : undefined} />
           <div className="divide-y divide-outline-variant/60 text-sm">
-            {!t.coFanpage && <p className="py-1.5 text-on-surface-variant">Trang chưa nối Fanpage — không có quảng cáo để tính.</p>}
+            {!t.coFanpage && <p className="py-1.5 text-on-surface-variant">Cửa hàng chưa nối Fanpage — không có quảng cáo để tính.</p>}
             {t.coFanpage && t.quangCao.length === 0 && <p className="py-1.5 text-on-surface-variant">Fanpage chưa có tài khoản quảng cáo nào.</p>}
             {t.quangCao.map((q) => (
               <div key={q.ten} className="py-1.5">
@@ -443,7 +448,7 @@ export function BaoCaoMotTrang({ t, ky, chot }: { t: TrangTongQuan; ky: KyTongQu
             <span className="text-on-surface">{t.donHang.so.toLocaleString('vi-VN')} đơn trong kỳ</span>
             <span className="tabular-nums text-on-surface font-bold">{t.donHang.doanhThu.toLocaleString('vi-VN')} ₫</span>
           </div>
-          <p className="text-[11px] text-on-surface-variant">Doanh thu không tính đơn đã huỷ. Mỗi đơn gắn trang ngay lúc tạo (kênh khách nhắn tới).</p>
+          <p className="text-[11px] text-on-surface-variant">Doanh thu không tính đơn đã huỷ. Mỗi đơn gắn cửa hàng ngay lúc tạo (kênh khách nhắn tới).</p>
         </div>
       </div>
 

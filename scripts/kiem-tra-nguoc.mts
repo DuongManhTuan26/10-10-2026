@@ -34,6 +34,27 @@ const DU_AN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
  * đục và kiểm ở đó, xong thì xoá. Mã thật không bao giờ bị đụng tới.
  */
 const BO_QUA = new Set(["node_modules", "dist", ".git", "tam", "backup"]);
+/*
+ * KHOÁ MỘT LƯỢT (17/10/2026): hai lượt chạy song song thì lượt sau dọn mất bản sao của lượt trước (đoạn dọn ngay dưới)
+ * → lượt trước chết giữa chừng (ENOENT ở lỗ thứ 636). Chủ dự án đã cấm chạy song song — nay máy tự chặn: còn một lượt
+ * đang sống (tiến trình ghi trong tệp khoá còn chạy) thì từ chối ngay, không dọn gì.
+ */
+const KHOA = path.join(os.tmpdir(), "kiem-tra-nguoc.khoa");
+try {
+  const pidCu = Number(fs.readFileSync(KHOA, "utf8"));
+  if (pidCu && pidCu !== process.pid) {
+    try {
+      process.kill(pidCu, 0);
+      console.error(`Đang có một lượt kiểm tra ngược khác chạy (tiến trình ${pidCu}). Chờ nó xong — KHÔNG chạy song song.`);
+      process.exit(2);
+    } catch { /* tiến trình cũ đã chết: khoá bỏ lại, chạy tiếp */ }
+  }
+} catch { /* chưa có khoá */ }
+fs.writeFileSync(KHOA, String(process.pid));
+process.on("exit", () => {
+  try { if (fs.readFileSync(KHOA, "utf8") === String(process.pid)) fs.rmSync(KHOA); } catch { /* đã gỡ */ }
+});
+
 // Dọn bản sao của lần chạy trước bị dừng ngang (tín hiệu dừng không tới kịp phần dọn).
 for (const ten of fs.readdirSync(os.tmpdir())) {
   if (ten.startsWith("kiem-tra-nguoc-")) fs.rmSync(path.join(os.tmpdir(), ten), { recursive: true, force: true });
@@ -286,15 +307,17 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "bong bóng Telegram lại xanh lam xám",
+    // Bố cục Telegram 11/10/2026: bong bóng tin mẫu là khối bg-noi (không còn đuôi w-4 h-4).
     tep: "src/pages/TelegramAlerts.tsx",
-    tim: "w-4 h-4 bg-noi border-l border-t border-outline-variant",
-    thay: "w-4 h-4 bg-[#18222d] border-l border-t border-outline-variant",
+    tim: "<div className=\"bg-noi border border-outline-variant rounded-2xl rounded-tl-sm p-4",
+    thay: "<div className=\"bg-[#18222d] border border-outline-variant rounded-2xl rounded-tl-sm p-4",
   },
   {
     ten: "tiêu đề bị nhân đôi chữ",
+    // Lưới cổng kết nối đổi tên "Kết nối kênh cho cửa hàng" (17/10/2026) — đục tiêu đề lưới.
     tep: "src/pages/Connections.tsx",
-    tim: ">Bạn muốn kết nối nền tảng nào?<",
-    thay: ">Bạn muốn kết nối nền tảng nào?Bạn muốn kết nối nền tảng nào?<",
+    tim: "<h3 className=\"tieu-de-muc\">Kết nối kênh cho cửa hàng</h3>",
+    thay: "<h3 className=\"tieu-de-muc\">Kết nối kênh cho cửa hàngKết nối kênh cho cửa hàng</h3>",
   },
   {
     ten: "công tắc bị ép co, đè lên chữ",
@@ -1185,12 +1208,6 @@ const DUC: PhepDuc[] = [
     thay: "c.id = s.mo_boi",
   },
   {
-    ten: "phiên xem thay không kiểm quan hệ cha con",
-    tep: "server/auth.ts",
-    tim: "AND u.parent_id = c.id))",
-    thay: "))",
-  },
-  {
     ten: "cấp lại mật khẩu bỏ sót phiên xem thay",
     tep: "server/routes/admin.ts",
     tim: /(\/\/ mở vào các trang con[^\n]*\n    await query\("DELETE FROM sessions WHERE user_id = \$1) OR mo_boi = \$1/,
@@ -1414,9 +1431,10 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "thôi hiển thị số đơn chốt được trong tháng",
+    // Nhãn đổi 12/10/2026: "ĐƠN CHỐT ĐƯỢC" → "ĐƠN HÀNG" (số đếm mọi đơn).
     tep: "src/pages/Pricing.tsx",
-    tim: "{ nhan: 'ĐƠN CHỐT ĐƯỢC', so: usage.orders_month },",
-    thay: "{ nhan: 'ĐƠN CHỐT ĐƯỢC', so: 0 },",
+    tim: "{ nhan: '\u0110\u01a0N H\u00c0NG', so: usage.orders_month },",
+    thay: "{ nhan: '\u0110\u01a0N H\u00c0NG', so: 0 },",
   },
   {
     ten: "trả express.static về phục vụ cả thư mục dist",
@@ -1655,7 +1673,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "gỡ bài mà không hỏi trước",
     tep: "src/pages/Content.tsx",
-    tim: "          'Bài sẽ biến mất khỏi trang, mất hết lượt thích và bình luận đã có. ' +",
+    tim: "          'Bài sẽ biến mất khỏi kênh, mất hết lượt thích và bình luận đã có. ' +",
     thay: "          'Gỡ nhé. ' +",
   },
   {
@@ -2039,7 +2057,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "hứa lại hạn mức theo gói mà máy chủ không giữ",
     tep: "src/pages/Connections.tsx",
-    tim: "Muốn thêm trang nữa thì kết nối thêm một lượt",
+    tim: "Mỗi tài khoản một Fanpage — muốn chạy thêm Fanpage thì lập tài khoản riêng ở mục Quản lý tài khoản",
     thay: "Gói của bạn đã hết lượt",
   },
   /*
@@ -2084,8 +2102,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "bịa lại con số đơn chốt từ quảng cáo",
     tep: "src/pages/Ads.tsx",
-    tim: "Chưa đo được",
-    thay: "47",
+    // Đục đúng chữ HIỆN trên màn hình — chữ "Chưa đo được" đầu tiên trong tệp nằm ở chú thích (bộ kiểm bỏ chú thích).
+    tim: '<span className="text-xl font-bold text-on-surface-variant">Chưa đo được</span>',
+    thay: '<span className="text-xl font-bold text-on-surface-variant">47</span>',
   },
   {
     ten: "bỏ ON DELETE CASCADE ở một bảng, để rác lại sau khi xoá tài khoản",
@@ -2204,8 +2223,158 @@ const DUC: PhepDuc[] = [
   {
     ten: "trả lại chữ bịa 'Trang Fanpage B'",
     tep: "src/pages/Connections.tsx",
-    tim: "{ketNoiSapHetHan.length === 1",
-    thay: "{false ? 'Trang Fanpage B sẽ hết hạn sau 5 ngày' : ketNoiSapHetHan.length === 1",
+    tim: "{trangChuaCoKenh.length === 1 ? ` — ${trangChuaCoKenh[0].ten}` : ''}",
+    thay: "{trangChuaCoKenh.length === 1 ? ' — Trang Fanpage B' : ''}",
+  },
+  {
+    ten: "trả lại cảnh báo 'sắp hết hạn' giả suy từ hạn mã nội bộ",
+    tep: "src/components/BangTrangBanHang.tsx",
+    tim: "n.kenh.length === 0 ? 'chua-noi' : n.kenh.some(kenhHong) ? 'su-co' : 'on';",
+    thay: "n.kenh.length === 0 ? 'chua-noi' : n.kenh.some((k) => kenhHong(k) || !!k.token_expires_at) ? 'su-co' : 'on';",
+  },
+  {
+    ten: "đặt tên được trang của tài khoản khác",
+    tep: "server/routes/connections.ts",
+    tim: "UPDATE trang SET ten = $1, updated_at = now() WHERE id = $2 AND user_id = $3 RETURNING id",
+    thay: "UPDATE trang SET ten = $1, updated_at = now() WHERE id = $2 AND $3::int IS NOT NULL RETURNING id",
+  },
+  {
+    ten: "chuyển kênh không chốt sổ ngày trước — ngày chuyển tính nhầm cho cửa hàng mới",
+    tep: "server/routes/connections.ts",
+    tim: "    await ghiKenhTheoNgay();\n    if (kenh.profile_ref !== dich.profile_ref) await zernio.chuyenKenhSangHoSo",
+    thay: "    if (kenh.profile_ref !== dich.profile_ref) await zernio.chuyenKenhSangHoSo",
+  },
+  {
+    ten: "chuyển kênh vào cửa hàng đã có cùng nền tảng (nhà cung cấp thay tài khoản cũ, xoá hội thoại)",
+    tep: "server/routes/connections.ts",
+    tim: "    if (dich.da_co) {",
+    thay: "    if (false && dich.da_co) {",
+  },
+  {
+    ten: "một hộp bị chia làm hai cửa hàng (đồng bộ lại khoá cửa hàng theo Fanpage)",
+    tep: "server/services/trang.ts",
+    tim: "  if (sanCo) return sanCo.user_id === userId ? sanCo.id : null;",
+    thay: "  if (sanCo && !pageId) return sanCo.user_id === userId ? sanCo.id : null;",
+  },
+  {
+    ten: "xoá trang làm hồ sơ chứa kênh rơi khỏi đồng bộ (kênh bị báo mất kết nối giả)",
+    tep: "server/services/trang.ts",
+    tim: "     SELECT DISTINCT profile_ref FROM social_accounts WHERE user_id = $1 AND profile_ref IS NOT NULL AND profile_ref NOT LIKE 'cho-cap-%'",
+    thay: "     SELECT profile_ref FROM trang WHERE false",
+  },
+  {
+    ten: "nối kênh không bắt chọn cửa hàng — kênh rơi vào hồ sơ mặc định",
+    tep: "server/routes/connections.ts",
+    tim: "    const canChonTrang = !adChannels.some((c) => c.id === channel.id);",
+    thay: "    const canChonTrang = false;",
+  },
+  {
+    ten: "nối kênh vào cửa hàng đã có cùng nền tảng (mất hội thoại kênh cũ)",
+    tep: "server/services/trang.ts",
+    tim: "  if (t.da_co) {",
+    thay: "  if (false && t.da_co) {",
+  },
+  {
+    ten: "nối kênh vào cửa hàng cũ dùng chung hộp (kênh rơi sang cửa hàng khác)",
+    tep: "server/services/trang.ts",
+    tim: "  if (!t.hop_rieng) {",
+    thay: "  if (false && !t.hop_rieng) {",
+  },
+  {
+    ten: "nối kênh vào cửa hàng của tài khoản khác",
+    tep: "server/services/trang.ts",
+    tim: "       FROM trang t WHERE t.id = $2 AND t.user_id = $1`,\n    [userId, trangId, platform]",
+    thay: "       FROM trang t WHERE t.id = $2 AND $1::int IS NOT NULL`,\n    [userId, trangId, platform]",
+  },
+  {
+    ten: "phiên chọn Fanpage nhận cả hồ sơ của người khác",
+    tep: "server/routes/connections.ts",
+    tim: "    if ((await chuCuaHoSo(pending.profile_id)) !== req.user!.id) {\n      throw new AppError(\"Phiên cấp quyền không thuộc về tài khoản này\", 403);\n    }\n\n    /*\n     * Một tài khoản một Fanpage.",
+    thay: "    if (false) {\n      throw new AppError(\"Phiên cấp quyền không thuộc về tài khoản này\", 403);\n    }\n\n    /*\n     * Một tài khoản một Fanpage.",
+  },
+  {
+    ten: "bảng trang & kênh ẩn trang chưa có kênh",
+    tep: "src/pages/Connections.tsx",
+    tim: "          tatCaTrang={dsTrangToi}\n",
+    thay: "",
+  },
+  {
+    ten: "hộp nối kênh tự chọn cửa hàng đầu tiên (đoán thay chủ shop)",
+    tep: "src/pages/Connections.tsx",
+    tim: "      setTrangChonNoi(trangId ?? cuaHangNoi);",
+    thay: "      setTrangChonNoi(trangId ?? cuaHangNoi ?? dsTrangToi[0]?.id ?? null);",
+  },
+  {
+    ten: "hướng dẫn Telegram ghi lại tên nhà cung cấp",
+    tep: "server/platforms.ts",
+    tim: "{ icon: 'key', name: 'Mã kết nối', desc:",
+    thay: "{ icon: 'key', name: 'Zernio Bot', desc:",
+  },
+  {
+    ten: "Telegram quay lại luồng đăng nhập thường (luôn hỏng)",
+    tep: "server/platforms.ts",
+    tim: "icon: 'send', connectionType: 'access_code',",
+    thay: "icon: 'send', connectionType: 'oauth_simple',",
+  },
+  {
+    ten: "dò trạng thái mã Telegram của người khác",
+    tep: "server/routes/connections.ts",
+    tim: "if (!ma || ma.userId !== req.user!.id) throw new AppError",
+    thay: "if (!ma) throw new AppError",
+  },
+  {
+    ten: "dựng biểu mẫu đăng nhập cho nền tảng chưa nối được",
+    tep: "src/pages/Connections.tsx",
+    tim: "{connectStep === 2 && selectedPlatform?.connectable && (selectedPlatform.connectionType === 'oauth_simple'",
+    thay: "{connectStep === 2 && selectedPlatform && (selectedPlatform.connectionType === 'oauth_simple'",
+  },
+  {
+    ten: "xoá được trang còn kênh (mất bộ não đang chạy)",
+    tep: "server/routes/connections.ts",
+    tim: "    if (t.so_kenh > 0) throw new AppError",
+    thay: "    if (false && t.so_kenh > 0) throw new AppError",
+  },
+  {
+    ten: "xoá được trang của tài khoản khác",
+    tep: "server/routes/connections.ts",
+    tim: 'await query("DELETE FROM trang WHERE id = $1 AND user_id = $2", [t.id, userId]);',
+    thay: 'await query("DELETE FROM trang WHERE id = $1 AND $2::int IS NOT NULL", [t.id, userId]);',
+  },
+  {
+    ten: "trả lại đường 'Đổi Fanpage' (một hộp lại bị chia làm hai cửa hàng)",
+    tep: "server/routes/connections.ts",
+    tim: "/*\n * \"ĐỔI FANPAGE\" ĐÃ BỎ",
+    thay: "connectionsRouter.put(\"/accounts/:id/page\", route(async (_q, r) => { r.json({}); }));\n/*\n * \"ĐỔI FANPAGE\" ĐÃ BỎ",
+  },
+  {
+    ten: "ô số trang bán hàng chỉ đếm trang có kênh (lệch với bảng)",
+    tep: "src/pages/Connections.tsx",
+    tim: "{ nhan: 'Cửa hàng', so: dsTrangToi.length,",
+    thay: "{ nhan: 'Cửa hàng', so: trangs.length,",
+  },
+  {
+    ten: "nối lại vào hồ sơ khác — đẻ thêm tài khoản thứ hai",
+    tep: "server/routes/connections.ts",
+    tim: "    let profileId = noiLai ?? hoSoMacDinh;",
+    thay: "    let profileId = hoSoMacDinh;",
+  },
+  {
+    ten: "coi dòng chờ của /connect-url là phiên chọn Fanpage (báo lỗi giả sau khi nối thẳng)",
+    tep: "server/routes/connections.ts",
+    tim: "        WHERE user_id = $1 AND expires_at > now() AND temp_token IS NOT NULL`,\n      [req.user!.id]\n    );\n\n    if (!pending) {",
+    thay: "        WHERE user_id = $1 AND expires_at > now()`,\n      [req.user!.id]\n    );\n\n    if (!pending) {",
+  },
+  {
+    ten: "tải danh sách xoá mất câu báo lỗi lúc quay về",
+    tep: "src/pages/Connections.tsx",
+    tim: "      setErrorMessage((cu) => (cu && cu === loiTaiRef.current ? '' : cu));",
+    thay: "      setErrorMessage('');",
+  },
+  {
+    ten: "bảng trang & kênh hiện cả nút lọc số 0",
+    tep: "src/components/BangTrangBanHang.tsx",
+    tim: ".filter(([ma, , so]) => so > 0 || loc === ma);",
+    thay: ".filter(([ma]) => ma.length > 0 || loc === ma);",
   },
   {
     ten: "đăng ký webhook ghi đè cả bí mật ký, làm hỏng xác thực chữ ký",
@@ -2348,8 +2517,9 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "màn hình bán hàng không nói đang dạy cho Trang nào",
+    // Trong khuôn 4 thẻ tên trang ở thanh trên; ngoài khuôn vẫn phải có dải trang đang dạy.
     tep: "src/pages/AutoScripts.tsx",
-    tim: "      <TrangDangHuanLuyen />",
+    tim: "      {!trongKhuon && <TrangDangHuanLuyen />}",
     thay: "",
   },
   {
@@ -2369,7 +2539,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "đồng bộ ghi đè tên Trang chủ shop đã tự đặt",
     tep: "server/services/trang.ts",
-    tim: "               WHEN trang.ten IN ('Trang đầu tiên', 'Trang chưa đặt tên')",
+    tim: "               WHEN trang.ten IN ('Trang đầu tiên', 'Trang chưa đặt tên', 'Cửa hàng đầu tiên', 'Cửa hàng chưa đặt tên')",
     thay: "               WHEN TRUE",
   },
   {
@@ -2397,10 +2567,10 @@ const DUC: PhepDuc[] = [
     thay: "  const ma = (meta as { availablePages?: unknown }).availablePages;",
   },
   {
-    ten: "Instagram, TikTok bị đẻ Trang riêng với bộ não trống",
+    ten: "kênh của một hồ sơ bị đẻ cửa hàng riêng với bộ não trống",
     tep: "server/services/trang.ts",
-    tim: "  if (!pageId) {",
-    thay: "  if (false) {",
+    tim: "  if (sanCo) return sanCo.user_id === userId ? sanCo.id : null;",
+    thay: "  if (false && sanCo) return sanCo.user_id === userId ? sanCo.id : null;",
   },
   {
     ten: "giữ khoá cũ, một hồ sơ không thêm được Fanpage thứ hai",
@@ -2409,18 +2579,6 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   // --- Phân tầng tài khoản: chỗ nguy hiểm nhất trong hệ thống ---
-  {
-    ten: "chặn cả router, người đang xem thay mắc kẹt không quay ra được",
-    tep: "server/routes/quan-ly.ts",
-    tim: 'quanLyRouter.use("/trang", (req, _res, next) => {',
-    thay: "quanLyRouter.use((req, _res, next) => {",
-  },
-  {
-    ten: "bỏ điều kiện chủ sở hữu, với sang trang của chuỗi khác",
-    tep: "server/routes/quan-ly.ts",
-    tim: "       FROM users WHERE id = $1 AND parent_id = $2`,\n    [so, chaId]",
-    thay: "       FROM users WHERE id = $1`,\n    [so]",
-  },
   {
     ten: "hiện tên Fanpage cả khi kênh đã đứt, chọi với chính cảnh báo bên cạnh",
     tep: "server/services/quan-ly-chung.ts",
@@ -2497,19 +2655,6 @@ const DUC: PhepDuc[] = [
     tep: "server/routes/ads.ts",
     tim: "    if (!vaoDuoc.some((a) => a.id === ma)) {",
     thay: "    if (false) {",
-  },
-  {
-    // Chính ngõ cụt đã tìm ra: máy chủ bảo đi sửa ở nhóm, giao diện không có chỗ.
-    ten: "ngân sách theo nhóm quảng cáo lại thành ngõ cụt",
-    tep: "src/pages/Ads.tsx",
-    tim: "        await moNhomQuangCao(campaignId, amount);",
-    thay: "",
-  },
-  {
-    ten: "bỏ đường liệt kê nhóm quảng cáo",
-    tep: "server/routes/ads.ts",
-    tim: '    const adSets = await ads.listAdSets({',
-    thay: "    const adSets = [] as never[]; void ads.listAdSets; void ({",
   },
   // --- Bước 6: đục vào chính sáu phép đếm nguyên tắc ---
   {
@@ -2600,29 +2745,6 @@ const DUC: PhepDuc[] = [
     thay: "  if (!b) return 100;",
   },
   {
-    ten: "đổi tên đăng nhập cho đổi cả đuôi, ra được tên giống email thật",
-    tep: "server/routes/quan-ly.ts",
-    tim: "    const moi = `${goc}@${TEN_MIEN_NOI_BO}`;",
-    thay: "    const moi = String(req.body?.ten ?? '');",
-  },
-  {
-    /*
-     * Neo vào chú thích ngay trên, vì câu xoá phiên giống hệt nhau ở nhiều
-     * route. Phép đục cũ chỉ sửa câu UPDATE mà để nguyên câu xoá phiên — đục
-     * mà không thủng đúng thứ định thử.
-     */
-    ten: "đổi tên đăng nhập mà để phiên cũ sống tiếp",
-    tep: "server/routes/quan-ly.ts",
-    tim: "     * tưởng đã đổi xong.\n     */\n    await query(\"DELETE FROM sessions WHERE user_id = $1\", [trang.id]);",
-    thay: "     * tưởng đã đổi xong.\n     */",
-  },
-  {
-    ten: "chủ chuỗi không tự đặt được mật khẩu, luôn bị ép chuỗi ngẫu nhiên",
-    tep: "server/routes/quan-ly.ts",
-    tim: "    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);\n",
-    thay: "    const matKhauTam = sinhMatKhauTam();\n",
-  },
-  {
     ten: "quản trị tổng cấp lại mật khẩu mà không được tự đặt (lỗi lặp lại 04/10/2026)",
     tep: "server/routes/admin.ts",
     tim: "    // Quản trị tự đặt mật khẩu mới; bỏ trống thì hệ thống sinh (docMatKhauTuDat).\n    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);",
@@ -2632,18 +2754,6 @@ const DUC: PhepDuc[] = [
     ten: "quản trị tổng tạo tài khoản mà không được tự đặt mật khẩu",
     tep: "server/routes/admin.ts",
     tim: "    // Quản trị tự đặt mật khẩu; bỏ trống thì hệ thống sinh (docMatKhauTuDat).\n    const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);",
-    thay: "    const matKhauTam = sinhMatKhauTam();",
-  },
-  {
-    ten: "lập trang mới bỏ qua mật khẩu tự đặt",
-    tep: "server/routes/quan-ly.ts",
-    tim: "tenTrang: ten, matKhau: docMatKhauTuDat(req.body).matKhau })",
-    thay: "tenTrang: ten })",
-  },
-  {
-    ten: "lập trang nhận mật khẩu tự đặt nhưng vẫn sinh ngẫu nhiên",
-    tep: "server/services/tai-khoan.ts",
-    tim: "    const matKhauTam = params.matKhau || sinhMatKhauTam();",
     thay: "    const matKhauTam = sinhMatKhauTam();",
   },
   {
@@ -2657,18 +2767,6 @@ const DUC: PhepDuc[] = [
     tep: "src/pages/QuanLy.tsx",
     tim: "api.admin.resetPassword(tk.id, mk || undefined)",
     thay: "api.admin.resetPassword(tk.id)",
-  },
-  {
-    ten: "tạo tài khoản không gửi mật khẩu đã gõ",
-    tep: "src/pages/QuanLy.tsx",
-    tim: "role: vaiTroMoi, matKhau: mk || undefined })",
-    thay: "role: vaiTroMoi })",
-  },
-  {
-    ten: "lập trang không gửi mật khẩu đã gõ",
-    tep: "src/pages/QuanLy.tsx",
-    tim: "api.quanLy.lapTrang(tenMoi.trim(), mk || undefined)",
-    thay: "api.quanLy.lapTrang(tenMoi.trim())",
   },
   {
     // Đúng cảnh đã làm chết máy chủ: khoá bị kết nối mồ côi giữ.
@@ -2694,12 +2792,6 @@ const DUC: PhepDuc[] = [
     tep: "src/pages/QuanLy.tsx",
     tim: "<div className={clsx(LUOI, 'hidden lg:grid ",
     thay: "<div className={clsx('grid grid-cols-6 gap-x-3', 'hidden lg:grid ",
-  },
-  {
-    ten: "dòng chủ chuỗi chỉ hiện số của riêng mình (luôn 0)",
-    tep: "src/components/QuanLyTongQuan.tsx",
-    tim: "export const tienNhom = (g: NhomGoc) => [g.goc, ...g.con].reduce(",
-    thay: "export const tienNhom = (g: NhomGoc) => [g.goc].reduce(",
   },
   {
     ten: "điện thoại bày hết cột số làm chật dòng",
@@ -2770,12 +2862,6 @@ const DUC: PhepDuc[] = [
     thay: "nguonKenh = { ok: false, loi: e instanceof Error ? e.message : String(e) };",
   },
   {
-    ten: "admin con xem được sao kê trang ngoài chuỗi",
-    tep: "server/routes/quan-ly.ts",
-    tim: "WHERE t.id = $1 AND ($2::bigint IS NULL OR u.id = $2 OR u.parent_id = $2)",
-    thay: "WHERE t.id = $1 AND ($2::bigint IS NULL OR TRUE)",
-  },
-  {
     ten: "số theo trang không kẹp từ mốc — lẫn số cũ không chính xác",
     tep: "server/services/tong-quan.ts",
     tim: "const tu = dauKy < MOC_THEO_TRANG ? MOC_THEO_TRANG : dauKy;",
@@ -2814,14 +2900,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "đơn tạo tay ở tài khoản nhiều trang không bắt chọn trang",
     tep: "server/routes/orders.ts",
-    tim: "throw new AppError(\"Tài khoản có nhiều trang — chọn trang (kênh) trước khi tạo đơn.\", 400);",
+    tim: "throw new AppError(\"Tài khoản có nhiều cửa hàng — chọn cửa hàng (kênh) trước khi tạo đơn.\", 400);",
     thay: "return;",
-  },
-  {
-    ten: "đổi Fanpage mà không chốt sổ ngày trước",
-    tep: "server/routes/connections.ts",
-    tim: "    await ghiKenhTheoNgay();\n    const trangMoi",
-    thay: "    const trangMoi",
   },
   {
     ten: "tiền kênh dồn hết vào trang hiện tại khi đổi Fanpage giữa kỳ",
@@ -2974,24 +3054,12 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
-    ten: "xoá trang không cần gõ tên xác nhận",
-    tep: "server/routes/quan-ly.ts",
-    tim: "    if (xacNhan.toLowerCase() !== trang.email.toLowerCase() && xacNhan !== trang.name.trim()) {",
-    thay: "    if (false) {",
-  },
-  {
-    ten: "xoá trang để lại hồ sơ rác bên nhà cung cấp",
-    tep: "server/routes/quan-ly.ts",
-    tim: "        await zernio.xoaHoSo(hoSo.profile_ref);",
-    thay: "",
-  },
-  {
     // Chính điều chủ sản phẩm chỉ ra: màn hình quản lý chỉ là danh sách tài
     // khoản chứ không phải chỗ điều hành cả chuỗi.
     ten: "màn hình quản lý tụt lại thành danh sách tài khoản suông",
     tep: "src/pages/QuanLy.tsx",
-    tim: "        : await Promise.all([api.quanLy.danhSach(), api.quanLy.nhatKy()]);",
-    thay: "        : await Promise.all([api.quanLy.trang() as never, api.quanLy.nhatKy()]);",
+    tim: "      const [a, b] = await Promise.all([api.admin.accounts(), api.admin.audit()]);",
+    thay: "      const [a, b] = await Promise.all([api.admin.audit() as never, api.admin.audit()]);",
   },
   {
     ten: "bỏ dải việc phải xử lý, chủ chuỗi tự đi dò từng trang",
@@ -3029,84 +3097,10 @@ const DUC: PhepDuc[] = [
     thay: "  if (false) {",
   },
   {
-    // Chính điều chủ sản phẩm chỉ ra: vào trong một trang là mất đường sang
-    // trang khác, hai phần rời hẳn nhau.
-    ten: "vào trong một trang là mất đường sang trang khác",
-    tep: "server/routes/quan-ly.ts",
-    tim: "  if (u.moBoi != null) return u.parentId;\n",
-    thay: "",
-  },
-  {
-    ten: "đang xem thay vẫn cầm được quyền trên tài khoản khác",
-    tep: "server/routes/quan-ly.ts",
-    tim: "  if (req.user?.moBoi != null) {\n    throw new AppError(",
-    thay: "  if (false) {\n    throw new AppError(",
-  },
-  {
     ten: "nhảy sang trang anh em làm lồng phiên, đứt đường quay ra",
     tep: "server/routes/quan-ly.ts",
     tim: "    await createSession(res, trang.id, chaId);",
     thay: "    await createSession(res, trang.id, req.user!.id);",
-  },
-  {
-    ten: "trang tự đăng nhập cũng nhìn thấy trang anh em",
-    tep: "server/routes/quan-ly.ts",
-    tim: "  if (u.moBoi != null) return u.parentId;\n  return null;",
-    thay: "  return u.parentId ?? null;",
-  },
-  {
-    ten: "bỏ đường nhảy thẳng sang trang khác trên dải băng",
-    tep: "src/components/DangXemThay.tsx",
-    tim: ">Sang trang khác ({trangKhac.length})</p>",
-    thay: ">Sang trang khac</p>",
-  },
-  {
-    ten: "trả 403 thay vì 404, lộ sự tồn tại của trang người khác",
-    tep: "server/routes/quan-ly.ts",
-    tim: '  if (!row) throw new AppError("Không tìm thấy trang này", 404);',
-    thay: '  if (!row) throw new AppError("Không tìm thấy trang này", 403);',
-  },
-  {
-    ten: "một đường nhắm vào trang khác mà quên kiểm chủ sở hữu",
-    tep: "server/routes/quan-ly.ts",
-    tim: "        : await trangCuaToi(req.user!.id, req.params.id);\n    const ten = typeof req.body?.ten",
-    thay: "        : { id: Number(req.params.id), email: \"\", name: \"\", is_active: true, created_at: \"\" };\n    const ten = typeof req.body?.ten",
-  },
-  {
-    ten: "khoá trang mà để phiên đang mở sống tiếp",
-    tep: "server/routes/quan-ly.ts",
-    tim: '    if (khoa) await query("DELETE FROM sessions WHERE user_id = $1", [trang.id]);',
-    thay: "",
-  },
-  {
-    ten: "đổi mật khẩu mà để phiên cũ sống tiếp",
-    tep: "server/routes/quan-ly.ts",
-    tim: "    // Đổi mật khẩu thì mọi phiên cũ phải chết, kể cả phiên của người vừa mất quyền.\n    await query(\"DELETE FROM sessions WHERE user_id = $1\", [trang.id]);",
-    thay: "",
-  },
-  {
-    ten: "quay ra chỉ tin mã đã ghi, không kiểm lại quan hệ cha con",
-    tep: "server/routes/quan-ly.ts",
-    tim: "        WHERE c.id = $1 AND t.id = $2 AND c.is_active = TRUE\n          AND ((c.role = 'admin' AND t.role <> 'admin')\n               OR (c.role = 'admin_con' AND t.parent_id = c.id))`,",
-    thay: "        WHERE c.id = $1 AND t.id = $2`,",
-  },
-  {
-    ten: "tài khoản trang thừa kế luôn quyền quản lý chuỗi",
-    tep: "server/services/tai-khoan.ts",
-    tim: "      parentId: params.parentId,\n      role: \"shop\",",
-    thay: "      parentId: params.parentId,\n      role: \"admin_con\",",
-  },
-  {
-    ten: "người ngoài tự đăng ký lấn vào vùng tên đăng nhập nội bộ",
-    tep: "server/services/tai-khoan.ts",
-    tim: "  if (!params.noiBo && laTenDangNhapNoiBo(email)) {",
-    thay: "  if (false) {",
-  },
-  {
-    ten: "vai trò lạ được nâng lên quyền quản lý",
-    tep: "server/auth.ts",
-    tim: '  return role === "admin" ? "admin" : role === "admin_con" ? "admin_con" : "shop";',
-    thay: '  return role === "shop" ? "shop" : "admin_con";',
   },
   {
     /*
@@ -3138,22 +3132,478 @@ const DUC: PhepDuc[] = [
     thay: "export const SO_TRANG_MOI_GOI = { trial: 1 };\nexport async function chanNeuThemFanpage(",
   },
   {
+    ten: "đếm Fanpage theo cả tài khoản thay vì theo cửa hàng (cửa hàng thứ hai không có Facebook được)",
+    tep: "server/services/gioi-han.ts",
+    tim: "WHERE user_id = $1 AND profile_ref = $2 AND platform = 'facebook'",
+    thay: "WHERE user_id = $1 AND $2::text IS NOT NULL AND platform = 'facebook'",
+  },
+  {
+    ten: "tạo cửa hàng xong không dẫn sang nối kênh (người dùng phải tự mò)",
+    tep: "src/pages/Connections.tsx",
+    tim: "      batDauHuongDan(kq.data.id);",
+    thay: "",
+  },
+  {
+    ten: "nối kênh xong không đưa bước tiếp theo (nối thêm / mở bộ não)",
+    tep: "src/pages/Connections.tsx",
+    tim: "          {cuaHangVuaNoi != null && dsTrangToi.some((t) => t.id === cuaHangVuaNoi) && huongDan?.trangId !== cuaHangVuaNoi && (",
+    thay: "          {false && (",
+  },
+  {
+    ten: "giao diện bỏ Facebook khỏi 'phải chọn cửa hàng' (gửi thiếu cửa hàng, máy chủ báo lỗi)",
+    tep: "src/pages/Connections.tsx",
+    tim: "    !!p && !catalog.ads.some((c) => c.id === p.id);",
+    thay: "    !!p && p.platformKey !== 'facebook' && !catalog.ads.some((c) => c.id === p.id);",
+  },
+  {
+    ten: "cho nối một Fanpage đang chạy ở cửa hàng khác",
+    tep: "server/services/gioi-han.ts",
+    tim: "  if (oCuaHangKhac) {",
+    thay: "  if (false && oCuaHangKhac) {",
+  },
+  {
+    ten: "tạo cửa hàng xong lưới không sáng / không có mũi tên chỉ xuống",
+    tep: "src/pages/Connections.tsx",
+    tim: "  const dangHuongDan = !!chHuongDan && cuaHangNoi === chHuongDan.id;",
+    thay: "  const dangHuongDan = false && !!chHuongDan;",
+  },
+  {
+    ten: "phiên mở hộ sống tiếp dù người mở không còn là quản trị tổng",
+    tep: "server/auth.ts",
+    tim: "                 AND c.role = 'admin' AND u.role <> 'admin'))`,",
+    thay: "                 AND TRUE))`,",
+  },
+  {
+    ten: "tài khoản thường cũng mở thẳng được vào tài khoản người khác",
+    tep: "server/routes/quan-ly.ts",
+    tim: "    if (that.role !== \"admin\") throw new AppError(\"Không tìm thấy tài khoản này\", 404);",
+    thay: "    // bỏ chốt",
+  },
+  {
+    ten: "quay ra không kiểm lại quyền quản trị tổng",
+    tep: "server/routes/quan-ly.ts",
+    tim: "          AND c.role = 'admin' AND t.role <> 'admin'`,",
+    thay: "          AND TRUE`,",
+  },
+  {
+    ten: "báo cáo tài khoản trả 403, lộ tài khoản người khác có thật",
+    tep: "server/routes/quan-ly.ts",
+    tim: "  throw new AppError(\"Không tìm thấy tài khoản này\", 404);",
+    thay: "  throw new AppError(\"Không tìm thấy tài khoản này\", 403);",
+  },
+  {
+    ten: "đang mở hộ một tài khoản vẫn xem được báo cáo mọi tài khoản",
+    tep: "server/routes/quan-ly.ts",
+    tim: "(req.user!.role === \"admin\" && req.user!.moBoi == null)",
+    thay: "(req.user!.role === \"admin\")",
+  },
+  {
+    ten: "tài khoản mới sinh ra mang quyền quản trị",
+    tep: "server/services/tai-khoan.ts",
+    tim: "       VALUES ($1, $2, $3, 'shop') RETURNING id`,",
+    thay: "       VALUES ($1, $2, $3, 'admin') RETURNING id`,",
+  },
+  {
+    ten: "tài khoản mới không được cấp hồ sơ nền tảng (không giống tài khoản mẫu)",
+    tep: "server/services/tai-khoan.ts",
+    tim: "    await ensureProfile({ id, name, email, profileRef: null });",
+    thay: "    if (false) await ensureProfile({ id, name, email, profileRef: null });",
+  },
+  {
+    ten: "người ngoài tự đăng ký lấn vào vùng tên đăng nhập nội bộ cũ",
+    tep: "server/services/tai-khoan.ts",
+    tim: "  if (laTenDangNhapNoiBo(email)) {",
+    thay: "  if (false && laTenDangNhapNoiBo(email)) {",
+  },
+  {
+    ten: "vai trò lạ (vd. admin_con cũ) được nâng lên quản trị",
+    tep: "server/auth.ts",
+    tim: "  return role === \"admin\" ? \"admin\" : \"shop\";",
+    thay: "  return role !== \"shop\" ? \"admin\" : \"shop\";",
+  },
+  {
+    ten: "quản trị tạo hộ nhận vai trò gửi từ trình duyệt",
+    tep: "server/routes/admin.ts",
+    tim: "    const taiKhoan = await taoTaiKhoan({ email, password: matKhauTam, name });",
+    thay: "    const taiKhoan = await taoTaiKhoan({ email, password: matKhauTam, name, role: req.body?.role });",
+  },
+  {
+    ten: "menu bộ não chỉ hiện cho quản trị, tài khoản thường không giống tài khoản mẫu",
+    tep: "src/components/Sidebar.tsx",
+    tim: "  const coNao = true;",
+    thay: "  const coNao = laQuanTri;",
+  },
+  {
+    ten: "tài khoản con cũ vẫn được gửi mã sang email người khác",
+    tep: "server/services/xac-thuc-email.ts",
+    tim: "  if (laTenDangNhapNoiBo(user.email)) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "tài khoản cũ còn cửa hàng mã tạm, không được cấp hồ sơ thật (không nối được kênh)",
+    tep: "server/routes/connections.ts",
+    tim: "      if (choCap) await ensureProfile(req.user!);",
+    thay: "      if (choCap) void 0;",
+  },
+  {
+    ten: "tài khoản chưa nối kênh mất sơ đồ 4 AI ở Tổng quan (không giống tài khoản mẫu)",
+    tep: "src/lib/ActivePage.tsx",
+    tim: "    if (ds.size === 0 && cuaHangMacDinh) {",
+    thay: "    if (false && cuaHangMacDinh) {",
+  },
+  {
+    ten: "bài rỗng kênh vẫn được đăng (rơi về mọi kênh)",
+    tep: "server/services/kenh-dang.ts",
+    tim: "  if (!kenhDaChon || kenhDaChon.length === 0) return { loi: LOI_BAI_KHONG_KENH };",
+    thay: "  if (false) return { loi: LOI_BAI_KHONG_KENH };",
+  },
+  {
+    ten: "lịch tự đăng không kẹp theo cửa hàng (đăng sang Fanpage cửa hàng khác)",
+    tep: "server/services/kenh-dang.ts",
+    tim: "  const goc = `${COT} WHERE user_id = $1 AND trang_id = $2 AND ${DANG_NOI}`;",
+    thay: "  const goc = `${COT} WHERE user_id = $1 AND ${DANG_NOI}`;",
+  },
+  {
+    ten: "lịch không có cửa hàng vẫn đăng",
+    tep: "server/services/kenh-dang.ts",
+    tim: "  if (trangId == null) return { loi: LOI_LICH_KHONG_CUA_HANG };",
+    thay: "  if (false) return { loi: LOI_LICH_KHONG_CUA_HANG };",
+  },
+  {
+    ten: "bài rỗng kênh báo lỗi nhưng không chuyển 'failed' (người dùng không thấy lý do)",
+    tep: "server/services/publish.ts",
+    tim: "    await query(`UPDATE posts SET status = 'failed', last_error = $2, updated_at = now() WHERE id = $1`, [",
+    thay: "    await query(`SELECT 1 WHERE $1::int IS NOT NULL OR $2::text IS NOT NULL`, [",
+  },
+  {
+    ten: "đăng bài lách hàm chọn kênh bằng danh sách giả",
+    tep: "server/services/publish.ts",
+    tim: "  const lenhKenh = cauLenhKenhBai(userId, post.target_account_ids);",
+    thay: "  const lenhKenh = cauLenhKenhBai(userId, post.target_account_ids?.length ? post.target_account_ids : [\"*\"]);",
+  },
+  {
+    ten: "lịch tự đăng gọi hàm chọn kênh nhưng vẫn truy vấn câu cũ không kẹp cửa hàng",
+    tep: "server/services/autopilot.ts",
+    tim: "  const kenh = await query<{ id: string; platform: string }>(lenhKenh.sql, lenhKenh.thamSo);",
+    thay: "  const kenh = await query<{ id: string; platform: string }>(`SELECT id, platform FROM social_accounts WHERE user_id = $1 AND connected = TRUE AND platform <> 'metaads'`, [userId]);",
+  },
+  {
+    ten: "lịch tự đăng bỏ qua lỗi chọn kênh, vẫn viết và đăng",
+    tep: "server/services/autopilot.ts",
+    tim: "  if (\"loi\" in lenhKenh) {\n    await ghiBo(lenhKenh.loi);\n    return false;\n  }",
+    thay: "  if (false) {\n    await ghiBo(\"\");\n    return false;\n  }",
+  },
+  {
+    ten: "video xong: một bài lỗi chặn cả lượt (không bọc lỗi)",
+    tep: "server/services/autopilot.ts",
+    tim: "        continue;\n      }\n    } else if (guard === \"notify\") {",
+    thay: "        throw error;\n      }\n    } else if (guard === \"notify\") {",
+  },
+  {
+    ten: "mọi kênh đã ngắt: bài báo lỗi nhưng nằm im ở Bản nháp",
+    tep: "server/services/publish.ts",
+    tim: "    await query(`UPDATE posts SET status = 'failed', last_error = $2, updated_at = now() WHERE id = $1`, [post.id, lyDo]);",
+    thay: "    void lyDo;",
+  },
+  {
+    ten: "video xong lỗi mạng mà Telegram báo 'không đăng được' (dễ đăng trùng)",
+    tep: "server/services/autopilot.ts",
+    tim: "          sau?.status === \"publishing\"",
+    thay: "          false",
+  },
+  {
+    ten: "chế độ 'Chờ tôi duyệt' mà bấm đăng ngay vẫn đăng lên Fanpage",
+    tep: "src/pages/Content.tsx",
+    tim: "      const choDuyet = dang && !scheduledFor && postMode === 'manual';",
+    thay: "      const choDuyet = false && postMode === 'manual';",
+  },
+  {
+    ten: "chế độ chờ duyệt chặn luôn cả bài hẹn giờ",
+    tep: "src/pages/Content.tsx",
+    tim: "      const choDuyet = dang && !scheduledFor && postMode === 'manual';",
+    thay: "      const choDuyet = dang && postMode === 'manual';",
+  },
+  {
+    ten: "nút vẫn ghi 'Đăng bài' khi đang chờ duyệt",
+    tep: "src/pages/Content.tsx",
+    tim: ": composerMode === 'schedule' ? 'Hẹn giờ đăng' : postMode === 'manual' ? 'Gửi chờ duyệt' : 'Đăng bài'}",
+    thay: ": composerMode === 'schedule' ? 'Hẹn giờ đăng' : 'Đăng bài'}",
+  },
+  {
+    ten: "video xong luôn tự đăng, bỏ qua chế độ chờ duyệt",
+    tep: "server/services/autopilot.ts",
+    tim: "  const guardVideo = bai.scheduled_for || cheDo?.settings?.autoPublish === true ? \"publish\" : \"approve\";",
+    thay: "  const guardVideo = \"publish\";",
+  },
+  {
+    ten: "khoảng ngày tính theo giờ máy chủ (UTC), lệch ngày Việt Nam",
+    tep: "src/lib/ky-ngay.ts",
+    tim: "  return new Date(luc.getTime() + LECH_VN_MS).toISOString().slice(0, 10);",
+    thay: "  return new Date(luc.getTime()).toISOString().slice(0, 10);",
+  },
+  {
+    ten: "lịch chạy tính dư một ngày",
+    tep: "src/lib/ky-ngay.ts",
+    tim: "  return { tu: homNay, den: congNgay(homNay, Math.max(1, Math.floor(soNgay)) - 1) };",
+    thay: "  return { tu: homNay, den: congNgay(homNay, Math.max(1, Math.floor(soNgay))) };",
+  },
+  {
+    ten: "AI phân tích tốn tiền mà kết quả không hiện",
+    tep: "src/pages/Ads.tsx",
+    tim: "        {(dangPhanTich || loiPhanTich || aiInsight) && (",
+    thay: "        {false && (dangPhanTich || loiPhanTich || aiInsight) && (",
+  },
+  {
+    ten: "Xem chi tiết chiến dịch lấy số mà không hiện",
+    tep: "src/pages/Ads.tsx",
+    tim: "        <ChiTietChienDich du={campaignDetail} ky={ky} nhanKy={ghiChuKy} onDong={() => setCampaignDetail(null)} />",
+    thay: "        null",
+  },
+  {
+    ten: "số chiến dịch lại gửi tham số không có trong tài liệu",
+    tep: "server/services/ads.ts",
+    tim: "    query: { fromDate: params.fromDate, toDate: params.toDate },",
+    thay: "    query: { datePreset: \"last_7d\" },",
+  },
+  {
+    ten: "khung chi tiết đơn đọc items không có nguồn (sập khi mở)",
+    tep: "src/pages/Orders.tsx",
+    tim: "        items: [{\n          name: order.product,",
+    thay: "        _items: [{\n          name: order.product,",
+  },
+  {
+    ten: "dòng thời gian bịa thêm mốc không có thật",
+    tep: "src/pages/Orders.tsx",
+    tim: "          { text: `Trạng thái hiện tại: ${STATUS_TO_LABEL[order.status]}`, time: '' },",
+    thay: "          { text: `Trạng thái hiện tại: ${STATUS_TO_LABEL[order.status]}`, time: gioNgan(new Date().toISOString()) },",
+  },
+  {
+    ten: "Hủy đơn trong menu không làm gì",
+    tep: "src/pages/Orders.tsx",
+    tim: "setOpenDropdownId(null); void huyDon(order); }}",
+    thay: "setOpenDropdownId(null); }}",
+  },
+  {
+    ten: "huỷ đơn không hỏi lại",
+    tep: "src/pages/Orders.tsx",
+    tim: "    await handleChangeStatus(order, 'Đã hủy');\n  };",
+    thay: "  };\n  void handleChangeStatus;",
+  },
+  {
+    ten: "nhãn 'AI đã tự điền' hiện cả khi AI chưa điền",
+    tep: "src/pages/Inbox.tsx",
+    tim: "{donTuAi ? 'AI đã tự động điền thông tin' : 'Điền thông tin đơn'}",
+    thay: "{'AI đã tự động điền thông tin'}",
+  },
+  {
+    ten: "đọc mã chiến dịch theo dạng cũ c.id (nút thao tác gửi 'undefined')",
+    tep: "src/lib/chien-dich.ts",
+    tim: "    id: chu(c.platformCampaignId),",
+    thay: "    id: chu(c.id),",
+  },
+  {
+    ten: "đọc tên chiến dịch theo dạng cũ c.name",
+    tep: "src/lib/chien-dich.ts",
+    tim: "    ten: chu(c.campaignName),",
+    thay: "    ten: chu(c.name),",
+  },
+  {
+    ten: "ngân sách CBO bị bỏ qua (chỉ đọc budget)",
+    tep: "src/lib/chien-dich.ts",
+    tim: "  const ns = rec(c.campaignBudget ?? c.budget);",
+    thay: "  const ns = rec(c.budget);",
+  },
+  {
+    ten: "trạng thái lạ bị gộp thành 'Đã kết thúc'",
+    tep: "src/lib/chien-dich.ts",
+    tim: "    default: return trangThai ? `Khác (${trangThai})` : 'Chưa rõ';",
+    thay: "    default: return 'Đã kết thúc';",
+  },
+  {
+    ten: "chiến dịch thiếu mã vẫn hiện nút thao tác",
+    tep: "src/pages/Ads.tsx",
+    tim: "                    {camp.coMa && (<>",
+    thay: "                    {true && (<>",
+  },
+  {
+    ten: "cột ngày danh sách đơn lại dùng định dạng trình duyệt (18-10)",
+    tep: "src/pages/Orders.tsx",
+    tim: "        date: ngayThang(order.created_at),",
+    thay: "        date: created.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),",
+  },
+  {
+    ten: "nút chat trong khung chi tiết bấm được khi đơn không có hội thoại",
+    tep: "src/pages/Orders.tsx",
+    tim: "                disabled={!selectedOrder.conversationId}",
+    thay: "                disabled={false}",
+  },
+  {
+    ten: "đơn nhân viên chốt vẫn ghi 'AI không tìm thấy giá'",
+    tep: "src/pages/Orders.tsx",
+    tim: "                        {selectedOrder.raw.closed_by === 'ai'",
+    thay: "                        {true",
+  },
+  {
+    ten: "Trợ giúp lại dẫn vòng về trang Gói dịch vụ khi chưa có đường hỗ trợ",
+    tep: "src/lib/ho-tro.ts",
+    tim: "export const SUPPORT_URL: string | null = tho || null;",
+    thay: "export const SUPPORT_URL: string | null = tho || '/pricing';",
+  },
+  {
+    ten: "mục Trợ giúp chưa có vẫn là liên kết bấm được",
+    tep: "src/components/Sidebar.tsx",
+    tim: "            {SUPPORT_URL ? (",
+    thay: "            {true ? (",
+  },
+  {
+    ten: "Gói dịch vụ: 'Liên hệ' vẫn là liên kết khi chưa có đường hỗ trợ",
+    tep: "src/pages/Pricing.tsx",
+    tim: " : <span>Kênh liên hệ báo giá riêng sắp có.</span>}",
+    thay: " : <a href=\"/pricing\">Liên hệ để có báo giá riêng.</a>}",
+  },
+  {
+    ten: "xoá hồ sơ dù liệt kê lại vẫn còn kênh (kênh sót bị chuyển sang hồ sơ khách khác)",
+    tep: "server/services/xoa-tai-khoan.ts",
+    tim: "  if (sot.length > 0) {",
+    thay: "  if (false && sot.length > 0) {",
+  },
+  {
+    ten: "xoá dòng tài khoản trước khi dọn xong nhà cung cấp",
+    tep: "server/services/xoa-tai-khoan.ts",
+    tim: "  daLam.push(\"đã khoá tài khoản\");",
+    thay: "  daLam.push(\"đã khoá tài khoản\"); await d.xoaTaiKhoan(userId);",
+  },
+  {
+    ten: "nuốt chung mọi lỗi khi ngắt kênh (coi 500 là đã mất)",
+    tep: "server/services/xoa-tai-khoan.ts",
+    tim: "      if (!d.la404(e)) return { ok: false, conLai: [`ngắt kênh ${k.platform} \"${k.ten}\" và các bước sau`], loi: thongDiep(e) };",
+    thay: "      if (false) return { ok: false, conLai: [], loi: thongDiep(e) };",
+  },
+  {
+    ten: "liệt kê kênh bỏ sót hồ sơ vượt hạn mức",
+    tep: "server/services/xoa-tai-khoan-that.ts",
+    tim: "  const ds = await zernio.listAccounts(profileId, { includeOverLimit: true });",
+    thay: "  const ds = await zernio.listAccounts(profileId);",
+  },
+  {
+    ten: "xoá cả hồ sơ đang dùng chung với tài khoản khác",
+    tep: "server/services/xoa-tai-khoan.ts",
+    tim: "    if (ai) boQua.push({ id, lyDo: `đang dùng chung với tài khoản ${ai} — không xoá` });",
+    thay: "    if (false) boQua.push({ id, lyDo: `${ai}` });",
+  },
+  {
+    ten: "xoá tài khoản không khoá trước (AI vẫn chạy trong lúc xoá dở)",
+    tep: "server/services/xoa-tai-khoan.ts",
+    tim: "  await d.khoaTaiKhoan(userId);\n",
+    thay: "  void 0;\n",
+  },
+  {
+    ten: "xoá tài khoản không chốt sổ tiền kênh trong ngày",
+    tep: "server/services/xoa-tai-khoan.ts",
+    tim: "  await d.chotSoKenhNgay();\n",
+    thay: "  void 0;\n",
+  },
+  {
+    ten: "404 khi lập kế hoạch thì ném lỗi (xoá dở bấm lại kẹt mãi)",
+    tep: "server/services/xoa-tai-khoan.ts",
+    tim: "      if (!d.la404(e)) throw e;",
+    thay: "      throw e;",
+  },
+  {
+    ten: "liệt kê lại trả 404 mà vẫn coi là lỗi",
+    tep: "server/services/xoa-tai-khoan.ts",
+    tim: "    if (d.la404(e)) {\n      daLam.push(`hồ sơ ${id} đã không còn bên nhà cung cấp`);",
+    thay: "    if (false) {\n      daLam.push(`hồ sơ ${id} đã không còn bên nhà cung cấp`);",
+  },
+  {
+    ten: "hồ sơ đã mất vẫn bị đem đi dọn lại",
+    tep: "server/services/xoa-tai-khoan.ts",
+    tim: "    if (h.daMat) {",
+    thay: "    if (false && h.daMat) {",
+  },
+  {
+    ten: "đổi trạng thái lại gửi chữ hoa / thiếu platform",
+    tep: "server/services/ads.ts",
+    tim: "    body: { status, platform },",
+    thay: "    body: { status: status.toUpperCase() },",
+  },
+  {
+    ten: "nhân bản không tạm dừng bản sao (bản sao tự tiêu tiền)",
+    tep: "server/services/ads.ts",
+    tim: "    body: { platform, deepCopy: true, statusOption: \"PAUSED\" },",
+    thay: "    body: { platform, deepCopy: true, statusOption: \"INHERITED_FROM_SOURCE\" },",
+  },
+  {
+    ten: "đổi trạng thái 0 quảng cáo mà vẫn báo thành công",
+    tep: "server/routes/ads.ts",
+    tim: "    if (!result?.updated) {",
+    thay: "    if (false) {",
+  },
+  {
+    ten: "mã chống trùng nhân bản dùng lại giữa các lần bấm",
+    tep: "src/pages/Ads.tsx",
+    tim: "api.ads.duplicateCampaign(id, platform, crypto.randomUUID())",
+    thay: "api.ads.duplicateCampaign(id, platform, `dup-${id}`)",
+  },
+  {
+    ten: "số đã chi chiến dịch không theo kỳ đang xem (luôn 90 ngày)",
+    tep: "server/routes/ads.ts",
+    tim: ".listCampaigns({ accountId: resolved.accountId, adAccountId: resolved.adAccountId, ...khoangTheoKy(datePreset) })",
+    thay: ".listCampaigns({ accountId: resolved.accountId, adAccountId: resolved.adAccountId })",
+  },
+  {
+    ten: "ngân sách theo ngày đặt cạnh số đã chi trong kỳ (đọc như chi vượt)",
+    tep: "src/pages/Ads.tsx",
+    tim: "        total: tron > 0 ? tienQc(tron, c.tienTe) : null,",
+    thay: "        total: tron > 0 ? tienQc(tron, c.tienTe) : ngay > 0 ? `${tienQc(ngay, c.tienTe)}/ngày` : null,",
+  },
+  {
+    ten: "tạm dừng / chạy lại chiến dịch của shop khác (không kiểm chủ sở hữu)",
+    tep: "server/routes/ads.ts",
+    tim: "    if (!(await ads.chienDichThuocTaiKhoan({ campaignId: req.params.id, accountId: resolved.accountId, adAccountId: resolved.adAccountId }))) {\n      throw new AppError(\"Không tìm thấy chiến dịch này trong tài khoản quảng cáo của bạn\", 404);\n    }\n    let result",
+    thay: "    let result",
+  },
+  {
+    ten: "sửa ngân sách chiến dịch của shop khác (không kiểm chủ sở hữu)",
+    tep: "server/routes/ads.ts",
+    tim: "    // phải tự đối chiếu chiến dịch thuộc shop TRƯỚC khi đổi (phiên kiểm duyệt bắt được 18/10/2026).\n    if (!(await ads.chienDichThuocTaiKhoan({ campaignId: req.params.id, accountId: resolved.accountId, adAccountId: resolved.adAccountId }))) {",
+    thay: "    // phải tự đối chiếu chiến dịch thuộc shop TRƯỚC khi đổi (phiên kiểm duyệt bắt được 18/10/2026).\n    if (false) {",
+  },
+  {
+    ten: "ABO: không báo rõ lý do chưa sửa được ngân sách",
+    tep: "server/routes/ads.ts",
+    tim: "ngân sách nằm ở tầng nhóm quảng cáo, chưa sửa được trong app.",
+    thay: "vui lòng thử lại.",
+  },
+  {
+    ten: "lại gọi đường danh sách nhóm không có trong tài liệu",
+    tep: "server/services/ads.ts",
+    tim: "export const NEN_TANG_NGAN_SACH = [\"facebook\", \"instagram\", \"google\"];",
+    thay: "export const NEN_TANG_NGAN_SACH = [\"facebook\", \"instagram\", \"google\"];\nexport const listAdSets = () => request(\"/ads/ad-sets\");",
+  },
+  {
+    ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
+    tep: "src/pages/Connections.tsx",
+    tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",
+    thay: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) { /* bỏ */ }",
+  },
+  {
+    ten: "hướng dẫn quên tiến độ sau khi đăng nhập nền tảng (trang tải lại)",
+    tep: "src/pages/Connections.tsx",
+    tim: "    try { if (v) sessionStorage.setItem(KHOA_HUONG_DAN, JSON.stringify(v)); else sessionStorage.removeItem(KHOA_HUONG_DAN); } catch { /* chặn lưu tạm: vẫn chạy trong phiên */ }",
+    thay: "",
+  },
+  {
     ten: "gọi nhà cung cấp xong mới chặn Fanpage thứ hai",
     tep: "server/routes/connections.ts",
-    tim: "    await chanNeuThemFanpage(req.user!.id, pageIds);\n\n    const connected: string[] = [];",
+    tim: "    await chanNeuThemFanpage(req.user!.id, pending.profile_id, pageIds);\n\n    const connected: string[] = [];",
     thay: "    const connected: string[] = [];",
   },
   {
     ten: "xoá tài khoản để lại hồ sơ rác bên nhà cung cấp",
-    tep: "server/routes/admin.ts",
-    tim: "        await zernio.xoaHoSo(hoSo.profile_ref);",
-    thay: "",
-  },
-  {
-    ten: "xoá chủ chuỗi kéo theo sạch dữ liệu mọi trang con",
-    tep: "server/migrations/022_phan_tang_tai_khoan.sql",
-    tim: "ADD COLUMN IF NOT EXISTS parent_id BIGINT REFERENCES users(id) ON DELETE RESTRICT;",
-    thay: "ADD COLUMN IF NOT EXISTS parent_id BIGINT REFERENCES users(id) ON DELETE CASCADE;",
+    tep: "server/services/xoa-tai-khoan-that.ts",
+    tim: "  xoaHoSo: (id) => zernio.xoaHoSo(id),",
+    thay: "  xoaHoSo: async () => {},",
   },
   {
     /*
@@ -3182,40 +3632,10 @@ const DUC: PhepDuc[] = [
     thay: "rounded-full bg-surface text-on-surface text-xs font-bold pl-2.5 pr-3 py-2",
   },
   {
-    ten: "trong trang con lại hiện chữ 'đang xem'",
-    tep: "src/components/DangXemThay.tsx",
-    tim: "          <span className=\"hidden sm:inline\">Quay lại quản lý</span>",
-    thay: "          <span className=\"hidden sm:inline\">Đang xem · Quay lại quản lý</span>",
-  },
-  {
-    ten: "admin con thấy cả tài khoản ngoài chuỗi của mình",
-    tep: "server/services/quan-ly-chung.ts",
-    tim: "WHERE u.id = $2 OR u.parent_id = $2 ORDER BY",
-    thay: "WHERE TRUE OR $2 = $2 ORDER BY",
-  },
-  {
     ten: "quản trị tổng mở hộ được tài khoản quản trị khác",
     tep: "server/routes/quan-ly.ts",
     tim: "FROM users WHERE id = $1 AND role <> 'admin'\", [so])",
     thay: "FROM users WHERE id = $1\", [so])",
-  },
-  {
-    ten: "phiên mở hộ của quản trị tổng không kiểm đích là quản trị",
-    tep: "server/auth.ts",
-    tim: "AND ((c.role = 'admin' AND u.role <> 'admin')",
-    thay: "AND ((c.role = 'admin')",
-  },
-  {
-    ten: "quay lại không kiểm quan hệ chuỗi của admin con",
-    tep: "server/routes/quan-ly.ts",
-    tim: "               OR (c.role = 'admin_con' AND t.parent_id = c.id))`,",
-    thay: "               OR (c.role = 'admin_con'))`,",
-  },
-  {
-    ten: "trang tự đăng nhập thấy trang anh em",
-    tep: "server/routes/quan-ly.ts",
-    tim: "  if (u.moBoi != null) return u.parentId;\n",
-    thay: "  if (u.parentId != null) return u.parentId;\n",
   },
   {
     ten: "báo cáo: admin con xem được tài khoản ngoài chuỗi",
@@ -3231,21 +3651,17 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "tên menu quản lý hai tầng lại khác nhau",
+    // Menu theo khối não 11/10/2026: mục quản lý viết một dòng ...(laQuanTri ? [...] : []).
     tep: "src/components/Sidebar.tsx",
-    tim: "      ? [{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '/admin' }]",
-    thay: "      ? [{ name: 'Quản Trị Hệ Thống', icon: 'admin_panel_settings', path: '/admin' }]",
+    tim: "    ...(laQuanTri ? [{ name: 'Qu\u1ea3n L\u00fd T\u00e0i Kho\u1ea3n', icon: 'manage_accounts', path: '/admin' }] : []),",
+    thay: "    ...(laQuanTri ? [{ name: 'Qu\u1ea3n Tr\u1ecb H\u1ec7 Th\u1ed1ng', icon: 'admin_panel_settings', path: '/admin' }] : []),",
   },
   {
     ten: "thêm một chỗ khác biệt giữa hai tầng mà không hỏi",
+    // Tiêu đề h1 đã bỏ (tên ở thanh trên) — đục dòng đếm tài khoản ngay dưới.
     tep: "src/pages/QuanLy.tsx",
-    tim: "          <h1 className=\"font-headline-sm text-3xl font-bold text-on-surface tracking-tight mb-2\">Quản lý tài khoản</h1>",
-    thay: "          <h1 className=\"font-headline-sm text-3xl font-bold text-on-surface tracking-tight mb-2\">{laTong ? 'Quản trị hệ thống' : 'Quản lý tài khoản'}</h1>",
-  },
-  {
-    ten: "chi phí chuỗi lộ cài đặt cảnh báo của hệ thống",
-    tep: "src/components/ChiPhiHeThong.tsx",
-    tim: "      {!laChuoi && moCaiDat && nguong && (",
-    thay: "      {moCaiDat && nguong && (",
+    tim: "            {ds.length} t\u00e0i kho\u1ea3n{soKhoa > 0 ? `, ${soKhoa} \u0111ang b\u1ecb kho\u00e1` : ''}",
+    thay: "            {laTong ? 'C\u1ea3 h\u1ec7 th\u1ed1ng: ' : ''}{ds.length} t\u00e0i kho\u1ea3n{soKhoa > 0 ? `, ${soKhoa} \u0111ang b\u1ecb kho\u00e1` : ''}",
   },
   {
     ten: "quay lại quản lý rơi về trang chủ thay vì màn hình quản lý",
@@ -3288,117 +3704,6 @@ const DUC: PhepDuc[] = [
     tep: "src/components/HopHoi.tsx",
     tim: "disabled={Boolean(loi)}",
     thay: "disabled={false}",
-  },
-  {
-    ten: "tự đăng ký ra thẳng một trang, không thêm được trang thứ hai",
-    tep: "server/routes/auth.ts",
-    tim: '      role: "admin_con",\n    });\n',
-    thay: "    });\n",
-  },
-  {
-    // Đúng lỗi chủ sản phẩm bắt được: đổi tên trang làm xong ở máy chủ và ở
-    // lớp gọi API, nhưng không nút nào trên màn hình gọi tới.
-    ten: "làm hàm đổi tên trang rồi bỏ đó, không nút nào gọi",
-    tep: "src/pages/QuanLy.tsx",
-    tim: "          if (suaTen.trim() !== tk.name) await api.quanLy.doiTen(tk.id, suaTen.trim());",
-    thay: "          if (suaTen.trim() !== tk.name) await Promise.resolve(tk.id);",
-  },
-  {
-    // Đúng lỗi đã xảy ra: máy chủ nhận role nhưng giao diện không gửi.
-    ten: "tạo tài khoản hộ mà quên gửi vai trò, lặng lẽ ra tài khoản đứng riêng",
-    tep: "src/pages/QuanLy.tsx",
-    tim: "role: vaiTroMoi, matKhau: mk || undefined })",
-    thay: "matKhau: mk || undefined })",
-  },
-  {
-    ten: "màn hình Quản trị bỏ chỗ chọn loại tài khoản",
-    tep: "src/pages/QuanLy.tsx",
-    tim: "  const [vaiTroMoi, setVaiTroMoi] = useState<'admin_con' | 'shop'>('admin_con');",
-    thay: "  const vaiTroMoi: 'admin_con' | 'shop' = 'admin_con';",
-  },
-  {
-    ten: "bỏ nút chuyển thành chủ chuỗi, lại phải sửa tay trong database",
-    tep: "src/pages/QuanLy.tsx",
-    tim: "    ...(laTong && t.role === 'shop' && t.parent_id === null ? [{ ten: 'Thành chủ chuỗi', onChon: () => thanhChuChuoi(t) }] : []),\n",
-    thay: "",
-  },
-  {
-    ten: "lớp gọi API cho phép tạo tài khoản hộ mà không khai vai trò",
-    tep: "src/lib/api.ts",
-    tim: "    create: (payload: { email: string; name?: string; role: 'admin_con' | 'shop'; matKhau?: string }) =>",
-    thay: "    create: (payload: { email: string; name?: string; role?: 'admin_con' | 'shop'; matKhau?: string }) =>",
-  },
-  {
-    ten: "chuyển cả tài khoản đã bán hàng thành chủ chuỗi, mất đường vào dữ liệu",
-    tep: "server/services/chuyen-chu-chuoi.ts",
-    tim: "  if (daDung.length > 0) {",
-    thay: "  if (false) {",
-  },
-  {
-    ten: "vai trò AI đã nhập không chặn được việc chuyển",
-    tep: "server/services/chuyen-chu-chuoi.ts",
-    tim: "      WHERE user_id = $1 AND coalesce(system_prompt, '') <> ''`,",
-    thay: "      WHERE user_id = $1 AND FALSE`,",
-  },
-  {
-    ten: "cho tài khoản trang của chuỗi khác trèo lên làm chủ chuỗi",
-    tep: "server/services/chuyen-chu-chuoi.ts",
-    tim: "  if (nguoi.parent_id !== null) {",
-    thay: "  if (false) {",
-  },
-  {
-    ten: "chuyển được cả quản trị tổng thành chủ chuỗi",
-    tep: "server/services/chuyen-chu-chuoi.ts",
-    tim: '  if (nguoi.role === "admin") {',
-    thay: "  if (false) {",
-  },
-  {
-    ten: "chuyển xong để lại hồ sơ rác và phiên mang vai trò cũ",
-    tep: "server/services/chuyen-chu-chuoi.ts",
-    tim: '  await query("DELETE FROM sessions WHERE user_id = $1", [userId]);',
-    thay: "",
-  },
-  {
-    ten: "chủ chuỗi bị cấp Trang và bộ não không ai dùng",
-    tep: "server/services/tai-khoan.ts",
-    tim: '  const laChuChuoi = params.role === "admin_con";',
-    thay: "  const laChuChuoi = false;",
-  },
-  {
-    ten: "chủ chuỗi bị cấp hồ sơ nhà cung cấp, để lại rác",
-    tep: "server/services/tai-khoan.ts",
-    tim: "    if (!laChuChuoi) await ensureProfile({ id, name, email, profileRef: null });",
-    thay: "    await ensureProfile({ id, name, email, profileRef: null });",
-  },
-  {
-    ten: "bỏ chốt chặn cấp hồ sơ cho chủ chuỗi",
-    tep: "server/services/accounts.ts",
-    tim: '  if (vaiTro?.role === "admin_con") {',
-    thay: "  if (false) {",
-  },
-  {
-    ten: "quản trị cấp tài khoản: vai trò lạ được nâng lên quản lý chuỗi",
-    tep: "server/routes/admin.ts",
-    tim: '    const role = req.body?.role === "admin_con" ? "admin_con" : "shop";',
-    thay: '    const role = req.body?.role === "shop" ? "shop" : "admin_con";',
-  },
-  {
-    ten: "trộn tuyến đường, hai tuyến bắt-tất-cả tranh nhau trong một <Routes>",
-    tep: "src/App.tsx",
-    tim: "          {user?.role === 'admin_con' ? (\n            <Routes>",
-    thay: "          {false ? (\n            <Routes>",
-  },
-  {
-    ten: "chủ chuỗi phải nhìn màn hình bán hàng rỗng không của mình",
-    tep: "src/components/Sidebar.tsx",
-    tim: "  const group2 = laChuChuoi\n    ? []",
-    thay: "  const group2 = false\n    ? []",
-  },
-  {
-    ten: "chủ chuỗi thấy khối não + ô chọn trang luôn rỗng",
-    tep: "src/components/Sidebar.tsx",
-    tim: "          {group2.length > 0 && (\n",
-    thay: "          {(\n",
   },
   {
     ten: "hồ sơ thật không thay mã tạm của Trang",
@@ -3955,8 +4260,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "có video theo bài mà vẫn gửi đăng ngay (đăng thiếu video)",
     tep: "src/pages/Content.tsx",
-    tim: "      } else if (dang) {\n",
-    thay: "      }\n      if (dang) {\n",
+    tim: "      } else if (dang && !choDuyet) {\n",
+    thay: "      }\n      if (dang && !choDuyet) {\n",
   },
   {
     ten: "có video theo bài mà lưu bài ở trạng thái chờ duyệt thường",
@@ -3978,9 +4283,10 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "bài chờ video vẫn hiện nút duyệt",
+    // Danh sách gọn 11/10/2026: nút duyệt bài chờ duyệt chỉ ở cột thao tác, ẩn khi chờ video.
     tep: "src/pages/Content.tsx",
-    tim: "{post.status === 'pending_approval' && !post.cho_video_id && (",
-    thay: "{post.status === 'pending_approval' && (",
+    tim: "{!post.cho_video_id && <button onClick={() => handleApprove(post.id)}",
+    thay: "{<button onClick={() => handleApprove(post.id)}",
   },
   {
     ten: "gắn video theo bài cho bài đã đăng",
@@ -3995,10 +4301,10 @@ const DUC: PhepDuc[] = [
     thay: "  const gia = giaVideo(model, p.lc);",
   },
   {
-    ten: "bài chờ video không tự đăng khi video xong",
+    ten: "bài hẹn giờ có video không tự đăng khi video xong",
     tep: "server/services/autopilot.ts",
-    tim: "cho_video_id = $3, cho_video_guard = 'publish', updated_at = now()",
-    thay: "cho_video_id = $3, cho_video_guard = 'approve', updated_at = now()",
+    tim: "  const guardVideo = bai.scheduled_for || cheDo?.settings?.autoPublish === true ? \"publish\" : \"approve\";",
+    thay: "  const guardVideo = cheDo?.settings?.autoPublish === true ? \"publish\" : \"approve\";",
   },
   {
     ten: "bản nháp cũ gắn video bị coi là chờ quá lâu, đăng vội không video",
@@ -4560,9 +4866,10 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "bộ não AI: AI Quảng Cáo không bắt chọn trang",
-    tep: "src/App.tsx",
-    tim: "<Route path=\"/ads\" element={<CanTrangNao ten=\"AI Quảng Cáo\"><Ads /></CanTrangNao>} />",
-    thay: "<Route path=\"/ads\" element={<Ads />} />",
+    // 4 AI ở pages/KhoiNao.tsx, mỗi AI tự bọc CanTrangNao.
+    tep: "src/pages/KhoiNao.tsx",
+    tim: "    <CanTrangNao ten=\"AI Qu\u1ea3ng c\u00e1o\">\n      <KhuonAi\n        ai=\"ads\"",
+    thay: "    <>\n      <KhuonAi\n        ai=\"ads\"",
   },
   {
     ten: "bộ não AI: không bao giờ bắt chọn trang",
@@ -4573,8 +4880,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "bộ não AI: chọn trang lấy kênh bất kỳ, không phải kênh chính",
     tep: "src/lib/ActivePage.tsx",
-    tim: "setActiveAccountId(kenhMacDinh(ketNoi)[0] ?? ketNoi[0]?.id ?? t.kenh[0].id);",
-    thay: "setActiveAccountId(t.kenh[0].id);",
+    tim: "setActiveAccountId(kenhMacDinh(ketNoi)[0] ?? ketNoi[0]?.id ?? t.kenh[0]?.id ?? null);",
+    thay: "setActiveAccountId(t.kenh[0]?.id ?? null);",
   },
   {
     ten: "bộ não AI: duyệt / bác đề xuất của người khác",
@@ -4590,15 +4897,17 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "bộ não AI: mục AI Điều Hành rơi khỏi khối não",
-    tep: "src/components/Sidebar.tsx",
-    tim: "        { name: 'AI Điều Hành', icon: 'monitoring', path: '/dieu-hanh' },\n",
+    // 4 AI một nguồn src/lib/bon-ai.ts; menu vẽ từ đó.
+    tep: "src/lib/bon-ai.ts",
+    tim: "  { so: 4, ma: 'analytics', khau: 'dieu_hanh', ten: 'AI Điều hành', chucNang: 'Chấm hiệu suất 3 AI mỗi ngày, giữ cái tốt, sửa cái chưa tốt',\n    duong: '/dieu-hanh', bieuTuong: 'monitoring', mau: 'mau-vang', mien: 'mien-dieu-hanh', hex: '#facc15' },\n",
     thay: "",
   },
   {
     ten: "bộ não AI: ô chọn trang không nằm trong khối não",
+    // Ô chọn trang đã bỏ khỏi menu (chọn ở Kết nối kênh) — đục: khối não trên menu thiếu AI.
     tep: "src/components/Sidebar.tsx",
-    tim: "              <ChonTrangNao />\n",
-    thay: "",
+    tim: "    ? BON_AI.map((a) => ({ name: a.ten, icon: a.bieuTuong, path: a.duong, so: a.so, mau: a.hex }))",
+    thay: "    ? BON_AI.slice(0, 3).map((a) => ({ name: a.ten, icon: a.bieuTuong, path: a.duong, so: a.so, mau: a.hex }))",
   },
 ];
 
@@ -4636,7 +4945,18 @@ const GIOI_HAN = Number(process.env.GIOI_HAN) || DUC.length;
 // TEN="mật khẩu|xem thay" npm run kiem-tra-nguoc: chỉ đục những lỗ có tên chứa một trong các cụm (tách bằng |).
 // Đếm số thứ tự theo dòng dễ lệch khi danh sách đổi — chọn theo tên thì không.
 const TEN = (process.env.TEN ?? "").split("|").map((t) => t.trim()).filter(Boolean);
-const CHON = DUC.slice(TU, GIOI_HAN).filter((d) => TEN.length === 0 || TEN.some((t) => d.ten.includes(t)));
+// TEP="connections.ts|Connections.tsx" npm run kiem-tra-nguoc: chỉ đục lỗ trong các tệp vừa sửa (vài phút thay vì
+// ~25 phút cho cả bộ) — dùng trong lúc làm; xong cả màn thì chạy đủ một lượt trước khi báo duyệt.
+const TEP = (process.env.TEP ?? "").split("|").map((t) => t.trim()).filter(Boolean);
+const CHON = DUC.slice(TU, GIOI_HAN)
+  .filter((d) => TEN.length === 0 || TEN.some((t) => d.ten.includes(t)))
+  .filter((d) => TEP.length === 0 || TEP.some((t) => d.tep.includes(t)));
+// Lọc mà không khớp lỗ nào thì KHÔNG được báo xanh (phiên kiểm duyệt bắt được 18/10/2026: TEP tách bằng dấu phẩy khớp 0
+// lỗ mà vẫn in "Mọi chốt chặn đều có phép kiểm thật đứng sau").
+if ((TEN.length > 0 || TEP.length > 0) && CHON.length === 0) {
+  console.error("  ✗ Bộ lọc TEN/TEP không khớp lỗ nào — không có gì được kiểm. Nhiều giá trị thì tách bằng dấu |, không dùng dấu phẩy.");
+  process.exit(1);
+}
 for (const d of CHON) {
   luu(d.tep);
   const duong = path.join(GOC, d.tep);

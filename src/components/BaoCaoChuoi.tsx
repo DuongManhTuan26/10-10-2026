@@ -140,7 +140,7 @@ export default function BaoCaoChuoi({ t, du }: { t: TrangTongQuan | null; du: Du
 
         <Khau so={4} icon="query_stats" ten="Tổng">
           {!t ? (
-            <Dong nhan="Tổng chi" gia="Chưa đọc được tiền của trang" phu="Không tính tiền mỗi đơn / doanh thu trên chi phí khi thiếu số tiền" />
+            <Dong nhan="Tổng chi" gia="Chưa đọc được tiền của cửa hàng" phu="Không tính tiền mỗi đơn / doanh thu trên chi phí khi thiếu số tiền" />
           ) : (<>
           <Dong
             nhan="Tổng chi"

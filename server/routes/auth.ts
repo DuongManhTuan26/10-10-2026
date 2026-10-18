@@ -67,22 +67,13 @@ authRouter.post(
      * thứ mà đường kia có.
      */
     /*
-     * Người tự đăng ký thành CHỦ CHUỖI, không thành một trang bán hàng.
-     *
-     * Mô hình là mỗi tài khoản một Fanpage. Nếu đăng ký ra thẳng một trang thì
-     * người đó vĩnh viễn không thêm được trang thứ hai — muốn thêm phải đi
-     * chuyển đổi tài khoản, đúng kiểu sửa vá về sau mà chủ sản phẩm không
-     * muốn. Ra chủ chuỗi thì trang đầu tiên và trang thứ mười đều lập bằng
-     * cùng một cách.
-     *
-     * Chủ chuỗi không được cấp hồ sơ nền tảng, không có Trang, không có bộ não
-     * — họ quản lý chứ không bán.
+     * Người tự đăng ký ra tài khoản DÙNG THƯỜNG — bản sao phần dùng thường của quản trị tổng (chủ dự án 18/10/2026):
+     * một chìa khoá đăng nhập, tự tạo nhiều cửa hàng, mỗi cửa hàng một hồ sơ nền tảng + một bộ não.
      */
     const taiKhoan = await taoTaiKhoan({
       email: requireString(req.body, "email", "email"),
       password: requireString(req.body, "password", "mật khẩu"),
       name: typeof req.body?.name === "string" ? req.body.name : "",
-      role: "admin_con",
     });
 
     /*

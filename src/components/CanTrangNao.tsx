@@ -13,10 +13,10 @@ export default function CanTrangNao({ ten, children }: { ten: string; children: 
       <div className="rounded-2xl border border-outline-variant bg-surface-container-high p-6">
         <div className="flex items-center gap-2 text-on-surface">
           <span className="material-symbols-outlined text-primary">psychology</span>
-          <h2 className="text-lg font-bold">{ten} làm việc theo bộ não của MỘT trang</h2>
+          <h2 className="text-lg font-bold">{ten} làm việc theo bộ não của MỘT cửa hàng</h2>
         </div>
         <p className="mt-2 text-sm text-on-surface-variant">
-          Mỗi trang có bộ não AI riêng (viết bài, quảng cáo, bán hàng, điều hành). Chọn trang muốn làm việc:
+          Mỗi cửa hàng có bộ não AI riêng (viết bài, quảng cáo, bán hàng, điều hành). Chọn cửa hàng muốn làm việc:
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {trangs.map((t) => (

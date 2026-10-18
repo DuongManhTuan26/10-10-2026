@@ -22,8 +22,8 @@ import { AppError, route, chiNhanMaSo } from "../http.js";
 import { docMatKhauTuDat, taoTaiKhoan, EMAIL_PATTERN } from "../services/tai-khoan.js";
 import { layDanhSachQuanLy } from "../services/quan-ly-chung.js";
 import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
-import { chuyenThanhChuChuoi } from "../services/chuyen-chu-chuoi.js";
-import * as zernio from "../services/zernio.js";
+import { lapKeHoachXoa, thucHienXoa } from "../services/xoa-tai-khoan.js";
+import { phuThuocXoaThat } from "../services/xoa-tai-khoan-that.js";
 import { hashPassword } from "../auth.js";
 import { luuNguong, nhatKyLuot, saoKe } from "../services/chi-phi.js";
 import { NHOM_VIEC, VIEC } from "../services/so-ai.js";
@@ -129,57 +129,22 @@ adminRouter.post(
       throw new AppError("Địa chỉ email không hợp lệ");
     }
 
-    /*
-     * Quản trị tổng cấp được cả hai loại:
-     *   'admin_con' — chủ chuỗi, tự lập các trang của mình về sau
-     *   'shop'      — một tài khoản một trang, đứng riêng không thuộc chuỗi nào
-     * Giá trị lạ rơi về 'shop', quyền thấp hơn. Đoán sai phải đoán về phía
-     * ít quyền, không phải phía nhiều quyền.
-     */
-    const role = req.body?.role === "admin_con" ? "admin_con" : "shop";
-
+    // Chỉ một loại: tài khoản dùng thường, bản sao phần dùng thường của quản trị tổng (chủ dự án 18/10/2026).
     // Quản trị tự đặt mật khẩu; bỏ trống thì hệ thống sinh (docMatKhauTuDat).
     const { matKhau: matKhauTam } = docMatKhauTuDat(req.body);
-    const taiKhoan = await taoTaiKhoan({ email, password: matKhauTam, name, role });
+    const taiKhoan = await taoTaiKhoan({ email, password: matKhauTam, name });
 
     await ghiNhatKyQuanTri({
       adminId: req.user!.id,
       targetId: taiKhoan.id,
       targetEmail: taiKhoan.email,
       action: "tao_tai_khoan",
-      detail: { role },
     });
 
     res.status(201).json({
       success: true,
       data: { ...taiKhoan, matKhauTam },
     });
-  })
-);
-
-/**
- * Chuyển một tài khoản đứng riêng thành tài khoản quản lý chuỗi.
- *
- * Dành cho tài khoản lập trước khi có luật "đăng ký là ra chủ chuỗi", hoặc lập
- * trúng lúc máy chủ đang chạy bản cũ — đã xảy ra thật. Không có đường này thì
- * những tài khoản đó vĩnh viễn kẹt ở đúng một Fanpage và không lập được trang
- * nào.
- */
-adminRouter.post(
-  "/accounts/:id/thanh-chu-chuoi",
-  route(async (req, res) => {
-    const dich = await layTaiKhoanDich(req.params.id, req.user!.id, "sua");
-    const ketQua = await chuyenThanhChuChuoi(dich.id);
-
-    await ghiNhatKyQuanTri({
-      adminId: req.user!.id,
-      targetId: dich.id,
-      targetEmail: dich.email,
-      action: "chuyen_thanh_chu_chuoi",
-      detail: { hoSoDaDon: ketQua.hoSoDaDon, loiDonHoSo: ketQua.loiDonHoSo },
-    });
-
-    res.json({ success: true, data: ketQua });
   })
 );
 
@@ -313,13 +278,24 @@ adminRouter.post(
 );
 
 /**
- * Xoá hẳn một tài khoản.
+ * XEM TRƯỚC khi xoá một tài khoản (B1-d) — CHỈ ĐỌC: hồ sơ nào sẽ bị xoá, kênh nào trong đó sẽ bị ngắt, hồ sơ nào bỏ qua
+ * vì dùng chung với tài khoản khác. Liệt kê kênh qua nhà cung cấp (đọc, không tốn tiền).
+ */
+adminRouter.get(
+  "/accounts/:id/xem-truoc-xoa",
+  route(async (req, res) => {
+    const dich = await layTaiKhoanDich(req.params.id, req.user!.id, "xoa");
+    res.json({ success: true, data: await lapKeHoachXoa(dich.id, phuThuocXoaThat) });
+  })
+);
+
+/**
+ * Xoá hẳn một tài khoản (B1-d, services/xoa-tai-khoan.ts).
  *
- * Mọi bảng dữ liệu của shop đều xoá theo (19/19 khoá ngoại đặt ON DELETE
- * CASCADE), nên không để lại rác. Không lấy lại được.
- *
- * Bắt gõ đúng email để xác nhận: xoá nhầm là mất sạch khách hàng, hội thoại và
- * đơn hàng của một shop đang kinh doanh thật.
+ * Bắt gõ đúng email để xác nhận. Thứ tự: khoá → chốt sổ tiền kênh trong ngày → ngắt mọi kênh của MỌI hồ sơ thuộc tài
+ * khoản (không đụng hồ sơ dùng chung) → kiểm lại không sót → xoá hồ sơ → cuối cùng mới xoá dòng tài khoản (19/19 khoá
+ * ngoại CASCADE dọn dữ liệu trong app). Lỗi giữa chừng: DỪNG, tài khoản còn (đã khoá), nhật ký ghi "xoá dở: đã làm X,
+ * còn Y" để quản trị không vô tình mở khoá một tài khoản đã bị ngắt hết kênh.
  */
 adminRouter.delete(
   "/accounts/:id",
@@ -334,37 +310,22 @@ adminRouter.delete(
       );
     }
 
-    /*
-     * Lấy mã hồ sơ TRƯỚC khi xoá dòng tài khoản, vì xoá xong là mất đường tìm
-     * lại. Xoá hồ sơ SAU khi xoá tài khoản: xoá hồ sơ trước mà lệnh xoá tài
-     * khoản hỏng thì còn lại một tài khoản sống với hồ sơ đã chết.
-     */
-    const hoSo = await queryOne<{ profile_ref: string | null }>(
-      "SELECT profile_ref FROM users WHERE id = $1",
-      [dich.id]
-    );
-
-    await query("DELETE FROM users WHERE id = $1", [dich.id]);
-
-    let loiXoaHoSo: string | null = null;
-    if (hoSo?.profile_ref) {
-      try {
-        await zernio.xoaHoSo(hoSo.profile_ref);
-      } catch (error) {
-        /*
-         * Không ném lỗi: tài khoản đã xoá xong rồi, ném ra đây chỉ làm người
-         * dùng tưởng việc xoá thất bại. Nhưng phải GHI LẠI mã hồ sơ, không thì
-         * nó nằm lại bên nhà cung cấp mà không ai biết để dọn — đúng cách đống
-         * hồ sơ rác cũ đã hình thành.
-         */
-        loiXoaHoSo = error instanceof Error ? error.message : String(error);
-        console.error(
-          `[quản trị] Chưa xoá được hồ sơ ${hoSo.profile_ref} bên nhà cung cấp:`,
-          loiXoaHoSo
-        );
-      }
+    const kq = await thucHienXoa(dich.id, phuThuocXoaThat);
+    if ("loi" in kq) {
+      await ghiNhatKyQuanTri({
+        adminId: req.user!.id,
+        targetId: dich.id,
+        targetEmail: dich.email,
+        action: "xoa_tai_khoan_do",
+        detail: { daLam: kq.daLam, conLai: kq.conLai, loi: kq.loi },
+      });
+      throw new AppError(
+        `Chưa xoá xong — tài khoản đang ở trạng thái khoá. Đã làm: ${kq.daLam.join("; ")}. Còn lại: ${kq.conLai.join("; ")}. ${kq.loi}`,
+        409
+      );
     }
 
+    const xong = kq as Extract<typeof kq, { xong: true }>;
     await ghiNhatKyQuanTri({
       adminId: req.user!.id,
       targetId: null,
@@ -372,8 +333,8 @@ adminRouter.delete(
       action: "xoa_tai_khoan",
       detail: {
         name: dich.name,
-        hoSo: hoSo?.profile_ref ?? null,
-        loiXoaHoSo,
+        hoSo: xong.keHoach.hoSo.map((h) => ({ id: h.id, nguon: h.nguon, kenh: h.kenh.map((k) => `${k.platform}:${k.ten}`) })),
+        boQua: xong.keHoach.boQua,
       },
     });
 
@@ -414,7 +375,6 @@ adminRouter.get(
         soNgay: Number.isFinite(ngay) && ngay >= 0 ? ngay : 0,
         // "chung" = việc không thuộc tài khoản nào; bỏ trống = mọi tài khoản.
         taiKhoan: tk === "" ? undefined : tk === "chung" ? null : Number(tk) || undefined,
-        kemCon: q("kemCon") === "1",
         // Chỉ nhận đúng tên nhóm/việc đã khai — không nhét chuỗi lạ vào truy vấn.
         nhom: nhom in NHOM_VIEC || nhom === "chua_phan_loai" ? nhom : undefined,
         viec: viec in VIEC || viec === "chua_phan_loai" ? viec : undefined,

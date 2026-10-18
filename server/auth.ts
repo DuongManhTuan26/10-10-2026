@@ -47,11 +47,11 @@ export async function verifyPassword(
 // ---------------------------------------------------------------------------
 
 /**
- * 'admin'     — quản trị tổng, thấy mọi tài khoản trong hệ thống.
- * 'admin_con' — chủ chuỗi, chỉ thấy các tài khoản trang do mình lập ra.
- * 'shop'      — một tài khoản một trang, không thấy tài khoản nào khác.
+ * 'admin' — quản trị tổng: thấy mọi tài khoản trong hệ thống, đồng thời dùng như một tài khoản thường.
+ * 'shop'  — tài khoản dùng thường: tự giữ nhiều cửa hàng, không thấy tài khoản nào khác.
+ * (Tầng chủ chuỗi 'admin_con' đã bỏ — chủ dự án 18/10/2026.)
  */
-export type VaiTro = "admin" | "admin_con" | "shop";
+export type VaiTro = "admin" | "shop";
 
 export interface SessionUser {
   id: number;
@@ -64,14 +64,12 @@ export interface SessionUser {
   /**
    * Ai đã mở phiên này thay cho chủ tài khoản.
    *
-   * null là người dùng tự đăng nhập. Có số là admin con đang xem thay một
-   * trang của mình — giao diện PHẢI hiện rõ điều đó, vì người đang ngồi trước
-   * màn hình rất dễ tưởng mình vẫn ở tài khoản của mình rồi gõ nhầm vai trò AI
-   * hay trả lời khách của trang khác.
+   * null là người dùng tự đăng nhập. Có số là quản trị tổng đang mở tài
+   * khoản này — giao diện PHẢI hiện rõ điều đó, vì người đang ngồi trước màn
+   * hình rất dễ tưởng mình vẫn ở tài khoản của mình rồi gõ nhầm vai trò AI hay
+   * trả lời khách của tài khoản khác.
    */
   moBoi: number | null;
-  /** Tài khoản cha (admin con) của tài khoản này; null nếu đứng riêng. */
-  parentId: number | null;
 }
 
 declare global {
@@ -91,7 +89,7 @@ declare global {
  * phía cấp thêm quyền.
  */
 function chuanHoaVaiTro(role: string): VaiTro {
-  return role === "admin" ? "admin" : role === "admin_con" ? "admin_con" : "shop";
+  return role === "admin" ? "admin" : "shop";
 }
 
 /**
@@ -121,8 +119,7 @@ export async function hoSoNguoiDung(
     plan: string;
     role: string;
     profile_ref: string | null;
-    parent_id: number | null;
-  }>("SELECT id, email, name, plan, role, profile_ref, parent_id FROM users WHERE id = $1", [userId]);
+  }>("SELECT id, email, name, plan, role, profile_ref FROM users WHERE id = $1", [userId]);
   if (!row) return null;
 
   const nguoiMo =
@@ -141,7 +138,6 @@ export async function hoSoNguoiDung(
     role: chuanHoaVaiTro(row.role),
     profileRef: row.profile_ref,
     moBoi,
-    parentId: row.parent_id,
     nguoiMo,
   };
 }
@@ -218,30 +214,25 @@ async function loadSession(req: Request): Promise<SessionRow | null> {
     role: string;
     profile_ref: string | null;
     mo_boi: number | null;
-    parent_id: number | null;
   }>(
-    `SELECT s.id AS session_id, s.mo_boi, u.id, u.email, u.name, u.plan, u.role, u.profile_ref, u.parent_id
+    `SELECT s.id AS session_id, s.mo_boi, u.id, u.email, u.name, u.plan, u.role, u.profile_ref
        FROM sessions s
        JOIN users u ON u.id = s.user_id
       WHERE s.id = $1 AND s.expires_at > now() AND u.is_active = TRUE
         /*
          * Phiên XEM THAY chỉ sống khi người mở nó vẫn còn quyền mở.
          *
-         * Đã tái hiện: khoá chủ chuỗi thì phiên của chính họ bị xoá, nhưng phiên
-         * xem thay họ đang mở mang user_id của TRANG, nên sống tiếp — vẫn xem
-         * được danh sách trang và nhảy sang trang khác trong chuỗi. Kiểm ở đây,
-         * mỗi request, thì khoá, hạ vai trò hay chuyển trang sang chủ khác đều
-         * có hiệu lực ngay lượt bấm kế tiếp, không cần nhớ đi xoá phiên ở đâu.
-         */
-        /*
-         * Quản trị tổng mở được MỌI tài khoản không phải quản trị; admin con chỉ mở được trang của mình
-         * (chủ dự án 04/10/2026: hai tầng có cùng tính năng, chỉ khác phạm vi).
+         * Đã tái hiện: khoá người mở thì phiên của chính họ bị xoá, nhưng phiên
+         * họ đang mở mang user_id của tài khoản kia, nên sống tiếp. Kiểm ở đây,
+         * mỗi request, thì khoá hay hạ vai trò đều có hiệu lực ngay lượt bấm kế
+         * tiếp, không cần nhớ đi xoá phiên ở đâu.
+         *
+         * Chỉ quản trị tổng mở được tài khoản khác — mọi tài khoản không phải quản trị.
          */
         AND (s.mo_boi IS NULL OR EXISTS (
               SELECT 1 FROM users c
                WHERE c.id = s.mo_boi AND c.is_active = TRUE
-                 AND ((c.role = 'admin' AND u.role <> 'admin')
-                      OR (c.role = 'admin_con' AND u.parent_id = c.id))))`,
+                 AND c.role = 'admin' AND u.role <> 'admin'))`,
     [id]
   );
 
@@ -260,7 +251,6 @@ async function loadSession(req: Request): Promise<SessionRow | null> {
     role: chuanHoaVaiTro(row.role),
     profileRef: row.profile_ref,
     moBoi: row.mo_boi,
-    parentId: row.parent_id,
   };
 }
 

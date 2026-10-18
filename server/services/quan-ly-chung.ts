@@ -1,24 +1,18 @@
 /**
- * Màn hình QUẢN LÝ dùng chung cho quản trị tổng và chủ chuỗi (admin con).
+ * Danh sách tài khoản cho màn hình QUẢN LÝ của quản trị tổng: MỘT câu lệnh, MỘT bộ cột.
  *
- * Chủ dự án 04/10/2026: "mọi chức năng, tính năng, giao diện tổng thể giữa admin tổng và admin con phải giống 100%
- * tuyệt đối … duy nhất khác ở chức năng phân tầng để quản lý. Sau này sửa một bên thì phải lập tức đồng nhất bên
- * còn lại." Trước đó hai màn hình là hai bộ mã riêng (bảng /admin/accounts và thẻ /quan-ly/tong-quan), lệch nhau
- * gần như mọi chỗ — số liệu mỗi bên một kiểu.
- *
- * Nay MỘT câu lệnh, MỘT bộ cột cho cả hai; chỉ PHẠM VI khác:
- *   - quản trị tổng: mọi tài khoản trong hệ thống (cây: admin con → trang con, tài khoản đứng riêng);
- *   - admin con: chính mình + các trang mình lập.
+ * Chủ dự án 18/10/2026: bỏ tầng chủ chuỗi (admin con) — mọi tài khoản là tài khoản dùng thường, đứng ngang hàng;
+ * mỗi tài khoản tự giữ nhiều cửa hàng.
  */
 
 import { query } from "../db.js";
 import { DAU_NGAY_VN, DAU_THANG_VN } from "../moc-thoi-gian.js";
 
-export type PhamVi = { loai: "tong" } | { loai: "chuoi"; chaId: number };
+export type PhamVi = { loai: "tong" };
 
 /** Một dòng tài khoản — giống hệt nhau ở cả hai màn hình. */
 export const COT_QUAN_LY = `
-  u.id, u.email, u.name, u.plan, u.role, u.is_active, u.created_at, u.parent_id,
+  u.id, u.email, u.name, u.plan, u.role, u.is_active, u.created_at,
   (u.id = $1) AS la_toi,
   /* --- Kênh --- */
   (SELECT count(*)::int FROM social_accounts s WHERE s.user_id = u.id AND s.connected) AS kenh_noi,
@@ -59,12 +53,7 @@ export const COT_QUAN_LY = `
  * "Đổi mật khẩu" thay vì "cấp lại", không khoá / xoá được chính mình).
  */
 export async function layDanhSachQuanLy(phamVi: PhamVi, toiId: number) {
-  const rows =
-    phamVi.loai === "tong"
-      ? await query(`SELECT ${COT_QUAN_LY} FROM users u ORDER BY u.created_at`, [toiId])
-      : await query(
-          `SELECT ${COT_QUAN_LY} FROM users u WHERE u.id = $2 OR u.parent_id = $2 ORDER BY (u.id = $2) DESC, u.created_at`,
-          [toiId, phamVi.chaId]
-        );
+  void phamVi; // chỉ còn một phạm vi: cả hệ thống (chủ dự án 18/10/2026 bỏ tầng chủ chuỗi)
+  const rows = await query(`SELECT ${COT_QUAN_LY} FROM users u ORDER BY u.created_at`, [toiId]);
   return rows.rows;
 }

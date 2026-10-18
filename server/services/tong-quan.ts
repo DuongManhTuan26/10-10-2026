@@ -73,11 +73,10 @@ export interface TaiKhoanTongQuan {
   ten: string;
   email: string;
   role: string;
-  parentId: number | null;
   hoatDong: boolean;
   laToi: boolean;
   trang: TrangTongQuan[];
-  /** Tiền AI của tài khoản nhưng không thuộc trang nào (vd. tài khoản quản lý chuỗi tự thử AI — không có trang). */
+  /** Tiền AI của tài khoản nhưng không thuộc trang nào (vd. lượt cũ trước khi tính theo cửa hàng). */
   tienAiKhongTrang: TienAi;
 }
 
@@ -160,22 +159,20 @@ async function quangCaoCuaFanpage(kenhFb: string, pageId: string, tu: Date, den:
 }
 
 /**
- * Phạm vi tổng quan: hai tầng quản lý dùng PhamVi chung; "tai_khoan" = MỘT tài khoản tự xem bộ não các trang của mình
+ * Phạm vi tổng quan: quản trị tổng — cả hệ thống; "tai_khoan" = MỘT tài khoản tự xem bộ não các trang của mình
  * (trang AI Điều Hành, 10/10/2026) — cùng đúng một cách tính tiền, không viết bản thứ hai.
  */
 export type PhamViTongQuan = PhamVi | { loai: "tai_khoan"; userId: number };
 
 export async function layTongQuan(phamVi: PhamViTongQuan, toiId: number, ky: KyTongQuan) {
   const trongPhamVi =
-    phamVi.loai === "tong" ? "TRUE"
-      : phamVi.loai === "tai_khoan" ? `(u.id = ${Number(phamVi.userId)})`
-        : `(u.id = ${Number(phamVi.chaId)} OR u.parent_id = ${Number(phamVi.chaId)})`;
+    phamVi.loai === "tong" ? "TRUE" : `(u.id = ${Number(phamVi.userId)})`;
   const kt = kyTinh(ky);
   const { tu, den } = kt;
 
   const [nguoi, trang, kenh, ai, aiDaXoa, don] = await Promise.all([
-    query<{ id: number; name: string; email: string; role: string; parent_id: number | null; is_active: boolean }>(
-      `SELECT u.id, u.name, u.email, u.role, u.parent_id, u.is_active FROM users u WHERE ${trongPhamVi}
+    query<{ id: number; name: string; email: string; role: string; is_active: boolean }>(
+      `SELECT u.id, u.name, u.email, u.role, u.is_active FROM users u WHERE ${trongPhamVi}
         ORDER BY u.created_at`
     ),
     query<{ id: number; user_id: number; ten: string }>(
@@ -316,7 +313,7 @@ export async function layTongQuan(phamVi: PhamViTongQuan, toiId: number, ky: KyT
   const dsTk = new Map<number, TaiKhoanTongQuan>();
   for (const u of nguoi.rows) {
     dsTk.set(u.id, {
-      id: u.id, ten: u.name, email: u.email, role: u.role, parentId: u.parent_id, hoatDong: u.is_active,
+      id: u.id, ten: u.name, email: u.email, role: u.role, hoatDong: u.is_active,
       laToi: u.id === toiId, trang: [], tienAiKhongTrang: rong(),
     });
   }

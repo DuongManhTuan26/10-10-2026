@@ -322,9 +322,13 @@ export async function xoaHoSo(profileId: string): Promise<void> {
   });
 }
 
-export async function listAccounts(profileId?: string): Promise<ZernioAccount[]> {
+/**
+ * Kênh của một hồ sơ. Mặc định nhà cung cấp CHỈ trả kênh trong hạn mức gói (tài liệu GET /v1/accounts, dòng 22270) —
+ * việc xoá / dọn hồ sơ phải xin cả kênh của hồ sơ vượt hạn mức (includeOverLimit), nếu không sẽ sót kênh.
+ */
+export async function listAccounts(profileId?: string, tuyChon: { includeOverLimit?: boolean } = {}): Promise<ZernioAccount[]> {
   const data = await request<{ accounts?: ZernioAccount[] }>("/accounts", {
-    query: { profileId },
+    query: { profileId, ...(tuyChon.includeOverLimit ? { includeOverLimit: "true" } : {}) },
   });
   return data.accounts ?? [];
 }
@@ -397,39 +401,50 @@ export async function listFacebookPages(params: {
 }
 
 /**
- * Các Trang mà một kênh Facebook ĐANG kết nối có quyền vào, kèm Trang đang gắn.
- *
- * Khác với listFacebookPages ở trên: hàm kia dùng giữa chừng luồng cấp quyền
- * và cần tempToken. Hàm này dùng cho kênh đã kết nối rồi, không cần cấp lại
- * quyền lần nào.
+ * Chuyển một kênh sang hồ sơ khác của cùng chủ khoá API (PATCH /accounts/{id}, tài liệu "Move account to another
+ * profile"). Mã kênh giữ nguyên, hội thoại / bài cũ vẫn theo kênh. Dùng khi chủ shop chuyển kênh sang cửa hàng khác —
+ * mỗi cửa hàng một hồ sơ. Chỗ gọi phải chặn trước nếu hồ sơ đích đã có cùng nền tảng (nhà cung cấp sẽ thay tài khoản cũ).
  */
-export async function layTrangCuaKenh(accountId: string): Promise<{
-  pages: FacebookPage[];
-  selectedPageId: string | null;
-}> {
-  const data = await request<{ pages?: FacebookPage[]; selectedPageId?: string }>(
-    `/accounts/${encodeURIComponent(accountId)}/facebook-page`
+export async function chuyenKenhSangHoSo(accountId: string, profileId: string): Promise<void> {
+  await request<{ message?: string; profileId?: string }>(
+    `/accounts/${encodeURIComponent(accountId)}`,
+    { method: "PATCH", body: { profileId }, retries: 0 }
   );
-  return { pages: data.pages ?? [], selectedPageId: data.selectedPageId ?? null };
 }
 
 /**
- * Đổi Trang đang gắn cho một kênh Facebook.
- *
- * QUAN TRỌNG: một kết nối Facebook chỉ phục vụ MỘT Trang tại một thời điểm.
- * Đổi sang Trang khác thì Trang cũ ngừng gửi tin nhắn và bình luận về — đã đo
- * thật: kênh gắn Trang A trả về 2 hội thoại, đổi sang Trang B thì trả về 0.
- * Đây là giới hạn của nhà cung cấp, không phải của Facebook.
+ * TELEGRAM — nối bằng MÃ, không có đăng nhập (tài liệu: GET/PATCH /v1/connect/telegram). Nhà cung cấp phát mã sống
+ * 15 phút; khách thêm bot của họ làm quản trị kênh / nhóm rồi gửi mã cho bot; mình dò PATCH mỗi ~3 giây.
+ * Trước 17/10/2026 app xếp Telegram vào luồng đăng nhập thường → luôn hỏng (nhà cung cấp trả mã, không trả URL).
  */
-export async function doiTrangDangGan(
-  accountId: string,
-  pageId: string
-): Promise<{ id: string; name: string } | null> {
-  const data = await request<{ selectedPage?: { id: string; name: string } }>(
-    `/accounts/${encodeURIComponent(accountId)}/facebook-page`,
-    { method: "PUT", body: { selectedPageId: pageId } }
-  );
-  return data.selectedPage ?? null;
+export async function layMaTelegram(profileId: string): Promise<{
+  code: string; expiresAt: string; botUsername: string;
+}> {
+  const d = await request<{ code?: string; expiresAt?: string; botUsername?: string }>("/connect/telegram", {
+    query: { profileId },
+  });
+  if (!d.code || !d.botUsername) throw new ZernioError("Zernio không trả mã kết nối Telegram", 502, "missing_telegram_code");
+  return { code: d.code, expiresAt: d.expiresAt ?? new Date(Date.now() + 15 * 60_000).toISOString(), botUsername: d.botUsername };
+}
+
+export async function kiemMaTelegram(code: string): Promise<"pending" | "connected" | "expired"> {
+  const d = await request<{ status?: string }>("/connect/telegram", { method: "PATCH", query: { code }, retries: 0 });
+  return d.status === "connected" ? "connected" : d.status === "expired" ? "expired" : "pending";
+}
+
+/**
+ * BLUESKY — nối bằng tên tài khoản + MẬT KHẨU ỨNG DỤNG (tài liệu: POST /v1/connect/bluesky/credentials).
+ * state bắt buộc dạng {userId}-{profileId}, userId lấy từ GET /v1/users (currentUserId). Mật khẩu ứng dụng chỉ đi
+ * qua, mình KHÔNG lưu.
+ */
+export async function noiBluesky(identifier: string, appPassword: string, profileId: string): Promise<void> {
+  const nguoiDung = await request<{ currentUserId?: string }>("/users");
+  if (!nguoiDung.currentUserId) throw new ZernioError("Zernio không trả mã người dùng", 502, "missing_user_id");
+  await request("/connect/bluesky/credentials", {
+    method: "POST",
+    body: { identifier, appPassword, state: `${nguoiDung.currentUserId}-${profileId}` },
+    retries: 0,
+  });
 }
 
 /**

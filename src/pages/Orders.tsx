@@ -4,8 +4,24 @@ import { clsx } from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError, formatCurrency, type Order } from '../lib/api';
 import BangLoi from '../components/BangLoi';
+import { hoiXacNhan } from '../components/HopHoi';
 
 const FILTERS = ['Tất cả', 'Chờ xác nhận', 'Đã xác nhận', 'Đang giao', 'Hoàn thành', 'Đã hủy'];
+
+/**
+ * "18/10 14:05" theo giờ máy người xem. Tự ghép ngày/tháng: toLocaleDateString('vi-VN') ra "18-10" trên trình duyệt
+ * (đã thấy khi thử 18/10/2026), lệch với "18/10" ở mọi chỗ khác.
+ */
+const hai = (n: number) => String(n).padStart(2, '0');
+/** "18/10" — dùng chung cho cột ngày của danh sách và dòng thời gian (một hàm, không lệch nhau). */
+const ngayThang = (iso: string) => {
+  const d = new Date(iso);
+  return `${hai(d.getDate())}/${hai(d.getMonth() + 1)}`;
+};
+const gioNgan = (iso: string) => {
+  const d = new Date(iso);
+  return `${ngayThang(iso)} ${hai(d.getHours())}:${hai(d.getMinutes())}`;
+};
 
 /** Nhãn tiếng Việt trên giao diện <-> trạng thái trong database. */
 const LABEL_TO_STATUS: Record<string, Order['status']> = {
@@ -40,9 +56,18 @@ interface DisplayOrder {
   note: string | null;
   telegramSent: boolean;
   conversationId: string | null;
+  chuaCoGia: boolean;
+  /** Dòng sản phẩm dựng từ ĐÚNG đơn này (một đơn một sản phẩm) — B1-c: bản cũ đọc items không tồn tại nên khung sập. */
+  items: { name: string; qty: number; price: string; total: string }[];
+  /** Chỉ các mốc CÓ THẬT trong dữ liệu (tạo đơn, báo Telegram) + trạng thái hiện tại; không có lịch sử thì không bịa giờ. */
+  timeline: { text: string; time: string }[];
 }
 
-export default function Orders() {
+/**
+ * `trongKhuon`: trang đang nằm trong khuôn 4 thẻ của bộ não (KhuonAi) — đầu khuôn đã có tên AI và thẻ "Hướng dẫn AI",
+ * nên ẩn tiêu đề và nút vai trò riêng của trang để không lặp hai lần.
+ */
+export default function Orders({ trongKhuon = false }: { trongKhuon?: boolean } = {}) {
   const navigate = useNavigate();
 
   const [activeFilters, setActiveFilters] = useState<string[]>(['Tất cả']);
@@ -93,7 +118,7 @@ export default function Orders() {
         raw: order,
         id: `#${order.code}`,
         time: created.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        date: created.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+        date: ngayThang(order.created_at),
         customerInitial: (order.customer_name || '?').trim().charAt(0).toUpperCase(),
         customerName: order.customer_name || 'Khách chưa có tên',
         phone: order.phone || '',
@@ -115,7 +140,18 @@ export default function Orders() {
         address: order.address || 'Chưa có địa chỉ',
         note: order.note,
         telegramSent: Boolean(order.telegram_sent_at),
-        conversationId: (order as any).conversation_id ?? null,
+        conversationId: order.conversation_id ?? null,
+        items: [{
+          name: order.product,
+          qty: order.quantity,
+          price: Number(order.total) === 0 ? '—' : formatCurrency(order.unit_price),
+          total: Number(order.total) === 0 ? '—' : formatCurrency(order.total),
+        }],
+        timeline: [
+          { text: `Tạo đơn — ${order.closed_by === 'ai' ? 'AI chốt' : 'nhân viên chốt'}`, time: gioNgan(order.created_at) },
+          ...(order.telegram_sent_at ? [{ text: 'Đã báo đơn qua Telegram', time: gioNgan(order.telegram_sent_at) }] : []),
+          { text: `Trạng thái hiện tại: ${STATUS_TO_LABEL[order.status]}`, time: '' },
+        ],
       };
     }),
     [orders]
@@ -166,6 +202,32 @@ export default function Orders() {
     return orders.filter((o) => new Date(o.created_at).toDateString() === today).length;
   }, [orders]);
 
+  /** Mở đoạn chat gốc của đơn — cùng một đường cho menu ⋯ và nút trong khung chi tiết. */
+  const moDoanChat = (order: DisplayOrder) =>
+    order.conversationId
+      ? navigate(`/ban-hang?the=dang-lam&viec=hop-thu&hoi-thoai=${encodeURIComponent(order.conversationId)}`)
+      : setErrorMessage('Đơn này không được tạo từ hội thoại nào.');
+
+  /**
+   * Huỷ đơn: hỏi lại bằng hộp của app (B1-c). Huỷ chỉ đổi trạng thái — đơn thôi tính vào doanh thu và tổng chi của
+   * khách (orders.ts PATCH); KHÔNG gửi tin cho khách, không báo Telegram. Đổi lại trạng thái lúc nào cũng được.
+   */
+  const huyDon = async (order: DisplayOrder) => {
+    if (
+      !(await hoiXacNhan({
+        tieuDe: `Huỷ đơn ${order.id}?`,
+        noiDung:
+          'Đơn chuyển sang "Đã hủy": không còn tính vào doanh thu và tổng chi của khách. ' +
+          'Khách KHÔNG nhận được tin nhắn nào. Muốn khôi phục thì đổi lại trạng thái trong chi tiết đơn.',
+        nutDongY: 'Huỷ đơn',
+        // "Huỷ" cạnh "Huỷ đơn" rất dễ bấm nhầm (phiên kiểm duyệt góp ý 18/10/2026).
+        nutHuy: 'Giữ đơn',
+        nguyHiem: true,
+      }))
+    ) return;
+    await handleChangeStatus(order, 'Đã hủy');
+  };
+
   const handleChangeStatus = async (order: DisplayOrder, label: string) => {
     const status = LABEL_TO_STATUS[label];
     if (!status) return;
@@ -214,22 +276,24 @@ export default function Orders() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Chờ xác nhận': return 'bg-yellow-500';
-      case 'Đã xác nhận': return 'bg-blue-500';
-      case 'Đang giao': return 'bg-purple-500';
-      case 'Hoàn thành': return 'bg-green-500';
-      case 'Đã hủy': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      // Bảng màu đã thống nhất (B + miền): chờ xác nhận = cần làm ngay (hồng) · đã xác nhận = thông tin (lam) · đang giao
+      // = màu miền ③ Bán hàng · hoàn thành = trắng · đã huỷ = đỏ.
+      case 'Chờ xác nhận': return 'bg-gap';
+      case 'Đã xác nhận': return 'bg-thong-tin';
+      case 'Đang giao': return 'bg-primary';
+      case 'Hoàn thành': return 'bg-on-surface';
+      case 'Đã hủy': return 'bg-loi';
+      default: return 'bg-on-surface-variant';
     }
   };
 
   const getStatusBgColor = (status: string) => {
     switch (status) {
-      case 'Chờ xác nhận': return 'bg-yellow-500/20 text-yellow-500';
-      case 'Đã xác nhận': return 'bg-blue-500/20 text-blue-500';
-      case 'Đang giao': return 'bg-purple-500/20 text-purple-400';
-      case 'Hoàn thành': return 'bg-green-500/20 text-green-400';
-      case 'Đã hủy': return 'bg-red-500/20 text-red-500';
+      case 'Chờ xác nhận': return 'bg-gap/15 text-gap';
+      case 'Đã xác nhận': return 'bg-thong-tin/15 text-thong-tin';
+      case 'Đang giao': return 'bg-primary/15 text-primary';
+      case 'Hoàn thành': return 'bg-white/10 text-on-surface';
+      case 'Đã hủy': return 'bg-loi/15 text-loi';
       default: return 'bg-surface-variant text-on-surface-variant';
     }
   };
@@ -242,7 +306,7 @@ export default function Orders() {
   };
 
   return (
-    <main className="flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative">
+    <main className={trongKhuon ? "w-full relative" : "flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative"}>
 
       <BangLoi noiDung={errorMessage} onDong={() => setErrorMessage('')} className="mb-6" />
 
@@ -266,7 +330,7 @@ export default function Orders() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="font-headline-sm text-3xl font-bold text-on-surface tracking-tight">Đơn hàng</h1>
+            {!trongKhuon && <h1 className="font-headline-sm text-3xl font-bold text-on-surface tracking-tight">Đơn hàng</h1>}
             <span className="font-mono text-xs font-bold tracking-wider text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full uppercase">
               {ordersToday} ĐƠN HÔM NAY
             </span>
@@ -274,10 +338,13 @@ export default function Orders() {
           <p className="text-on-surface-variant text-sm">Tất cả đơn hàng AI chốt được và bạn chốt tay</p>
         </div>
         
-        <div className="flex items-center gap-2 bg-surface-container border border-outline-variant rounded-lg px-3 py-2 cursor-pointer hover:bg-surface-container transition-colors">
-          <span className="material-symbols-outlined text-[18px] text-on-surface-variant">calendar_today</span>
-          <span className="text-sm font-medium text-on-surface">30 ngày qua</span>
-          <span className="material-symbols-outlined text-[18px] text-on-surface-variant">arrow_drop_down</span>
+        {/*
+          Bản cũ là ô "30 ngày qua ▾" bấm không ra gì, trong khi máy chủ trả 200 đơn mới nhất của MỌI thời gian
+          (server/routes/orders.ts) — ghi đúng phạm vi thật. Bộ lọc khoảng ngày cần máy chủ hỗ trợ: làm ở bước rà chức năng.
+        */}
+        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+          <span className="material-symbols-outlined text-[18px]">history</span>
+          200 đơn mới nhất
         </div>
       </div>
 
@@ -372,7 +439,7 @@ export default function Orders() {
                 className={clsx(
                   "px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors border",
                   isActive 
-                    ? "bg-primary text-on-primary border-primary shadow-[0_0_10px_rgba(0,229,255,0.2)]" 
+                    ? "bg-primary text-on-primary border-primary" 
                     : "bg-surface-container text-on-surface-variant border-outline-variant hover:bg-surface-container hover:text-on-surface"
                 )}
               >
@@ -442,7 +509,9 @@ export default function Orders() {
                     <td className="py-4 px-5 text-right">
                       {order.chuaCoGia ? (
                         <span
-                          title="AI không xác nhận được giá từ tài liệu của bạn. Bấm vào đơn để điền giá đúng."
+                          title={order.raw.closed_by === 'ai'
+                            ? 'AI không xác nhận được giá từ tài liệu của bạn. Bấm vào đơn để điền giá đúng.'
+                            : 'Đơn chưa có giá. Bấm vào đơn để điền giá.'}
                           className="inline-flex items-center gap-1 text-sm font-bold text-orange-400 whitespace-nowrap"
                         >
                           <span className="material-symbols-outlined text-[16px]">error</span>
@@ -490,8 +559,10 @@ export default function Orders() {
                             <span className="material-symbols-outlined text-[18px]">visibility</span> Xem chi tiết
                           </button>
                           <button 
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-variant transition-colors w-full text-left"
-                            onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); }}
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-variant transition-colors w-full text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                            onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); moDoanChat(order); }}
+                            disabled={!order.conversationId}
+                            title={order.conversationId ? undefined : 'Đơn này không được tạo từ hội thoại nào'}
                           >
                             <span className="material-symbols-outlined text-[18px]">forum</span> Mở đoạn chat
                           </button>
@@ -507,14 +578,15 @@ export default function Orders() {
                           </button>
                           <button 
                             className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-variant transition-colors w-full text-left"
-                            onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); }}
+                            onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); setSelectedOrder(order); }}
                           >
                             <span className="material-symbols-outlined text-[18px]">change_circle</span> Đổi trạng thái
                           </button>
                           <div className="h-[1px] bg-outline-variant/50 my-1"></div>
                           <button 
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-error hover:bg-error/10 transition-colors w-full text-left"
-                            onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); }}
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-error hover:bg-error/10 transition-colors w-full text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                            onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); void huyDon(order); }}
+                            disabled={order.raw.status === 'cancelled' || busyId === order.raw.id}
                           >
                             <span className="material-symbols-outlined text-[18px] text-error">block</span> Hủy đơn
                           </button>
@@ -563,7 +635,8 @@ export default function Orders() {
                 <button
                   key={label}
                   type="button"
-                  onClick={() => handleChangeStatus(selectedOrder, label)}
+                  // Huỷ ở đây cũng phải hỏi lại như ở menu ⋯ — một hành động, một cách xác nhận.
+                  onClick={() => (label === 'Đã hủy' ? void huyDon(selectedOrder) : handleChangeStatus(selectedOrder, label))}
                   disabled={busyId === selectedOrder.raw.id}
                   className="h-10 px-4 text-sm font-bold text-on-surface bg-surface-container-highest border border-outline rounded-xl hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
                 >
@@ -572,10 +645,11 @@ export default function Orders() {
               ))}
               <button
                 type="button"
-                onClick={() => selectedOrder.conversationId
-                  ? navigate('/inbox')
-                  : setErrorMessage('Đơn này không được tạo từ hội thoại nào.')}
-                className={clsx(NUT_PHU, 'ml-auto')}
+                onClick={() => moDoanChat(selectedOrder)}
+                // Đơn không có hội thoại: khoá kèm lý do (lỗi hiện ở trang phía sau khung thì người dùng không thấy).
+                disabled={!selectedOrder.conversationId}
+                title={selectedOrder.conversationId ? undefined : 'Đơn này không được tạo từ hội thoại nào'}
+                className={clsx(NUT_PHU, 'ml-auto disabled:opacity-40 disabled:cursor-not-allowed')}
               >
                 <span className="material-symbols-outlined text-[20px]">forum</span>
                 Mở đoạn chat gốc
@@ -645,7 +719,9 @@ export default function Orders() {
                     <span className="text-base font-bold text-on-surface">TỔNG CỘNG</span>
                     {selectedOrder.chuaCoGia ? (
                       <span className="text-xl font-bold text-orange-400">
-                        Chưa có giá — AI không tìm thấy con số này trong tài liệu của bạn
+                        {selectedOrder.raw.closed_by === 'ai'
+                          ? 'Chưa có giá — AI không tìm thấy con số này trong tài liệu của bạn'
+                          : 'Chưa có giá — vui lòng điền giá cho đơn này'}
                       </span>
                     ) : (
                       <span className="text-xl font-bold text-primary">{selectedOrder.value}</span>

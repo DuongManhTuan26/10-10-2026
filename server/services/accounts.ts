@@ -49,26 +49,6 @@ export async function ensureProfile(user: {
 }): Promise<string> {
   if (user.profileRef) return user.profileRef;
 
-  /*
-   * Chủ chuỗi không được cấp hồ sơ, kiểm ngay tại đây chứ không kiểm ở từng
-   * route gọi tới.
-   *
-   * Có ba đường gọi hàm này. Chặn ở từng đường thì chỉ cần thêm đường thứ tư
-   * mà quên chặn là chủ chuỗi lại có hồ sơ — một hồ sơ không ai dùng, nằm lại
-   * bên nhà cung cấp, đúng cách đống hồ sơ rác cũ đã hình thành. Chặn ở đây
-   * thì không có đường nào đi vòng qua được.
-   */
-  const vaiTro = await queryOne<{ role: string }>("SELECT role FROM users WHERE id = $1", [
-    user.id,
-  ]);
-  if (vaiTro?.role === "admin_con") {
-    throw new AppError(
-      "Tài khoản quản lý chuỗi không gắn được kênh. Vui lòng lập một trang rồi " +
-        "mở trang đó để gắn Fanpage.",
-      409
-    );
-  }
-
   const ten = user.name || user.email;
   const profiles = await zernio.listProfiles();
   const daCo = profiles.find((p) => p.name === ten);
@@ -186,10 +166,11 @@ export async function syncAccountsForUser(
      * Fanpage thứ hai sẽ thấy AI đem bảng giá của Fanpage thứ nhất đi bán.
      */
     const hoSoCuaKenh = zernio.accountProfileId(account) ?? profileId;
+    // Hộp (hồ sơ) quyết định cửa hàng — mỗi hồ sơ đúng một cửa hàng (chủ dự án chốt 17/10/2026).
     const trangId = await baoDamTrangChoHoSo(
       userId,
       hoSoCuaKenh,
-      account.displayName ?? account.username ?? "Trang chưa đặt tên",
+      account.displayName ?? account.username ?? "Cửa hàng chưa đặt tên",
       maFanpage(account)
     );
     if (trangId) await ganKenhVaoTrang(account._id, userId, trangId);

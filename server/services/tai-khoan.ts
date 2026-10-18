@@ -20,43 +20,14 @@ import { ensureProfile } from "./accounts.js";
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Tên miền dành riêng cho tên đăng nhập nội bộ của tài khoản trang.
- *
- * Tài khoản trang do admin con lập ra không có email thật — chủ chuỗi mười
- * trang không thể có mười hòm thư. Nên hệ thống tự sinh tên đăng nhập.
- *
- * Chọn đuôi .local vì RFC 6762 giữ riêng đuôi này cho mạng nội bộ: KHÔNG AI
- * đăng ký được nó làm tên miền thật trên Internet. Nhờ vậy tên đăng nhập nội
- * bộ không bao giờ đụng email thật của ai, và người ngoài không thể tự đăng ký
- * lấn vào vùng này để mạo danh một tài khoản trang.
- *
- * Vẫn dùng chung cột email và chung chỉ mục duy nhất sẵn có, nên đường đăng
- * nhập không phải sửa một dòng nào — càng ít chỗ đụng vào thì càng ít chỗ hỏng.
+ * Tên miền của tên đăng nhập nội bộ — tài khoản con do tầng chủ chuỗi cũ sinh ra (đã bỏ 18/10/2026, không sinh thêm).
+ * Tài khoản cũ còn lại tới khi quản trị xoá; vẫn chặn người ngoài tự đăng ký lấn vào vùng này để mạo danh.
  */
 export const TEN_MIEN_NOI_BO = "noi-bo.local";
 
 /** Tên đăng nhập này là do hệ thống sinh, không phải email người dùng nhập. */
 export function laTenDangNhapNoiBo(email: string): boolean {
   return email.trim().toLowerCase().endsWith(`@${TEN_MIEN_NOI_BO}`);
-}
-
-/**
- * Bỏ dấu tiếng Việt rồi rút gọn thành chuỗi đặt được vào tên đăng nhập.
- *
- * "Chạm Tay Vạn Điều Hay" → "cham-tay-van-dieu-hay". Giữ chữ có nghĩa để chủ
- * chuỗi nhìn tên đăng nhập là biết ngay của trang nào, thay vì một dãy mã.
- */
-export function rutGonTen(ten: string): string {
-  const khongDau = ten
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D");
-  return khongDau
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 24);
 }
 
 const DEFAULT_AI_CONFIGS: Array<{
@@ -106,11 +77,6 @@ export async function taoTaiKhoan(params: {
   email: string;
   password: string;
   name?: string;
-  /** Tài khoản admin con đứng trên. Bỏ trống là tài khoản đứng riêng. */
-  parentId?: number | null;
-  role?: "admin_con" | "shop";
-  /** Chỉ đường tạo tài khoản trang nội bộ mới được bật cờ này. */
-  noiBo?: boolean;
 }): Promise<TaiKhoanMoi> {
   const email = params.email.trim().toLowerCase();
   const name = (params.name ?? "").trim();
@@ -123,10 +89,9 @@ export async function taoTaiKhoan(params: {
    * Không ai tự đăng ký được vào vùng tên đăng nhập nội bộ.
    *
    * Không chặn thì người ngoài đăng ký "cham-tay-1@noi-bo.local" và tài khoản
-   * đó trông y hệt một tài khoản trang do hệ thống sinh ra — chủ chuỗi nhìn
-   * vào không phân biệt được.
+   * đó trông y hệt một tài khoản do hệ thống sinh ra trước đây.
    */
-  if (!params.noiBo && laTenDangNhapNoiBo(email)) {
+  if (laTenDangNhapNoiBo(email)) {
     throw new AppError("Địa chỉ email không hợp lệ");
   }
   if (params.password.length < 8) {
@@ -141,21 +106,14 @@ export async function taoTaiKhoan(params: {
   const passwordHash = await hashPassword(params.password);
 
   /*
-   * Chủ chuỗi KHÔNG phải một chỗ bán hàng.
-   *
-   * Họ không gắn Fanpage, không nhắn tin với khách, không chốt đơn — việc đó
-   * là của các tài khoản trang bên dưới. Cấp cho họ một hồ sơ Zernio, một
-   * Trang và một bộ não là tạo ra một bộ đồ không ai dùng: hồ sơ rác đọng lại
-   * bên nhà cung cấp, và một bộ não trống nằm trong danh sách làm chủ chuỗi
-   * tưởng mình phải đi huấn luyện nó.
+   * MỌI tài khoản mới là tài khoản dùng thường — bản sao phần dùng thường của quản trị tổng (chủ dự án 18/10/2026):
+   * một chìa khoá đăng nhập, tự tạo nhiều cửa hàng, mỗi cửa hàng một hồ sơ nền tảng + một bộ não.
    */
-  const laChuChuoi = params.role === "admin_con";
-
   const id = await transaction(async (client) => {
     const inserted = await client.query<{ id: number }>(
-      `INSERT INTO users (email, password_hash, name, parent_id, role)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [email, passwordHash, name, params.parentId ?? null, params.role ?? "shop"]
+      `INSERT INTO users (email, password_hash, name, role)
+       VALUES ($1, $2, $3, 'shop') RETURNING id`,
+      [email, passwordHash, name]
     );
     const userId = inserted.rows[0].id;
 
@@ -167,11 +125,11 @@ export async function taoTaiKhoan(params: {
      * ghi đè vào đây; chỗ này đặt tạm một mã riêng để bảng không trống, vì
      * profile_ref là khoá duy nhất và không được để null.
      */
-    if (!laChuChuoi) {
+    {
       const trangMoi = await client.query<{ id: number }>(
         `INSERT INTO trang (user_id, profile_ref, ten)
          VALUES ($1, $2, $3) RETURNING id`,
-        [userId, `cho-cap-${userId}`, "Trang đầu tiên"]
+        [userId, `cho-cap-${userId}`, "Cửa hàng đầu tiên"]
       );
       const trangId = trangMoi.rows[0].id;
 
@@ -202,7 +160,7 @@ export async function taoTaiKhoan(params: {
    * Nền tảng lỗi thì vẫn cho tạo tài khoản — nối lại được sau.
    */
   try {
-    if (!laChuChuoi) await ensureProfile({ id, name, email, profileRef: null });
+    await ensureProfile({ id, name, email, profileRef: null });
   } catch (error) {
     console.error(
       "[tài khoản] Chưa tạo được hồ sơ nền tảng cho tài khoản mới:",
@@ -246,54 +204,3 @@ export function docMatKhauTuDat(body: unknown): { matKhau: string; tuDat: boolea
   return { matKhau: tuDat || sinhMatKhauTam(), tuDat: Boolean(tuDat) };
 }
 
-/**
- * Lập một TÀI KHOẢN TRANG cho admin con.
- *
- * Mỗi tài khoản trang giữ đúng một Fanpage và độc lập hoàn toàn với các trang
- * khác: hộp thư riêng, đơn hàng riêng, bộ não riêng, hồ sơ Zernio riêng. Không
- * có đường nào để dữ liệu hai trang lẫn vào nhau, vì chúng không dùng chung gì.
- *
- * Tên đăng nhập do hệ thống sinh theo tên trang, kèm bốn ký tự ngẫu nhiên để
- * hai trang trùng tên không đụng nhau. Mật khẩu tạm trả về ĐÚNG MỘT LẦN cho
- * người lập — hệ thống chỉ giữ bản băm, không đọc lại được.
- */
-export async function taoTaiKhoanTrang(params: {
-  parentId: number;
-  tenTrang: string;
-  /** Mật khẩu người lập tự đặt (đã kiểm qua docMatKhauTuDat); không có thì sinh ngẫu nhiên. */
-  matKhau?: string;
-}): Promise<TaiKhoanMoi & { matKhauTam: string }> {
-  const tenTrang = params.tenTrang.trim();
-  if (tenTrang.length < 2) {
-    throw new AppError("Vui lòng đặt tên cho trang, ít nhất 2 ký tự");
-  }
-
-  const goc = rutGonTen(tenTrang) || "trang";
-
-  /*
-   * Thử vài lần rồi mới chịu thua.
-   *
-   * Bốn ký tự ngẫu nhiên gần như không trùng, nhưng "gần như" không phải là
-   * "không bao giờ": trùng một lần là lỗi khoá duy nhất ném thẳng vào mặt
-   * người đang lập trang, không hiểu vì sao. Thử lại rẻ hơn nhiều.
-   */
-  for (let lan = 0; lan < 5; lan++) {
-    const duoi = crypto.randomBytes(2).toString("hex");
-    const tenDangNhap = `${goc}-${duoi}@${TEN_MIEN_NOI_BO}`;
-    const trung = await queryOne("SELECT id FROM users WHERE lower(email) = $1", [tenDangNhap]);
-    if (trung) continue;
-
-    const matKhauTam = params.matKhau || sinhMatKhauTam();
-    const taiKhoan = await taoTaiKhoan({
-      email: tenDangNhap,
-      password: matKhauTam,
-      name: tenTrang,
-      parentId: params.parentId,
-      role: "shop",
-      noiBo: true,
-    });
-    return { ...taiKhoan, matKhauTam };
-  }
-
-  throw new AppError("Không sinh được tên đăng nhập, vui lòng thử lại");
-}

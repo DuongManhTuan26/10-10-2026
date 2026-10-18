@@ -37,7 +37,7 @@ export default function TrangDangHuanLuyen() {
     <div className="mb-4 flex items-center gap-2 text-sm text-on-surface-variant bg-surface-variant border border-outline-variant rounded-xl px-4 py-2.5">
       <span className="material-symbols-outlined text-[18px] text-primary">psychology</span>
       <span>
-        Đang huấn luyện cho trang <strong className="text-on-surface">{ten}</strong>
+        Đang huấn luyện cho cửa hàng <strong className="text-on-surface">{ten}</strong>
         {phu ? <span className="text-on-surface-variant"> — {phu}</span> : null}.
       </span>
     </div>
@@ -79,8 +79,8 @@ export default function TrangDangHuanLuyen() {
       <div className="flex items-start gap-2 text-sm text-on-surface">
         <span className="material-symbols-outlined text-[18px] text-amber-600">warning</span>
         <span>
-          Bộ chọn trên thanh menu đang để <strong>Tất cả trang</strong>, nhưng mỗi trang có bộ não
-          riêng. Vui lòng chọn đúng trang muốn huấn luyện trước khi sửa.
+          Bộ chọn trên thanh menu đang để <strong>Tất cả cửa hàng</strong>, nhưng mỗi cửa hàng có bộ não
+          riêng. Vui lòng chọn đúng cửa hàng muốn huấn luyện trước khi sửa.
         </span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">

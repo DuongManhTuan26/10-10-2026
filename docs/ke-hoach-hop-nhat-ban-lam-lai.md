@@ -1,4 +1,63 @@
-# Kế hoạch hợp nhất: bản của em + bản làm lại (`10-10-2026banmoilamlai`) — đề xuất 11/10/2026, CHỜ CHỦ DỰ ÁN DUYỆT
+# Kế hoạch hợp nhất: bản của em + bản làm lại (`10-10-2026banmoilamlai`)
+
+> **QUYẾT ĐỊNH MỚI (chủ dự án, 12/10/2026) — thay "nền = bản làm lại" ở dưới:** nền là **bản của em**. Bản làm lại chỉ là
+> bản thiết kế lại GIAO DIỆN → lấy điểm mạnh giao diện sang bản em (bước 1). Chức năng, logic, bộ não giữ nguyên bản em và
+> em toàn quyền xử lý (bước 2: rà toàn bộ logic, tính năng, bộ não). Hai bước tách hẳn, xong bước 1 mới sang bước 2.
+
+## BƯỚC 1 — giao diện (nhánh `giao-dien-hop-nhat`, chưa đẩy lên GitHub)
+Đã lấy từ bản làm lại (chép nguyên tệp thuần giao diện, hoặc ghép tay vào dữ liệu của bản em):
+- Khuôn 4 thẻ cho cả 4 AI, đúng trình tự đã chốt: Hướng dẫn AI → Đang làm → Kết quả → Nhật ký (`KhuonAi`, `?the=`).
+- Một nguồn 4 AI `src/lib/bon-ai.ts`: số ①–④, tên, chức năng, đường, MÀU theo miền (bảng A) + màu theo mức quan trọng
+  (bảng B: đỏ lỗi · hồng cần làm ngay · cam cảnh báo · lam thông tin) trong `index.css`.
+- Menu theo thứ tự chốt 11/10: Tổng quan → Kết nối kênh → 4 AI đánh số, mỗi AI một màu → Báo cáo Telegram → Gói dịch vụ →
+  Quản lý tài khoản (cuối). Bỏ ô chọn trang ở menu.
+- Đường tiếng Việt `/noi-dung /quang-cao /ban-hang /dieu-hanh /ket-noi`; đường cũ chuyển sang, giữ tham số.
+- Hộp thư + Đơn hàng vào ③ › Đang làm; An toàn tài khoản từ Gói dịch vụ vào ③ › Kết quả.
+- Tổng quan: thêm sơ đồ 4 AI của trang đang chọn (tình trạng từng AI theo bảng sức khoẻ).
+- Kết nối kênh: bảng "Trang bán hàng" (tìm, lọc tình trạng, 25 dòng/trang, "● Đang mở", "Mở bộ não") — nơi chọn trang.
+- Thanh trên cùng: tiêu đề theo màu AI + **tên trang đang làm việc** (điểm bản làm lại thiếu — 3/4 AI không thấy trang).
+- Thẻ Kết quả (sức khoẻ lọc theo khâu), Hướng dẫn AI (vai trò + tài liệu ngay trong thẻ), Nhật ký (sổ thay đổi + việc AI
+  đã tự làm) — máy chủ thêm 2 đường CHỈ ĐỌC: `/api/dieu-hanh/suc-khoe`, `/api/dieu-hanh/nhat-ky/:ai`.
+- AI Điều hành của em tách vào 4 thẻ (Kết quả: số, biểu đồ, chuỗi 4 khâu, điểm tốt/chưa tốt · Đang làm: rà soát + đề xuất).
+- Hộp thư (dải ngày thật, mở thẳng hội thoại từ Đơn hàng, một nút tiếp quản, lọc kênh khi trang có ≥2 kênh), Viết bài (danh
+  sách gọn, ảnh thật của bài, "AI viết"/"Bạn viết" đúng cờ), Quảng cáo, Telegram, Gói dịch vụ, Quản lý: bố cục bản làm lại.
+Màn KẾT NỐI KÊNH (12–17/10/2026, chủ dự án duyệt từng vòng):
+- Lưới "Thêm kênh mới" đều ô; đã kết nối = lục bảo + ✓; nền tảng chưa nối được = "Sắp có" (Meta Ads: "Đi kèm Facebook").
+- Bảng "Trang bán hàng và kênh đã nối" dạng cây, phân tầng (mỗi trang một khối, kênh cấp phụ nối đường cây), thẳng cột;
+  chỉ tình trạng THẬT (bỏ "sắp hết hạn" giả suy từ hạn mã nội bộ); lọc chỉ hiện khi có trang cần xử lý; hiện cả trang rỗng.
+- Trang: đặt tên, xoá (chỉ trang không còn kênh, chừa ≥1 trang), tạo mới ngay trong hộp nối / chuyển kênh.
+- Kênh: chọn trang khi nối (không mặc định), chuyển trang tự do (lưu trang_chon — migration 052/053), nối lại đúng hồ sơ,
+  đổi Fanpage có đối chiếu thực tế; Telegram nối bằng mã, Bluesky bằng mật khẩu ứng dụng; không lộ tên nhà cung cấp.
+Lỗi hiển thị sửa luôn (số sai trên màn hình — có ở cả hai bản):
+- Tổng quan: bỏ nhãn "Tăng" giả; 3 thẻ ghi "7 NGÀY"; "Tỷ lệ AI xử lý" = tin AI / tin shop trả lời (bản cũ chia cả tin khách)
+  và biểu đồ vẽ đúng tỷ lệ theo ngày (bản cũ vẽ khách mới); "Hôm nay" tính từ 0 giờ VN (bản cũ 24 giờ qua); dòng hoạt động
+  ghi "AI chốt đơn" / "Nhân viên lên đơn" theo cờ thật.
+- Telegram: bỏ 6 công tắc không có đường gửi (bật cũng không có tin) — chỉ còn tin máy chủ gửi thật.
+- Gói dịch vụ: "Đơn chốt được"→"Đơn hàng", "Bài đã đăng"→"Bài đã tạo" (số đếm mọi đơn / mọi bài).
+- Đơn hàng: ô giả "30 ngày qua ▾" → "200 đơn mới nhất" (đúng máy chủ). Quảng cáo: bỏ thẻ giả "Tạo chiến dịch mới"; ô "Đơn
+  chốt từ quảng cáo" nói "Chưa đo được", không vẽ đường đơn 0 giả.
+- Khung vai trò: chữ riêng từng AI (bản cũ chép chữ của AI bán hàng cho cả 4); ④ ghi rõ đó là bối cảnh, không phải lệnh.
+ĐỔI SO VỚI ĐIỀU ĐÃ CHỐT Ở BẢN EM (theo bản làm lại chủ dự án đã duyệt 11/10 — cần chủ dự án xác nhận):
+- Tên: "AI Viết - Đăng Bài" → "AI Nội dung"; "AI Quảng Cáo/Bán Hàng/Điều Hành" → viết thường chữ sau; "Bảng Điều Khiển" →
+  "Tổng quan"; "Kết Nối Đa Nền Tảng" → "Kết nối kênh". Hộp thư / Đơn hàng không còn mục riêng ở menu.
+- Chọn trang: ô chọn trong khối "Bộ não AI của trang" ở menu → bảng "Trang bán hàng" ở Kết nối kênh + tên trang ở thanh trên.
+- Màu: mỗi AI một màu (① tím ② vàng ③ lục ④ xanh ngọc) thay vì toàn bộ xanh ngọc.
+Để sang BƯỚC 2 (chức năng — bản làm lại có, bản em chưa có hoặc cần máy chủ):
+- Cảnh báo Telegram "sắp hết 24 giờ" và "kênh mất kết nối" (chủ dự án đã chọn làm thật 11/10).
+- Đếm đơn mang mã quảng cáo (orders.origin_ad_id đã có) → ô "Đơn chốt từ quảng cáo" + đường đơn trên biểu đồ.
+- Lọc đơn theo khoảng ngày; đơn nhiều sản phẩm; điền giá đơn 0đ; huỷ đơn có hỏi.
+- Chỉ đạo AI điều hành → AI nhân viên, đo lại, tự hoàn tác; báo cáo ngày; lịch điều hành (kèm các điểm yếu đã rà).
+- Máy chủ chặn đăng bài đang chờ video (giao diện đã ẩn nút; máy chủ chưa chặn).
+- Lịch tự đăng (auto_pilot_runs) ghi theo tài khoản, khoá (user, ô giờ): hai trang cùng giờ có thể đè nhau — cần xem.
+- Cảnh báo kênh TRƯỚC khi chết (như Sprout Social báo trước 5 ngày với LinkedIn): lấy mức `warning` + `issues` từ
+  `GET /v1/accounts/health` của nhà cung cấp trong cùng lượt kiểm 30 phút (một lời gọi cho mọi kênh, không tốn tiền),
+  lưu vào social_accounts rồi hiện "⚠ Cảnh báo" kèm lý do. 12/10 đã BỎ "sắp hết hạn" tự suy từ token_expires_at — đó
+  là hạn mã nội bộ được tự gia hạn (đo thật: TikTok luôn "còn 1 ngày", nhà cung cấp báo cả 3 kênh healthy).
+- Bảng "Trang bán hàng & kênh" (Kết nối kênh) đang tìm / lọc / chia trang PHÍA TRÌNH DUYỆT trên danh sách tải hết một lần
+  (ActivePage). Đủ cho vài trăm trang; tới hàng nghìn trở lên phải chuyển sang máy chủ: `?tim=&loc=&trang=` + đếm theo tiêu chí.
+- Biểu tượng: tệp CSS Google Fonts (không thuộc lớp) ép mọi `.material-symbols-outlined` = 24px, nên các lớp cỡ `text-[Npx]`
+  đặt cho biểu tượng trong toàn app KHÔNG có tác dụng (đo 12/10: 109/111 biểu tượng ở Kết nối kênh đều 24px). Sửa chung sẽ làm
+  đổi cỡ biểu tượng ở các màn đã duyệt → chờ chủ dự án quyết. Tạm thời chỗ nào cần cỡ khác dùng `!` (vd `max-sm:text-[13px]!`).
 
 ## So sánh (đọc code + chạy kiểm; giao diện bản làm lại mới đọc qua code)
 | Phần | Bản của em (`zernio`) | Bản làm lại (`zernio-khoi-nao`) | Lấy |

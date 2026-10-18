@@ -20,26 +20,39 @@ dashboardRouter.get(
     const userId = req.user!.id;
     const range = req.query.range === "30d" ? 30 : req.query.range === "7d" ? 7 : 1;
 
+    /*
+     * Mốc đầu kỳ. "Hôm nay" tính từ 0 giờ giờ Việt Nam — bản cũ lấy 24 giờ qua, nên lúc 7 giờ sáng "hôm nay" vẫn gồm đơn
+     * tối hôm qua. 7 / 30 ngày: 7 / 30 ngày gần nhất tính lùi từ bây giờ (đúng nhãn "7 ngày qua", "30 ngày qua").
+     */
+    const tu = (
+      await queryOne<{ tu: Date }>(
+        range === 1
+          ? "SELECT date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh' AS tu"
+          : "SELECT now() - ($1 || ' days')::interval AS tu",
+        range === 1 ? [] : [String(range)]
+      )
+    )!.tu;
+
     const stats = await queryOne<Record<string, number>>(
       `SELECT
          (SELECT COUNT(*) FROM orders
-           WHERE user_id = $1 AND created_at >= now() - ($2 || ' days')::interval)     AS orders_count,
+           WHERE user_id = $1 AND created_at >= $2::timestamptz)     AS orders_count,
          (SELECT COALESCE(SUM(total), 0) FROM orders
            WHERE user_id = $1 AND status <> 'cancelled'
-             AND created_at >= now() - ($2 || ' days')::interval)                      AS revenue,
+             AND created_at >= $2::timestamptz)                      AS revenue,
          (SELECT COUNT(*) FROM customers
-           WHERE user_id = $1 AND first_seen_at >= now() - ($2 || ' days')::interval)  AS new_customers,
+           WHERE user_id = $1 AND first_seen_at >= $2::timestamptz)  AS new_customers,
          (SELECT COUNT(*) FROM conversations WHERE user_id = $1 AND status <> 'done')  AS open_conversations,
          (SELECT COUNT(*) FROM conversations WHERE user_id = $1
             AND status = 'waiting_human')                                              AS waiting_human,
          (SELECT COUNT(*) FROM social_accounts WHERE user_id = $1 AND connected)       AS connected_accounts,
          (SELECT COUNT(*) FROM messages
            WHERE user_id = $1 AND sender_type = 'ai'
-             AND created_at >= now() - ($2 || ' days')::interval)                      AS ai_messages,
+             AND created_at >= $2::timestamptz)                      AS ai_messages,
          (SELECT COUNT(*) FROM orders
            WHERE user_id = $1 AND closed_by = 'ai'
-             AND created_at >= now() - ($2 || ' days')::interval)                      AS ai_closed_orders`,
-      [userId, String(range)]
+             AND created_at >= $2::timestamptz)                      AS ai_closed_orders`,
+      [userId, tu]
     );
 
     const recentOrders = await query(
@@ -97,6 +110,7 @@ dashboardRouter.get(
       day: string;
       messages: number;
       ai_messages: number;
+      human_messages: number;
       orders: number;
       customers: number;
     }>(
@@ -117,6 +131,9 @@ dashboardRouter.get(
               (SELECT COUNT(*) FROM messages m
                 WHERE m.user_id = $1 AND m.sender_type = 'ai'
                   AND date_trunc('day', m.sent_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day)::int  AS ai_messages,
+              (SELECT COUNT(*) FROM messages m
+                WHERE m.user_id = $1 AND m.sender_type = 'human'
+                  AND date_trunc('day', m.sent_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day)::int  AS human_messages,
               (SELECT COUNT(*) FROM orders o
                 WHERE o.user_id = $1
                   AND date_trunc('day', o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day)::int AS orders,
@@ -139,21 +156,28 @@ dashboardRouter.get(
 
     const messages = column("messages");
     const aiMessages = column("ai_messages");
+    const humanMessages = column("human_messages");
     const orders = column("orders");
-    const customers = column("customers");
 
-    // Tỷ lệ AI tự xử lý: phần tin nhắn AI trả lời trên tổng tin nhắn.
+    /*
+     * Tỷ lệ AI xử lý = tin AI trả lời / mọi tin SHOP trả lời (AI + nhân viên). Bản cũ chia cho MỌI tin, gồm cả tin của
+     * khách — AI trả lời hết cũng chỉ lên được khoảng 50%. Biểu đồ đi kèm vẽ đúng tỷ lệ này theo ngày (bản cũ vẽ số
+     * khách mới). Ngày không có tin trả lời nào thì 0.
+     */
     const totalMessages = sum(messages);
-    const autoRate =
-      totalMessages > 0 ? Math.round((sum(aiMessages) / totalMessages) * 100) : 0;
+    const tiLe = (ai: number, nguoi: number) => (ai + nguoi > 0 ? Math.round((ai / (ai + nguoi)) * 100) : 0);
+    const autoRate = tiLe(sum(aiMessages), sum(humanMessages));
+    const autoRateTheoNgay = aiMessages.map((ai, i) => tiLe(ai, humanMessages[i]));
 
     res.json({
       success: true,
       data: [
         { id: 1, label: "TIN NHẮN 7 NGÀY", value: String(totalMessages), data: messages },
-        { id: 2, label: "AI PHẢN HỒI", value: String(sum(aiMessages)), data: aiMessages },
-        { id: 3, label: "ĐƠN HÀNG", value: String(sum(orders)), data: orders },
-        { id: 4, label: "TỶ LỆ AI XỬ LÝ", value: `${autoRate}%`, data: customers },
+        { id: 2, label: "AI PHẢN HỒI 7 NGÀY", value: String(sum(aiMessages)), data: aiMessages },
+        { id: 3, label: "ĐƠN HÀNG 7 NGÀY", value: String(sum(orders)), data: orders },
+        { id: 4, label: "TỶ LỆ AI XỬ LÝ 7 NGÀY", value: `${autoRate}%`, data: autoRateTheoNgay },
+        // Thêm ở CUỐI (giao diện đọc theo thứ tự): khách mới theo ngày — biểu đồ nhỏ của ô "Khách mới" ở Tổng quan.
+        { id: 5, label: "KHÁCH MỚI 7 NGÀY", value: String(sum(column("customers"))), data: column("customers") },
       ],
     });
   })
@@ -172,7 +196,9 @@ dashboardRouter.get(
       at: Date;
     }>(
       `(SELECT 'order' AS kind,
-               'Chốt đơn ' || code || COALESCE(' cho ' || customer_name, '') AS content,
+               -- Ai lên đơn theo cờ thật (closed_by) — bản cũ ghi "Chốt đơn" cả đơn nhân viên lập.
+               CASE WHEN closed_by = 'ai' THEN 'AI chốt đơn ' ELSE 'Nhân viên lên đơn ' END
+                 || code || COALESCE(' cho ' || customer_name, '') AS content,
                created_at AS at
           FROM orders WHERE user_id = $1
          ORDER BY created_at DESC LIMIT 8)
@@ -205,10 +231,14 @@ dashboardRouter.get(
       success: true,
       data: rows.rows.map((row, index) => ({
         id: index + 1,
-        time: new Date(row.at).toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        // Không phải hôm nay (giờ VN) thì ghi kèm ngày — bản cũ chỉ ghi giờ, việc tuần trước trông như vừa xảy ra.
+        time: (() => {
+          const tz = { timeZone: "Asia/Ho_Chi_Minh" } as const;
+          const luc = new Date(row.at);
+          const gio = luc.toLocaleTimeString("vi-VN", { ...tz, hour: "2-digit", minute: "2-digit" });
+          const ngay = (d: Date) => d.toLocaleDateString("vi-VN", { ...tz, day: "2-digit", month: "2-digit" }).replace(/-/g, "/");
+          return ngay(luc) === ngay(new Date()) ? gio : `${ngay(luc)} ${gio}`;
+        })(),
         content: row.content,
         color: colors[row.kind] ?? "bg-primary",
       })),

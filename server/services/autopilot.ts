@@ -37,6 +37,7 @@ import {
 import { sendTelegramMessage, escapeHtml } from "./telegram.js";
 import { gioiHanChatNhat } from "../../src/lib/gioi-han-kenh.js";
 import { chayChoTrang } from "./ngu-canh-trang.js";
+import { cauLenhKenhLich } from "./kenh-dang.js";
 
 /** Toàn bộ lịch tính theo giờ Việt Nam: sản phẩm bán cho chủ shop Việt Nam. */
 const VN_OFFSET_MS = 7 * 60 * 60 * 1_000;
@@ -328,16 +329,14 @@ async function lamMotO(
     return false;
   }
 
-  // Kênh đăng phải có thật, nếu không thì viết bài ra cũng không đăng được đi đâu.
-  const kenh = await query<{ id: string; platform: string }>(
-    cau.accountIds.length
-      ? `SELECT id, platform FROM social_accounts
-           WHERE user_id = $1 AND connected = TRUE AND platform <> 'metaads'
-             AND id = ANY($2::text[])`
-      : `SELECT id, platform FROM social_accounts
-           WHERE user_id = $1 AND connected = TRUE AND platform <> 'metaads'`,
-    cau.accountIds.length ? [userId, cau.accountIds] : [userId]
-  );
+  // Kênh đăng phải có thật, nếu không thì viết bài ra cũng không đăng được đi đâu. Chỉ kênh của ĐÚNG cửa hàng sở hữu
+  // lịch (B1-G, services/kenh-dang.ts) — kể cả khi lịch có danh sách kênh (kênh đã chuyển cửa hàng thì bị loại).
+  const lenhKenh = cauLenhKenhLich(userId, trangId, cau.accountIds);
+  if ("loi" in lenhKenh) {
+    await ghiBo(lenhKenh.loi);
+    return false;
+  }
+  const kenh = await query<{ id: string; platform: string }>(lenhKenh.sql, lenhKenh.thamSo);
   if (kenh.rows.length === 0) {
     await ghiBo("Không có kênh nào đang kết nối để đăng.");
     return false;
@@ -687,11 +686,20 @@ export async function taoVideoTheoBai(p: {
   huong?: HuongKichBan;
 }): Promise<{ videoId: number; gia: number }> {
   if (!Number.isInteger(p.postId) || p.postId <= 0) throw new AppError("Thiếu bài viết để gắn video.", 400);
-  const bai = await queryOne<{ status: string; content: string }>(
-    "SELECT status, content FROM posts WHERE id = $1 AND user_id = $2",
+  const bai = await queryOne<{ status: string; content: string; scheduled_for: Date | null }>(
+    "SELECT status, content, scheduled_for FROM posts WHERE id = $1 AND user_id = $2",
     [p.postId, p.userId]
   );
   if (!bai) throw new AppError("Không tìm thấy bài viết", 404);
+  /*
+   * Video xong thì làm gì (chủ dự án chốt 18/10/2026): bài HẸN GIỜ → tự đăng (giữ giờ hẹn); bài "đăng ngay" → theo chế
+   * độ của cửa hàng: "Đăng luôn" (settings.autoPublish) thì tự đăng, "Chờ tôi duyệt" thì vào mục Chờ duyệt.
+   */
+  const cheDo = await queryOne<{ settings: { autoPublish?: unknown } | null }>(
+    "SELECT settings FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
+    [p.trangId]
+  );
+  const guardVideo = bai.scheduled_for || cheDo?.settings?.autoPublish === true ? "publish" : "approve";
   if (!TRANG_THAI_CHO_VIDEO.includes(bai.status)) throw new AppError("Bài đã gửi đăng, không gắn thêm video được.", 409);
   const model = (await layDanhSachModel()).find((m) => m.id === p.model);
   if (!model) throw new AppError("Mô hình video đã chọn không còn. Chọn mô hình khác.", 400);
@@ -701,9 +709,9 @@ export async function taoVideoTheoBai(p: {
   if (gia === null) throw new AppError("Chưa tính được giá video này.", 400);
   const viec = await vietVaGuiVideo({ ...p, noiDung: p.noiDung.trim() || bai.content });
   const gan = await queryOne<{ id: number }>(
-    `UPDATE posts SET status = 'pending_approval', cho_video_id = $3, cho_video_guard = 'publish', updated_at = now()
+    `UPDATE posts SET status = 'pending_approval', cho_video_id = $3, cho_video_guard = $5, updated_at = now()
       WHERE id = $1 AND user_id = $2 AND status = ANY($4::text[]) RETURNING id`,
-    [p.postId, p.userId, viec.id, TRANG_THAI_CHO_VIDEO]
+    [p.postId, p.userId, viec.id, TRANG_THAI_CHO_VIDEO, guardVideo]
   );
   if (!gan) throw new AppError("Bài vừa được đăng hoặc xoá trong lúc gửi video. Video vẫn đang tạo, xem ở Xưởng AI.", 409);
   return { videoId: viec.id, gia };
@@ -788,7 +796,23 @@ export async function runDueVideoTuDong(): Promise<number> {
     const guard = b.cho_video_guard === "publish" || b.cho_video_guard === "notify" ? b.cho_video_guard : "approve";
     if (guard === "publish") {
       await query("UPDATE posts SET status = 'draft' WHERE id = $1", [b.id]);
-      await publishPost(b.user_id, b.id);
+      try {
+        await publishPost(b.user_id, b.id);
+      } catch (error) {
+        // Một bài lỗi không chặn cả lượt (cùng cách runDueAutoPublishes). publishPost đã ghi 'failed' + lý do (hiện ở
+        // mục Cần xử lý); báo Telegram một lần để chủ shop biết.
+        const lyDo = error instanceof Error ? error.message : String(error);
+        // Lỗi mạng / hết giờ chờ: publishPost giữ bài ở 'publishing' — bài có thể ĐÃ lên Fanpage. Đọc lại trạng thái để
+        // không báo "không đăng được" rồi chủ shop đăng lại thành bài trùng.
+        const sau = await queryOne<{ status: string }>("SELECT status FROM posts WHERE id = $1", [b.id]);
+        await baoTelegram(
+          b.user_id,
+          sau?.status === "publishing"
+            ? `🤖 <b>Chưa rõ bài tự động đã lên hay chưa</b>\nĐang chờ nền tảng xác nhận — vui lòng KHÔNG đăng lại bài này để tránh đăng trùng.`
+            : `🤖 <b>Bài tự động không đăng được</b>\n${escapeHtml(lyDo.slice(0, 300))}\nXem mục Cần xử lý.`
+        );
+        continue;
+      }
     } else if (guard === "notify") {
       await query("UPDATE posts SET auto_publish_at = now() + ($2 || ' minutes')::interval WHERE id = $1", [b.id, String(cau.notifyMinutes)]);
     }

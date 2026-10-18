@@ -36,7 +36,11 @@ const FILTER_TO_STATUS: Record<string, PostStatus> = {
  */
 const CAN_XU_LY: PostStatus[] = ['publishing', 'failed'];
 
-export default function Content() {
+/**
+ * `trongKhuon`: trang đang nằm trong thẻ "Đang làm" của khuôn khối não (KhuonAi) — đầu khuôn đã có tên AI, trang khối não
+ * và thẻ "Hướng dẫn AI", nên ẩn tiêu đề và nút vai trò riêng của trang để không lặp hai lần.
+ */
+export default function Content({ trongKhuon = false }: { trongKhuon?: boolean } = {}) {
   const { accounts, activeAccountId, activeTrangId, trangDangChon } = useActivePage();
 
   const [activeFilter, setActiveFilter] = useState('Chờ duyệt (0)');
@@ -409,6 +413,11 @@ export default function Content() {
       }
 
       const scheduledFor = dang ? layThoiDiemHen() : null;
+      /*
+       * "Chờ tôi duyệt" (chủ dự án chốt 18/10/2026): bấm đăng ngay thì bài vào mục Chờ duyệt, KHÔNG gửi lên nền tảng —
+       * chỉ lên khi bấm Duyệt. Hẹn giờ là lệnh rõ ràng của chủ shop nên vẫn đăng đúng giờ, không qua duyệt.
+       */
+      const choDuyet = dang && !scheduledFor && postMode === 'manual';
 
       if (dang && targetAccountIdsSoanBai.length === 0) {
         setErrorMessage('Vui lòng chọn ít nhất một kênh để đăng bài.');
@@ -441,8 +450,11 @@ export default function Content() {
         !(await hoiXacNhan({
           tieuDe: `Đăng bài kèm video AI (${kh.video.ten}) — ${vndVideo(kh.video.gia)}${kh.anh ? ` và ảnh AI ${vndAnh(kh.anh.gia)}` : ''}?`,
           noiDung:
-            `AI tạo video từ nội dung bài, mất khoảng 1–5 phút. Bài tự đăng ngay khi video xong` +
-            `${scheduledFor ? ' (vẫn theo giờ đã hẹn)' : ''}. Video lỗi thì bài đăng kèm ảnh thay thế.\n` +
+            `AI tạo video từ nội dung bài, mất khoảng 1–5 phút. ` +
+            (choDuyet
+              ? 'Video xong thì bài vào mục Chờ duyệt, chỉ lên Fanpage khi bạn duyệt.'
+              : `Bài tự đăng ngay khi video xong${scheduledFor ? ' (vẫn theo giờ đã hẹn)' : ''}.`) +
+            ` Video lỗi thì bài dùng ảnh thay thế.\n` +
             `Tiền bị trừ kể cả khi bạn không dùng video.`,
           nutDongY: 'Đăng bài kèm video',
           bieuTuong: 'movie',
@@ -489,7 +501,7 @@ export default function Content() {
           );
           return;
         }
-      } else if (dang) {
+      } else if (dang && !choDuyet) {
         // Gửi sang Zernio: đăng ngay, hoặc giao lịch cho Zernio tự đăng đúng giờ.
         await api.posts.publish(post.id);
       }
@@ -527,7 +539,7 @@ export default function Content() {
       !(await hoiXacNhan({
         tieuDe: 'Gỡ bài này khỏi nền tảng để sửa lại?',
         noiDung:
-          'Bài sẽ biến mất khỏi trang, mất hết lượt thích và bình luận đã có. ' +
+          'Bài sẽ biến mất khỏi kênh, mất hết lượt thích và bình luận đã có. ' +
           'Nội dung và ảnh vẫn giữ lại trong ứng dụng để bạn sửa rồi đăng mới.',
         nutDongY: 'Gỡ bài',
         nguyHiem: true,
@@ -570,63 +582,6 @@ export default function Content() {
       setErrorMessage(error instanceof ApiError ? error.message : 'AI chưa viết được bài');
     } finally {
       setIsGenerating(false);
-    }
-  };
-
-  /**
-   * Lưu bài.
-   *
-   * "Đăng ngay" phải gọi Zernio thật rồi mới đánh dấu đã đăng. Bản cũ chỉ đổi
-   * trạng thái sang "Đã đăng" mà không hề đăng, nên giao diện báo thành công
-   * trong khi Fanpage không có bài nào.
-   */
-  const handleAcceptAiOption = async (optionContent: string) => {
-    setErrorMessage('');
-    try {
-      // Dùng đúng giờ chủ shop chọn. Bản trước hẹn cứng "sau 24 giờ" bất kể
-      // họ chọn gì, nên bài luôn lên sai thời điểm.
-      const scheduledFor = layThoiDiemHen();
-
-      let post: Post;
-      if (editingPostId) {
-        const result = await api.posts.update(editingPostId, {
-          content: optionContent,
-          targetAccountIds,
-          media: composerMedia,
-        });
-        post = result.data;
-      } else {
-        const result = await api.posts.create({
-          content: optionContent,
-          status: composerMode === 'schedule' ? 'scheduled' : 'pending_approval',
-          scheduledFor,
-          targetAccountIds,
-          media: composerMedia,
-          aiGenerated: aiOptions.includes(optionContent),
-          aiPrompt: composerTopic.trim() || undefined,
-        });
-        post = result.data;
-      }
-
-      // Đăng ngay: chỉ tự đăng khi chủ shop đã bật chế độ AI tự đăng.
-      // Chế độ chờ duyệt thì bài nằm ở mục chờ duyệt, đúng như mô tả trên thẻ.
-      if (composerMode === 'now' && postMode === 'auto') {
-        if (targetAccountIds.length === 0) {
-          throw new ApiError('Chưa có kênh nào được kết nối để đăng bài.', 409);
-        }
-        await api.posts.publish(post.id);
-      }
-
-      setIsComposerOpen(false);
-      setAiOptions([]);
-      setComposerTopic('');
-      setComposerContent('');
-      setComposerMedia([]);
-      setEditingPostId(null);
-      setBaiDangSua(null);
-      await fetchPosts();
-    } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : 'Không lưu được bài');
     }
   };
 
@@ -674,14 +629,16 @@ export default function Content() {
     return dbPosts.filter((post) => post.status === status);
   }, [activeFilter, dbPosts]);
 
+  /* Bảng màu thống nhất: chờ duyệt = cần làm ngay (hồng) · đã lên lịch = thông tin (lam) · đang đăng = màu miền ·
+     đã đăng = ✓ trắng · lỗi = đỏ · nháp = xám. */
   const getStatusColor = (status: PostStatus) => {
     switch (status) {
-      case 'pending_approval': return 'text-yellow-500 bg-yellow-500/20 border-yellow-500/30';
-      case 'scheduled': return 'text-blue-500 bg-blue-500/20 border-blue-500/30';
-      case 'published': return 'text-green-500 bg-green-500/20 border-green-500/30';
-      case 'publishing': return 'text-primary bg-primary/20 border-primary/30';
-      case 'failed': return 'text-error bg-error/20 border-error/30';
-      default: return 'text-gray-400 bg-gray-500/20 border-gray-500/30';
+      case 'pending_approval': return 'text-gap bg-gap/15 border-gap/40';
+      case 'scheduled': return 'text-thong-tin bg-thong-tin/15 border-thong-tin/40';
+      case 'published': return 'text-on-surface bg-white/10 border-white/25';
+      case 'publishing': return 'text-primary bg-primary/15 border-primary/40';
+      case 'failed': return 'text-loi bg-loi/15 border-loi/40';
+      default: return 'text-on-surface-variant bg-white/5 border-white/15';
     }
   };
 
@@ -706,7 +663,7 @@ export default function Content() {
 
 
   return (
-    <main className="flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative">
+    <main className={trongKhuon ? "w-full relative" : "flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative"}>
 
       {/* Lỗi của các thao tác ngoài hộp soạn bài: đăng lại, xoá, duyệt, tải danh sách. */}
       {errorMessage && !isComposerOpen && (
@@ -728,7 +685,7 @@ export default function Content() {
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="font-headline-sm text-3xl font-bold text-on-surface tracking-tight">AI Viết - Đăng Bài</h1>
+            {!trongKhuon && <h1 className="font-headline-sm text-3xl font-bold text-on-surface tracking-tight">AI Viết - Đăng Bài</h1>}
             <span className="font-mono text-xs font-bold tracking-wider text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full uppercase">
               {activeCounts.pending} BÀI CHỜ DUYỆT
             </span>
@@ -737,6 +694,7 @@ export default function Content() {
         </div>
         <div className="flex items-center gap-3">
           <button 
+            hidden={trongKhuon}
             onClick={() => setIsTrainingOpen(true)}
             className="px-4 py-2 bg-surface-container text-primary border border-primary/30 font-bold rounded-lg hover:bg-primary/10 transition-colors flex items-center gap-2"
           >
@@ -745,7 +703,7 @@ export default function Content() {
           </button>
           <button 
             onClick={moHopSoanBai}
-            className="shrink-0 px-4 py-2 bg-primary text-on-primary font-bold rounded-lg shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform flex items-center gap-2"
+            className="shrink-0 px-4 py-2 bg-primary text-on-primary font-bold rounded-lg hover:scale-105 transition-transform flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
             Tạo bài mới
@@ -753,92 +711,63 @@ export default function Content() {
         </div>
       </div>
 
-      {/* Row 1: Mode Selection Card */}
-      <div className="bg-surface-container border-2 border-primary/40 rounded-2xl p-6 mb-8 relative overflow-hidden group hover:border-primary/60 transition-colors shadow-[0_0_30px_rgba(0,229,255,0.05)]">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-bl-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
-        <div className="flex flex-col lg:flex-row lg:items-center gap-8 relative z-10">
-          <div className="flex-1">
-            <span className="tieu-de-muc mb-2 block">CHẾ ĐỘ ĐĂNG BÀI</span>
-            <h2 className="text-xl font-bold text-on-surface mb-2">{postMode === 'manual' ? 'AI đang chờ bạn duyệt' : 'AI đang tự động đăng bài'}</h2>
-            <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-line">
-              {postMode === 'manual' 
-                ? 'AI viết xong sẽ đưa vào mục chờ duyệt.\nBài chỉ lên sóng khi bạn bấm duyệt.'
-                : 'AI sẽ tự viết và tự động lên lịch/đăng bài.\nBạn có thể xem lại trong mục Đã lên lịch hoặc Đã đăng.'}
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4 shrink-0 lg:w-[500px]">
-            <div 
-              onClick={() => savePostMode('manual')}
-              className={clsx(
-                "flex-1 p-4 rounded-xl border cursor-pointer transition-all",
-                postMode === 'manual' 
-                  ? "bg-primary/10 border-primary text-primary shadow-[0_0_15px_rgba(0,229,255,0.2)]" 
-                  : "bg-surface-container border-outline-variant hover:border-primary/50 text-on-surface-variant"
-              )}
+      {/*
+        Chế độ đăng cho BÀI BẠN TỰ SOẠN — một dòng, ghi rõ phạm vi. Bài AI tự viết theo lịch cài riêng ở khung bên dưới
+        (AutoPilotPanel). Bản cũ là thẻ to không ghi phạm vi nên trông như hai chỗ cài cùng một việc (rà soát lượt 2, T5).
+      */}
+      <div className="mb-6 flex flex-col md:flex-row md:items-center gap-3 rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-on-surface">Bài bạn tự soạn</p>
+          <p className="text-xs text-on-surface-variant">
+            {postMode === 'manual' ? 'Bấm "Đăng ngay" thì bài vào mục Chờ duyệt, chỉ lên sóng khi bạn duyệt.' : 'Bấm "Đăng ngay" là bài lên sóng luôn, không qua bước duyệt.'}
+          </p>
+        </div>
+        <div className="flex rounded-lg border border-outline-variant overflow-hidden shrink-0" role="radiogroup" aria-label="Chế độ đăng bài tự soạn">
+          {([['manual', 'Chờ tôi duyệt'], ['auto', 'Đăng luôn']] as const).map(([ma, ten]) => (
+            <button
+              key={ma}
+              role="radio"
+              aria-checked={postMode === ma}
+              onClick={() => (ma === 'manual' ? savePostMode('manual') : handleAutoModeSelect())}
+              className={clsx('px-4 py-2 text-sm font-bold transition-colors',
+                postMode === ma ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface')}
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className={clsx("font-bold text-sm", postMode === 'manual' ? "text-primary" : "text-on-surface")}>Chờ tôi duyệt</span>
-                {postMode === 'manual' && <span className="material-symbols-outlined text-[18px]">check_circle</span>}
-              </div>
-              <p className="text-xs opacity-80">An toàn hơn, bạn kiểm soát mọi bài</p>
-              {postMode === 'manual' && <span className="inline-block mt-3 text-[10px] font-bold px-2 py-0.5 bg-primary/20 rounded-sm uppercase tracking-wider">ĐANG ĐƯỢC CHỌN</span>}
-            </div>
-
-            <div 
-              onClick={handleAutoModeSelect}
-              className={clsx(
-                "flex-1 p-4 rounded-xl border cursor-pointer transition-all",
-                postMode === 'auto' 
-                  ? "bg-primary/10 border-primary text-primary shadow-[0_0_15px_rgba(0,229,255,0.2)]" 
-                  : "bg-surface-container border-outline-variant hover:border-primary/50 text-on-surface-variant"
-              )}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className={clsx("font-bold text-sm", postMode === 'auto' ? "text-primary" : "text-on-surface")}>AI tự đăng luôn</span>
-                {postMode === 'auto' && <span className="material-symbols-outlined text-[18px]">check_circle</span>}
-              </div>
-              <p className="text-xs opacity-80">Nhanh hơn, không cần bạn can thiệp</p>
-              {postMode === 'auto' && <span className="inline-block mt-3 text-[10px] font-bold px-2 py-0.5 bg-primary/20 rounded-sm uppercase tracking-wider">ĐANG ĐƯỢC CHỌN</span>}
-            </div>
-          </div>
+              {ten}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Lịch AI tự viết và tự đăng — phần làm cho thẻ "AI tự đăng luôn" ở trên
-          nói đúng sự thật. Thẻ đó chỉ quyết định có bỏ bước duyệt hay không khi
-          chủ shop TỰ soạn bài; còn việc AI tự làm theo lịch thì cài ở đây. */}
+      {/* Lịch AI tự viết và tự đăng — bài AI tự làm theo lịch cài ở đây (khác dòng "Bài bạn tự soạn" ở trên). */}
       <AutoPilotPanel onSaved={fetchPosts} />
 
       {/* Row 2: Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
-          <div className="absolute -top-12 -right-12 w-32 h-32 bg-yellow-500/10 blur-2xl rounded-full group-hover:bg-yellow-500/20 transition-colors"></div>
+        <div className="bg-surface-container border border-outline-variant rounded-xl p-4 relative overflow-hidden flex flex-col justify-between gap-2">
           <div>
             <h3 className="tieu-de-muc mb-1">CHỜ DUYỆT</h3>
             <div className="flex items-baseline gap-2">
-              <span className="font-headline-sm text-3xl font-bold text-on-surface">{activeCounts.pending}</span>
+              <span className="text-2xl font-bold text-on-surface tabular-nums">{activeCounts.pending}</span>
             </div>
             <p className="text-xs text-on-surface-variant mt-1 font-medium">Cần bạn xem qua</p>
           </div>
         </div>
 
-        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
-          <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full group-hover:bg-blue-500/20 transition-colors"></div>
+        <div className="bg-surface-container border border-outline-variant rounded-xl p-4 relative overflow-hidden flex flex-col justify-between gap-2">
           <div>
             <h3 className="tieu-de-muc mb-1">ĐÃ LÊN LỊCH</h3>
             <div className="flex items-baseline gap-2">
-              <span className="font-headline-sm text-3xl font-bold text-on-surface">{activeCounts.scheduled}</span>
+              <span className="text-2xl font-bold text-on-surface tabular-nums">{activeCounts.scheduled}</span>
             </div>
             <p className="text-xs text-on-surface-variant mt-1 font-medium">Sẽ tự đăng đúng giờ</p>
           </div>
         </div>
 
-        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
-          <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 blur-2xl rounded-full group-hover:bg-primary/20 transition-colors"></div>
+        <div className="bg-surface-container border border-outline-variant rounded-xl p-4 relative overflow-hidden flex flex-col justify-between gap-2">
           <div>
             <h3 className="tieu-de-muc mb-1">ĐÃ ĐĂNG TUẦN NÀY</h3>
             <div className="flex items-baseline gap-2">
-              <span className="font-headline-sm text-3xl font-bold text-on-surface">{publishedThisWeek}</span>
+              <span className="text-2xl font-bold text-on-surface tabular-nums">{publishedThisWeek}</span>
             </div>
           </div>
           {activeCounts.published > publishedThisWeek && (
@@ -849,12 +778,11 @@ export default function Content() {
           )}
         </div>
 
-        <div className="bg-surface-container border border-outline-variant rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between group hover:border-primary/50 transition-colors h-[140px]">
-          <div className="absolute -top-12 -right-12 w-32 h-32 bg-purple-500/10 blur-2xl rounded-full group-hover:bg-purple-500/20 transition-colors"></div>
+        <div className="bg-surface-container border border-outline-variant rounded-xl p-4 relative overflow-hidden flex flex-col justify-between gap-2">
           <div>
             <h3 className="tieu-de-muc mb-1">TƯƠNG TÁC TRUNG BÌNH</h3>
             <div className="flex items-baseline gap-2">
-              <span className="font-headline-sm text-3xl font-bold text-on-surface">{avgEngagement}</span>
+              <span className="text-2xl font-bold text-on-surface tabular-nums">{avgEngagement}</span>
             </div>
             <p className="text-xs text-on-surface-variant mt-1 font-medium">
               {activeCounts.published > 0 ? 'Lượt trên mỗi bài' : 'Chưa có bài nào được đăng'}
@@ -874,7 +802,7 @@ export default function Content() {
               className={clsx(
                 "px-4 py-2 rounded-full text-sm font-medium transition-colors border",
                 isActive 
-                  ? "bg-primary text-on-primary border-primary shadow-[0_0_10px_rgba(0,229,255,0.2)]" 
+                  ? "bg-primary text-on-primary border-primary" 
                   : "bg-surface-container text-on-surface-variant border-outline-variant hover:bg-surface-container hover:text-on-surface"
               )}
             >
@@ -884,51 +812,53 @@ export default function Content() {
         })}
       </div>
 
-      {/* Row 4: Posts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      {/*
+        DANH SÁCH BÀI GỌN (rà soát lượt 2, §3): mỗi bài một hàng — ảnh thật bên trái, nội dung giữa, thao tác bên phải.
+        Bản cũ là lưới 3 cột thẻ cao, vài bài đã chiếm cả màn hình. Trên điện thoại hàng tự xếp dọc.
+        Nút thao tác chỉ ở một chỗ (bản cũ có thêm bộ ✓ ⏱ 🗑 ở đầu thẻ — T4).
+      */}
+      <div className="flex flex-col gap-3">
         {filteredPosts.map(post => (
-          <div key={post.id} className="bg-surface-container border border-outline-variant rounded-2xl overflow-hidden flex flex-col group hover:border-primary/30 transition-colors shadow-sm h-full">
-            {/* Top Bar */}
-            <div className="p-4 flex items-center justify-between border-b border-outline-variant/50">
-              <span className={clsx("px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider border", getStatusColor(post.status))}>
+          <div key={post.id} className="bg-surface-container border border-outline-variant rounded-xl overflow-hidden flex flex-col md:flex-row hover:border-primary/40 transition-colors">
+
+            {/*
+              Ảnh / video THẬT của bài (post.media). Bản cũ đọc `post.platforms === 'has_image'` — trường không tồn tại,
+              nên không bài nào hiện ảnh. Liên kết tệp của kho tạm hết hạn sau 7 ngày (api.ts MediaItem): tải hỏng thì ẩn
+              khung, không để ô ảnh vỡ.
+            */}
+            {(() => {
+              const m = (Array.isArray(post.media) ? post.media : []).find((x) => x.type === 'image' || x.type === 'gif' || x.type === 'video');
+              if (!m) return null;
+              const an = (e: React.SyntheticEvent<HTMLElement>) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; };
+              return (
+                <div className="h-[160px] md:h-auto md:w-40 flex-none w-full relative overflow-hidden bg-surface-variant">
+                  {m.type === 'video'
+                    ? <video src={m.url} muted preload="metadata" className="w-full h-full object-cover" onError={an} />
+                    : <img src={m.url} alt="" loading="lazy" className="w-full h-full object-cover" onError={an} />}
+                  {post.media.length > 1 && (
+                    <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/60 text-white text-[11px] font-bold">
+                      +{post.media.length - 1}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Content */}
+            <div className="p-4 flex-1 min-w-0 flex flex-col gap-2">
+              <span className={clsx("self-start px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wider border", getStatusColor(post.status))}>
                 {/* Bài chờ video AI xong rồi máy chủ tự đăng — duyệt tay lúc này sẽ đăng thiếu video nên ẩn nút duyệt. */}
                 {post.cho_video_id ? 'ĐANG TẠO VIDEO AI · XONG TỰ ĐĂNG' : POST_STATUS_LABELS[post.status].toUpperCase()}
               </span>
-              <div className="flex gap-2">
-                {post.status === 'pending_approval' && !post.cho_video_id && (
-                  <>
-                    <button onClick={() => handleApprove(post.id)} className="text-green-500 hover:bg-green-500/10 p-1 rounded-md transition-colors" title="Duyệt đăng">
-                      <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                    </button>
-                    <button onClick={() => handleSchedule(post.id)} className="text-blue-500 hover:bg-blue-500/10 p-1 rounded-md transition-colors" title="Lên lịch">
-                      <span className="material-symbols-outlined text-[18px]">schedule</span>
-                    </button>
-                  </>
-                )}
-                <button onClick={() => handleDelete(post.id)} className="text-error hover:bg-error/10 p-1 rounded-md transition-colors" title="Xóa">
-                  <span className="material-symbols-outlined text-[18px]">delete</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Image Placeholder */}
-            {(post.platforms === 'has_image') && (
-              <div className="h-[180px] min-h-[180px] max-h-[180px] flex-none w-full relative overflow-hidden bg-surface-variant flex items-center justify-center">
-                <div className="absolute inset-0 bg-gradient-to-br from-surface-variant to-surface-container-high opacity-50"></div>
-                <span className="material-symbols-outlined text-4xl text-on-surface-variant opacity-20">image</span>
-              </div>
-            )}
-
-            {/* Content */}
-            <div className="p-5 flex-1 flex flex-col">
-              <p className="text-sm text-on-surface leading-relaxed line-clamp-4 mb-4">
+              <p className="text-sm text-on-surface leading-relaxed line-clamp-2">
                 {post.content}
               </p>
               
-              <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-on-surface-variant">
-                  <span className="material-symbols-outlined text-[14px] text-primary/80">auto_awesome</span>
-                  {`AI viết lúc ${new Date(post.created_at).toLocaleTimeString('vi-VN')} ngày ${new Date(post.created_at).toLocaleDateString('vi-VN')}`}
+                  <span className="material-symbols-outlined text-[14px] text-primary/80">{post.ai_generated ? 'auto_awesome' : 'edit'}</span>
+                  {/* Ai viết theo cờ thật của bài (posts.ai_generated) — bản cũ ghi "AI viết" cho mọi bài, kể cả bài người viết. */}
+                  {`${post.ai_generated ? 'AI viết' : 'Bạn viết'} lúc ${new Date(post.created_at).toLocaleTimeString('vi-VN')} ngày ${new Date(post.created_at).toLocaleDateString('vi-VN')}`}
                 </div>
                 
                 <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface">
@@ -937,7 +867,7 @@ export default function Content() {
                 </div>
 
                 {post.status === 'published' && post.stats && (
-                  <div className="flex items-center gap-4 text-xs font-bold text-on-surface pt-3 border-t border-outline-variant/50">
+                  <div className="flex items-center gap-4 text-xs font-bold text-on-surface">
                     <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px] text-primary">thumb_up</span> {post.stats.likes ?? 0}</span>
                     <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px] text-primary">chat_bubble</span> {post.stats.comments ?? 0}</span>
                     <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px] text-primary">share</span> {post.stats.shares ?? 0}</span>
@@ -947,12 +877,16 @@ export default function Content() {
             </div>
 
             {/* Footer Buttons */}
-            <div className="p-4 bg-surface-container border-t border-outline-variant/50 flex gap-2 shrink-0 mt-auto">
+            <div className="p-4 border-t md:border-t-0 md:border-l border-outline-variant/50 flex flex-wrap gap-2 shrink-0 md:w-80 md:content-center">
               {post.status === 'pending_approval' && (
                 <>
-                  <button onClick={() => handleApprove(post.id)} disabled={busyPostId === post.id} className="flex-1 py-2 bg-primary text-on-primary font-bold text-xs rounded-lg hover:brightness-110 transition-all shadow-sm disabled:opacity-60">{busyPostId === post.id ? 'Đang đăng…' : 'Duyệt và đăng'}</button>
+                  {/* Bài chờ video AI xong rồi máy chủ tự đăng — duyệt tay lúc này sẽ đăng thiếu video nên ẩn nút duyệt. */}
+                  {!post.cho_video_id && <button onClick={() => handleApprove(post.id)} disabled={busyPostId === post.id} className="flex-1 py-2 bg-primary text-on-primary font-bold text-xs rounded-lg hover:brightness-110 transition-all shadow-sm disabled:opacity-60">{busyPostId === post.id ? 'Đang đăng…' : 'Duyệt và đăng'}</button>}
                   <button onClick={() => handleEditPost(post)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Sửa</button>
-                  <button onClick={() => handleDelete(post.id)} className="w-9 shrink-0 flex items-center justify-center bg-error/10 text-error rounded-lg hover:bg-error/20 transition-colors border border-error/20">
+                  <button onClick={() => handleSchedule(post.id)} title="Lên lịch" className="w-9 shrink-0 flex items-center justify-center bg-surface-variant text-on-surface rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">
+                    <span className="material-symbols-outlined text-[16px]">schedule</span>
+                  </button>
+                  <button onClick={() => handleDelete(post.id)} title="Xoá bài" className="w-9 shrink-0 flex items-center justify-center bg-error/10 text-error rounded-lg hover:bg-error/20 transition-colors border border-error/20">
                     <span className="material-symbols-outlined text-[16px]">delete</span>
                   </button>
                 </>
@@ -962,13 +896,19 @@ export default function Content() {
                   <button onClick={() => handleSchedule(post.id, post.scheduled_for)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Đổi lịch</button>
                   <button onClick={() => handleCancelSchedule(post.id)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Hủy lịch</button>
                   <button onClick={() => handleEditPost(post)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Sửa</button>
+                  <button onClick={() => handleDelete(post.id)} title="Xoá bài" className="w-9 shrink-0 flex items-center justify-center bg-error/10 text-error rounded-lg hover:bg-error/20 transition-colors border border-error/20">
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
                 </>
               )}
               {post.status === 'published' && (
                 <div className="flex flex-col gap-2 w-full">
                   <div className="flex gap-2">
-                    <button onClick={() => handleOpenOnPlatform(post)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Xem trên nền tảng</button>
-                    <button onClick={() => handleOpenOnPlatform(post)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Xem bình luận</button>
+                    {/* Một nút — "Xem bình luận" cũ mở đúng trang này (T4). */}
+                    <button onClick={() => handleOpenOnPlatform(post)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Xem bài và bình luận trên nền tảng</button>
+                  <button onClick={() => handleDelete(post.id)} title="Xoá bài" className="w-9 shrink-0 flex items-center justify-center bg-error/10 text-error rounded-lg hover:bg-error/20 transition-colors border border-error/20">
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => handleEditPost(post)} className="flex-1 py-2 bg-primary/10 text-primary font-bold text-xs rounded-lg hover:bg-primary/20 transition-colors border border-primary/30">Sửa chữ</button>
@@ -1096,10 +1036,10 @@ export default function Content() {
                 <span className="flex flex-col items-center leading-tight">
                   <span>
                     {dangGuiBai
-                      ? buocDang || 'Đang gửi lên Fanpage…'
+                      ? buocDang || (composerMode !== 'schedule' && postMode === 'manual' ? 'Đang lưu…' : 'Đang gửi lên Fanpage…')
                       : baiDangSua?.status === 'published'
                         ? 'Cập nhật bài đã đăng'
-                        : composerMode === 'schedule' ? 'Hẹn giờ đăng' : 'Đăng bài'}
+                        : composerMode === 'schedule' ? 'Hẹn giờ đăng' : postMode === 'manual' ? 'Gửi chờ duyệt' : 'Đăng bài'}
                   </span>
                   {!dangGuiBai && baiDangSua?.status !== 'published' && (keHoachXuong?.anh || keHoachXuong?.video) && (
                     <span className="text-xs font-semibold">
@@ -1319,7 +1259,7 @@ export default function Content() {
 
               {/* Block 4: ĐĂNG BÀI NÀY LÚC NÀO */}
               {baiDangSua?.status !== 'published' && (
-              <div className="khung-muc mau-luc">
+              <div className="khung-muc mau-cam">
                 {/*
                   Chỉ cho BÀI ĐANG SOẠN (đăng ngay / hẹn một lần) — khác lịch "Tự động hoá" (AI tự viết bài mới theo
                   lịch lặp hằng tuần). Chủ dự án 03/10/2026 thấy hai chỗ cùng tên tưởng là trùng → đặt tên rõ.

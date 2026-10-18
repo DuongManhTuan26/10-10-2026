@@ -148,3 +148,13 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
 - **Vì sao chưa gỡ ngay:** nhiều phép kiểm cũ canh tệp này (các lỗi đã sửa về số liệu, giờ Việt Nam) — gỡ cần sửa
   phép kiểm có chủ đích, làm riêng một đợt.
 - **Còn lại:** gỡ 3 đường + phép kiểm liên quan; hoặc giữ nếu chủ dự án muốn dùng lại.
+
+## TD-13 — Sửa ngân sách chiến dịch ABO (ngân sách ở tầng nhóm quảng cáo) chưa làm được trong app (18/10/2026)
+
+- Hiện trạng: chiến dịch ABO → máy chủ trả 409 "ngân sách nằm ở tầng nhóm quảng cáo, chưa sửa được trong app".
+- Lý do: đường danh sách nhóm cũ gọi GET /v1/ads/ad-sets — tài liệu nhà cung cấp KHÔNG có đường này (chỉ có
+  GET /v1/ads/ad-sets/{adSetId} 28755 và GET /v1/ads/tree 28957, trong đó `adSets: array — No description`). Đã bỏ
+  đường danh sách (phiên kiểm duyệt duyệt 18/10/2026).
+- Cách làm khi có chiến dịch thật: gọi MỘT lần GET /v1/ads/tree?campaignId=…&accountId=…&adAccountId=… (chỉ đọc, không
+  tốn tiền) để xem dạng thật của adSets, rồi dựng danh sách nhóm theo dạng đó; sửa ngân sách nhóm dùng
+  PUT /v1/ads/ad-sets/{id} {platform, budget} (28791) — đường /api/ads/ad-sets/:id/budget đã có kiểm chủ sở hữu qua getAdSet.

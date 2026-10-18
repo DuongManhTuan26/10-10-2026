@@ -23,7 +23,14 @@ export interface MucMenu {
 /** Bề ngang menu. Dùng cả khi dựng khung lẫn khi tính còn chỗ hay không. */
 const RONG_MENU = 208;
 
-export default function MenuQuanLyTrang({ muc, tat }: { muc: MucMenu[]; tat?: boolean }) {
+export default function MenuQuanLyTrang({ muc, tat, tieuDe = 'Quản lý tài khoản', nhan = 'Quản lý tài khoản cửa hàng' }: {
+  muc: MucMenu[];
+  tat?: boolean;
+  /** Dòng đầu menu (mặc định cho thẻ trang ở Quản lý). */
+  tieuDe?: string;
+  /** Chữ đọc cho nút ⋯ (title + aria-label). */
+  nhan?: string;
+}) {
   const [mo, setMo] = useState(false);
   /*
    * Thả sang trái hay sang phải của nút — quyết định lúc MỞ, bằng cách đo.
@@ -65,8 +72,8 @@ export default function MenuQuanLyTrang({ muc, tat }: { muc: MucMenu[]; tat?: bo
           setMo((m) => !m);
         }}
         disabled={tat}
-        title="Quản lý tài khoản trang"
-        aria-label="Quản lý tài khoản trang"
+        title={nhan}
+        aria-label={nhan}
         className="w-9 h-9 flex items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant hover:text-on-surface hover:border-primary transition-colors disabled:opacity-40"
       >
         <span className="material-symbols-outlined text-[20px]">more_vert</span>
@@ -81,7 +88,7 @@ export default function MenuQuanLyTrang({ muc, tat }: { muc: MucMenu[]; tat?: bo
           )}
         >
           <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">
-            Quản lý tài khoản
+            {tieuDe}
           </div>
           {muc.map((m) => (
             <button

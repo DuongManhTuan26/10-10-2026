@@ -1,27 +1,14 @@
 import { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
-import ChonTrangNao from './ChonTrangNao';
+import { BON_AI, MAU_THUONG_HIEU } from '../lib/bon-ai';
+import { SUPPORT_URL, IS_EXTERNAL_SUPPORT } from '../lib/ho-tro';
 
-/**
- * Địa chỉ trợ giúp của CHÍNH mình.
- *
- * Trước đây nút này mở docs.zernio.com. Đó là tài liệu của nhà cung cấp hạ
- * tầng: khách trả tiền cho mình lại nhìn thấy tên và trang bán hàng của Zernio,
- * và chỉ cần một cú bấm là họ tự mua thẳng bên đó, bỏ qua mình. Zernio là
- * đường ống chạy phía sau, không phải thứ khách hàng cần biết tới.
- *
- * Đặt VITE_SUPPORT_URL trong .env để trỏ tới kênh hỗ trợ thật (trang trợ giúp,
- * Zalo, hoặc mailto:). Chưa đặt thì đưa về trang Gói dịch vụ trong app, nơi đã
- * có thông tin liên hệ — vẫn nằm trong app, không lộ nhà cung cấp.
- */
-const SUPPORT_URL = import.meta.env.VITE_SUPPORT_URL || '/pricing';
-const IS_EXTERNAL_SUPPORT = /^https?:|^mailto:/.test(SUPPORT_URL);
+// Đường hỗ trợ dùng chung (src/lib/ho-tro.ts): chưa cài thì "Sắp có", không dẫn vòng sang trang khác.
 
 export default function Sidebar({
   onLogout,
   laQuanTri = false,
-  laChuChuoi = false,
   moKhung = false,
   onDong,
 }: {
@@ -45,11 +32,6 @@ export default function Sidebar({
    * họ không bấm được.
    */
   laQuanTri?: boolean;
-  /*
-   * Chủ chuỗi thấy thêm mục Quản Lý Trang. Cũng chỉ là lớp che mắt như trên —
-   * máy chủ kiểm lại vai trò từ database ở mọi lời gọi.
-   */
-  laChuChuoi?: boolean;
 }) {
   const viTri = useLocation();
 
@@ -62,53 +44,55 @@ export default function Sidebar({
   useEffect(() => { onDong?.(); }, [viTri.pathname]);
 
   /*
-   * Chủ chuỗi chỉ thấy phần quản lý.
+   * MENU THEO KHỐI NÃO (chủ dự án chốt 10/10/2026 — docs/khoi-nao.md).
    *
-   * Họ không gắn Fanpage, không có hộp thư, không có đơn hàng — những thứ đó
-   * thuộc về từng tài khoản trang bên dưới. Bày ra cho họ một Hộp Thư luôn
-   * rỗng và một AI Bán Hàng không có Trang nào để huấn luyện thì chỉ làm họ
-   * tưởng hệ thống hỏng.
+   *   KHỐI NÃO AI                 ← 4 AI cố định, liền mạch, luôn đi cùng nhau
+   *   (Không có bộ chọn trang ở đầu menu — chủ dự án 11/10/2026: trang bán hàng quản lý DUY NHẤT ở Kết nối kênh.)
+   *     Tổng quan khối não
+   *     ① AI Nội dung · ② AI Quảng cáo · ③ AI Bán hàng · ④ AI Điều hành
+   *   DỮ LIỆU CỦA TRANG           ← thứ thay đổi được để điều hướng AI
+   *   QUẢN LÝ                     ← chủ chuỗi / quản trị
    *
-   * Không xoá màn hình nào: các mục này vẫn nguyên vẹn cho tài khoản trang, và
-   * chủ chuỗi thấy lại đầy đủ ngay khi bấm "Mở trang" bước vào một trang.
+   * Chưa có trang nào (vd. chủ chuỗi chưa lập trang) thì không bày khối não rỗng — chỉ phần quản lý.
    */
-  const group1 = laChuChuoi
-    ? []
-    : [
-        { name: 'Bảng Điều Khiển', icon: 'dashboard', path: '/' },
-        { name: 'Kết Nối Đa Nền Tảng', icon: 'cable', path: '/connections' },
-      ];
-  
-  const group2 = laChuChuoi
-    ? []
-    : [
-        { name: 'AI Viết - Đăng Bài', icon: 'post_add', path: '/content' },
-        { name: 'AI Quảng Cáo', icon: 'campaign', path: '/ads' },
-        { name: 'AI Bán Hàng', icon: 'smart_toy', path: '/auto-scripts' },
-        { name: 'AI Điều Hành', icon: 'monitoring', path: '/dieu-hanh' },
-      ];
-  
-  const group3 = [
-    ...(laChuChuoi
-      ? []
-      : [
-          { name: 'Hộp Thư', icon: 'forum', path: '/inbox' },
-          { name: 'Đơn Hàng', icon: 'receipt_long', path: '/orders' },
-          { name: 'Báo Cáo Telegram', icon: 'notifications_active', path: '/telegram' },
-        ]),
+  /*
+   * THỨ TỰ MENU (chủ dự án 11/10/2026):
+   *   Tổng quan            ← tổng quan TOÀN HỆ THỐNG (không chỉ một khối não)
+   *   Kết nối kênh         ← luôn đứng TRƯỚC khối não: kênh phải nối trước thì AI mới làm việc được; luôn hiện, kể cả
+   *                          shop mới chưa có trang nào (nối Fanpage là cách có trang đầu tiên)
+   *   Khối não AI: 4 AI    ← không bọc khung riêng, trình bày như các nhóm khác
+   *   Dữ liệu của trang    ← Báo cáo Telegram
+   *   Quản lý              ← Gói dịch vụ, rồi Quản lý tài khoản (quản trị toàn hệ thống) ở CUỐI CÙNG
+   */
+  /*
+   * Mọi tài khoản thấy ĐỦ menu y hệt tài khoản mẫu của quản trị tổng (chủ dự án 18/10/2026: "nhân bản 100%"), kể cả
+   * khi chưa nối kênh — màn trong bộ não tự hướng dẫn đi nối kênh. Bản trước giấu khối não khi chưa có kênh: tài khoản
+   * mới nhìn khác hẳn tài khoản mẫu.
+   */
+  const coNao = true;
+  // Tổng quan thuộc miền ④ Điều hành (xanh ngọc — bảng màu đã thống nhất).
+  const mucTongQuan = { name: 'Tổng quan', icon: 'dashboard', path: '/', mau: MAU_THUONG_HIEU };
+  const mucKetNoi = { name: 'Kết nối kênh', icon: 'cable', path: '/ket-noi', mau: MAU_THUONG_HIEU };
+  const nhomNao = coNao
+    ? BON_AI.map((a) => ({ name: a.ten, icon: a.bieuTuong, path: a.duong, so: a.so, mau: a.hex }))
+    : [];
+  const nhomDuLieu = coNao
+    ? [{ name: 'Báo cáo Telegram', icon: 'notifications_active', path: '/telegram' }]
+    : [];
+  const nhomQuanLy = [
     { name: 'Gói Dịch Vụ', icon: 'workspace_premium', path: '/pricing' },
-    // Cùng tên, cùng biểu tượng ở cả hai tầng — một màn hình quản lý dùng chung (chỉ khác phạm vi).
-    ...(laChuChuoi
-      ? [{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '/quan-ly-trang' }]
-      : []),
-    ...(laQuanTri
-      ? [{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '/admin' }]
-      : []),
+    // Chỉ quản trị tổng. Đứng cuối cùng.
+    ...(laQuanTri ? [{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '/admin' }] : []),
   ];
+  const nhan = (chu: string) => (
+    <div className="px-3 pb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#E8EDF2]/50">{chu}</div>
+  );
 
+  /** Màu sáng của mục khi đang chọn: 4 AI + Tổng quan theo màu miền, mục hệ thống trắng (không tranh màu với 4 AI). */
+  const MAU_HE_THONG = '#e2e8f0';
   const renderNavGroup = (items: any[]) => (
     <div className="flex flex-col relative" style={{ gap: '8px' }}>
-      {items.map((item) => (
+      {items.map((item) => { const mau: string = item.mau ?? MAU_HE_THONG; return (
         <NavLink
           key={item.path}
           to={item.path}
@@ -123,12 +107,11 @@ export default function Sidebar({
             fontWeight: isActive ? 700 : 600,
             letterSpacing: '0.2px',
             color: isActive ? '#FFFFFF' : '#E8EDF2',
-            background: isActive ? 'linear-gradient(90deg, rgba(0,229,255,0.15) 0%, rgba(0,229,255,0.01) 100%)' : 'transparent',
-            borderTop: isActive ? '1px solid rgba(0,229,255,0.15)' : '1px solid transparent',
-            borderRight: isActive ? '1px solid rgba(0,229,255,0.15)' : '1px solid transparent',
-            borderBottom: isActive ? '1px solid rgba(0,229,255,0.15)' : '1px solid transparent',
+            background: isActive ? `linear-gradient(90deg, ${mau}26 0%, ${mau}03 100%)` : 'transparent',
+            borderTop: isActive ? `1px solid ${mau}26` : '1px solid transparent',
+            borderRight: isActive ? `1px solid ${mau}26` : '1px solid transparent',
+            borderBottom: isActive ? `1px solid ${mau}26` : '1px solid transparent',
             borderLeft: 'none',
-            boxShadow: isActive ? 'inset 20px 0 40px -20px rgba(0,229,255,0.2)' : 'none',
           })}
         >
           {({ isActive }) => (
@@ -140,20 +123,26 @@ export default function Sidebar({
 
               {/* Laser left border for active item */}
               {isActive && (
-                <div className="absolute left-0 top-[15%] bottom-[15%] w-[3px] bg-[#00e5ff] rounded-r-md shadow-[0_0_15px_#00e5ff,0_0_5px_#ffffff] z-20"></div>
+                <div className="absolute left-0 top-[15%] bottom-[15%] w-[3px] rounded-r-md z-20" style={{ background: mau }}></div>
               )}
 
+              {/* Số thứ tự + màu riêng của từng AI trong khối não (src/lib/bon-ai.ts). */}
+              {item.so && (
+                <span
+                  className="relative z-10 w-5 h-5 shrink-0 rounded-md flex items-center justify-center font-mono text-[11px] font-black"
+                  style={{ color: item.mau, border: `1px solid ${item.mau}80`, background: `${item.mau}1a` }}
+                >
+                  {item.so}
+                </span>
+              )}
               {/* Icon */}
               <span 
                 className="material-symbols-outlined relative z-10 transition-all duration-300 flex items-center justify-center w-6" 
                 style={{
-                  color: isActive ? '#00e5ff' : 'inherit',
+                  color: isActive ? mau : 'inherit',
                   strokeWidth: isActive ? 2.5 : 2,
                   fontSize: '24px',
-                  ...(isActive ? { 
-                    fontVariationSettings: "'FILL' 1",
-                    filter: 'drop-shadow(0 0 10px rgba(0,229,255,0.8))'
-                  } : {}),
+                  ...(isActive ? { fontVariationSettings: "'FILL' 1" } : {}),
                 }}
               >
                 {item.icon}
@@ -164,14 +153,10 @@ export default function Sidebar({
                 {item.name}
               </span>
 
-              {/* Active ambient sweep inside the button */}
-              {isActive && (
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#00e5ff]/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out"></div>
-              )}
             </>
           )}
         </NavLink>
-      ))}
+      ); })}
     </div>
   );
 
@@ -216,27 +201,24 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Main Nav */}
         <nav className="flex flex-col min-h-0 overflow-y-auto no-scrollbar">
-          {renderNavGroup(group1)}
-          <div style={{ height: '24px', flexShrink: 0 }}></div>
-          {/*
-            BỘ NÃO AI (chủ dự án 10/10/2026): 4 AI cố định — viết bài, quảng cáo, bán hàng, điều hành — là MỘT khối liền
-            mạch gắn với trang đang chọn. Ô chọn trang đứng đầu khối (bản cũ nằm sát chữ LOGO, không ai nhận ra).
-          */}
-          {group2.length > 0 && (
-            <div className="rounded-2xl border border-[#00e5ff]/20 p-2 shrink-0" style={{ background: 'rgba(0,229,255,0.03)' }}>
-              <div className="flex items-center gap-1.5 px-2 pt-1 pb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#00e5ff]/80">
-                <span className="material-symbols-outlined text-[14px]">psychology</span>
-                Bộ não AI của trang
-              </div>
-              <ChonTrangNao />
-              <div style={{ height: '10px' }}></div>
-              {renderNavGroup(group2)}
-            </div>
+          {renderNavGroup([mucTongQuan])}
+          <div style={{ height: '20px', flexShrink: 0 }}></div>
+          {nhan('Kênh bán hàng')}
+          {renderNavGroup([mucKetNoi])}
+          {coNao && (
+            <>
+              <div style={{ height: '20px', flexShrink: 0 }}></div>
+              {nhan('Bộ não AI')}
+              {renderNavGroup(nhomNao)}
+              <div style={{ height: '20px', flexShrink: 0 }}></div>
+              {nhan('Dữ liệu của cửa hàng')}
+              {renderNavGroup(nhomDuLieu)}
+            </>
           )}
-          <div style={{ height: '24px', flexShrink: 0 }}></div>
-          {renderNavGroup(group3)}
+          <div style={{ height: '20px', flexShrink: 0 }}></div>
+          {nhan('Quản lý')}
+          {renderNavGroup(nhomQuanLy)}
         </nav>
 
         {/* Spacer */}
@@ -247,6 +229,7 @@ export default function Sidebar({
           <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(0,229,255,0.2), transparent)' }}></div>
           <div style={{ height: '16px' }}></div>
           <div className="flex flex-col" style={{ gap: '4px' }}>
+            {SUPPORT_URL ? (
             <a
               className="flex items-center gap-3 px-3 rounded-lg hover:bg-white/5 transition-colors group shrink-0"
               href={SUPPORT_URL}
@@ -267,6 +250,20 @@ export default function Sidebar({
               </span> 
               <span className="whitespace-nowrap group-hover:text-white transition-colors">Trợ giúp</span>
             </a>
+            ) : (
+              // Chưa có đường hỗ trợ: mục mờ, không bấm, không nhận Tab/Enter (không phải nút, không phải liên kết).
+              <div
+                aria-disabled="true"
+                className="flex items-center gap-3 px-3 rounded-lg shrink-0 cursor-default select-none"
+                style={{ color: 'rgba(232,237,242,0.3)', fontSize: '13px', fontWeight: 400, height: '40px', fontFamily: "'Be Vietnam Pro', sans-serif" }}
+              >
+                <span className="material-symbols-outlined flex items-center justify-center w-6" style={{ strokeWidth: 1.5, color: 'inherit', fontSize: '20px' }}>
+                  help
+                </span>
+                <span className="whitespace-nowrap">Trợ giúp</span>
+                <span className="ml-auto text-[10px] font-bold uppercase tracking-wide border border-white/15 rounded px-1.5 py-0.5">Sắp có</span>
+              </div>
+            )}
             <button 
               className="flex items-center gap-3 px-3 rounded-lg hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors group shrink-0 w-full text-left" 
               onClick={onLogout}

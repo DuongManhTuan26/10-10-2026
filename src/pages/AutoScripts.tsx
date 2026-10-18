@@ -91,7 +91,11 @@ function VariationEditor({
   );
 }
 
-export default function AutoScripts() {
+/**
+ * `trongKhuon`: trang đang nằm trong khuôn khối não (KhuonAi) — đầu khuôn đã có tên AI, trang khối não và thẻ
+ * "Hướng dẫn AI", nên ẩn tiêu đề / dải trang đang huấn luyện riêng của trang để không lặp hai lần.
+ */
+export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boolean } = {}) {
   const { accounts, activeAccountId, activeTrangId } = useActivePage();
 
   /*
@@ -643,7 +647,7 @@ export default function AutoScripts() {
               className={clsx(
                 'text-left p-4 rounded-xl border transition-all',
                 tone === option.id
-                  ? 'bg-primary/10 border-primary shadow-[0_0_15px_rgba(0,229,255,0.2)]'
+                  ? 'bg-primary/10 border-primary'
                   : 'bg-surface-container border-outline-variant hover:border-primary/50'
               )}
             >
@@ -664,7 +668,7 @@ export default function AutoScripts() {
           <button
             onClick={handleSaveTraining}
             disabled={busy}
-            className="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform disabled:opacity-60 disabled:hover:scale-100"
+            className="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl hover:scale-105 transition-transform disabled:opacity-60 disabled:hover:scale-100"
           >
             {busy ? 'Đang lưu…' : 'Lưu cách nói chuyện'}
           </button>
@@ -786,7 +790,7 @@ export default function AutoScripts() {
         className={clsx(
           'relative rounded-2xl overflow-hidden border-2 transition-colors',
           tuChu.bat
-            ? 'bg-primary/[0.07] border-primary shadow-[0_0_40px_rgba(0,229,255,0.18)]'
+            ? 'bg-primary/[0.07] border-primary'
             : 'bg-surface-container border-primary/45'
         )}
       >
@@ -798,7 +802,7 @@ export default function AutoScripts() {
                 className={clsx(
                   'w-12 h-12 rounded-full flex items-center justify-center shrink-0 border transition-all',
                   tuChu.bat
-                    ? 'bg-primary/20 border-primary shadow-[0_0_20px_rgba(0,229,255,0.45)]'
+                    ? 'bg-primary/20 border-primary'
                     : 'bg-primary/10 border-primary/40'
                 )}
               >
@@ -836,7 +840,7 @@ export default function AutoScripts() {
               className={clsx(
                 'relative w-14 h-8 rounded-full transition-colors shrink-0 border',
                 tuChu.bat
-                  ? 'bg-primary border-primary shadow-[0_0_16px_rgba(0,229,255,0.5)]'
+                  ? 'bg-primary border-primary'
                   : 'bg-surface-container border-primary/40 hover:border-primary/70'
               )}
               title={tuChu.bat ? 'Tắt chế độ tự chủ' : 'Bật chế độ tự chủ'}
@@ -944,7 +948,7 @@ export default function AutoScripts() {
             <button
               onClick={luuCheDoTuChu}
               disabled={luuTuChu}
-              className="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform disabled:opacity-60 disabled:hover:scale-100"
+              className="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl hover:scale-105 transition-transform disabled:opacity-60 disabled:hover:scale-100"
             >
               {luuTuChu ? 'Đang lưu…' : 'Lưu chế độ'}
             </button>
@@ -1078,7 +1082,7 @@ export default function AutoScripts() {
           <button
             onClick={luuCacBuoc}
             disabled={luuBuoc}
-            className="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform disabled:opacity-60 disabled:hover:scale-100"
+            className="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl hover:scale-105 transition-transform disabled:opacity-60 disabled:hover:scale-100"
           >
             {luuBuoc ? 'Đang lưu…' : 'Lưu các bước'}
           </button>
@@ -1236,16 +1240,19 @@ export default function AutoScripts() {
   );
 
   return (
-    <main className="flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative">
+    <main className={trongKhuon ? "w-full relative" : "flex-1  p-6 md:p-8 max-w-7xl mx-auto w-full relative"}>
 
       {/*
         Kịch bản bình luận và bộ não bán hàng đều thuộc về một Trang cụ thể.
         Nói rõ ngay đầu màn hình đang làm việc với Trang nào.
       */}
-      <TrangDangHuanLuyen />
+      {!trongKhuon && <TrangDangHuanLuyen />}
 
-      {/* Tabs */}
-      <div className="flex border-b border-outline-variant mb-6">
+      {/*
+        Ô chọn hai mục — cùng kiểu với "Hộp thư | Đơn hàng" ở thẻ Đang làm (rà soát lượt 2, T8: bản cũ là hàng thẻ gạch
+        chân lồng trong thẻ "Hướng dẫn AI", trông như thẻ trong thẻ). Mỗi mục lưu riêng phần của nó.
+      */}
+      <div className="inline-flex rounded-xl border border-outline-variant p-1 mb-6 bg-surface-container">
         {/*
           Thứ tự theo đúng đường đi của một khách hàng:
           bình luận → kịch bản bắt được → gửi tin đầu → khách trả lời → LÚC ĐÓ
@@ -1260,11 +1267,10 @@ export default function AutoScripts() {
           <button
             key={o.id}
             onClick={() => setTab(o.id)}
-            className={clsx('px-6 py-3 font-bold text-sm transition-colors',
-              tab === o.id
-                ? 'text-primary border-b-2 border-primary bg-primary/5'
-                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50')}
+            className={clsx('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition',
+              tab === o.id ? 'bg-primary/15 text-primary' : 'text-on-surface-variant hover:text-on-surface')}
           >
+            <span className="material-symbols-outlined text-[18px]">{o.id === 'cmt' ? 'comment' : 'chat'}</span>
             {o.ten}
           </button>
         ))}
@@ -1291,9 +1297,9 @@ export default function AutoScripts() {
               Nút "Vai trò AI" cũng bỏ khỏi đây: nó mở hộp thoại trùng hoàn toàn
               với tab Huấn luyện — cùng ô lời dặn, cùng danh sách tài liệu.
             */}
-            <h1 className="font-headline-sm text-3xl font-bold text-on-surface tracking-tight">
+            <h2 className="text-xl font-bold text-on-surface">
               {tab === 'cmt' ? 'Trả lời bình luận' : 'Tin nhắn Messenger'}
-            </h1>
+            </h2>
             <span className="font-mono text-xs font-bold tracking-wider text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full uppercase">
               {activeScriptCount} KỊCH BẢN ĐANG CHẠY
             </span>
@@ -1314,7 +1320,7 @@ export default function AutoScripts() {
           {dsHienThi.length > 0 && (
           <button 
             onClick={openComposer}
-            className="shrink-0 px-4 py-2 bg-primary text-on-primary font-bold rounded-lg shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform flex items-center gap-2"
+            className="shrink-0 px-4 py-2 bg-primary text-on-primary font-bold rounded-lg hover:scale-105 transition-transform flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
             Tạo kịch bản
@@ -1363,7 +1369,7 @@ export default function AutoScripts() {
                 </span>
               )}
               <div className="flex items-baseline gap-2 min-w-[150px]">
-                <span className="font-headline-sm text-2xl font-bold text-on-surface">{o.so}</span>
+                <span className="text-2xl font-bold text-on-surface tabular-nums">{o.so}</span>
                 <div className="flex flex-col leading-tight">
                   <span className="text-sm font-bold text-on-surface">{o.nhan}</span>
                   <span className="text-xs text-on-surface-variant">{o.phu}</span>
@@ -1412,7 +1418,7 @@ export default function AutoScripts() {
 
           <button
             onClick={openComposer}
-            className="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform flex items-center gap-2"
+            className="px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl hover:scale-105 transition-transform flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
             Tạo câu trả lời đầu tiên
@@ -1501,7 +1507,7 @@ export default function AutoScripts() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 mt-7 pt-6 border-t border-outline-variant">
             <button
               onClick={openComposer}
-              className="shrink-0 px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:scale-105 transition-transform flex items-center gap-2"
+              className="shrink-0 px-5 py-2.5 bg-primary text-on-primary font-bold rounded-xl hover:scale-105 transition-transform flex items-center gap-2"
             >
               <span className="material-symbols-outlined text-[20px]">add</span>
               Tạo lời mở đầu
@@ -1703,7 +1709,7 @@ export default function AutoScripts() {
               </div>
 
               {/* Block 1: TÊN KỊCH BẢN */}
-              <div className="khung-muc mau-xanh">
+              <div className="khung-muc mau-lam">
                 <h3 className="tieu-de-muc dau-muc">TÊN KỊCH BẢN</h3>
                 <input 
                   type="text" 
@@ -1715,7 +1721,7 @@ export default function AutoScripts() {
               </div>
 
               {/* Block 2: TỪ KHÓA KÍCH HOẠT */}
-              <div className="khung-muc mau-tim">
+              <div className="khung-muc mau-luc">
                 <h3 className="tieu-de-muc dau-muc">TỪ KHÓA KÍCH HOẠT</h3>
                 
                 <div className="bg-surface-container rounded-xl border border-outline-variant p-4 md:p-5 space-y-6">
@@ -1869,7 +1875,7 @@ export default function AutoScripts() {
 
               {/* Block 3: TIN NHẮN RIÊNG SẼ GỬI */}
               {loaiKichBan === 'dm' && (
-              <div className="khung-muc mau-cam">
+              <div className="khung-muc mau-xam">
                 <h3 className="tieu-de-muc dau-muc">TIN NHẮN RIÊNG SẼ GỬI</h3>
                 <textarea 
                   rows={5}
@@ -1996,7 +2002,7 @@ export default function AutoScripts() {
               </div>
 
               {/* Block 6: ÁP DỤNG CHO BÀI NÀO */}
-              <div className="khung-muc mau-hong">
+              <div className="khung-muc mau-cam">
                 <h3 className="tieu-de-muc dau-muc">ÁP DỤNG CHO BÀI NÀO</h3>
                 <div className="bg-surface-container rounded-xl p-4 border border-outline-variant space-y-4">
                   <label className="flex items-center gap-3 cursor-pointer group">

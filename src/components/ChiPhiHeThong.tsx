@@ -51,36 +51,13 @@ const ngayVN = (iso: string) => {
   return `${p.day}/${p.month}`;
 };
 
-/**
- * Cây tài khoản: tài khoản cha (admin con) đứng trên, tài khoản trang của nó
- * thụt vào dưới. Mỗi tài khoản giữ tiền RIÊNG; dòng cha có thêm tổng cả chuỗi.
- */
-function dungCay(ds: TaiKhoan[]) {
-  // Chỉ có hai tầng: admin con không có cha, tài khoản trang trỏ về admin con.
-  const con = new Map<number, TaiKhoan[]>();
-  for (const t of ds) if (t.chaId !== null) con.set(t.chaId, [...(con.get(t.chaId) ?? []), t]);
-  const goc = ds.filter((t) => t.chaId === null);
-  // Cha chưa tiêu gì nhưng con có tiêu: vẫn dựng dòng cha (tiền riêng = 0).
-  for (const [chaId, dsCon] of con) {
-    if (!goc.some((t) => t.userId === chaId)) {
-      goc.push({ userId: chaId, ten: dsCon[0].chaTen ?? `Tài khoản #${chaId}`, email: null, vaiTro: 'admin_con', chaId: null, chaTen: null, lan: 0, usd: 0 });
-    }
-  }
-  return goc
-    .map((t) => {
-      const cacCon = t.userId !== null ? (con.get(t.userId) ?? []).sort((a, b) => b.usd - a.usd) : [];
-      return { ...t, con: cacCon, tongChuoi: t.usd + cacCon.reduce((tong, c) => tong + c.usd, 0) };
-    })
-    .sort((a, b) => b.tongChuoi - a.tongChuoi);
+/** Mỗi tài khoản một dòng, tiền nhiều xếp trên (tầng chủ chuỗi đã bỏ — chủ dự án 18/10/2026). */
+function xepTaiKhoan(ds: TaiKhoan[]) {
+  return [...ds].sort((a, b) => b.usd - a.usd);
 }
 
-/**
- * phamVi: 'he_thong' — quản trị tổng, toàn bộ chi phí trả cho bên thứ ba; 'chuoi' — admin con, CÙNG khung này nhưng chỉ
- * tiền của chuỗi mình (chủ dự án 04/10/2026: hai màn hình quản lý giống 100%, chỉ khác phạm vi). Số dư, đối chiếu,
- * nạp tiền và cài đặt cảnh báo là việc của quản trị tổng — phạm vi chuỗi không có.
- */
-export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_thong' | 'chuoi' }) {
-  const laChuoi = phamVi === 'chuoi';
+/** Toàn bộ chi phí trả cho bên thứ ba — màn quản lý của quản trị tổng. */
+export default function ChiPhiHeThong() {
   const [du, setDu] = useState<SaoKeChiPhi | null>(null);
   const [mo, setMo] = useState<Dong | null>(null);
   const [moCaiDat, setMoCaiDat] = useState(false);
@@ -94,13 +71,13 @@ export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_th
 
   const tai = useCallback(async () => {
     try {
-      const { data } = laChuoi ? await api.quanLy.chiPhi(0) : await api.admin.chiPhi(0);
+      const { data } = await api.admin.chiPhi(0);
       setDu(data);
       setNguong(data.nguong);
     } catch (error) {
       setLoi(error instanceof ApiError ? error.message : 'Chưa tải được chi phí');
     }
-  }, [laChuoi]);
+  }, []);
 
   useEffect(() => {
     void tai();
@@ -121,7 +98,7 @@ export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_th
    * lại thấy 0,85 — hai con số khác kỳ đặt cạnh nhau là rối.
    */
   const tienAi = du ? du.so.theoNhom.reduce((t, v) => t + v.usd, 0) : null;
-  const cay = useMemo(() => dungCay(du?.so.theoTaiKhoan ?? []), [du]);
+  const cay = useMemo(() => xepTaiKhoan(du?.so.theoTaiKhoan ?? []), [du]);
   const tienKenh = du?.kenh.ok ? du.kenh.tieuKyNayUsd ?? 0 : null;
   const tong = (tienAi ?? 0) + (tienKenh ?? 0);
 
@@ -247,7 +224,7 @@ export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_th
     <section className="mb-10 max-w-2xl">
       <div className="flex items-center justify-between mb-3">
         <h2 className="tieu-de-muc">Chi phí tháng này</h2>
-        {!laChuoi && (<button
+        {(<button
           type="button"
           onClick={() => setMoCaiDat(!moCaiDat)}
           title="Cài đặt cảnh báo"
@@ -278,8 +255,8 @@ export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_th
               })
             )}
 
-            {!laChuoi && tieuDeMuc('Đối chiếu')}
-            {!laChuoi && hang(2, {
+            {tieuDeMuc('Đối chiếu')}
+            {hang(2, {
               khoa: 'doi-chieu',
               nhan: (
                 <span className={clsx('flex items-center gap-2', kieuDoiChieu.mau)}>
@@ -366,41 +343,16 @@ export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_th
               ])}
 
             {cachXem === 'taiKhoan' &&
-              cay.flatMap((t) => {
-                const tenDong = t.con.length ? `${t.ten} — cả chuỗi` : t.ten;
-                return [
-                  hang(2, {
-                    khoa: `t-${t.userId}`,
-                    nhan: tenDong,
-                    phu: `${(t.lan + t.con.reduce((s2, c) => s2 + c.lan, 0)).toLocaleString('vi-VN')} lượt`,
-                    giaTri: chiDu(t.tongChuoi),
-                    mauGiaTri: mauChi(t.tongChuoi),
-                    onClick: () => moNhatKy({ tk: t.userId ?? 'chung', kemCon: t.con.length > 0 }, tenDong),
-                  }),
-                  ...(t.con.length > 0 && daChi(t.usd)
-                    ? [
-                        hang(3, {
-                          khoa: `r-${t.userId}`,
-                          nhan: `${t.ten} — riêng`,
-                          phu: `${t.lan.toLocaleString('vi-VN')} lượt`,
-                          giaTri: chiDu(t.usd),
-                          mauGiaTri: mauChi(t.usd),
-                          onClick: () => moNhatKy({ tk: t.userId ?? 'chung' }, `${t.ten} — riêng`),
-                        }),
-                      ]
-                    : []),
-                  ...t.con.map((c) =>
-                    hang(3, {
-                      khoa: `c-${c.userId}`,
-                      nhan: c.ten,
-                      phu: `${c.lan.toLocaleString('vi-VN')} lượt`,
-                      giaTri: chiDu(c.usd),
-                      mauGiaTri: mauChi(c.usd),
-                      onClick: () => moNhatKy({ tk: c.userId ?? 'chung' }, c.ten),
-                    })
-                  ),
-                ];
-              })}
+              cay.map((t) =>
+                hang(2, {
+                  khoa: `t-${t.userId}`,
+                  nhan: t.ten,
+                  phu: `${t.lan.toLocaleString('vi-VN')} lượt`,
+                  giaTri: chiDu(t.usd),
+                  mauGiaTri: mauChi(t.usd),
+                  onClick: () => moNhatKy({ tk: t.userId ?? 'chung' }, t.ten),
+                })
+              )}
 
             {du.so.theoNhom.length === 0 && hang(2, { khoa: 'trong', nhan: 'Tháng này chưa dùng AI.' })}
 
@@ -440,21 +392,16 @@ export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_th
                   giaTri: kenh.conHoatDong ? 'Đang hoạt động' : `Tạm dừng — ${kenh.lyDoTamDung ?? 'chưa thanh toán'}`,
                   mauGiaTri: kenh.conHoatDong ? 'text-green-400' : 'text-red-400',
                 })}
-                {kenh.uocTinh &&
-                  hang(2, {
-                    khoa: 'uoc-tinh',
-                    nhan: `Ước tính: chuỗi đang nối ${kenh.uocTinh.kenhChuoi}/${kenh.uocTinh.kenhTatCa} kênh của cả hệ thống (nhà cung cấp chỉ báo tổng)`,
-                  })}
-                {!laChuoi && hang(2, {
+                {hang(2, {
                   khoa: 'can-tra',
                   nhan: 'Cần trả',
                   giaTri: kenh.canTraUsd ? chi(kenh.canTraUsd) : 'Không',
                   mauGiaTri: mauChi(kenh.canTraUsd),
                 })}
-                {!laChuoi && hang(2, { khoa: 'goi', nhan: 'Gói', giaTri: kenh.goi ?? '—', mauGiaTri: 'text-on-surface-variant' })}
+                {hang(2, { khoa: 'goi', nhan: 'Gói', giaTri: kenh.goi ?? '—', mauGiaTri: 'text-on-surface-variant' })}
               </>
             )}
-            {!laChuoi && hangNut(
+            {hangNut(
               <a
                 href={(kenh.ok && kenh.linkHoaDon) || du?.linkNap?.kenh}
                 target="_blank"
@@ -482,7 +429,7 @@ export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_th
         </div>
       </div>
 
-      {!laChuoi && moCaiDat && nguong && (
+      {moCaiDat && nguong && (
         <div className="mt-3 rounded-2xl border border-outline-variant bg-surface-container p-5 space-y-3">
           <p className="text-xs text-on-surface-variant">Nhắn Telegram khi:</p>
           {(
@@ -538,7 +485,7 @@ export default function ChiPhiHeThong({ phamVi = 'he_thong' }: { phamVi?: 'he_th
           </div>
         </div>
       )}
-      {nhatKy && <NhatKyChiPhi loc={nhatKy.loc} tieuDe={nhatKy.tieuDe} phamVi={phamVi} onDong={() => setNhatKy(null)} />}
+      {nhatKy && <NhatKyChiPhi loc={nhatKy.loc} tieuDe={nhatKy.tieuDe} onDong={() => setNhatKy(null)} />}
     </section>
   );
 }

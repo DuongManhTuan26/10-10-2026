@@ -1,7 +1,9 @@
+import { BON_AI, MAU_THUONG_HIEU } from '../lib/bon-ai';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError, type User } from '../lib/api';
 import DoiMatKhau from './DoiMatKhau';
+import { useActivePage } from '../lib/ActivePage';
 
 export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
   user?: User | null;
@@ -13,6 +15,7 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
   gocPhai?: ReactNode;
 }) {
   const location = useLocation();
+  const { trangs, trangDangChon } = useActivePage();
   const [menuMo, setMenuMo] = useState(false);
   const [doiMatKhauMo, setDoiMatKhauMo] = useState(false);
   const navigate = useNavigate();
@@ -42,23 +45,17 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
     };
   }, [location.pathname]);
 
+  // Tiêu đề theo đường khối não (docs/khoi-nao.md). 4 AI lấy tên từ nguồn duy nhất src/lib/bon-ai.ts.
   const getPageTitle = () => {
+    const ai = BON_AI.find((a) => a.duong === location.pathname);
+    if (ai) return ai.ten;
     switch (location.pathname) {
-      case '/': return 'Bảng điều khiển';
-      case '/inbox': return 'Hộp thoại bán hàng';
-      case '/orders': return 'Đơn hàng';
-      case '/content': return 'Bài đăng';
-      case '/auto-scripts': return 'Kịch bản tự động';
-      case '/ads': return 'Quảng cáo';
-      case '/dieu-hanh': return 'AI Điều Hành';
-      case '/telegram': return 'Cảnh báo Telegram';
-      case '/connections': return 'Kết nối';
+      case '/': return 'Tổng quan';
+      case '/ket-noi': return 'Kết nối kênh';
+      case '/telegram': return 'Báo cáo Telegram';
       case '/pricing': return 'Gói dịch vụ';
-      case '/settings': return 'Cài đặt';
-      // Cùng một màn hình quản lý cho cả hai tầng — cùng tiêu đề.
-      case '/quan-ly-trang': return 'Quản lý tài khoản';
       case '/admin': return 'Quản lý tài khoản';
-      default: return 'Bảng điều khiển';
+      default: return 'Tổng quan';
     }
   };
 
@@ -67,49 +64,65 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
    * còn chỗ nào để mở menu — mà menu thì đã trượt ra ngoài màn hình. Giờ luôn
    * hiện, và dưới lg có thêm nút mở ngăn kéo.
    */
+  // Màu tiêu đề theo miền (src/lib/bon-ai.ts): 4 AI theo màu của nó, Tổng quan = ④ Điều hành, trang hệ thống = trắng.
+  const aiDangXem = BON_AI.find((a) => a.duong === location.pathname);
+  const mauTieuDe = aiDangXem?.hex ?? (location.pathname === '/' || location.pathname === '/ket-noi' ? MAU_THUONG_HIEU : '#f1f5f9');
+
   return (
-    <nav className="fixed top-0 right-0 w-full lg:w-[calc(100%-288px)] z-40 bg-surface shadow-[0_4px_30px_rgba(0,229,255,0.1)] border-b border-primary/20 transition-all duration-200 flex justify-between items-center gap-2 px-4 sm:px-margin py-base h-16">
+    <nav className="fixed top-0 right-0 w-full lg:w-[calc(100%-288px)] z-40 bg-surface border-b border-outline-variant transition-all duration-200 flex justify-between items-center gap-2 px-4 sm:px-margin py-base h-16">
       <div className="flex items-center gap-2 sm:gap-md min-w-0">
         <button
           onClick={onMoMenu}
           title="Mở menu"
           aria-label="Mở menu"
-          className="lg:hidden text-primary hover:bg-surface-container-highest/80 rounded-lg p-2 -ml-1 transition-colors flex items-center justify-center shrink-0"
+          className="lg:hidden text-on-surface hover:bg-surface-container-highest/80 rounded-lg p-2 -ml-1 transition-colors flex items-center justify-center shrink-0"
         >
           <span className="material-symbols-outlined">menu</span>
         </button>
-        <h1 className="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary truncate">{getPageTitle()}</h1>
-        <div className="hidden lg:flex items-center gap-base ml-lg">
-          <span className="font-mono text-label-sm px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/30 font-bold tracking-wide">
-            TỰ ĐỘNG HÓA THỜI GIAN THỰC
-          </span>
-        </div>
+        <h1 className="text-xl sm:text-2xl font-bold truncate" style={{ color: mauTieuDe }}>{getPageTitle()}</h1>
+        {/*
+          Trang (bộ não) đang làm việc — chỉ hiển thị, đổi trang ở bảng "Trang bán hàng" của Kết nối kênh. Chỉ hiện ở 4 AI:
+          chủ shop nhiều trang luôn biết mình đang chỉnh bộ não của trang nào. KHÔNG hiện ở Tổng quan — số ở đó gộp cả tài
+          khoản, đặt tên một trang cạnh tiêu đề dễ hiểu nhầm là số của riêng trang đó (sơ đồ 4 AI bên dưới tự ghi tên trang).
+        */}
+        {aiDangXem && trangs.length > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate('/ket-noi')}
+            title="Đổi cửa hàng ở Kết nối kênh"
+            className="hidden sm:flex items-center gap-1.5 min-w-0 max-w-[16rem] h-8 px-3 rounded-lg border border-outline-variant text-sm text-on-surface-variant hover:text-on-surface hover:border-on-surface/40 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[16px] shrink-0">storefront</span>
+            <span className="truncate">{trangDangChon ? trangDangChon.ten : 'Tất cả cửa hàng'}</span>
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-base">
         {gocPhai}
         <button
-          onClick={() => navigate('/inbox')}
+          onClick={() => navigate('/ban-hang?the=dang-lam&viec=hop-thu')}
           title={waitingCount > 0 ? `${waitingCount} hội thoại đang chờ bạn xử lý` : 'Không có việc nào đang chờ'}
-          className="text-primary hover:bg-surface-container-highest/80 rounded-full p-2 transition-all duration-200 flex items-center justify-center relative"
+          className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/80 rounded-full p-2 transition-all duration-200 flex items-center justify-center relative"
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>notifications</span>
+          {/* Khách chờ người = việc cần làm ngay → hồng (bảng B). */}
           {waitingCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-error text-on-error text-[10px] font-bold flex items-center justify-center border-2 border-surface">
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-gap text-black text-[10px] font-bold flex items-center justify-center border-2 border-surface">
               {waitingCount > 99 ? '99+' : waitingCount}
             </span>
           )}
         </button>
         <button
-          onClick={() => navigate('/auto-scripts')}
+          onClick={() => navigate('/ban-hang?the=huong-dan')}
           title="Cấu hình AI bán hàng"
-          className="text-primary hover:bg-surface-container-highest/80 rounded-full p-2 transition-all duration-200 flex items-center justify-center"
+          className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/80 rounded-full p-2 transition-all duration-200 flex items-center justify-center"
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>bolt</span>
         </button>
         <div className="relative ml-sm">
         <div
           onClick={() => setMenuMo((v) => !v)}
-          className="h-8 w-8 rounded-full border-2 border-primary overflow-hidden relative group cursor-pointer"
+          className="h-8 w-8 rounded-full border-2 border-white/30 overflow-hidden relative group cursor-pointer"
           title={user?.email ?? ''}
         >
           {avatarUrl ? (
@@ -117,12 +130,12 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
           ) : (
             /* Chỉ dùng khi Fanpage chưa có ảnh đại diện — giữ nguyên khung tròn và viền */
             <div className="w-full h-full bg-surface-container-high flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <span className="font-label-sm font-bold text-primary text-sm">
+              <span className="font-label-sm font-bold text-on-surface text-sm">
                 {(user?.name || user?.email || '?').trim().charAt(0).toUpperCase()}
               </span>
             </div>
           )}
-          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-background"></div>
+          {/* Bỏ chấm xanh "đang trực tuyến" — không đo gì (rà soát lượt 2, T10). */}
         </div>
 
         {/*

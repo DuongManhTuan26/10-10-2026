@@ -1,22 +1,16 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopNavBar from './components/TopNavBar';
 import ErrorBoundary from './components/ErrorBoundary';
-import Dashboard from './pages/Dashboard';
-import Inbox from './pages/Inbox';
-import Orders from './pages/Orders';
-import Content from './pages/Content';
-import Ads from './pages/Ads';
-import AutoScripts from './pages/AutoScripts';
+import { TongQuan, NoiDungAi, QuangCaoAi, BanHangAi, DieuHanhAi } from './pages/KhoiNao';
+import { mienTheoDuong } from './lib/bon-ai';
 import TelegramAlerts from './pages/TelegramAlerts';
 import Connections from './pages/Connections';
 import Pricing from './pages/Pricing';
 // Một màn hình quản lý dùng chung cho quản trị tổng và chủ chuỗi (chủ dự án 04/10/2026: giống 100%, chỉ khác phạm vi).
 import QuanLy from './pages/QuanLy';
 import DangXemThay from './components/DangXemThay';
-import DieuHanh from './pages/DieuHanh';
-import CanTrangNao from './components/CanTrangNao';
 import Auth from './pages/Auth';
 import Onboarding from './pages/Onboarding';
 import SetupComplete from './pages/SetupComplete';
@@ -26,6 +20,8 @@ import { ActivePageProvider } from './lib/ActivePage';
 type AppState = 'loading' | 'auth' | 'onboarding' | 'setup_complete' | 'main';
 
 export default function App() {
+  // Màu miền của vùng nội dung theo đường dẫn (index.css .mien-*): mọi màu chính bên trong theo đúng AI đang xem.
+  const mien = mienTheoDuong(useLocation().pathname);
   const [appState, setAppState] = useState<AppState>('loading');
   /*
    * Ngăn kéo menu trên điện thoại. Từ lg trở lên biến này không có tác dụng gì
@@ -157,7 +153,6 @@ export default function App() {
       <Sidebar
         onLogout={handleLogout}
         laQuanTri={user?.role === 'admin'}
-        laChuChuoi={user?.role === 'admin_con'}
         moKhung={menuMo}
         onDong={() => setMenuMo(false)}
       />
@@ -171,10 +166,10 @@ export default function App() {
           user={user}
           avatarUrl={avatarUrl}
           onMoMenu={() => setMenuMo(true)}
-          // Quay lại thì về đúng màn hình quản lý của tầng mình (/quan-ly tự rẽ: quản trị tổng → /admin, chủ chuỗi → /quan-ly-trang).
+          // Quay lại thì về màn hình quản lý (/quan-ly → /admin).
           gocPhai={<DangXemThay user={user} onQuayLai={() => { window.location.href = '/quan-ly'; }} />}
         />
-        <main className="flex-1 overflow-y-auto custom-scrollbar pt-16">
+        <main className={`flex-1 overflow-y-auto custom-scrollbar pt-16 ${mien}`}>
           {/*
             Lỗi ở MỘT màn hình không được kéo đổ cả ứng dụng thành màn hình
             trắng. Hai nút trong lưới hứng lỗi đều điều hướng lại cả trang, nên
@@ -182,35 +177,21 @@ export default function App() {
           */}
           <ErrorBoundary>
           {/*
-            Hai bộ tuyến đường tách hẳn nhau theo vai trò.
-
-            Chủ chuỗi không có Fanpage, hộp thư hay đơn hàng của riêng mình —
-            những thứ đó thuộc về từng tài khoản trang bên dưới. Trộn chung rồi
-            chặn từng đường thì phải có HAI tuyến bắt-tất-cả cùng lúc, mà hai
-            tuyến "*" trong một <Routes> là mơ hồ, không có gì bảo đảm tuyến nào
-            thắng.
-
-            Không màn hình nào bị xoá: chủ chuỗi thấy lại đầy đủ ngay khi bấm
-            "Mở trang" bước vào một trang.
+            MỘT bộ tuyến đường cho mọi tài khoản (chủ dự án 18/10/2026 bỏ tầng chủ chuỗi): tài khoản dùng thường và
+            phần dùng thường của quản trị tổng là một; quản trị tổng chỉ có thêm /admin.
           */}
-          {user?.role === 'admin_con' ? (
-            <Routes>
-              <Route path="/quan-ly-trang" element={<QuanLy user={user} />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="*" element={<Navigate to="/quan-ly-trang" replace />} />
-            </Routes>
-          ) : (
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/inbox" element={<Inbox />} />
-            <Route path="/orders" element={<Orders />} />
-            {/* 4 mục AI = BỘ NÃO của MỘT trang: đang "Tất cả trang" mà có nhiều trang thì bắt chọn trang trước. */}
-            <Route path="/content" element={<CanTrangNao ten="AI Viết - Đăng Bài"><Content /></CanTrangNao>} />
-            <Route path="/auto-scripts" element={<CanTrangNao ten="AI Bán Hàng"><AutoScripts /></CanTrangNao>} />
-            <Route path="/ads" element={<CanTrangNao ten="AI Quảng Cáo"><Ads /></CanTrangNao>} />
-            <Route path="/dieu-hanh" element={<CanTrangNao ten="AI Điều Hành"><DieuHanh /></CanTrangNao>} />
+            <Route path="/" element={<TongQuan />} />
+            {/*
+              BỘ NÃO AI của MỘT trang — 4 AI cố định, mỗi AI một khuôn 4 thẻ (pages/KhoiNao.tsx). Đang "Tất cả trang" mà
+              có nhiều trang thì bắt chọn trang trước (CanTrangNao bên trong từng AI).
+            */}
+            <Route path="/noi-dung" element={<NoiDungAi />} />
+            <Route path="/quang-cao" element={<QuangCaoAi />} />
+            <Route path="/ban-hang" element={<BanHangAi />} />
+            <Route path="/dieu-hanh" element={<DieuHanhAi />} />
+            <Route path="/ket-noi" element={<Connections />} />
             <Route path="/telegram" element={<TelegramAlerts />} />
-            <Route path="/connections" element={<Connections />} />
             <Route path="/pricing" element={<Pricing />} />
             {/*
               Chỉ quản trị mới có đường vào. Đây CHỈ là lớp che mắt — máy chủ
@@ -218,15 +199,32 @@ export default function App() {
             */}
             {user?.role === 'admin' && <Route path="/admin" element={<QuanLy user={user} />} />}
             {user?.role === 'admin' && <Route path="/quan-ly" element={<Navigate to="/admin" replace />} />}
-            {/* Trang "AI Thống Kê - Phân Tích" cũ đã gộp vào AI Điều Hành (10/10/2026). */}
-            <Route path="/analytics" element={<Navigate to="/dieu-hanh" replace />} />
+            {/*
+              Đường cũ → đúng chỗ mới, giữ nguyên tham số (đường dẫn đã gửi qua Telegram / đánh dấu trang vẫn mở đúng).
+              "AI Thống Kê - Phân Tích" cũ đã gộp vào AI Điều hành (10/10/2026).
+            */}
+            <Route path="/content" element={<ChuyenHuong den="/noi-dung" them={{ the: 'dang-lam' }} />} />
+            <Route path="/ads" element={<ChuyenHuong den="/quang-cao" them={{ the: 'dang-lam' }} />} />
+            <Route path="/inbox" element={<ChuyenHuong den="/ban-hang" them={{ the: 'dang-lam', viec: 'hop-thu' }} />} />
+            <Route path="/orders" element={<ChuyenHuong den="/ban-hang" them={{ the: 'dang-lam', viec: 'don-hang' }} />} />
+            <Route path="/auto-scripts" element={<ChuyenHuong den="/ban-hang" them={{ the: 'huong-dan' }} />} />
+            <Route path="/analytics" element={<ChuyenHuong den="/dieu-hanh" />} />
+            <Route path="/connections" element={<ChuyenHuong den="/ket-noi" />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          )}
           </ErrorBoundary>
         </main>
       </div>
     </div>
     </ActivePageProvider>
   );
+}
+
+/** Chuyển đường cũ sang đường mới, giữ tham số sẵn có và thêm tham số mặc định còn thiếu. */
+function ChuyenHuong({ den, them }: { den: string; them?: Record<string, string> }) {
+  const viTri = useLocation();
+  const p = new URLSearchParams(viTri.search);
+  for (const [k, v] of Object.entries(them ?? {})) if (!p.has(k)) p.set(k, v);
+  const q = p.toString();
+  return <Navigate to={`${den}${q ? `?${q}` : ''}`} replace />;
 }

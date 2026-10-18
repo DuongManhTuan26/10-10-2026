@@ -38,6 +38,11 @@ import {
 import { docTuChu } from "../server/services/sales-autonomy.js";
 import { matchesKeywords } from "../server/services/comment-ai.js";
 import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
+import { cauLenhKenhBai, cauLenhKenhLich, LOI_BAI_KHONG_KENH, LOI_LICH_KHONG_CUA_HANG } from "../server/services/kenh-dang.js";
+import { khoangTheoKy, lichChay, ngayVN, ngayDayDu } from "../src/lib/ky-ngay.js";
+import { lenhDoiTrangThai, lenhNhanBan, NEN_TANG_NHAN_BAN } from "../server/services/ads.js";
+import { docChienDich, nhanTrangThaiChienDich } from "../src/lib/chien-dich.js";
+import { chonHoSo, thucHienXoa, lapKeHoachXoa, donHoSo, type PhuThuocXoa, type KenhNcc } from "../server/services/xoa-tai-khoan.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
 import { errorHandler, chiNhanMaSo } from "../server/http.js";
@@ -390,14 +395,17 @@ function hamCoTruong(nguon: string, ten: string, truong: string): boolean {
   return new RegExp(`${truong}:\\s*params\\.`).test(than);
 }
 for (const [ham, truong] of [
-  ["setCampaignStatus", "accountId"],
-  ["duplicateCampaign", "accountId"],
   ["updateCampaignBudget", "platform"],
   ["updateAdSetBudget", "platform"],
   ["updateAudience", "accountId"],
 ] as const) {
   kiem("quảng cáo", `${ham} gửi kèm ${truong}`, hamCoTruong(nguonAdsSv, ham, truong), true);
 }
+// 18/10/2026 (B1-b2): lệnh đổi trạng thái / nhân bản theo tài liệu không nhận accountId → phải ĐỌC kiểm chủ sở hữu trước.
+kiem("quảng cáo", "đổi trạng thái / nhân bản / ngân sách / xem chi tiết chiến dịch: kiểm chiến dịch thuộc tài khoản quảng cáo của shop TRƯỚC",
+  [(nguonAdsRt.match(/if \(!\(await ads\.chienDichThuocTaiKhoan\(\{ campaignId: req\.params\.id, accountId: resolved\.accountId, adAccountId: resolved\.adAccountId \}\)\)\) \{/g) ?? []).length,
+    /query: \{ campaignId: p\.campaignId, accountId: p\.accountId, adAccountId: p\.adAccountId, limit: 1 \}/.test(nguonAdsSv)],
+  [4, true]);
 kiem("quảng cáo", "đổi ngân sách nhóm QC phải đọc kiểm chủ sở hữu trước",
   /getAdSet\(\{ adSetId: req\.params\.id, accountId: resolved\.accountId \}\)/.test(nguonAdsRt), true);
 kiem("quảng cáo", "mọi route quảng cáo đều xác định tài khoản của shop",
@@ -1414,7 +1422,8 @@ kiem("xưởng AI", "ảnh: giá trên nút tạo; phong cách và giới hạn 
       /\{coXuong && \(\s*<div className="min-w-0">[\s\S]{0,200}<XuongAi/.test(nguonSoanBai)],
     [true, true, true, true]);
   kiem("theo bài", "hai cột ảnh / video theo bề rộng CỦA XƯỞNG (container), không theo bề rộng màn hình",
-    [/<div className="khung-muc mau-hong @container">/.test(nguonXuongAi), /<div className="grid @3xl:grid-cols-2 gap-3 items-start">/.test(nguonXuongAi)],
+    // Màu khung theo bảng màu đã thống nhất (11/10/2026) — phép kiểm canh @container, không canh màu.
+    [/<div className="khung-muc mau-[a-z-]+ @container">/.test(nguonXuongAi), /<div className="grid @3xl:grid-cols-2 gap-3 items-start">/.test(nguonXuongAi)],
     [true, true]);
   kiem("theo bài", "cột video gọn: mô hình là ô chọn có giá (không còn danh sách dài), nhãn đầu dòng, lời nhắc gập, video cũ gập",
     [/<select\s*value=\{modelChon\}\s*onChange=\{\(e\) => setModelChon\(e\.target\.value\)\}/.test(nguonAiPanelX),
@@ -1436,7 +1445,8 @@ kiem("xưởng AI", "ảnh: giá trên nút tạo; phong cách và giới hạn 
       /Tiền bị trừ kể cả khi bạn không dùng video\./.test(nguonSoanBai)], [true, true, true]);
   kiem("theo bài", "có video theo bài: lưu nháp rồi để máy chủ đăng khi video xong — KHÔNG gửi đăng ngay; gửi video hỏng thì giữ hộp soạn trên đúng bài đó",
     [(nguonSoanBai.match(/status: kh\?\.video \? 'draft' : dang \? \(scheduledFor \? 'scheduled' : 'pending_approval'\) : 'draft',/g) ?? []).length,
-      /\} else if \(dang\) \{\s*\/\/[^\n]*\n\s*await api\.posts\.publish\(post\.id\);/.test(nguonSoanBai),
+      // 18/10/2026: "Chờ tôi duyệt" → không gửi đăng; hẹn giờ vẫn đăng (chủ dự án chốt).
+      /const choDuyet = dang && !scheduledFor && postMode === 'manual';[\s\S]*?\} else if \(dang && !choDuyet\) \{\s*\/\/[^\n]*\n\s*await api\.posts\.publish\(post\.id\);/.test(nguonSoanBai),
       /catch \(error\) \{\s*setEditingPostId\(post\.id\);\s*setBaiDangSua\(post\);\s*setErrorMessage\(\s*`Đã lưu bài vào Bản nháp nhưng chưa gửi được video/.test(nguonSoanBai)],
     [2, true, true]);
   kiem("theo bài", "nút Đăng bài hiện luôn giá ảnh / video sẽ tự tạo",
@@ -1447,13 +1457,14 @@ kiem("xưởng AI", "ảnh: giá trên nút tạo; phong cách và giới hạn 
       /<span className="hidden sm:inline-flex">\s*<span className=\{clsx\("material-symbols-outlined text-\[20px\]", dangGuiBai && "animate-spin"\)\}>/.test(nguonSoanBai)], [true, true]);
   kiem("theo bài", "bài chờ video hiện 'Đang tạo video AI · xong tự đăng', ẩn nút duyệt (duyệt lúc này là đăng thiếu video)",
     [/\{post\.cho_video_id \? 'ĐANG TẠO VIDEO AI · XONG TỰ ĐĂNG' : POST_STATUS_LABELS\[post\.status\]\.toUpperCase\(\)\}/.test(nguonSoanBai),
-      /\{post\.status === 'pending_approval' && !post\.cho_video_id && \(/.test(nguonSoanBai)], [true, true]);
+      // Danh sách gọn (11/10/2026): nút duyệt của bài chờ duyệt chỉ còn ở cột thao tác — và nó phải bị ẩn khi chờ video.
+      /\{post\.status === 'pending_approval' && \([\s\S]{0,300}?\{!post\.cho_video_id && <button onClick=\{\(\) => handleApprove\(post\.id\)\}/.test(nguonSoanBai)], [true, true]);
   kiem("theo bài", "máy chủ: chỉ gắn video cho bài chưa gửi đăng, mô hình làm được, có giá; gắn bằng một lệnh có điều kiện",
     [/if \(!Number\.isInteger\(p\.postId\) \|\| p\.postId <= 0\) throw new AppError/.test(hamTB),
       /if \(!TRANG_THAI_CHO_VIDEO\.includes\(bai\.status\)\) throw new AppError/.test(hamTB),
       /const lyDo = lyDoKhongHop\(model, p\.lc\);\s*if \(lyDo\) throw new AppError/.test(hamTB),
       /if \(gia === null\) throw new AppError/.test(hamTB),
-      /SET status = 'pending_approval', cho_video_id = \$3, cho_video_guard = 'publish', updated_at = now\(\)\s*WHERE id = \$1 AND user_id = \$2 AND status = ANY\(\$4::text\[\]\)/.test(hamTB),
+      /SET status = 'pending_approval', cho_video_id = \$3, cho_video_guard = \$5, updated_at = now\(\)\s*WHERE id = \$1 AND user_id = \$2 AND status = ANY\(\$4::text\[\]\)/.test(hamTB),
       /const TRANG_THAI_CHO_VIDEO = \["draft", "pending_approval", "scheduled", "failed"\];/.test(nguonLichTB),
       // Lịch tự đăng vẫn chặn trần tiền tháng; bài soạn tay thì chủ shop đã thấy giá và bấm đồng ý.
       /tienVideoTuDongThang/.test(hamTB)],
@@ -1478,52 +1489,41 @@ kiem("xưởng AI", "ảnh: giá trên nút tạo; phong cách và giới hạn 
     [true, true, false]);
 }
 
-// 04/10/2026 (chủ dự án): màn hình quản lý của quản trị tổng và admin con phải GIỐNG 100% — chỉ khác phạm vi /
-// tầng. "Sau này sửa 1 bên thì phải lập tức đồng nhất luôn với các bên còn lại." Cách chặn lệch: MỘT tệp màn hình,
-// MỘT bộ cột dữ liệu; mọi chỗ rẽ theo tầng đều đếm — thêm khác biệt mới mà không chủ ý là bộ kiểm tra kêu.
+// 18/10/2026 (chủ dự án): BỎ HẲN tầng chủ chuỗi (admin con) và tài khoản con. Mọi tài khoản mới là tài khoản dùng thường
+// — bản sao phần dùng thường của quản trị tổng. Màn Quản lý chỉ còn của quản trị tổng. Các phép dưới đây chặn ai đó vô
+// tình dựng lại tầng chuỗi (vai trò, đường dẫn, phạm vi, nút) mà không hỏi chủ dự án.
 {
   const nguonQLChung = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
   const nguonAppQL = fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8");
   const nguonMenuQL = fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8");
   const nguonThanhQL = fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8");
-  kiem("đồng nhất", "MỘT màn hình quản lý cho cả hai tầng: không còn trang riêng; hai đường dẫn cùng vẽ QuanLy",
-    [fs.existsSync(path.join(GOC, "src/pages/Admin.tsx")) || fs.existsSync(path.join(GOC, "src/pages/QuanLyTrang.tsx")),
-      /<Route path="\/quan-ly-trang" element=\{<QuanLy user=\{user\} \/>\} \/>/.test(nguonAppQL),
+  const nguonChungQL = fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8");
+  const nguonRtQL = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
+  const nguonCPQL = fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8");
+  const nguonCPSv = fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8");
+  kiem("bỏ chủ chuỗi", "MỘT bộ tuyến đường cho mọi tài khoản; màn Quản lý chỉ ở /admin; quay lại về /quan-ly → /admin",
+    [/user\?\.role === 'admin_con'/.test(nguonAppQL) || /\/quan-ly-trang/.test(nguonAppQL),
       /<Route path="\/admin" element=\{<QuanLy user=\{user\} \/>\} \/>/.test(nguonAppQL),
-      // Quay lại từ tài khoản đã mở: về đúng màn hình quản lý của tầng mình.
       /onQuayLai=\{\(\) => \{ window\.location\.href = '\/quan-ly'; \}\}/.test(nguonAppQL) &&
         /<Route path="\/quan-ly" element=\{<Navigate to="\/admin" replace \/>\} \/>/.test(nguonAppQL)],
-    [false, true, true, true]);
-  kiem("đồng nhất", "cùng tên menu, cùng biểu tượng, cùng tiêu đề thanh trên ở cả hai tầng",
-    [(nguonMenuQL.match(/\{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '\/(quan-ly-trang|admin)' \}/g) ?? []).length,
-      (nguonThanhQL.match(/case '\/(quan-ly-trang|admin)': return 'Quản lý tài khoản';/g) ?? []).length],
-    [2, 2]);
-  // Phạm vi admin con: CHỈ chính mình + trang của mình — ở danh sách, báo cáo, và chi phí (không lộ phần hệ thống).
-  {
-    const nguonChungQL = fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8");
-    const nguonRtQL = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
-    const nguonCPQL = fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8");
-    kiem("đồng nhất", "phạm vi admin con không lọt ra ngoài chuỗi (danh sách, báo cáo); chi phí chuỗi không có cài đặt hệ thống",
-      [/FROM users u WHERE u\.id = \$2 OR u\.parent_id = \$2 ORDER BY/.test(nguonChungQL),
-        /if \(Number\.isInteger\(so\) && so > 0 && \(so === req\.user!\.id \|\| \(req\.user!\.role === "admin" && req\.user!\.moBoi == null\)\)\) \{/.test(nguonRtQL),
-        /return trangCuaToi\(nguoiQuanLy\(req\)!, id\);/.test(nguonRtQL),
-        /\{!laChuoi && moCaiDat && nguong && \(/.test(nguonCPQL)],
-      [true, true, true, true]);
-  }
-  kiem("đồng nhất", "cả hai tầng lấy danh sách qua MỘT bộ cột (services/quan-ly-chung.ts), chỉ khác phạm vi",
-    [/layDanhSachQuanLy\(\{ loai: "tong" \}, req\.user!\.id\)/.test(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8")),
-      /layDanhSachQuanLy\(\{ loai: "chuoi", chaId: req\.user!\.id \}, req\.user!\.id\)/.test(fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8"))],
-    [true, true]);
-  // Danh sách chỗ rẽ theo tầng ĐÃ ĐƯỢC CHỦ DỰ ÁN CHẤP NHẬN (phạm vi dữ liệu, loại tài khoản, chi phí hệ thống /
-  // chuỗi, chuyển thành chủ chuỗi, đường gọi máy chủ của từng tầng). Muốn thêm khác biệt mới: hỏi chủ dự án trước.
-  kiem("đồng nhất", "số chỗ rẽ theo tầng trong màn hình quản lý không tự tăng (19)",
-    (nguonQLChung.match(/laTong/g) ?? []).length, 19);
-  kiem("đồng nhất", "chi phí tháng này: cùng khung; phạm vi chuỗi ẩn số dư, đối chiếu, nạp tiền, cài đặt (việc của quản trị tổng)",
-    [/<ChiPhiHeThong phamVi=\{laTong \? 'he_thong' : 'chuoi'\} \/>/.test(nguonQLChung),
-      /\{!laChuoi && \(<button/.test(fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8")),
-      /export async function saoKeChuoi\(chaId: number, soNgay: number\)/.test(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8")),
-      /uocTinh: \{ kenhChuoi, kenhTatCa \}/.test(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8"))],
-    [true, true, true, true]);
+    [false, true, true]);
+  kiem("bỏ chủ chuỗi", "menu và thanh trên: đúng MỘT mục Quản lý tài khoản (/admin, chỉ quản trị); không còn cờ chủ chuỗi",
+    [(nguonMenuQL.match(/\{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '\/admin' \}/g) ?? []).length,
+      /laChuChuoi|quan-ly-trang/.test(nguonMenuQL + nguonThanhQL),
+      /const coNao = true;/.test(nguonMenuQL)],
+    [1, false, true]);
+  kiem("bỏ chủ chuỗi", "phạm vi quản lý: danh sách cả hệ thống; báo cáo chỉ chính mình hoặc quản trị tổng; không còn đường chuỗi",
+    [/export type PhamVi = \{ loai: "tong" \};/.test(nguonChungQL) && !/parent_id/.test(nguonChungQL),
+      /if \(Number\.isInteger\(so\) && so > 0 && \(so === req\.user!\.id \|\| \(req\.user!\.role === "admin" && req\.user!\.moBoi == null\)\)\) \{/.test(nguonRtQL),
+      /trangCuaToi|nguoiQuanLy|parent_id|admin_con|"\/danh-sach"|"\/chi-phi"|"\/nhat-ky"/.test(nguonRtQL),
+      (nguonRtQL.match(/quanLyRouter\.(get|post|put|patch|delete)\(/g) ?? []).length],
+    [true, true, false, 5]);
+  kiem("bỏ chủ chuỗi", "màn Quản lý không còn rẽ tầng; chi phí chỉ một phạm vi (hệ thống), không còn sao kê chuỗi",
+    [/laTong|laNoiBo|vaiTroMoi|thanhChuChuoi|lapTrang/.test(nguonQLChung),
+      /<ChiPhiHeThong \/>/.test(nguonQLChung),
+      /laChuoi|phamVi|kemCon/.test(nguonCPQL),
+      /saoKeChuoi|phamViChuoi|kemCon|parent_id/.test(nguonCPSv)],
+    [false, true, false, false]);
 }
 
 // ---------------------------------------------------------------------------
@@ -1666,6 +1666,9 @@ kiem("nhiều shop", "một mình dùng thì vẫn được trọn hạn mức",
  *
  * cai_dat_he_thong là cài đặt của chủ hệ thống (ngưỡng cảnh báo chi phí…),
  * áp cho mọi shop — không thuộc shop nào.
+ *
+ * lien_ket_chuoi_cu là sổ dấu vết của quản trị (054, 18/10/2026): quan hệ chủ chuỗi → tài khoản con cũ trước khi
+ * tách, chỉ để tra lại — không mã nào đọc, không thuộc shop nào.
  */
 const BANG_DUNG_CHUNG = [
   "schema_migrations",
@@ -1675,6 +1678,7 @@ const BANG_DUNG_CHUNG = [
   "login_attempts",
   "dang_ky_theo_ip",
   "cai_dat_he_thong",
+  "lien_ket_chuoi_cu",
 ];
 const cauLenhTaoBang = fs
   .readdirSync(path.join(GOC, "server/migrations"))
@@ -2194,7 +2198,7 @@ kiem("trang quảng cáo", "huy hiệu đầu trang đếm chiến dịch thật
 kiem("trang quảng cáo", "chưa nối kênh thì nói thẳng là chưa nối",
   /CHƯA NỐI TÀI KHOẢN QUẢNG CÁO/.test(maQC), true);
 kiem("trang quảng cáo", "đơn chốt từ quảng cáo: nói chưa đo được thay vì bịa",
-  /Chưa đo được/.test(maQC) && /Cần gắn đơn với chiến dịch mới tính được/.test(maQC), true);
+  /Chưa đo được/.test(maQC) && /Cần đếm đơn mang mã quảng cáo mới tính được/.test(maQC), true);
 kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo kỳ",
   /value=\{ky\}/.test(maQC) && /onChange=\{\(e\) => setKy\(e\.target\.value\)\}/.test(maQC) &&
     /api\.ads\.overview\(ky\)/.test(maQC) && /\}, \[ky\]\);/.test(maQC), true);
@@ -2471,8 +2475,104 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 {
   const maKetNoi = boChuThich(fs.readFileSync(path.join(GOC, "src/pages/Connections.tsx"), "utf8"));
   kiem("nói đúng sự thật", "không còn 'Trang Fanpage B'", /Fanpage B/.test(maKetNoi), false);
-  kiem("nói đúng sự thật", "cảnh báo hết hạn tính từ dữ liệu thật",
-    /const ketNoiSapHetHan = accounts/.test(maKetNoi), true);
+  // "Sắp hết hạn" tự suy từ token_expires_at là báo động giả (hạn mã nội bộ, nhà cung cấp tự gia hạn — TikTok luôn
+  // "còn 1 ngày" mà vẫn chạy). Tình trạng kênh chỉ lấy tín hiệu thật: needs_reconnection / mất kết nối.
+  const maBang = boChuThich(fs.readFileSync(path.join(GOC, "src/components/BangTrangBanHang.tsx"), "utf8"));
+  kiem("nói đúng sự thật", "Kết nối kênh không tự suy 'sắp hết hạn' từ hạn mã nội bộ",
+    /token_expires_at/.test(maKetNoi) || /token_expires_at/.test(maBang), false);
+  kiem("nói đúng sự thật", "dải 'cần làm' nêu đúng tên trang chưa có kênh",
+    /trangChuaCoKenh\.length === 1 \? ` — \$\{trangChuaCoKenh\[0\]\.ten\}`/.test(maKetNoi), true);
+  // Đặt tên trang + chuyển kênh sang trang khác (chủ dự án duyệt 12/10/2026).
+  const maRouteKetNoi = fs.readFileSync(path.join(GOC, "server/routes/connections.ts"), "utf8");
+  const maTrangSv = fs.readFileSync(path.join(GOC, "server/services/trang.ts"), "utf8");
+  kiem("trang bán hàng", "đặt tên chỉ trên trang của chính tài khoản đăng nhập",
+    /UPDATE trang SET ten = \$1, updated_at = now\(\) WHERE id = \$2 AND user_id = \$3 RETURNING id/.test(maRouteKetNoi), true);
+  kiem("trang bán hàng", "chuyển kênh: chốt sổ kênh-theo-ngày TRƯỚC khi chuyển (ngày chuyển tính trang cũ)",
+    /await ghiKenhTheoNgay\(\);\n\s*if \(kenh\.profile_ref !== dich\.profile_ref\) await zernio\.chuyenKenhSangHoSo\(kenh\.id, dich\.profile_ref\);/.test(maRouteKetNoi), true);
+  // Mô hình 17/10/2026: 1 cửa hàng = 1 hộp (hồ sơ), mỗi nền tảng một ngăn. Chuyển kênh sang cửa hàng đã có cùng nền
+  // tảng thì chặn (nhà cung cấp thay tài khoản cũ, xoá hội thoại); cửa hàng cũ dùng chung hộp không nhận kênh.
+  kiem("cửa hàng", "chuyển kênh: cửa hàng đích đã có cùng nền tảng thì chặn",
+    /if \(dich\.da_co\) \{/.test(maRouteKetNoi), true);
+  kiem("cửa hàng", "chuyển kênh: chỉ sang cửa hàng có hộp riêng",
+    /AND t\.id = \(SELECT min\(t2\.id\) FROM trang t2 WHERE t2\.profile_ref = t\.profile_ref\)\n\s*ORDER BY t\.id/.test(maTrangSv), true);
+  // Lựa chọn trang của chủ shop phải sống qua lượt đồng bộ (bản 12/10 bị đồng bộ kéo về trang chính của hồ sơ).
+  const maDongBo = fs.readFileSync(path.join(GOC, "server/services/accounts.ts"), "utf8");
+  kiem("cửa hàng", "đồng bộ xếp MỌI kênh (kể cả Facebook) vào đúng cửa hàng của hộp chứa nó — một hộp một cửa hàng",
+    /const trangId = await baoDamTrangChoHoSo\(/.test(maDongBo)
+      && /"SELECT id, user_id FROM trang WHERE profile_ref = \$1 ORDER BY id LIMIT 1"/.test(maTrangSv)
+      && /if \(sanCo\) return sanCo\.user_id === userId \? sanCo\.id : null;/.test(maTrangSv), true);
+  kiem("trang bán hàng", "hồ sơ đang chứa kênh của mình luôn được đồng bộ (xoá trang không làm kênh 'mất kết nối' giả)",
+    /SELECT DISTINCT profile_ref FROM social_accounts WHERE user_id = \$1/.test(maTrangSv), true);
+  // Kênh vào trang nào do chủ shop tự chọn, không có mặc định (chủ dự án 17/10/2026).
+  const maKetNoiGoc = fs.readFileSync(path.join(GOC, "src/pages/Connections.tsx"), "utf8");
+  // Giao diện và máy chủ phải KHỚP điều kiện "kênh nào phải vào cửa hàng" — 17/10/2026 giao diện còn loại Facebook theo
+  // luật cũ → nối Facebook gửi thiếu cửa hàng, máy chủ báo "Chọn cửa hàng…" dù đã chọn (chủ dự án bắt được).
+  kiem("cửa hàng", "giao diện cũng bắt Facebook vào cửa hàng (khớp máy chủ)",
+    /const canChonTrang = \(p: Platform \| null\) =>\n\s*!!p && !catalog\.ads\.some\(\(c\) => c\.id === p\.id\);/.test(maKetNoiGoc), true);
+  kiem("cửa hàng", "nối kênh (kể cả Facebook, trừ quảng cáo) bắt buộc chọn cửa hàng",
+    /const canChonTrang = !adChannels\.some\(\(c\) => c\.id === channel\.id\);/.test(maRouteKetNoi)
+      && /Chọn cửa hàng cho kênh này trước khi kết nối/.test(maRouteKetNoi), true);
+  kiem("cửa hàng", "nối kênh: ngăn đã có thì chặn, không lén nối sang hộp khác; cửa hàng dùng chung hộp không nhận kênh",
+    /if \(t\.da_co\) \{/.test(maTrangSv) && /if \(!t\.hop_rieng\) \{/.test(maTrangSv)
+      && !/chonHoSoDeNoi|kenh_cho_trang/.test(boChuThich(maTrangSv)), true);
+  kiem("cửa hàng", "cửa hàng nhận kênh phải thuộc chính tài khoản",
+    /FROM trang t WHERE t\.id = \$2 AND t\.user_id = \$1`,\n\s*\[userId, trangId, platform\]/.test(maTrangSv), true);
+  kiem("trang bán hàng", "phiên chọn Fanpage chỉ nhận hồ sơ của chính tài khoản (mặc định hoặc của trang)",
+    (maRouteKetNoi.match(/if \(\(await chuCuaHoSo\(pending\.profile_id\)\) !== req\.user!\.id\) \{/g) ?? []).length, 2);
+  kiem("trang bán hàng", "bảng hiện cả trang chưa có kênh", /tatCaTrang=\{dsTrangToi\}/.test(maKetNoiGoc), true);
+  kiem("cửa hàng", "hộp nối kênh nối vào cửa hàng chủ shop đã chọn ở lưới (không đoán thay)",
+    /setTrangChonNoi\(trangId \?\? cuaHangNoi\);/.test(maKetNoiGoc) && /if \(dsTrangToi\.length === 1\) setCuaHangNoi\(dsTrangToi\[0\]\.id\);/.test(maKetNoiGoc), true);
+  // Dẫn đường liền mạch (chủ dự án 17/10/2026): tạo cửa hàng → đặt tên → chọn mạng xã hội → đăng nhập → bước tiếp theo.
+  kiem("cửa hàng", "tạo cửa hàng xong dẫn xuống lưới có sẵn + bắt đầu hướng dẫn nối kênh lần lượt (không dựng lưới thứ hai)",
+    /batDauHuongDan\(kq\.data\.id\);/.test(maKetNoiGoc) && !/chonKenhChoCuaHang/.test(maKetNoiGoc), true);
+  kiem("cửa hàng", "hướng dẫn: cả lưới sáng + mũi tên, chủ shop tự chọn mạng; nút 'Xong, không nối thêm' tắt hướng dẫn",
+    /dangHuongDan && 'rounded-2xl p-3 -mx-3 ring-2 ring-primary/.test(maKetNoiGoc)
+      && /onClick=\{\(\) => setHuongDan\(null\)\}[\s\S]{0,200}Xong, không nối thêm/.test(maKetNoiGoc)
+      && /const dangHuongDan = !!chHuongDan && cuaHangNoi === chHuongDan\.id;/.test(maKetNoiGoc)
+      && !/goiYTiep|boQua: \[/.test(maKetNoiGoc), true);
+  kiem("cửa hàng", "tiến độ hướng dẫn sống qua lượt tải lại trang khi đăng nhập nền tảng",
+    /sessionStorage\.setItem\(KHOA_HUONG_DAN, JSON\.stringify\(v\)\)/.test(maKetNoiGoc), true);
+  kiem("cửa hàng", "tải lại trang thì chọn lại đúng cửa hàng đang hướng dẫn (không thì mũi tên tắt mất)",
+    /if \(dsTrangToi\.some\(\(t\) => t\.id === huongDan\.trangId\)\) setCuaHangNoi\(\(cu\) => cu \?\? huongDan\.trangId\);/.test(maKetNoiGoc), true);
+  kiem("cửa hàng", "nối kênh xong có nút bước tiếp theo (nối thêm kênh / mở bộ não)",
+    /\{cuaHangVuaNoi != null && dsTrangToi\.some\(\(t\) => t\.id === cuaHangVuaNoi\) && huongDan\?\.trangId !== cuaHangVuaNoi && \(/.test(maKetNoiGoc), true);
+  kiem("cửa hàng", "nút đầu màn là 'Tạo cửa hàng mới' (chủ dự án 17/10/2026)",
+    /onClick=\{moTaoCuaHang\}/.test(maKetNoiGoc) && !/Kết nối kênh mới/.test(boChuThich(maKetNoiGoc)), true);
+  // Telegram / Bluesky nối đúng kiểu tài liệu nhà cung cấp; không còn biểu mẫu / mã giả; không lộ tên nhà cung cấp.
+  const maNenTang = boChuThich(fs.readFileSync(path.join(GOC, "server/platforms.ts"), "utf8"));
+  kiem("nói đúng sự thật", "danh mục kênh không ghi tên nhà cung cấp trong chữ hiện cho khách",
+    /(['"])[^'"\n]*Zernio[^'"\n]*\1/.test(maNenTang), false);
+  kiem("kết nối kênh", "Telegram nối bằng mã, Bluesky nối bằng mật khẩu ứng dụng",
+    /id: 'tg'[^\n]*connectionType: 'access_code'/.test(maNenTang) && /id: 'bs'[^\n]*connectionType: 'credentials'/.test(maNenTang), true);
+  kiem("nói đúng sự thật", "không còn mã truy cập giả 'ZRN-' tự bịa trên giao diện", /'ZRN-' \+/.test(maKetNoiGoc), false);
+  kiem("kết nối kênh", "chỉ chủ mã Telegram mới dò được trạng thái mã",
+    /if \(!ma \|\| ma\.userId !== req\.user!\.id\) throw new AppError/.test(maRouteKetNoi), true);
+  kiem("kết nối kênh", "nền tảng chưa nối được thì nói thật, không dựng biểu mẫu nối",
+    /connectStep === 2 && selectedPlatform\?\.connectable && \(selectedPlatform\.connectionType === 'oauth_simple'/.test(maKetNoiGoc), true);
+  // Xoá trang + đổi Fanpage phải khớp thực tế (chủ dự án bắt lỗi 17/10/2026).
+  kiem("trang bán hàng", "xoá trang: chỉ trang của mình, không còn kênh, còn ít nhất một trang",
+    /if \(t\.so_kenh > 0\) throw new AppError/.test(maRouteKetNoi)
+      && /if \(t\.so_trang <= 1\) throw new AppError/.test(maRouteKetNoi)
+      && /DELETE FROM trang WHERE id = \$1 AND user_id = \$2/.test(maRouteKetNoi), true);
+  const maGioiHan = fs.readFileSync(path.join(GOC, "server/services/gioi-han.ts"), "utf8");
+  kiem("cửa hàng", "không nối một Fanpage đang chạy ở cửa hàng khác (hai bộ não cùng trả lời khách)",
+    /AND s\.page_id = ANY\(\$2::text\[\]\)\n\s*AND s\.profile_ref <> \$3/.test(maGioiHan) && /if \(oCuaHangKhac\) \{/.test(maGioiHan), true);
+  kiem("cửa hàng", "mỗi CỬA HÀNG một Fanpage (không còn mỗi tài khoản một Fanpage)",
+    /WHERE user_id = \$1 AND profile_ref = \$2 AND platform = 'facebook' AND page_id IS NOT NULL AND connected/.test(maGioiHan), true);
+  // "Đổi Fanpage" đã bỏ (chủ dự án 17/10/2026): mỗi cửa hàng một Fanpage — muốn đổi thì ngắt cũ, nối mới.
+  kiem("cửa hàng", "không còn đường / nút 'Đổi Fanpage'",
+    /"\/accounts\/:id\/page"|"\/accounts\/:id\/pages"/.test(maRouteKetNoi) || /Đổi sang Fanpage khác/.test(boChuThich(maKetNoiGoc)), false);
+  kiem("nói đúng sự thật", "ô số 'Trang bán hàng' đếm mọi trang (khớp bảng)",
+    /\{ nhan: 'Cửa hàng', so: dsTrangToi\.length,/.test(maKetNoiGoc), true);
+  // Rà lần cuối 17/10/2026: nối lại đúng hồ sơ; phiên chọn Fanpage phải có dữ liệu; câu báo quay về không bị xoá.
+  kiem("kết nối kênh", "nối lại đi vào đúng hồ sơ đang chứa kênh, không đẻ tài khoản thứ hai",
+    /let profileId = noiLai \?\? hoSoMacDinh;/.test(maRouteKetNoi) && /if \(canChonTrang && !noiLai\) \{/.test(maRouteKetNoi), true);
+  kiem("kết nối kênh", "phiên chọn Fanpage chỉ tính khi đã có dữ liệu cấp quyền (không báo lỗi giả sau khi nối thẳng)",
+    (maRouteKetNoi.match(/WHERE user_id = \$1 AND expires_at > now\(\) AND temp_token IS NOT NULL/g) ?? []).length, 2);
+  kiem("kết nối kênh", "tải danh sách xong không xoá câu báo lỗi lúc quay về từ trang cấp quyền",
+    /setErrorMessage\(\(cu\) => \(cu && cu === loiTaiRef\.current \? '' : cu\)\);/.test(maKetNoiGoc), true);
+  kiem("giao diện", "bảng trang & kênh: nút lọc số 0 tự ẩn (trừ nút đang chọn)",
+    /\.filter\(\(\[ma, , so\]\) => so > 0 \|\| loc === ma\)/.test(maBang), true);
   const maGia = fs.readFileSync(path.join(GOC, "src/pages/Pricing.tsx"), "utf8");
   kiem("nói đúng sự thật", "không còn chú thích 'for demo'", /for demo as requested/.test(maGia), false);
 }
@@ -2703,7 +2803,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   );
   kiem("đổi Trang đổi não", "chưa chọn Trang mà có nhiều Trang thì bắt chọn",
     /if \(soTrang === 1\)/.test(nguonBang) &&
-      /Vui lòng chọn đúng trang muốn huấn luyện/.test(nguonBang) &&
+      /Vui lòng chọn đúng cửa hàng muốn huấn luyện/.test(nguonBang) &&
       /setActiveAccountId\(dsKenh\[0\]\.id\)/.test(nguonBang), true);
 
   /*
@@ -2751,7 +2851,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /DO UPDATE SET[\s\S]{0,400}?RETURNING id, user_id/.test(nguonTrangSv), true);
   // Tên chủ shop tự đặt là của họ, đồng bộ không được đổi.
   kiem("đổi Trang đổi não", "đồng bộ không ghi đè tên Trang chủ shop đã đặt",
-    /WHEN trang\.ten IN \('Trang đầu tiên', 'Trang chưa đặt tên'\)/.test(nguonTrangSv), true);
+    /WHEN trang\.ten IN \('Trang đầu tiên', 'Trang chưa đặt tên', 'Cửa hàng đầu tiên', 'Cửa hàng chưa đặt tên'\)/.test(nguonTrangSv), true);
   // Dữ liệu bên Zernio bất thường cũng không được nối kênh vào Trang người khác.
   /*
    * Đổi Fanpage thì Trang của Fanpage cũ ở lại, không còn kênh nào — cố ý giữ
@@ -2798,9 +2898,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 
   // Instagram và TikTok không có khái niệm Fanpage — nhập vào Trang sẵn có của
   // hồ sơ, không đẻ Trang riêng với bộ não trống.
-  kiem("đổi Trang đổi não", "kênh không có Fanpage nhập vào Trang sẵn có của hồ sơ",
-    /if \(!pageId\) \{[\s\S]{0,400}?WHERE user_id = \$1 AND profile_ref = \$2 ORDER BY id LIMIT 1/
-      .test(nguonTrangSv), true);
+  kiem("đổi Trang đổi não", "mọi kênh của một hồ sơ nhập vào cửa hàng sẵn có của hồ sơ đó (một hộp một cửa hàng)",
+    /"SELECT id, user_id FROM trang WHERE profile_ref = \$1 ORDER BY id LIMIT 1"/.test(nguonTrangSv), true);
 
   const nguonMig021 = fs.readFileSync(
     path.join(GOC, "server/migrations/021_trang_theo_fanpage.sql"), "utf8"
@@ -2821,201 +2920,89 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 }
 
 // ---------------------------------------------------------------------------
-// 50. Phân tầng tài khoản: quản trị tổng → admin con → tài khoản trang
+// 50. Tài khoản: quản trị tổng + tài khoản dùng thường (tầng chủ chuỗi đã bỏ 18/10/2026)
 // ---------------------------------------------------------------------------
-// Mô hình: MỖI TÀI KHOẢN MỘT FANPAGE, độc lập hoàn toàn. Chủ chuỗi đứng trên
-// nhóm tài khoản trang của mình, xem tổng quan và mở thẳng vào từng trang.
-//
-// Đây là chỗ nguy hiểm nhất trong cả hệ thống: sai một điều kiện lọc là chủ
-// chuỗi này với tay sang được toàn bộ khách hàng và doanh thu của chủ chuỗi
-// khác. Vì vậy mỗi chốt chặn ở đây đều phải có phép kiểm riêng.
+// Mô hình mới: mọi tài khoản là tài khoản dùng thường, tự giữ nhiều cửa hàng (mỗi cửa hàng một hồ sơ nền tảng + một bộ
+// não). Chỉ quản trị tổng được MỞ THẲNG vào tài khoản khác để hỗ trợ. Sai một điều kiện ở đây là người này với tay sang
+// khách hàng và doanh thu của người khác — mỗi chốt có phép kiểm riêng.
 {
   const nguonQL = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
 
-  /*
-   * Chặn theo ĐƯỜNG DẪN chứ không chặn cả router.
-   *
-   * Lúc đang xem thay một trang thì vai trò của phiên là 'shop'. Chặn cả router
-   * theo vai trò thì chính người đang xem thay không gọi được /quay-lai và mắc
-   * kẹt trong tài khoản trang, phải xoá cookie tay mới ra được.
-   */
-  kiem("phân tầng", "chặn theo đường dẫn, người đang xem thay vẫn quay ra được",
-    /quanLyRouter\.use\("\/trang", \(req, _res, next\) => \{/.test(nguonQL), true);
-
-  /*
-   * Đang XEM THAY một trang thì người thật vẫn là chủ chuỗi đã mở nó.
-   *
-   * Không suy ra được điều đó thì vào trong một trang là mất hẳn đường sang
-   * trang khác: phải quay ra rồi mới mở được trang kế. Chủ chuỗi mười trang đi
-   * một vòng kiểm hàng phải qua màn hình trung gian chín lần — hai phần rời
-   * hẳn nhau, đúng điều chủ sản phẩm chỉ ra.
-   */
-  // 04/10/2026: quyền mở / quay lại xét theo NGƯỜI THẬT (mo_boi), vai trò đọc lại từ database.
-  kiem("phân tầng", "đang trong một trang vẫn suy ra được người quản lý thật",
+  // Quyền mở / quay lại xét theo NGƯỜI THẬT (mo_boi), vai trò đọc lại từ database.
+  kiem("phân tầng", "đang trong một tài khoản đã mở vẫn suy ra được người thật (quản trị tổng)",
     /const id = req\.user!\.moBoi \?\? req\.user!\.id;/.test(nguonQL) &&
-      /const that = await nguoiThat\(req\);\s*const chaId = that\.id;/.test(nguonQL) &&
-      /if \(u\.moBoi != null\) return u\.parentId;/.test(nguonQL), true);
-
-  /*
-   * Nhưng CHỈ được đi lại, không được cầm quyền trên tài khoản khác. Lập
-   * trang, đổi tên, khoá, cấp lại mật khẩu đều phải đang đứng ở tài khoản quản
-   * lý thật — bốn đường, bốn chốt.
-   */
-  /*
-   * Sáu đường đổi dữ liệu: lập trang, đổi tên, đổi tên đăng nhập, khoá, đặt
-   * lại mật khẩu, xoá.
-   * Con số để cứng là CỐ Ý — thêm một đường đổi dữ liệu mà quên chốt chặn thì
-   * phép kiểm này hỏng ngay, đúng lúc cần nhắc. Đã hỏng thật khi thêm đường xoá.
-   */
-  const soChotXemThay = (nguonQL.match(/chanNeuDangXemThay\(req\);/g) ?? []).length;
-  kiem("phân tầng", "đang xem thay thì chỉ đi lại được, không cầm quyền",
-    soChotXemThay, 6);
-  /*
-   * Đếm chỗ GỌI thôi thì chưa đủ: đục rỗng ruột chốt chặn mà vẫn để nguyên bốn
-   * lời gọi là phép kiểm trên vẫn báo đạt — đã đúng như vậy. Phải soi cả điều
-   * kiện bên trong.
-   */
-  kiem("phân tầng", "ruột chốt chặn xem thay có thật, không rỗng",
-    /if \(req\.user\?\.moBoi != null\) \{\s*\n\s*throw new AppError\(/.test(nguonQL), true);
-
-  /*
-   * Nhảy sang trang anh em KHÔNG được lồng nhau: mo_boi vẫn phải là chủ chuỗi
-   * chứ không phải trang vừa rời. Lồng một bậc là đường quay ra đứt.
-   */
-  kiem("phân tầng", "nhảy sang trang khác không làm lồng phiên",
-    /await createSession\(res, trang\.id, chaId\);/.test(nguonQL), true);
-
-  /*
-   * Tài khoản trang TỰ đăng nhập bằng mật khẩu của nó có mo_boi rỗng và vai
-   * trò 'shop', nên nguoiQuanLy trả null và nó không thấy trang anh em nào.
-   * Cách ly giữa các trang là điểm chính của cả mô hình này.
-   */
-  kiem("phân tầng", "trang tự đăng nhập không thấy trang anh em",
-    /if \(u\.role === "admin_con" \|\| u\.role === "admin"\) return u\.id;[\s\S]{0,160}if \(u\.moBoi != null\) return u\.parentId;\s*\n\s*return null;/
-      .test(nguonQL) && /data: nguoiQuanLy\(req\) === null \? \[\] : rows\.rows/.test(nguonQL), true);
-
-  // Điều kiện parent_id phải nằm TRONG câu lệnh. Lấy về rồi mới kiểm thì sớm
-  // muộn có đường nào đó quên kiểm.
-  kiem("phân tầng", "chỉ lấy được tài khoản trang CỦA MÌNH",
-    /FROM users WHERE id = \$1 AND parent_id = \$2/.test(nguonQL), true);
-
-  // Trả 403 là xác nhận "tài khoản này có thật, chỉ không phải của anh" — đủ
-  // để dò ra ai đang dùng hệ thống.
-  kiem("phân tầng", "không lộ sự tồn tại của trang người khác",
-    /throw new AppError\("Không tìm thấy trang này", 404\)/.test(nguonQL) &&
-      !/Không tìm thấy trang này", 403/.test(nguonQL), true);
-
-  /*
-   * MỌI đường nhắm vào một tài khoản khác đều phải đi qua trangCuaToi. Đếm
-   * chứ không nhìn bằng mắt: thêm route mới mà quên gọi thì phép kiểm này
-   * phải kêu lên, không phụ thuộc vào việc ai đó nhớ ra.
-   */
-  const soRouteTheoId = (nguonQL.match(/"\/trang\/:id[^"]*"/g) ?? []).length;
-  /*
-   * Đếm lời gọi trangCuaToi, không bắt buộc tham số đầu phải là req.user.id.
-   * Đường "mở trang" truyền người quản lý thật (nguoiQuanLy) để lúc đang xem
-   * thay vẫn nhảy được sang trang anh em. Quyền sở hữu vẫn do chính
-   * trangCuaToi kiểm bằng parent_id, nên cái phải đếm là CÓ GỌI hay không.
-   */
-  // Báo cáo đi qua taiKhoanTrongPhamVi (chính mình / quản trị tổng / trang của mình) — cũng là một lần kiểm chủ.
-  const soLanKiemChu = (nguonQL.match(/await (trangCuaToi|taiKhoanTrongPhamVi)\(/g) ?? []).length;
-  kiem("phân tầng", "mọi đường nhắm vào trang khác đều kiểm chủ sở hữu",
-    soLanKiemChu, soRouteTheoId);
-
-  // Khoá mà không xoá phiên thì người đang đăng nhập dùng tiếp như thường cho
-  // tới khi phiên hết hạn — khoá như không khoá.
-  kiem("phân tầng", "khoá trang thì giết luôn phiên đang mở",
-    /if \(khoa\) await query\("DELETE FROM sessions WHERE user_id = \$1", \[trang\.id\]\)/.test(nguonQL), true);
-  kiem("phân tầng", "đổi mật khẩu thì giết luôn phiên cũ",
-    /UPDATE users SET password_hash[\s\S]{0,400}?DELETE FROM sessions WHERE user_id = \$1/.test(nguonQL), true);
-
-  /*
-   * Lúc quay ra phải kiểm LẠI quan hệ cha con, không chỉ tin vào mo_boi đã ghi
-   * lúc mở: giữa hai thời điểm đó tài khoản quản lý có thể đã bị khoá, bị hạ
-   * vai trò, hoặc trang này đã chuyển sang người khác.
-   */
-  kiem("phân tầng", "quay ra kiểm lại quyền (quản trị tổng: không phải quản trị; admin con: đúng trang của mình), không tin mã đã ghi",
-    /WHERE c\.id = \$1 AND t\.id = \$2 AND c\.is_active = TRUE\s*AND \(\(c\.role = 'admin' AND t\.role <> 'admin'\)\s*OR \(c\.role = 'admin_con' AND t\.parent_id = c\.id\)\)/
-      .test(nguonQL), true);
-  kiem("phân tầng", "mở tài khoản: quản trị tổng mở mọi tài khoản KHÔNG phải quản trị; admin con chỉ trang của mình; còn lại 404",
-    [/if \(that\.role === "admin"\) \{[\s\S]{0,300}WHERE id = \$1 AND role <> 'admin'/.test(nguonQL),
-      /\} else if \(that\.role === "admin_con"\) \{\s*trang = await trangCuaToi\(chaId, req\.params\.id\);\s*\} else \{\s*throw new AppError\("Không tìm thấy trang này", 404\);/.test(nguonQL)],
+      /const that = await nguoiThat\(req\);\s*const chaId = that\.id;/.test(nguonQL), true);
+  kiem("phân tầng", "mở tài khoản: CHỈ quản trị tổng, mọi tài khoản KHÔNG phải quản trị; còn lại 404",
+    [/if \(that\.role !== "admin"\) throw new AppError\("Không tìm thấy tài khoản này", 404\);/.test(nguonQL),
+      /FROM users WHERE id = \$1 AND role <> 'admin'/.test(nguonQL)],
     [true, true]);
+  // Nhảy sang tài khoản khác KHÔNG được lồng nhau: mo_boi vẫn là quản trị tổng.
+  kiem("phân tầng", "nhảy sang tài khoản khác không làm lồng phiên",
+    /await createSession\(res, trang\.id, chaId\);/.test(nguonQL), true);
+  // Trả 403 là xác nhận "tài khoản này có thật" — đủ để dò ra ai đang dùng hệ thống.
+  kiem("phân tầng", "không lộ sự tồn tại của tài khoản người khác",
+    /throw new AppError\("Không tìm thấy tài khoản này", 404\)/.test(nguonQL) &&
+      !/Không tìm thấy (tài khoản|cửa hàng) này", 403/.test(nguonQL), true);
+  // Báo cáo một tài khoản: chính mình, hoặc quản trị tổng tự đăng nhập. Đếm: mọi đường /trang/:id đều có chốt.
+  kiem("phân tầng", "mọi đường nhắm vào tài khoản khác đều kiểm quyền (báo cáo + mở)",
+    [(nguonQL.match(/"\/trang\/:id[^"]*"/g) ?? []).length,
+      (nguonQL.match(/await taiKhoanTrongPhamVi\(/g) ?? []).length,
+      /"\/trang\/:id\/mo",[\s\S]{0,400}?if \(that\.role !== "admin"\)/.test(nguonQL)],
+    [2, 1, true]);
+  /*
+   * Lúc quay ra phải kiểm LẠI quyền, không chỉ tin vào mo_boi đã ghi lúc mở: giữa hai thời điểm đó quản trị có thể đã
+   * bị khoá hoặc hạ vai trò.
+   */
+  kiem("phân tầng", "quay ra kiểm lại quyền (quản trị tổng, tài khoản đích không phải quản trị), không tin mã đã ghi",
+    /WHERE c\.id = \$1 AND t\.id = \$2 AND c\.is_active = TRUE\s*AND c\.role = 'admin' AND t\.role <> 'admin'/.test(nguonQL), true);
+
+  const nguonAd0 = fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8");
+  // Khoá / đổi mật khẩu mà không xoá phiên thì người đang đăng nhập dùng tiếp như thường — khoá như không khoá.
+  kiem("phân tầng", "khoá hoặc đặt lại mật khẩu thì giết luôn phiên đang mở (kể cả phiên quản trị đang mở vào)",
+    (nguonAd0.match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length >= 2, true);
 
   const nguonTk3 = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
-
-  // Tài khoản trang KHÔNG được thừa kế quyền quản lý, nếu không chủ chuỗi lập
-  // ra một tài khoản rồi tài khoản đó lại lập tiếp, thành cây không đáy.
-  kiem("phân tầng", "tài khoản trang luôn là 'shop', không thừa kế quyền quản lý",
-    /parentId: params\.parentId,\s*\n\s*role: "shop",/.test(nguonTk3), true);
-
-  /*
-   * Đuôi .local được RFC 6762 giữ riêng cho mạng nội bộ nên không ai đăng ký
-   * được làm tên miền thật. Nhưng vẫn phải chặn ở đây: không chặn thì người
-   * ngoài tự đăng ký "abc@noi-bo.local" và tài khoản đó trông y hệt một tài
-   * khoản trang do hệ thống sinh.
-   */
+  // Mọi tài khoản mới là tài khoản dùng thường — không đường nào tạo ra vai trò quản lý.
+  kiem("phân tầng", "mọi tài khoản mới là 'shop' (bản sao phần dùng thường của quản trị tổng)",
+    [/INSERT INTO users \(email, password_hash, name, role\)\s*VALUES \(\$1, \$2, \$3, 'shop'\)/.test(nguonTk3),
+      /role\?:|parentId|noiBo|laChuChuoi|taoTaiKhoanTrang/.test(nguonTk3)],
+    [true, false]);
+  // Đuôi .local giữ riêng cho tên đăng nhập nội bộ cũ; người ngoài không được tự đăng ký lấn vào để mạo danh.
   kiem("phân tầng", "người ngoài không đăng ký lấn vào vùng tên nội bộ",
-    /if \(!params\.noiBo && laTenDangNhapNoiBo\(email\)\) \{\s*\n\s*throw new AppError/.test(nguonTk3),
-    true);
+    /if \(laTenDangNhapNoiBo\(email\)\) \{\s*\n\s*throw new AppError/.test(nguonTk3), true);
 
   const nguonAuth = fs.readFileSync(path.join(GOC, "server/auth.ts"), "utf8");
-  // Vai trò lạ phải rơi về 'shop' — quyền thấp nhất. Đoán sai phải đoán về
-  // phía an toàn, không phải phía cấp thêm quyền.
-  // Quy vai trò nằm trong chuanHoaVaiTro, dùng chung cho cả phiên lẫn phản hồi
-  // đăng nhập — hai đường không còn chỗ lệch nhau.
-  kiem("phân tầng", "vai trò lạ rơi về quyền thấp nhất",
-    /return role === "admin" \? "admin" : role === "admin_con" \? "admin_con" : "shop";/
-      .test(nguonAuth), true);
+  // Vai trò lạ (kể cả 'admin_con' cũ) phải rơi về 'shop' — quyền thấp nhất.
+  kiem("phân tầng", "vai trò lạ rơi về quyền thấp nhất; chỉ còn admin / shop",
+    [/return role === "admin" \? "admin" : "shop";/.test(nguonAuth),
+      /export type VaiTro = "admin" \| "shop";/.test(nguonAuth)],
+    [true, true]);
+  const nguonMig054 = fs.readFileSync(path.join(GOC, "server/migrations/054_bo_chu_chuoi.sql"), "utf8");
+  kiem("phân tầng", "dữ liệu cũ: chủ chuỗi thành tài khoản thường, tài khoản con tách riêng (giữ dấu vết), không xoá gì",
+    [/UPDATE users SET role = 'shop', updated_at = now\(\) WHERE role = 'admin_con';/.test(nguonMig054),
+      /INSERT INTO lien_ket_chuoi_cu \(con_id, cha_id\)/.test(nguonMig054) && /UPDATE users SET parent_id = NULL/.test(nguonMig054),
+      /CHECK \(role IN \('admin', 'shop'\)\)/.test(nguonMig054),
+      /\bDELETE\b/i.test(nguonMig054)],
+    [true, true, true, false]);
 
   /*
-   * KHÔNG tự đặt hạn mức số trang.
-   *
-   * Luật của chủ sản phẩm, nói rõ từ trước: không tự đặt giới hạn của mình, cứ
-   * theo nhà cung cấp — khi nào họ báo hết hạn mức thì mình báo hết hạn mức.
-   * Đo ngày 19/09/2026: /usage trả limits.profiles = -1, tức họ không giới hạn.
-   *
-   * Tôi đã vi phạm đúng điều này: tự đặt số trang cho từng gói, tự đổi gói
-   * dùng thử từ không giới hạn thành 1 trang, rồi chặn ở máy chủ. Đó là quyết
-   * định thương mại chứ không phải quyết định kỹ thuật, và tôi không được phép
-   * tự làm. Phép kiểm này đứng đây để tôi không lặp lại.
+   * KHÔNG tự đặt hạn mức số cửa hàng — luật của chủ sản phẩm: cứ theo nhà cung cấp (đo 19/09/2026: /usage trả
+   * limits.profiles = -1). Đó là quyết định thương mại, không phải kỹ thuật.
    */
   const nguonGH = fs.readFileSync(path.join(GOC, "server/services/gioi-han.ts"), "utf8");
-  const nguonQL2 = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
-  kiem("phân tầng", "KHÔNG tự đặt hạn mức số trang cho mỗi gói",
-    /SO_TRANG_MOI_GOI|soTrangChoPhep|chanNeuHetSuatTrang/.test(nguonGH), false);
-  kiem("phân tầng", "lập trang không bị chặn bởi hạn mức mình tự nghĩ ra",
-    /chanNeuHetSuatTrang/.test(nguonQL2), false);
+  kiem("phân tầng", "KHÔNG tự đặt hạn mức số cửa hàng cho mỗi gói",
+    /SO_TRANG_MOI_GOI|soTrangChoPhep|chanNeuHetSuatTrang/.test(nguonGH + nguonQL), false);
 
   const nguonNoi2 = fs.readFileSync(path.join(GOC, "server/routes/connections.ts"), "utf8");
-  /*
-   * Chặn TRƯỚC khi gọi nhà cung cấp. Gọi rồi mới chặn thì kênh đã được tạo bên
-   * họ, mình từ chối ở đây nhưng vẫn bị tính tiền và vẫn phải đi dọn.
-   */
+  // Chặn TRƯỚC khi gọi nhà cung cấp: gọi rồi mới chặn thì kênh đã tạo bên họ, vẫn bị tính tiền và phải đi dọn.
   kiem("phân tầng", "chặn Fanpage thứ hai TRƯỚC khi gọi nhà cung cấp",
-    /await chanNeuThemFanpage\(req\.user!\.id, pageIds\);[\s\S]{0,400}?selectFacebookPage\(/
+    /await chanNeuThemFanpage\(req\.user!\.id, pending\.profile_id, pageIds\);[\s\S]{0,400}?selectFacebookPage\(/
       .test(nguonNoi2), true);
-
-  /*
-   * Xoá tài khoản mà để lại hồ sơ bên nhà cung cấp thì hồ sơ nằm lại vĩnh
-   * viễn — đã đếm được 5 hồ sơ rác đọng lại đúng vì lý do này. Chủ chuỗi lập
-   * rồi bỏ trang là chuyện thường ngày, rác sẽ sinh nhanh hơn nhiều.
-   */
-  const nguonAd = fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8");
+  // Xoá tài khoản mà để lại hồ sơ bên nhà cung cấp thì hồ sơ nằm lại vĩnh viễn (đã đếm được 5 hồ sơ rác).
+  // 18/10/2026 (B1-d): dọn MỌI hồ sơ của tài khoản qua services/xoa-tai-khoan.ts (kiểm hành vi ở mục "xoá tài khoản").
   kiem("phân tầng", "xoá tài khoản thì dọn luôn hồ sơ bên nhà cung cấp",
-    /await zernio\.xoaHoSo\(hoSo\.profile_ref\);/.test(nguonAd) &&
-      /loiXoaHoSo = error instanceof Error/.test(nguonAd), true);
-
-  const nguonMig022 = fs.readFileSync(
-    path.join(GOC, "server/migrations/022_phan_tang_tai_khoan.sql"), "utf8"
-  );
-  /*
-   * RESTRICT chứ không CASCADE: xoá tài khoản admin con mà kéo theo mọi tài
-   * khoản trang của họ là xoá sạch hộp thư, đơn hàng và tài liệu của từng
-   * trang chỉ bằng một cú bấm.
-   */
-  kiem("phân tầng", "xoá chủ chuỗi KHÔNG kéo theo dữ liệu các trang",
-    /parent_id BIGINT REFERENCES users\(id\) ON DELETE RESTRICT/.test(nguonMig022), true);
+    /const kq = await thucHienXoa\(dich\.id, phuThuocXoaThat\);/.test(nguonAd0) &&
+      /xoaHoSo: \(id\) => zernio\.xoaHoSo\(id\)/.test(fs.readFileSync(path.join(GOC, "server/services/xoa-tai-khoan-that.ts"), "utf8")), true);
 
   // Giao diện phải nói rõ đang xem thay trang nào, không thì thao tác nhầm mà
   // không có dấu hiệu nào cả.
@@ -3035,7 +3022,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    */
   const nguonManHinhQL = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
   kiem("phân tầng", "màn hình quản lý là bảng điều hành, không phải danh sách suông",
-    /api\.quanLy\.danhSach\(\)/.test(nguonManHinhQL) && /api\.admin\.accounts\(\)/.test(nguonManHinhQL) &&
+    /api\.admin\.accounts\(\)/.test(nguonManHinhQL) &&
       /Cần xử lý \(\{canXuLy\.length\}\)/.test(nguonManHinhQL), true);
 
   /*
@@ -3072,7 +3059,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /t\.kenh_noi > 0 && t\.tin_7_ngay === 0/.test(nguonTinhTrang), true);
   const soLanDoc = (nguonManHinhQL.match(/docTinhTrang\(/g) ?? []).length;
   kiem("phân tầng", "dải cảnh báo và thẻ từng tài khoản đọc cùng một chỗ",
-    [soLanDoc, /const tinhTrang = \(t: TaiKhoanQuanLy\) => \(t\.role === 'admin_con' \? \[\] : docTinhTrang\(t\)\);/.test(nguonManHinhQL),
+    [soLanDoc, /const tinhTrang = \(t: TaiKhoanQuanLy\) => docTinhTrang\(t\);/.test(nguonManHinhQL),
       (nguonManHinhQL.match(/tinhTrang\(t\)/g) ?? []).length], [1, true, 2]);
 
   /*
@@ -3114,10 +3101,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * hàng và bộ não. Bắt gõ đúng TÊN TRANG, và dọn luôn hồ sơ bên nhà cung cấp
    * — để lại là rác nằm vĩnh viễn, đúng cách đống hồ sơ rác cũ hình thành.
    */
-  kiem("phân tầng", "xoá trang bắt gõ đúng tên đăng nhập (hoặc tên trang) để xác nhận",
-    /if \(xacNhan\.toLowerCase\(\) !== trang\.email\.toLowerCase\(\) && xacNhan !== trang\.name\.trim\(\)\) \{/.test(nguonQL), true);
-  kiem("phân tầng", "xoá trang dọn luôn hồ sơ bên nhà cung cấp",
-    /"\/trang\/:id"[\s\S]{0,1600}?await zernio\.xoaHoSo\(hoSo\.profile_ref\);/.test(nguonQL), true);
+  kiem("phân tầng", "xoá tài khoản bắt gõ đúng email để xác nhận",
+    /if \(xacNhan\.trim\(\)\.toLowerCase\(\) !== dich\.email\.toLowerCase\(\)\) \{/.test(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8")), true);
 
   /*
    * Báo cáo chi tiết xem được TỪ tài khoản quản lý, không phải vào trong trang.
@@ -3142,33 +3127,33 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * "Fanpage: X" ngay cạnh cảnh báo "Chưa nối Fanpage nào" — hai câu chọi nhau
    * trên cùng một thẻ, đã nhìn thấy đúng như vậy trên màn hình thật.
    */
-  // /trang (danh sách đi lại) và bộ cột dùng chung của màn hình quản lý.
+  // Bộ cột dùng chung của màn hình quản lý (đường /trang của tầng chủ chuỗi đã bỏ 18/10/2026).
   const soLocFanpage = ((nguonQL + fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8")).match(
     /WHERE s\.user_id = u\.id AND s\.platform = 'facebook' AND s\.connected/g
   ) ?? []).length;
-  kiem("phân tầng", "chỉ hiện tên Fanpage khi kênh còn nối", soLocFanpage, 2);
+  kiem("phân tầng", "chỉ hiện tên Fanpage khi kênh còn nối", soLocFanpage, 1);
 
   /*
    * Chủ dự án 04/10/2026 tự thiết kế: tách HAI PHẦN — Tổng quan (biểu đồ tài sản) và Chi tiết (cây đánh số Chuỗi →
    * Tài khoản → Trang; bấm tài khoản mới hiện trang, bấm trang mới hiện báo cáo, đầu tiên là sao kê).
    */
   const nguonTqUi = fs.readFileSync(path.join(GOC, "src/components/QuanLyTongQuan.tsx"), "utf8");
-  kiem("phân tầng", "màn hình quản lý tách hai phần Tổng quan / Chi tiết, cùng một bộ mã cho hai tầng",
+  kiem("phân tầng", "màn hình quản lý tách hai phần Tổng quan / Chi tiết",
     [/\['tong_quan', 'Tổng quan', 'monitoring'\],\s*\['chi_tiet', 'Chi tiết', 'account_tree'\],/.test(nguonManHinhQL),
-      /<TongQuanTaiSan du=\{tq\} ky=\{ky\} onDoiKy=\{setKy\} phamViChu=\{laTong \? 'Cả hệ thống' : 'Chuỗi của bạn'\} \/>/.test(nguonManHinhQL),
-      // Một đường dữ liệu cho cả hai tầng, không rẽ theo laTong.
+      /<TongQuanTaiSan du=\{tq\} ky=\{ky\} onDoiKy=\{setKy\} phamViChu="Cả hệ thống" \/>/.test(nguonManHinhQL),
       /setTq\(\(await api\.quanLy\.tongQuan\(ky\)\)\.data\);/.test(nguonManHinhQL)],
     [true, true, true]);
-  kiem("phân tầng", "chi tiết là cây ĐÁNH SỐ Chuỗi → Tài khoản → Trang, mặc định đóng, bấm mới mở",
-    [/if \(g\.goc\.role !== 'admin_con'\) return veTaiKhoan\(g\.goc, String\(g\.so\)\);/.test(nguonManHinhQL),
-      /\{g\.con\.map\(\(c, j\) => veTaiKhoan\(c, `\$\{g\.so\}\.\$\{j \+ 1\}`\)\)\}/.test(nguonManHinhQL),
+  // 18/10/2026: bỏ tầng chủ chuỗi → cây Tài khoản → Cửa hàng (1 · 1.1); nhãn "Cửa hàng" theo tên đã chốt 17/10.
+  kiem("phân tầng", "chi tiết là cây ĐÁNH SỐ Tài khoản → Cửa hàng, mặc định đóng, bấm mới mở",
+    [/const veNhom = \(g: NhomGoc\) => veTaiKhoan\(g\.goc, String\(g\.so\)\);/.test(nguonManHinhQL),
+      /soCon: `\$\{tk\.trang\.filter\(\(t\) => t\.hoatDong\)\.length\}\/\$\{tk\.trang\.length\} cửa hàng`/.test(nguonManHinhQL),
       /\{tk\.trang\.map\(\(tr, k\) => veTrang\(tr, `\$\{so\}\.\$\{k \+ 1\}`\)\)\}/.test(nguonManHinhQL),
       // Mặc định đóng hết.
       /const \[mo, setMo\] = useState<Set<string>>\(new Set\(\)\);/.test(nguonManHinhQL),
       // Bấm trang → báo cáo của đúng trang đó.
       /\{moRa && tq && \(\s*<div[^>]*>\s*<BaoCaoMotTrang t=\{tr\} ky=\{ky\} chot=\{tq\.chot\} \/>/.test(nguonManHinhQL),
       // Mỗi tầng nhãn + biểu tượng riêng.
-      /chuoi: \{ icon: 'account_tree', chu: 'Chuỗi' \},\s*tai_khoan: \{ icon: 'person', chu: 'Tài khoản' \},\s*trang: \{ icon: 'storefront', chu: 'Trang' \},/.test(nguonManHinhQL)],
+      /tai_khoan: \{ icon: 'person', chu: 'Tài khoản' \},\s*trang: \{ icon: 'storefront', chu: 'Cửa hàng' \},/.test(nguonManHinhQL)],
     [true, true, true, true, true, true]);
   kiem("phân tầng", "cây thẳng cột: tiêu đề, dòng mọi tầng và dòng phụ dùng chung MỘT khung cột; điện thoại chỉ tên + tổng + nút",
     [(nguonManHinhQL.match(/clsx\(\s*LUOI,/g) ?? []).length,
@@ -3177,8 +3162,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
       /<span className=\{clsx\('lg:hidden shrink-0 tabular-nums', mauChi\(t\)\)\}>· \{chi\(t\)\}<\/span>/.test(nguonManHinhQL),
       // Chỉ ô tên thụt theo tầng; cả dòng KHÔNG thụt (cột tiền thẳng với dòng cha).
       /LUOI,\s*'px-4 py-3 border-t border-outline-variant\/60 cursor-pointer transition-colors hover:bg-surface-container-high',\s*sau === 0 \?/.test(nguonManHinhQL),
-      // Dòng chuỗi = cộng cả chuỗi (chủ chuỗi tự nó không có trang).
-      /export const tienNhom = \(g: NhomGoc\) => \[g\.goc, \.\.\.g\.con\]\.reduce\(/.test(nguonTqUi)],
+      // Cây phẳng: mỗi nhóm gốc là một tài khoản, không còn con.
+      /\.map\(\(goc, i\) => \(\{ so: i \+ 1, goc, con: \[\] \}\)\);/.test(nguonTqUi)],
     [3, true, 3, true, true, true]);
   kiem("phân tầng", "báo cáo trang: tiền AI từng loại, tiền từng kênh, quảng cáo, rồi sao kê từng lượt (dòng dùng chung với nhật ký chi phí)",
     [/api\.quanLy\s*\.saoKeTrang\(t\.id, ky, so\)/.test(nguonTqUi), /<DongLuot key=\{l\.id\} l=\{l\} \/>/.test(nguonTqUi),
@@ -3186,9 +3171,9 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
       /export function DongLuot\(/.test(fs.readFileSync(path.join(GOC, "src/components/NhatKyChiPhi.tsx"), "utf8"))],
     [true, true, true, true, true]);
   kiem("phân tầng", "tổng quan: số chính (tài khoản / trang hoạt động, tiền AI, tiền kênh, quảng cáo) + biểu đồ theo tài khoản và theo trang",
-    [/nhan="Tài khoản hoạt động"/.test(nguonTqUi), /nhan="Trang hoạt động"/.test(nguonTqUi), /nhan="Tiền AI"/.test(nguonTqUi),
+    [/nhan="Tài khoản hoạt động"/.test(nguonTqUi), /nhan="Cửa hàng hoạt động"/.test(nguonTqUi), /nhan="Tiền AI"/.test(nguonTqUi),
       /nhan="Tiền kết nối kênh"/.test(nguonTqUi), /nhan="Tiền quảng cáo"/.test(nguonTqUi),
-      /tieuDe="Số trang theo tài khoản"/.test(nguonTqUi), /tieuDe="Tiền theo tài khoản"/.test(nguonTqUi), /tieuDe="Tiền theo trang"/.test(nguonTqUi)],
+      /tieuDe="Số cửa hàng theo tài khoản"/.test(nguonTqUi), /tieuDe="Tiền theo tài khoản"/.test(nguonTqUi), /tieuDe="Tiền theo cửa hàng"/.test(nguonTqUi)],
     [true, true, true, true, true, true, true, true]);
   // Kỳ trước để biết tăng hay giảm, không gắn cứng phần trăm nào.
   kiem("phân tầng", "báo cáo có kỳ trước để so tăng giảm",
@@ -3204,19 +3189,6 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("phân tầng", "không có kỳ trước thì ẩn phần trăm, không bịa",
     /if \(!b\) return null;/.test(nguonBaoCaoUI), true);
 
-  /*
-   * Tên đăng nhập sinh từ tên trang lúc lập, nên đổi tên trang về sau là hai
-   * cái lệch nhau — trang tên "abc" mà đăng nhập bằng "botsanday-a805". Phải
-   * sửa được, nhưng chỉ phần trước dấu @: đuôi là vùng dành riêng cho tài
-   * khoản trang, cho đổi tự do là mở đường tạo tài khoản trông như email thật.
-   */
-  kiem("phân tầng", "đổi được tên đăng nhập, đuôi nội bộ giữ nguyên",
-    /const moi = `\$\{goc\}@\$\{TEN_MIEN_NOI_BO\}`;/.test(nguonQL) &&
-      /Tên đăng nhập này đã có trang khác dùng rồi/.test(nguonQL), true);
-  // Đổi tên đăng nhập mà giữ phiên cũ thì người kia vẫn dùng tiếp như thường.
-  kiem("phân tầng", "đổi tên đăng nhập thì cắt phiên cũ",
-    /UPDATE users SET email = \$1[\s\S]{0,300}?DELETE FROM sessions WHERE user_id = \$1/.test(nguonQL),
-    true);
   // Chuỗi ngẫu nhiên thì người trông trang phải chép tay từng ký tự.
   // 04/10/2026 (chủ dự án, lỗi LẶP LẠI): lần trước chỉ sửa cấp lại mật khẩu ở Quản lý Trang; tạo tài khoản, cấp lại
   // mật khẩu ở Quản trị hệ thống và lập trang vẫn chỉ sinh ngẫu nhiên. MỌI chỗ cấp mật khẩu phải cho tự đặt.
@@ -3227,30 +3199,26 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     kiem("phân tầng", "hàm chung: tự đặt ≥8 ký tự dùng đúng mật khẩu đó; ngắn quá thì báo; bỏ trống thì sinh 16 ký tự",
       [thu({ matKhau: "matkhau123" }), thu({ matKhau: "ngan" }), thu({}), thu({ matKhau: "" }), thu(null)],
       [[true, "matkhau123"], "Mật khẩu phải có ít nhất 8 ký tự", [false, 16], [false, 16], [false, 16]]);
-    kiem("phân tầng", "cả 4 chỗ cấp mật khẩu đều cho quản trị tự đặt (tạo / cấp lại ở Quản trị; lập / cấp lại ở Quản lý Trang)",
+    // 18/10/2026: bỏ tầng chủ chuỗi → còn 2 chỗ cấp mật khẩu (tạo / đặt lại ở màn Quản lý của quản trị tổng).
+    kiem("phân tầng", "cả 2 chỗ cấp mật khẩu đều cho quản trị tự đặt (tạo / đặt lại tài khoản)",
       [(nguonAdminRt.match(/const \{ matKhau: matKhauTam \} = docMatKhauTuDat\(req\.body\);/g) ?? []).length,
-        /taoTaiKhoanTrang\(\{ parentId: req\.user!\.id, tenTrang: ten, matKhau: docMatKhauTuDat\(req\.body\)\.matKhau \}\)/.test(nguonQL),
-        /const \{ matKhau: matKhauTam \} = docMatKhauTuDat\(req\.body\);/.test(nguonQL),
-        /const matKhauTam = params\.matKhau \|\| sinhMatKhauTam\(\);/.test(nguonTk),
         // Không route nào gọi thẳng hàm sinh ngẫu nhiên nữa.
-        /sinhMatKhauTam\(/.test(nguonAdminRt + nguonQL)],
-      [2, true, true, true, false]);
+        /sinhMatKhauTam\(/.test(nguonAdminRt + nguonQL),
+        /export function docMatKhauTuDat\(/.test(nguonTk)],
+      [2, false, true]);
     const nguonAdminUi = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
-    const nguonQLUi = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
-    kiem("phân tầng", "giao diện: ô gõ mật khẩu (chữ hiện rõ) khi tạo, cấp lại tài khoản và lập trang; không còn hộp confirm cấp mật khẩu ngẫu nhiên",
+    kiem("phân tầng", "giao diện: ô gõ mật khẩu (chữ hiện rõ) khi tạo và đặt lại tài khoản; không còn hộp confirm cấp mật khẩu ngẫu nhiên",
       [/\{ ten: 'Đặt lại mật khẩu', onChon: \(\) => setDatMatKhau\(\{ tk: t, mk: '' \}\) \}/.test(nguonAdminUi),
-        /await api\.admin\.resetPassword\(tk\.id, mk \|\| undefined\)/.test(nguonAdminUi) && /await api\.quanLy\.capLaiMatKhau\(tk\.id, mk \|\| undefined\)/.test(nguonAdminUi),
-        /matKhau: mk \|\| undefined \}\)/.test(nguonAdminUi),
+        /await api\.admin\.resetPassword\(tk\.id, mk \|\| undefined\)/.test(nguonAdminUi),
+        /matKhau: mk \|\| undefined \}\)/.test(nguonAdminUi) && /value=\{matKhauMoi\}/.test(nguonAdminUi),
         (nguonAdminUi.match(/type="text"\s*autoComplete="new-password"/g) ?? []).length,
-        /Cấp lại mật khẩu cho \$\{tk\.email\}\?/.test(nguonAdminUi),
-        /await api\.quanLy\.lapTrang\(tenMoi\.trim\(\), mk \|\| undefined\)/.test(nguonQLUi) && /value=\{matKhauMoi\}/.test(nguonQLUi)],
-      [true, true, true, 2, false, true]);
+        /Cấp lại mật khẩu cho \$\{tk\.email\}\?/.test(nguonAdminUi)],
+      [true, true, true, 2, false]);
   }
 
-  // Dải băng cũng là chỗ nối hai phần lại: danh sách trang anh em nằm ngay đó.
-  kiem("phân tầng", "đang xem thay vẫn nhảy thẳng sang trang khác được",
-    /Sang trang khác \(\{trangKhac\.length\}\)/.test(nguonBangXem) &&
-      /await api\.quanLy\.moTrang\(trang\.id\);/.test(nguonBangXem), true);
+  // 18/10/2026: nút "sang cửa hàng khác" thuộc tầng chủ chuỗi (danh sách tài khoản anh em) — đã bỏ.
+  kiem("phân tầng", "không còn danh sách 'sang tài khoản anh em' (tầng chủ chuỗi đã bỏ)",
+    /Sang cửa hàng khác|api\.quanLy\.trang\(|api\.quanLy\.moTrang/.test(nguonBangXem), false);
 
   // 04/10/2026 (chủ dự án): mở trang là ĐĂNG NHẬP THẲNG vào trang con, không phải "xem" — bỏ hẳn chữ / màu "đang xem".
   kiem("phân tầng", "trong trang con chỉ có nút Quay lại quản lý (không còn chữ / màu 'đang xem')",
@@ -3299,127 +3267,59 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
       /role: chuanHoaVaiTro\(row\.role\)/.test(nguonAuth), true);
 
   /*
-   * Người TỰ ĐĂNG KÝ ra chủ chuỗi, không ra một trang bán hàng.
-   *
-   * Đăng ký ra thẳng một trang thì người đó vĩnh viễn không thêm được trang
-   * thứ hai — muốn thêm phải đi chuyển đổi tài khoản về sau. Ra chủ chuỗi thì
-   * trang đầu tiên và trang thứ mười lập bằng cùng một cách.
+   * 18/10/2026 (chủ dự án): mọi tài khoản mới — tự đăng ký hay quản trị tạo hộ — là TÀI KHOẢN DÙNG THƯỜNG, bản sao phần
+   * dùng thường của quản trị tổng ("bê nguyên si 100% sang"). Luật cũ "đăng ký ra chủ chuỗi" và đường "thành chủ
+   * chuỗi" đã bỏ cùng tầng chủ chuỗi.
    */
-  kiem("phân tầng", "người tự đăng ký ra chủ chuỗi, không ra một trang bán hàng",
-    /taoTaiKhoan\(\{[\s\S]{0,300}?role: "admin_con",/.test(nguonAuthRoute), true);
-
-  /*
-   * Đường chuyển một tài khoản đứng riêng thành chủ chuỗi.
-   *
-   * Vì sao cần: luật "đăng ký là ra chủ chuỗi" chỉ áp cho tài khoản lập SAU
-   * khi luật có hiệu lực. Đã xảy ra thật — một tài khoản của chủ sản phẩm lập
-   * lúc máy chủ còn chạy bản cũ nên ra 'shop', không có mục Quản lý trang và
-   * vĩnh viễn kẹt ở đúng một Fanpage.
-   *
-   * CHỈ nhận tài khoản còn trắng. Tài khoản đã bán hàng thì hộp thư, đơn hàng,
-   * khách hàng đều khoá theo user_id của nó; biến nó thành chủ chuỗi là đẩy
-   * toàn bộ dữ liệu ấy vào một tài khoản mà giao diện chủ chuỗi không có màn
-   * hình nào để xem.
-   */
-  const nguonChuyen = fs.readFileSync(
-    path.join(GOC, "server/services/chuyen-chu-chuoi.ts"), "utf8"
-  );
-  kiem("phân tầng", "không chuyển tài khoản đã có dữ liệu thành chủ chuỗi",
-    /if \(daDung\.length > 0\) \{\s*\n\s*throw new AppError/.test(nguonChuyen) &&
-      /social_accounts[\s\S]{0,400}?conversations[\s\S]{0,400}?orders/.test(nguonChuyen), true);
-  // Vai trò AI đã nhập là công chủ shop ngồi viết, cũng tính là đã dùng.
-  kiem("phân tầng", "vai trò AI đã nhập cũng chặn chuyển",
-    /WHERE user_id = \$1 AND coalesce\(system_prompt, ''\) <> ''/.test(nguonChuyen), true);
-  // Tài khoản trang của chuỗi khác mà chuyển lên là tạo cây lồng nhau.
-  kiem("phân tầng", "không chuyển tài khoản trang của chuỗi khác lên làm chủ chuỗi",
-    /if \(nguoi\.parent_id !== null\) \{/.test(nguonChuyen), true);
-  kiem("phân tầng", "không chuyển quản trị tổng thành chủ chuỗi",
-    /if \(nguoi\.role === "admin"\) \{/.test(nguonChuyen), true);
-  // Chuyển xong mà giữ hồ sơ là để lại rác; giữ phiên cũ là người dùng vẫn
-  // mang vai trò cũ cho tới khi phiên hết hạn.
-  kiem("phân tầng", "chuyển xong thì dọn hồ sơ và cắt phiên cũ",
-    /await zernio\.xoaHoSo\(nguoi\.profile_ref\);/.test(nguonChuyen) &&
-      /DELETE FROM sessions WHERE user_id = \$1/.test(nguonChuyen), true);
-
-  /*
-   * Chủ chuỗi KHÔNG phải một chỗ bán hàng: không hồ sơ nhà cung cấp, không
-   * Trang, không bộ não. Cấp cho họ một bộ đồ không ai dùng nghĩa là để lại
-   * một hồ sơ rác bên nhà cung cấp và một bộ não trống làm họ tưởng phải đi
-   * huấn luyện.
-   */
-  kiem("phân tầng", "chủ chuỗi không được cấp Trang và bộ não",
-    /const laChuChuoi = params\.role === "admin_con";/.test(nguonTk3) &&
-      /if \(!laChuChuoi\) \{\s*\n\s*const trangMoi = await client\.query/.test(nguonTk3), true);
-  kiem("phân tầng", "chủ chuỗi không được cấp hồ sơ nhà cung cấp",
-    /if \(!laChuChuoi\) await ensureProfile\(/.test(nguonTk3), true);
-
-  /*
-   * Chặn ngay trong ensureProfile, không chặn ở từng route gọi tới. Có ba
-   * đường gọi hàm này; chặn ở từng đường thì chỉ cần thêm đường thứ tư mà quên
-   * chặn là chủ chuỗi lại có hồ sơ.
-   */
+  kiem("phân tầng", "tự đăng ký ra tài khoản dùng thường (không truyền vai trò nào)",
+    [/const taiKhoan = await taoTaiKhoan\(\{\s*email: requireString\(req\.body, "email", "email"\),\s*password: requireString\(req\.body, "password", "mật khẩu"\),\s*name: [^\n]+\n\s*\}\);/.test(nguonAuthRoute),
+      /admin_con/.test(nguonAuthRoute)],
+    [true, false]);
+  kiem("phân tầng", "quản trị tạo hộ: chỉ một loại, không nhận vai trò từ trình duyệt",
+    [/const taiKhoan = await taoTaiKhoan\(\{ email, password: matKhauTam, name \}\);/.test(nguonAd0),
+      /req\.body\?\.role|thanh-chu-chuoi|chuyenThanhChuChuoi/.test(nguonAd0),
+      fs.existsSync(path.join(GOC, "server/services/chuyen-chu-chuoi.ts"))],
+    [true, false, false]);
+  // Tài khoản mới có ngay cửa hàng đầu tiên + hồ sơ nền tảng — y như phần dùng thường của quản trị tổng.
   const nguonTkSv = fs.readFileSync(path.join(GOC, "server/services/accounts.ts"), "utf8");
-  kiem("phân tầng", "chặn cấp hồ sơ cho chủ chuỗi ở đúng một chỗ, không đường vòng",
-    /export async function ensureProfile[\s\S]{0,900}?if \(vaiTro\?\.role === "admin_con"\) \{\s*\n\s*throw new AppError/
-      .test(nguonTkSv), true);
-
-  // Giá trị lạ rơi về 'shop'. Đoán sai phải đoán về phía ít quyền.
-  kiem("phân tầng", "quản trị cấp được chủ chuỗi, vai trò lạ rơi về quyền thấp",
-    /const role = req\.body\?\.role === "admin_con" \? "admin_con" : "shop";/.test(nguonAd), true);
-
-  /*
-   * Màn hình Quản trị phải CÓ chỗ chọn loại tài khoản, và phải GỬI LÊN.
-   *
-   * Đã xảy ra thật: máy chủ nhận tham số role, nhưng giao diện không có chỗ
-   * chọn nên không bao giờ gửi — mọi tài khoản tạo từ màn hình này đều ra
-   * 'shop' đứng riêng, kẹt ở đúng một Fanpage. Nhìn màn hình không ai đoán ra
-   * được vì sao, vì màn hình không hề nhắc tới vai trò.
-   *
-   * Máy chủ coi giá trị thiếu là 'shop', nên đây không phải lỗi bảo mật mà là
-   * lỗi lặng lẽ tạo sai loại tài khoản — khó thấy hơn nhiều.
-   */
+  kiem("phân tầng", "mọi tài khoản mới có cửa hàng đầu tiên và hồ sơ nền tảng; không còn chốt chặn theo vai trò",
+    [/\{\s*\n\s*const trangMoi = await client\.query/.test(nguonTk3),
+      /^\s*await ensureProfile\(\{ id, name, email, profileRef: null \}\);/m.test(nguonTk3),
+      /admin_con/.test(nguonTkSv + nguonNoi2)],
+    [true, true, false]);
+  // Tài khoản có từ trước (chủ chuỗi cũ) cũng phải có cửa hàng đầu tiên + hồ sơ thật như tài khoản mới (055 + lần mở
+  // Kết nối kênh đầu tiên cấp hồ sơ) — không thì 4 màn AI không có chỗ ghi, cửa hàng bị coi "dùng chung hộp".
+  const nguonMig055 = fs.readFileSync(path.join(GOC, "server/migrations/055_cua_hang_dau_tien_cho_moi_tai_khoan.sql"), "utf8");
+  kiem("phân tầng", "mọi tài khoản có cửa hàng đầu tiên; mã tạm được cấp hồ sơ thật ở lần mở Kết nối kênh đầu tiên",
+    [/WHERE NOT EXISTS \(SELECT 1 FROM trang t WHERE t\.user_id = u\.id\)/.test(nguonMig055),
+      /if \(!req\.user!\.profileRef\) \{\s*const choCap = await queryOne\("SELECT 1 FROM trang WHERE user_id = \$1 AND profile_ref LIKE 'cho-cap-%'", \[req\.user!\.id\]\);\s*if \(choCap\) await ensureProfile\(req\.user!\);/.test(nguonNoi2)],
+    [true, true]);
+  // Cửa hàng chưa có kênh vẫn là một bộ não: Tổng quan phải có sơ đồ 4 AI y như tài khoản mẫu (18/10/2026).
+  const nguonActive = fs.readFileSync(path.join(GOC, "src/lib/ActivePage.tsx"), "utf8");
+  kiem("phân tầng", "tài khoản chưa nối kênh vẫn có cửa hàng mặc định làm bộ não (Tổng quan có sơ đồ 4 AI)",
+    [/if \(ds\.size === 0 && cuaHangMacDinh\) \{/.test(nguonActive),
+      /t\.kenh\[0\]\?\.id \?\? null\);/.test(nguonActive)],
+    [true, true]);
   const nguonManHinhQT = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
-  kiem("phân tầng", "màn hình Quản trị có chỗ chọn loại tài khoản",
-    /const \[vaiTroMoi, setVaiTroMoi\] = useState<'admin_con' \| 'shop'>\('admin_con'\);/
-      .test(nguonManHinhQT), true);
-  kiem("phân tầng", "tạo tài khoản hộ có gửi kèm vai trò lên máy chủ",
-    /api\.admin\.create\(\{[\s\S]{0,200}?role: vaiTroMoi,/.test(nguonManHinhQT), true);
-
-  // Có nút chuyển cho tài khoản đứng riêng, để không phải vào database sửa tay.
-  kiem("phân tầng", "màn hình quản lý (tầng quản trị tổng) có việc chuyển tài khoản đứng riêng thành chủ chuỗi",
-    /\.\.\.\(laTong && t\.role === 'shop' && t\.parent_id === null \? \[\{ ten: 'Thành chủ chuỗi', onChon: \(\) => thanhChuChuoi\(t\) \}\] : \[\]\),/.test(nguonManHinhQT), true);
-
-  // Kiểu khai ở lớp gọi API bắt buộc phải có role, để không đường nào quên gửi.
   const nguonApiClient = fs.readFileSync(path.join(GOC, "src/lib/api.ts"), "utf8");
-  kiem("phân tầng", "lớp gọi API bắt buộc khai vai trò khi tạo tài khoản hộ",
-    /create: \(payload: \{ email: string; name\?: string; role: 'admin_con' \| 'shop'; matKhau\?: string \}\)/
-      .test(nguonApiClient), true);
-
-  /*
-   * Hai bộ tuyến đường tách hẳn theo vai trò.
-   *
-   * Trộn chung rồi chặn từng đường thì phải có HAI tuyến "*" cùng lúc trong
-   * một <Routes>, mà như vậy là mơ hồ — không có gì bảo đảm tuyến nào thắng.
-   */
+  kiem("phân tầng", "giao diện tạo tài khoản không còn chọn loại; lớp gọi API không gửi vai trò",
+    [/vaiTroMoi|Chủ chuỗi|Thành chủ chuỗi/.test(nguonManHinhQT),
+      /create: \(payload: \{ email: string; name\?: string; matKhau\?: string \}\)/.test(nguonApiClient),
+      /admin_con/.test(nguonApiClient)],
+    [false, true, false]);
+  // MỘT bộ tuyến đường, đúng MỘT tuyến bắt-tất-cả.
   const soBatTatCa = (nguonApp.match(/<Route path="\*"/g) ?? []).length;
-  kiem("phân tầng", "chủ chuỗi có bộ tuyến đường riêng, không hai tuyến bắt-tất-cả chung",
-    /user\?\.role === 'admin_con' \? \(\s*\n\s*<Routes>/.test(nguonApp) && soBatTatCa === 2,
-    true);
-
-  /*
-   * Chủ chuỗi không có Fanpage, hộp thư hay đơn hàng của riêng mình. Bày ra
-   * cho họ một Hộp Thư luôn rỗng chỉ làm họ tưởng hệ thống hỏng. Không xoá màn
-   * hình nào — tài khoản trang vẫn thấy đủ, và chủ chuỗi thấy lại ngay khi mở
-   * một trang.
-   */
+  kiem("phân tầng", "một bộ tuyến đường cho mọi tài khoản, đúng một tuyến bắt-tất-cả",
+    [soBatTatCa, /admin_con/.test(nguonApp)], [1, false]);
   const nguonMenu = fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8");
-  kiem("phân tầng", "chủ chuỗi không thấy màn hình bán hàng trống rỗng",
-    /const group1 = laChuChuoi\s*\n\s*\? \[\]/.test(nguonMenu) &&
-      /const group2 = laChuChuoi\s*\n\s*\? \[\]/.test(nguonMenu), true);
-  // Ô chọn trang nằm trong khối Bộ não AI, chỉ hiện khi có 4 mục AI (chủ chuỗi: group2 rỗng → không có khối).
-  kiem("phân tầng", "chủ chuỗi không thấy bộ chọn Fanpage luôn rỗng",
-    /\{group2\.length > 0 && \(\s*\n\s*<div className="rounded-2xl border border-\[#00e5ff\]\/20[\s\S]{0,600}?<ChonTrangNao \/>/.test(nguonMenu) &&
-      (nguonMenu.match(/<ChonTrangNao \/>/g) ?? []).length === 1, true);
+  // 18/10/2026 (chủ dự án: "nhân bản 100%"): mọi tài khoản thấy ĐỦ menu y hệt tài khoản mẫu, kể cả khi chưa nối kênh.
+  kiem("phân tầng", "menu đủ như tài khoản mẫu: Tổng quan, Kết nối kênh, 4 AI, dữ liệu cửa hàng — không giấu khi chưa có kênh",
+    /const coNao = true;/.test(nguonMenu) &&
+      /<nav className="flex flex-col min-h-0 overflow-y-auto no-scrollbar">\s*\{renderNavGroup\(\[mucTongQuan\]\)\}[\s\S]{0,200}?\{renderNavGroup\(\[mucKetNoi\]\)\}/.test(nguonMenu) &&
+      /\{coNao && \(\s*<>[\s\S]{0,200}?\{renderNavGroup\(nhomNao\)\}/.test(nguonMenu), true);
+  // Chọn trang chỉ ở bảng "Trang bán hàng" của Kết nối kênh (chủ dự án 11/10/2026) — menu không còn ô chọn nào.
+  kiem("phân tầng", "menu không có bộ chọn Fanpage (chọn cửa hàng ở Kết nối kênh)",
+    !/ChonTrangNao/.test(nguonMenu) && !fs.existsSync(path.join(GOC, "src/components/ChonTrangNao.tsx")), true);
 }
 
 // ---------------------------------------------------------------------------
@@ -3503,15 +3403,14 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     timKhap(/res\.json\([^;]{0,400}?\b(apiKey|sessionSecret|password_hash)\s*:/gi), []);
 
   /*
-   * Mỗi đường /trang/:id phải kiểm chủ sở hữu. Đếm bằng nhau, không nhìn mắt:
-   * thêm đường mới mà quên kiểm là chủ chuỗi này với tay sang trang của chuỗi
-   * khác.
+   * Mỗi đường /trang/:id phải kiểm quyền. Đếm bằng nhau, không nhìn mắt: thêm đường mới mà quên kiểm là người này với
+   * tay sang tài khoản người khác. Báo cáo kiểm qua taiKhoanTrongPhamVi; mở tài khoản kiểm "chỉ quản trị tổng".
    */
   const maQuanLy = sachChuThich(
     fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8")
   );
   kiem("đếm nguyên tắc", "mọi đường /trang/:id đều kiểm chủ sở hữu",
-    (maQuanLy.match(/await (trangCuaToi|taiKhoanTrongPhamVi)\(/g) ?? []).length,
+    (maQuanLy.match(/await taiKhoanTrongPhamVi\(|if \(that\.role !== "admin"\) throw new AppError/g) ?? []).length,
     (maQuanLy.match(/"\/trang\/:id[^"]*"/g) ?? []).length);
 }
 
@@ -3738,13 +3637,13 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * PATCH /ads/ad-sets/:id/budget. Chủ shop được bảo làm một việc mà app không
    * cho làm.
    */
-  kiem("quảng cáo", "có đường liệt kê nhóm quảng cáo của một chiến dịch",
-    /"\/campaigns\/:id\/ad-sets"/.test(nguonQC) &&
-      /await ads\.listAdSets\(/.test(nguonQC), true);
-  kiem("quảng cáo", "ngân sách theo nhóm không còn là ngõ cụt",
-    /error\.status === 409/.test(nguonQCUI) &&
-      /await moNhomQuangCao\(campaignId, amount\);/.test(nguonQCUI) &&
-      /api\.ads\.updateAdSetBudget\(/.test(nguonQCUI), true);
+  // 18/10/2026 (B1-b2, phiên kiểm duyệt duyệt): danh sách nhóm cũ gọi GET /v1/ads/ad-sets — KHÔNG có trong tài liệu.
+  // Tạm thời: chiến dịch ABO báo rõ "chưa sửa được trong app", ghi sổ tồn đọng TD-13 (làm khi đọc được dạng thật).
+  kiem("quảng cáo", "ngân sách theo nhóm (ABO): báo rõ chưa sửa được trong app + có sổ tồn đọng TD-13; không gọi đường ngoài tài liệu",
+    [/ngân sách nằm ở tầng nhóm quảng cáo, chưa sửa được trong app/.test(nguonQC),
+      /## TD-13 — Sửa ngân sách chiến dịch ABO/.test(fs.readFileSync(path.join(GOC, "docs/ton-dong.md"), "utf8")),
+      /listAdSets|"\/campaigns\/:id\/ad-sets"/.test(nguonQC)],
+    [true, true, false]);
 }
 
 // ---------------------------------------------------------------------------
@@ -3904,8 +3803,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   // danh sách trang và nhảy sang trang khác.
   const nguonPhien = boChuThichTS(fs.readFileSync(path.join(GOC, "server/auth.ts"), "utf8"));
   const nguonQuanTri = boChuThichTS(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8"));
-  kiem("bảo mật", "phiên mở hộ chết ngay khi người mở mất quyền (bị khoá, hạ vai trò, trang chuyển chủ); quản trị tổng không mở hộ quản trị khác",
-    /s\.mo_boi IS NULL OR EXISTS \([\s\S]{0,120}c\.id = s\.mo_boi AND c\.is_active = TRUE\s*AND \(\(c\.role = 'admin' AND u\.role <> 'admin'\)\s*OR \(c\.role = 'admin_con' AND u\.parent_id = c\.id\)\)/.test(nguonPhien), true);
+  kiem("bảo mật", "phiên mở hộ chết ngay khi người mở mất quyền (bị khoá, hạ vai trò); chỉ quản trị tổng mở hộ, không mở hộ quản trị khác",
+    /s\.mo_boi IS NULL OR EXISTS \([\s\S]{0,120}c\.id = s\.mo_boi AND c\.is_active = TRUE\s*AND c\.role = 'admin' AND u\.role <> 'admin'\)\)/.test(nguonPhien), true);
   kiem("bảo mật", "khoá và cấp lại mật khẩu huỷ cả phiên xem thay",
     (nguonQuanTri.match(/DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/g) ?? []).length, 2);
   kiem("bảo mật", "tự đổi mật khẩu huỷ cả phiên xem thay",
@@ -4662,8 +4561,9 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /if \(env\.isProduction\) \{\s*throw new AppError\(\s*"Hệ thống chưa cấu hình gửi email/.test(nguonOtp), true);
   kiem("xác thực email", "chỉ in mã ra nhật ký khi KHÔNG chạy thật",
     /if \(!env\.email\.smtpUser && !env\.isProduction\) \{[\s\S]{0,200}?mã cho vé/.test(nguonOtp), true);
-  kiem("xác thực email", "trang con: mã về email chủ chuỗi",
-    /if \(!laTenDangNhapNoiBo\(user\.email\)\) return \{ email: user\.email, laChuChuoi: false \};[\s\S]{0,200}?JOIN users t ON t\.parent_id = c\.id/.test(nguonOtp), true);
+  // 18/10/2026: tầng chủ chuỗi đã bỏ — tên đăng nhập nội bộ cũ không có hộp thư, báo rõ chứ không gửi bừa sang ai.
+  kiem("xác thực email", "tài khoản con cũ (@noi-bo.local): báo rõ liên hệ quản trị, không gửi mã sang email người khác",
+    /if \(laTenDangNhapNoiBo\(user\.email\)\) \{\s*throw new AppError\(/.test(nguonOtp) && !/parent_id/.test(nguonOtp), true);
   const nguonEnv = boChuThichTS(fs.readFileSync(path.join(GOC, "server/env.ts"), "utf8"));
   kiem("xác thực email", "mặc định BẬT khi chạy thật", /: nodeEnv === "production",\s*smtpHost/.test(nguonEnv), true);
   /*
@@ -5276,7 +5176,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /media = \[\.\.\.media, \{ url: b\.url, type: "video" \}\];/.test(nguonLichV),
       // Ảnh thay thế chạy trong ngữ cảnh Trang của bài (tiền ảnh ghi đúng trang).
       /if \(!media\.some\(\(m\) => m\.type === "image"\)\) \{\s*try \{\s*const thay = await chayChoTrang\(b\.trang_id, \(\) => anhThayThe\(/.test(nguonLichV),
-      /if \(guard === "publish"\) \{\s*await query\("UPDATE posts SET status = 'draft' WHERE id = \$1", \[b\.id\]\);\s*await publishPost\(b\.user_id, b\.id\);/.test(nguonLichV),
+      // 18/10/2026 (B1-G): lệnh đăng bọc try để một bài lỗi không chặn cả lượt.
+      /if \(guard === "publish"\) \{\s*await query\("UPDATE posts SET status = 'draft' WHERE id = \$1", \[b\.id\]\);\s*try \{\s*await publishPost\(b\.user_id, b\.id\);/.test(nguonLichV),
       /WHERE p\.cho_video_id IS NOT NULL AND p\.status = 'pending_approval'/.test(nguonLichV)], [25, true, true, true, true, true]);
   kiem("video tự động", "lưu lịch: bật video thì phải chọn mô hình làm được và có trần tiền tháng",
     [/if \(!sach\.video\.model\) throw new AppError/.test(nguonRtV), /const lyDoV = lyDoKhongHop\(mv,/.test(nguonRtV),
@@ -5340,11 +5241,12 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       // Không có công thức bậc giá riêng nào trong tổng quan.
       /\b6\b.*\b3\b.*\b1\b.*USD/.test(tq.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""))],
     [true, true, true, false]);
-  kiem("tiền theo trang", "một đường tổng quan / sao kê trang cho cả hai tầng; admin con chỉ trong chuỗi mình (ngoài chuỗi → 404)",
-    [/vaiTro === "admin" \? \{ loai: "tong" \} : \{ loai: "chuoi", chaId: req\.user!\.id \}/.test(ql),
-      /WHERE t\.id = \$1 AND \(\$2::bigint IS NULL OR u\.id = \$2 OR u\.parent_id = \$2\)/.test(ql),
+  // 18/10/2026: chỉ quản trị tổng xem tổng quan / sao kê cửa hàng (tầng chủ chuỗi đã bỏ); không có cửa hàng → 404.
+  kiem("tiền theo trang", "tổng quan / sao kê cửa hàng chỉ quản trị tổng; cửa hàng không có → 404",
+    [/data: await layTongQuan\(\{ loai: "tong" \}, req\.user!\.id, ky\)/.test(ql) && /if \(req\.user!\.role !== "admin"\) throw new AppError\("Phần này dành cho quản trị", 403\);/.test(ql),
+      /if \(user\.role !== "admin"\) throw new AppError\("Phần này dành cho quản trị", 403\);/.test(ql),
       // MỘT hàm kiểm phạm vi, MỌI đường báo cáo trang đều gọi nó.
-      /if \(!thuoc\) throw new AppError\("Không tìm thấy trang này", 404\);\s*return trangId;/.test(ql) &&
+      /if \(!thuoc\) throw new AppError\("Không tìm thấy cửa hàng này", 404\);\s*return trangId;/.test(ql) &&
         // n/n: MỌI chỗ đọc mã trang từ yêu cầu đều đi qua chốt (trước đây đếm cứng "3" — thêm route đúng chuẩn cũng báo hỏng).
         (ql.match(/const trangId = await trangTrongPhamVi\(req\.user!, req\.(query|body)\??\.trangId\);/g) ?? []).length ===
           (ql.match(/req\.(query|body)\??\.trangId/g) ?? []).length],
@@ -5368,12 +5270,12 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("tiền theo trang", "đơn hàng ghi trang + kênh NGAY LÚC TẠO (có hội thoại → kênh hội thoại; tạo tay ≥2 trang → bắt buộc chọn), trang phải của đúng tài khoản",
     [/kenhId = k\.rows\[0\]\?\.social_account_id \?\? null;\s*trangId = k\.rows\[0\]\?\.trang_id \?\? null;/.test(od),
       /\(SELECT id FROM trang WHERE id = \$16 AND user_id = \$1\), \$17, \$18, \$19\)/.test(od),
-      /throw new AppError\("Tài khoản có nhiều trang — chọn trang \(kênh\) trước khi tạo đơn\.", 400\);/.test(odr),
+      /throw new AppError\("Tài khoản có nhiều cửa hàng — chọn cửa hàng \(kênh\) trước khi tạo đơn\.", 400\);/.test(odr),
       fs.existsSync(path.join(GOC, "server/migrations/041_don_va_kenh_theo_trang.sql"))],
     [true, true, true, true]);
-  kiem("tiền theo trang", "sổ kênh theo ngày UTC: ghi trạng thái đầu ngày, ghi ngay trước khi đổi Fanpage; tiền kênh chia theo số ngày ở từng trang",
+  kiem("tiền theo trang", "sổ kênh theo ngày UTC: ghi trạng thái đầu ngày, ghi ngay trước khi chuyển kênh sang cửa hàng khác; tiền kênh chia theo số ngày ở từng cửa hàng",
     [/ON CONFLICT \(ngay, account_id\) DO NOTHING/.test(trangTs),
-      /await ghiKenhTheoNgay\(\);\s*const trangMoi = await zernio\.doiTrangDangGan\(account\.id, pageId\);/.test(con),
+      /await ghiKenhTheoNgay\(\);\s*if \(kenh\.profile_ref !== dich\.profile_ref\) await zernio\.chuyenKenhSangHoSo/.test(con),
       /await ghiKenhTheoNgay\(\)\.catch\(/.test(wk),
       /return tong > 0 \? \(ds\.find\(\(x\) => x\.trangId === trangId\)\?\.ngay \?\? 0\) \/ tong : 0;/.test(tq)],
     [true, true, true, true]);
@@ -5594,7 +5496,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       return i > 0 && ghi > i && ghi < traLoi;
     };
     kiem("sổ thay đổi", "đủ 7 chỗ đổi quảng cáo đều ghi sổ SAU khi API thành công, trước khi trả lời",
-      ["ads.setCampaignStatus(", "ads.updateCampaignBudget(", "ads.updateAdSetBudget(", "ads.duplicateCampaign(", "ads.boostPost(", "ads.createAudience(", "ads.updateAudience("].map(sauGoi),
+      ["ads.doiTrangThaiChienDich(", "ads.updateCampaignBudget(", "ads.updateAdSetBudget(", "ads.nhanBanChienDich(", "ads.boostPost(", "ads.createAudience(", "ads.updateAudience("].map(sauGoi),
       [true, true, true, true, true, true, true]);
     kiem("sổ thay đổi", "hệ thống tự ngắt AI ghi nguồn 'hệ thống' trong cùng giao dịch với lần ghi",
       /await transaction\(async \(c\) => \{\s+await coNguon\(c, "he_thong"\);\s+await c\.query\(\s+`UPDATE social_accounts\s+SET ai_paused_until = \$2/.test(gr), true);
@@ -5756,19 +5658,23 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     const menu = doc("src/components/Sidebar.tsx");
     const app = doc("src/App.tsx");
     const ap = doc("src/lib/ActivePage.tsx");
-    const nhom2 = /const group2 = laChuChuoi\s*\n\s*\? \[\]\s*\n\s*: \[([\s\S]*?)\];/.exec(menu)?.[1] ?? "";
-    kiem("bộ não AI", "khối não trên menu: đúng 4 mục cố định theo thứ tự, mục 4 là AI Điều Hành; ô chọn trang đứng đầu khối",
-      [[...nhom2.matchAll(/name: '([^']+)'/g)].map((m) => m[1]),
-        /Bộ não AI của trang\s*<\/div>\s*<ChonTrangNao \/>\s*<div style=\{\{ height: '10px' \}\}><\/div>\s*\{renderNavGroup\(group2\)\}/.test(menu)],
-      [["AI Viết - Đăng Bài", "AI Quảng Cáo", "AI Bán Hàng", "AI Điều Hành"], true]);
+    // 4 AI cố định: MỘT nguồn src/lib/bon-ai.ts (thứ tự, tên, đường, màu); menu vẽ thẳng từ nguồn đó.
+    const bonAi = doc("src/lib/bon-ai.ts");
+    kiem("bộ não AI", "khối não trên menu: đúng 4 mục cố định theo thứ tự, mục 4 là AI Điều hành; menu vẽ từ một nguồn",
+      [[...bonAi.matchAll(/\{ so: \d, ma: '[a-z]+', khau: '[a-z_]+', ten: '([^']+)'/g)].map((m) => m[1]),
+        /const nhomNao = coNao\s*\? BON_AI\.map\(/.test(menu)],
+      [["AI Nội dung", "AI Quảng cáo", "AI Bán hàng", "AI Điều hành"], true]);
     kiem("bộ não AI", "cả 4 mục AI bắt chọn MỘT trang khi đang 'Tất cả trang' (nhiều trang); trang cũ chuyển hướng sang AI Điều Hành",
-      [["/content", "/auto-scripts", "/ads", "/dieu-hanh"].filter((d) => new RegExp(`path="${d}" element=\\{<CanTrangNao ten="[^"]+"><\\w+ \\/><\\/CanTrangNao>\\}`).test(app)).length,
-        /path="\/analytics" element=\{<Navigate to="\/dieu-hanh" replace \/>\}/.test(app),
+      // Mỗi AI một hàm trang trong pages/KhoiNao.tsx, bọc CanTrangNao; đường cũ chuyển sang đường mới giữ tham số.
+      [(doc("src/pages/KhoiNao.tsx").match(/<CanTrangNao ten="AI [^"]+">\s*<KhuonAi/g) ?? []).length
+        + ["/noi-dung", "/quang-cao", "/ban-hang", "/dieu-hanh"].filter((d) => !new RegExp(`path="${d}" element=\\{<\\w+Ai \\/>\\}`).test(app)).length * 10,
+        /path="\/analytics" element=\{<ChuyenHuong den="\/dieu-hanh" \/>\}/.test(app),
         /canChonTrang: trangs\.length > 1 && !trangDangChon,/.test(ap)],
       [4, true, true]);
     kiem("bộ não AI", "ô chọn liệt kê theo TRANG; chọn trang lưu kênh chính của trang làm đại diện",
       [/const khoa = k\.trang_id != null \? `t\$\{k\.trang_id\}` : `k\$\{k\.id\}`;/.test(ap),
-        /setActiveAccountId\(kenhMacDinh\(ketNoi\)\[0\] \?\? ketNoi\[0\]\?\.id \?\? t\.kenh\[0\]\.id\);/.test(ap)],
+        // Cửa hàng chưa có kênh (18/10/2026): không có kênh đại diện → null, máy chủ dùng cửa hàng mặc định.
+        /setActiveAccountId\(kenhMacDinh\(ketNoi\)\[0\] \?\? ketNoi\[0\]\?\.id \?\? t\.kenh\[0\]\?\.id \?\? null\);/.test(ap)],
       [true, true]);
     kiem("bộ não AI", "không đăng lan sang kênh của trang khác; hộp thư theo trang đang chọn",
       [/const kenhKetNoi = \(trangDangChon\?\.kenh \?\? accounts\)\.filter\(\(a\) => a\.connected\);\s*\/\*\* [^\n]*\*\/\s*const targetAccountIds = kenhKetNoi\.map\(\(a\) => a\.id\);/.test(doc("src/pages/Content.tsx")),
@@ -5789,6 +5695,371 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /loi: "Chưa đọc được số quảng cáo"/.test(tq),
       /loi: e instanceof Error \? e\.message/.test(tq)],
     [true, true, false]);
+}
+
+// ---------------------------------------------------------------------------
+// B1-G (18/10/2026, duyệt cùng phiên kiểm duyệt): bài không có kênh đích thì KHÔNG đăng tràn ra mọi kênh của tài khoản;
+// lịch tự đăng chỉ đăng vào kênh của ĐÚNG cửa hàng sở hữu lịch. Kiểm HÀNH VI bằng hàm thuần, không chỉ soi chữ.
+// ---------------------------------------------------------------------------
+{
+  const bRong = cauLenhKenhBai(5, []);
+  const bNull = cauLenhKenhBai(5, null);
+  const bCo = cauLenhKenhBai(5, ["k1", "k2"]);
+  kiem("đăng đúng kênh", "bài rỗng kênh → báo lỗi, không có câu lệnh nào", [bRong, bNull], [{ loi: LOI_BAI_KHONG_KENH }, { loi: LOI_BAI_KHONG_KENH }]);
+  kiem("đăng đúng kênh", "bài có kênh → chỉ đúng các kênh đó, của đúng tài khoản, còn nối, bỏ quảng cáo",
+    "sql" in bCo && [/WHERE user_id = \$1\b/.test(bCo.sql), /id = ANY\(\$2::text\[\]\)/.test(bCo.sql), /connected = TRUE/.test(bCo.sql),
+      /platform <> 'metaads'/.test(bCo.sql), JSON.stringify(bCo.thamSo)],
+    [true, true, true, true, JSON.stringify([5, ["k1", "k2"]])]);
+  const lNull = cauLenhKenhLich(5, null, []);
+  const lRong = cauLenhKenhLich(5, 47, []);
+  const lCo = cauLenhKenhLich(5, 47, ["k9"]);
+  kiem("đăng đúng kênh", "lịch không xác định được cửa hàng → không đăng", lNull, { loi: LOI_LICH_KHONG_CUA_HANG });
+  kiem("đăng đúng kênh", "lịch rỗng kênh → mọi kênh CỦA CỬA HÀNG ĐÓ (không phải cả tài khoản)",
+    "sql" in lRong && [/trang_id = \$2/.test(lRong.sql), /ANY/.test(lRong.sql), JSON.stringify(lRong.thamSo)],
+    [true, false, JSON.stringify([5, 47])]);
+  kiem("đăng đúng kênh", "lịch có danh sách kênh → vẫn kẹp trong cửa hàng (kênh đã chuyển cửa hàng bị loại)",
+    "sql" in lCo && [/trang_id = \$2/.test(lCo.sql), /id = ANY\(\$3::text\[\]\)/.test(lCo.sql), JSON.stringify(lCo.thamSo)],
+    [true, true, JSON.stringify([5, 47, ["k9"]])]);
+  const pub = fs.readFileSync(path.join(GOC, "server/services/publish.ts"), "utf8");
+  const ap = fs.readFileSync(path.join(GOC, "server/services/autopilot.ts"), "utf8");
+  kiem("đăng đúng kênh", "đăng bài và lịch tự đăng dùng đúng hàm chọn kênh; không còn nhánh 'mọi kênh của tài khoản'",
+    [/const lenhKenh = cauLenhKenhBai\(userId, post\.target_account_ids\);/.test(pub),
+      /const lenhKenh = cauLenhKenhLich\(userId, trangId, cau\.accountIds\);/.test(ap),
+      /WHERE user_id = \$1 AND connected = TRUE AND platform <> 'metaads'`/.test(pub + ap)],
+    [true, true, false]);
+  kiem("đăng đúng kênh", "câu lệnh chọn kênh được DÙNG thật; lỗi chọn kênh thì dừng, không viết/đăng",
+    [/if \("loi" in lenhKenh\) \{\s*await ghiBo\(lenhKenh\.loi\);\s*return false;\s*\}\s*const kenh = await query<\{ id: string; platform: string \}>\(lenhKenh\.sql, lenhKenh\.thamSo\);/.test(ap),
+      /const targets = await query<\{ id: string; platform: string \}>\(lenhKenh\.sql, lenhKenh\.thamSo\);/.test(pub)],
+    [true, true]);
+  kiem("đăng đúng kênh", "mọi kênh đã chọn đều ngắt → bài chuyển 'failed' kèm lý do (hiện ở Cần xử lý, không nằm im ở Bản nháp)",
+    /if \(targets\.rows\.length === 0\) \{[\s\S]{0,700}?UPDATE posts SET status = 'failed', last_error = \$2[\s\S]{0,120}?throw new AppError\(lyDo, 409\);/.test(pub), true);
+  kiem("đăng đúng kênh", "video xong lỗi mạng (bài còn 'publishing') → Telegram báo CHƯA RÕ, dặn không đăng lại; không báo 'không đăng được'",
+    /const sau = await queryOne<\{ status: string \}>\("SELECT status FROM posts WHERE id = \$1", \[b\.id\]\);[\s\S]{0,200}?sau\?\.status === "publishing"\s*\?\s*`🤖 <b>Chưa rõ bài tự động đã lên hay chưa<\/b>/.test(ap), true);
+  kiem("đăng đúng kênh", "video xong: một bài đăng lỗi không chặn cả lượt; báo Telegram một lần",
+    /try \{\s*await publishPost\(b\.user_id, b\.id\);\s*\} catch \(error\) \{[\s\S]{0,1000}?baoTelegram\([\s\S]{0,700}?continue;\s*\}/.test(ap), true);
+  kiem("công cụ kiểm tra", "kiểm tra ngược: lọc TEN/TEP không khớp lỗ nào thì báo lỗi, không báo xanh giả",
+    /if \(\(TEN\.length > 0 \|\| TEP\.length > 0\) && CHON\.length === 0\) \{[\s\S]{0,250}?process\.exit\(1\);/.test(fs.readFileSync(path.join(GOC, "scripts/kiem-tra-nguoc.mts"), "utf8")), true);
+  kiem("đăng đúng kênh", "bài rỗng kênh chuyển 'failed' kèm lý do TRƯỚC khi báo lỗi (báo một lần, không bị thử lại)",
+    /if \("loi" in lenhKenh\) \{\s*await query\(`UPDATE posts SET status = 'failed', last_error = \$2, updated_at = now\(\) WHERE id = \$1`[\s\S]{0,80}?throw new AppError\(lenhKenh\.loi, 409\);/.test(pub), true);
+}
+
+// ---------------------------------------------------------------------------
+// B1-a (chủ dự án chốt 18/10/2026): "Chờ tôi duyệt" → bấm đăng ngay thì bài vào mục Chờ duyệt (nút "Gửi chờ duyệt"),
+// không gửi lên nền tảng; HẸN GIỜ vẫn đăng đúng giờ. Video xong: bài hẹn giờ → tự đăng; bài đăng ngay → theo chế độ.
+// ---------------------------------------------------------------------------
+{
+  const sb = fs.readFileSync(path.join(GOC, "src/pages/Content.tsx"), "utf8");
+  const apA = fs.readFileSync(path.join(GOC, "server/services/autopilot.ts"), "utf8");
+  kiem("chờ duyệt", "khung soạn: chế độ 'Chờ tôi duyệt' + đăng ngay → không gọi publish; hẹn giờ vẫn gọi; nút ghi 'Gửi chờ duyệt'",
+    [/const choDuyet = dang && !scheduledFor && postMode === 'manual';/.test(sb),
+      /\} else if \(dang && !choDuyet\) \{/.test(sb),
+      /composerMode === 'schedule' \? 'Hẹn giờ đăng' : postMode === 'manual' \? 'Gửi chờ duyệt' : 'Đăng bài'/.test(sb),
+      /handleAcceptAiOption/.test(sb)],
+    [true, true, true, false]);
+  kiem("chờ duyệt", "video theo bài xong: hẹn giờ → tự đăng; đăng ngay → theo chế độ của cửa hàng (autoPublish), không gán cứng",
+    [/const guardVideo = bai\.scheduled_for \|\| cheDo\?\.settings\?\.autoPublish === true \? "publish" : "approve";/.test(apA),
+      /SELECT settings FROM ai_configs WHERE trang_id = \$1 AND kind = 'content'",\s*\[p\.trangId\]/.test(apA),
+      /cho_video_guard = 'publish', updated_at/.test(apA)],
+    [true, true, false]);
+}
+
+// ---------------------------------------------------------------------------
+// B1-b (18/10/2026): "AI phân tích" và "Xem chi tiết" chiến dịch phải HIỆN kết quả; số chiến dịch gửi đúng tham số tài
+// liệu (fromDate/toDate); lịch chạy quảng cáo hiện ngày thật từ hôm nay, không ghi cứng "15/08".
+// ---------------------------------------------------------------------------
+{
+  // 23:30 ngày 31/10 giờ UTC = 06:30 ngày 01/11 giờ Việt Nam.
+  const luc = new Date("2026-10-31T23:30:00Z");
+  kiem("quảng cáo", "khoảng ngày theo kỳ tính theo giờ Việt Nam, gồm cả hai đầu",
+    [ngayVN(luc), khoangTheoKy("last_7d", luc), khoangTheoKy("last_30d", luc), khoangTheoKy("this_month", luc), khoangTheoKy("la", luc)],
+    ["2026-11-01", { fromDate: "2026-10-26", toDate: "2026-11-01" }, { fromDate: "2026-10-03", toDate: "2026-11-01" },
+      { fromDate: "2026-11-01", toDate: "2026-11-01" }, { fromDate: "2026-10-26", toDate: "2026-11-01" }]);
+  kiem("quảng cáo", "lịch chạy: từ hôm nay, đủ số ngày (sang tháng / sang năm đúng)",
+    [lichChay(5, luc), lichChay(1, luc), lichChay(62, new Date("2026-12-20T03:00:00Z"))],
+    [{ tu: "2026-11-01", den: "2026-11-05" }, { tu: "2026-11-01", den: "2026-11-01" }, { tu: "2026-12-20", den: "2027-02-19" }]);
+  const ad = fs.readFileSync(path.join(GOC, "src/pages/Ads.tsx"), "utf8");
+  const adSv = fs.readFileSync(path.join(GOC, "server/services/ads.ts"), "utf8");
+  const adRt = fs.readFileSync(path.join(GOC, "server/routes/ads.ts"), "utf8");
+  kiem("quảng cáo", "kết quả AI phân tích được VẼ ra (đủ đang chạy / lỗi / chưa có chiến dịch / có kết luận)",
+    [/\{\(dangPhanTich \|\| loiPhanTich \|\| aiInsight\) && \(/.test(ad), /aiInsight\.actions\.map/.test(ad),
+      /aiInsight && !aiInsight\.hasData/.test(ad), /Lỗi: \{loiPhanTich\}/.test(ad)],
+    [true, true, true, true]);
+  kiem("quảng cáo", "Xem chi tiết chiến dịch được VẼ ra, theo đúng kỳ đang chọn; có báo 'đang đồng bộ'",
+    [/<ChiTietChienDich du=\{campaignDetail\}/.test(ad), /api\.ads\.campaignAnalytics\(id, ky\)/.test(ad), /du\.backfillPending === true/.test(ad)],
+    [true, true, true]);
+  kiem("quảng cáo", "số chiến dịch gửi fromDate/toDate theo tài liệu; không còn accountId / datePreset",
+    [/query: \{ fromDate: params\.fromDate, toDate: params\.toDate \}/.test(adSv),
+      // Chỉ trong hàm số liệu chiến dịch (/ads/insights thì tài liệu CÓ datePreset — dòng 31876).
+      /accountId|datePreset/.test(/export async function getCampaignAnalytics[\s\S]*?\n\}/.exec(adSv)?.[0].replace(/\/\*[\s\S]*?\*\//g, "") ?? "accountId"),
+      /\.\.\.khoangTheoKy\(typeof req\.query\.range === "string" \? req\.query\.range : "last_7d"\)/.test(adRt)],
+    [true, false, true]);
+  kiem("quảng cáo", "lịch chạy hiện ngày thật, không ghi cứng 15/08", [/15\/08/.test(ad), (ad.match(/ngayNgan\(lichChay\(duration\)\.tu\)/g) ?? []).length], [false, 2]);
+}
+
+// ---------------------------------------------------------------------------
+// B1-c (18/10/2026): khung chi tiết đơn không sập (items/timeline dựng từ đơn thật); menu ⋯ làm đúng việc ghi trên nhãn;
+// nhãn "AI đã tự động điền" chỉ khi AI thật sự điền.
+// ---------------------------------------------------------------------------
+{
+  const od = fs.readFileSync(path.join(GOC, "src/pages/Orders.tsx"), "utf8");
+  const ib = fs.readFileSync(path.join(GOC, "src/pages/Inbox.tsx"), "utf8");
+  kiem("đơn hàng", "khung chi tiết: items và timeline có nguồn trong DisplayOrder, dựng từ đơn thật; không bịa giờ trạng thái",
+    [/\bitems: \[\{\s*name: order\.product,\s*qty: order\.quantity,/.test(od),
+      /\.\.\.\(order\.telegram_sent_at \? \[\{ text: 'Đã báo đơn qua Telegram'/.test(od),
+      /\{ text: `Trạng thái hiện tại: \$\{STATUS_TO_LABEL\[order\.status\]\}`, time: '' \}/.test(od),
+      /items: \{ name: string; qty: number; price: string; total: string \}\[\];/.test(od)],
+    [true, true, true, true]);
+  kiem("đơn hàng", "menu ⋯: Mở đoạn chat / Đổi trạng thái / Hủy đơn đều làm việc thật; huỷ hỏi lại bằng hộp của app",
+    [/setOpenDropdownId\(null\); moDoanChat\(order\); \}/.test(od), /setOpenDropdownId\(null\); setSelectedOrder\(order\); \}\}\s*>\s*<span[^>]*>change_circle/.test(od),
+      /setOpenDropdownId\(null\); void huyDon\(order\); \}/.test(od),
+      /const huyDon = async[\s\S]{0,700}?await hoiXacNhan\([\s\S]{0,500}?await handleChangeStatus\(order, 'Đã hủy'\);/.test(od),
+      /onClick=\{\(e\) => \{ e\.stopPropagation\(\); setOpenDropdownId\(null\); \}\}/.test(od)],
+    [true, true, true, true, false]);
+  kiem("đơn hàng", "chân khung chi tiết: 'Đã hủy' cũng đi qua hộp xác nhận; ngày hiện dạng 18/10",
+    [/onClick=\{\(\) => \(label === 'Đã hủy' \? void huyDon\(selectedOrder\) : handleChangeStatus\(selectedOrder, label\)\)\}/.test(od),
+      /return `\$\{hai\(d\.getDate\(\)\)\}\/\$\{hai\(d\.getMonth\(\) \+ 1\)\}/.test(od)],
+    [true, true]);
+  kiem("đơn hàng", "ngày danh sách + dòng thời gian dùng chung một hàm dd/MM; nút chat trong khung khoá khi không có hội thoại; câu 'chưa có giá' theo người chốt; hộp huỷ có nút 'Giữ đơn'",
+    [/date: ngayThang\(order\.created_at\),/.test(od), /toLocaleDateString\('vi-VN', \{ day: '2-digit', month: '2-digit' \}\)/.test(od),
+      /disabled=\{!selectedOrder\.conversationId\}/.test(od),
+      /selectedOrder\.raw\.closed_by === 'ai'\s*\?\s*'Chưa có giá — AI không tìm thấy/.test(od), /nutHuy: 'Giữ đơn',/.test(od),
+      /\(order as any\)\.conversation_id/.test(od)],
+    [true, false, true, true, true, false]);
+  kiem("đơn hàng", "Hộp thư: nhãn 'AI đã tự động điền' chỉ khi AI thu được ít nhất một trường",
+    [/setDonTuAi\(\[info\?\.name, info\?\.phone, info\?\.address, info\?\.product\]\.some\(\(v\) => !!v && v !== 'Chưa có'\)\);/.test(ib),
+      /\{donTuAi \? 'AI đã tự động điền thông tin' : 'Điền thông tin đơn'\}/.test(ib)],
+    [true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// B1-b (phiên kiểm duyệt bắt được 18/10/2026): danh sách chiến dịch đọc THEO TÀI LIỆU "## AdCampaign" (27312). Mẫu dưới
+// đây dựng theo tài liệu — KHÔNG theo mã (bài học: mẫu dựng theo mã đang sai thì lỗi không lộ ra).
+// ---------------------------------------------------------------------------
+{
+  const mauTaiLieu = {
+    platformCampaignId: "120210000000000001", platform: "facebook", campaignName: "Kem dưỡng tay T10", status: "active",
+    budget: { amount: 150000, type: "daily" }, campaignBudget: null, budgetLevel: "adset", currency: "VND",
+    metrics: { spend: 420000, impressions: 15000, reach: 9100, clicks: 260, conversions: 4, actions: { comment: 12, link_click: 200 } },
+    platformAdAccountId: "act_1", accountId: "acc", profileId: "pro", earliestAd: "2026-10-10T02:00:00Z", latestAd: "2026-10-12T02:00:00Z",
+  };
+  kiem("quảng cáo", "đọc chiến dịch theo tài liệu: mã = platformCampaignId, tên = campaignName, ngân sách, đã chi, tiếp cận, bình luận, chuyển đổi",
+    docChienDich(mauTaiLieu),
+    { id: "120210000000000001", ten: "Kem dưỡng tay T10", nenTang: "facebook", trangThai: "active", nganSach: { soTien: 150000, loai: "daily" },
+      tienTe: "VND", daChi: 420000, tiepCan: 9100, binhLuan: 12, chuyenDoi: 4, quangCaoDauTien: "2026-10-10T02:00:00Z" });
+  kiem("quảng cáo", "CBO: ngân sách lấy campaignBudget trước; thiếu trường thì null (không bịa); dạng cũ id/name KHÔNG được đọc",
+    [docChienDich({ ...mauTaiLieu, campaignBudget: { amount: 2000000, type: "lifetime" } }).nganSach,
+      docChienDich({ id: "x", name: "y", dailyBudget: 5, spend: 9, status: "ACTIVE" })],
+    [{ soTien: 2000000, loai: "lifetime" },
+      { id: null, ten: null, nenTang: null, trangThai: "active", nganSach: null, tienTe: null, daChi: null, tiepCan: null, binhLuan: null, chuyenDoi: null, quangCaoDauTien: null }]);
+  kiem("quảng cáo", "đủ 7 trạng thái của tài liệu có nhãn riêng; trạng thái lạ không bị gộp vào 'Đã kết thúc'",
+    ["active", "pending_review", "paused", "error", "completed", "cancelled", "rejected", "archived_x"].map(nhanTrangThaiChienDich),
+    ["Đang chạy", "Chờ duyệt", "Tạm dừng", "Lỗi", "Đã kết thúc", "Đã huỷ", "Bị từ chối", "Khác (archived_x)"]);
+  const adB = fs.readFileSync(path.join(GOC, "src/pages/Ads.tsx"), "utf8");
+  kiem("quảng cáo", "màn Quảng cáo đọc chiến dịch qua docChienDich; không có mã thì không hiện thao tác",
+    [/const c = docChienDich\(raw\);/.test(adB), /\{camp\.coMa && \(<>/.test(adB), /String\(c\.id\)|c\.dailyBudget|c\.startTime/.test(adB)],
+    [true, true, false]);
+}
+
+// ---------------------------------------------------------------------------
+// B1-e (18/10/2026): chưa có đường hỗ trợ thì "Trợ giúp" hiện "Sắp có" (không bấm, không nhận phím), không dẫn vòng
+// sang trang Gói dịch vụ; dòng "Liên hệ báo giá" ở Gói dịch vụ cũng vậy. Một nguồn dùng chung src/lib/ho-tro.ts.
+// ---------------------------------------------------------------------------
+{
+  const ht = fs.readFileSync(path.join(GOC, "src/lib/ho-tro.ts"), "utf8");
+  const sb = fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8");
+  const pr = fs.readFileSync(path.join(GOC, "src/pages/Pricing.tsx"), "utf8");
+  kiem("trợ giúp", "chưa cài đường hỗ trợ → null, không mặc định về trang nào",
+    [/export const SUPPORT_URL: string \| null = tho \|\| null;/.test(ht), /\|\| '\/pricing'/.test(ht + sb + pr)], [true, false]);
+  kiem("trợ giúp", "mục 'Trợ giúp' khi chưa có: mờ + 'Sắp có', không phải nút / liên kết, không tabIndex",
+    [/\{SUPPORT_URL \? \(\s*<a/.test(sb), /aria-disabled="true"[\s\S]{0,700}?Sắp có/.test(sb),
+      /aria-disabled="true"[\s\S]{0,300}?tabIndex/.test(sb)],
+    [true, true, false]);
+  kiem("trợ giúp", "Gói dịch vụ: chưa có đường hỗ trợ thì ghi 'sắp có', không có liên kết",
+    /\{SUPPORT_URL \? <a href=\{SUPPORT_URL\}[\s\S]{0,250}? : <span>Kênh liên hệ báo giá riêng sắp có\.<\/span>\}/.test(pr), true);
+}
+
+// ---------------------------------------------------------------------------
+// B1-d (18/10/2026, duyệt cùng phiên kiểm duyệt): xoá tài khoản dọn hồ sơ của MỌI cửa hàng bên nhà cung cấp, không đụng
+// hồ sơ dùng chung; thứ tự khoá → chốt sổ → ngắt kênh → kiểm lại → xoá hồ sơ → xoá tài khoản; lỗi thì dừng. Kiểm HÀNH VI
+// bằng hàm giả ghi lại từng lệnh.
+// ---------------------------------------------------------------------------
+{
+  kiem("xoá tài khoản", "chọn hồ sơ: gộp trùng, bỏ mã tạm, loại hồ sơ dùng chung (kèm lý do)",
+    chonHoSo(
+      [{ nguon: "hồ sơ mặc định", id: "P1" }, { nguon: 'cửa hàng "A"', id: "P1" }, { nguon: 'cửa hàng "B"', id: "P2" },
+        { nguon: 'cửa hàng "C"', id: "cho-cap-9" }, { nguon: "kênh đã nối", id: "P3" }],
+      new Map([["P3", "khac@x.vn"]])
+    ),
+    { xoa: [{ id: "P1", nguon: ["hồ sơ mặc định", 'cửa hàng "A"'] }, { id: "P2", nguon: ['cửa hàng "B"'] }],
+      boQua: [{ id: "P3", lyDo: "đang dùng chung với tài khoản khac@x.vn — không xoá" }] });
+
+  const taoGia = (o: { conSot?: string; ngatLoi?: number } = {}) => {
+    const ghi: string[] = [];
+    const kenh: Record<string, KenhNcc[]> = {
+      P1: [{ id: "k1", platform: "facebook", ten: "FB", dangNoi: true }],
+      P2: [{ id: "k2", platform: "tiktok", ten: "TT", dangNoi: false }],
+    };
+    const daNgat = new Set<string>();
+    const d: PhuThuocXoa = {
+      async docHoSoCuaToi() { ghi.push("doc"); return [{ nguon: "mặc định", id: "P1" }, { nguon: "cửa hàng", id: "P2" }]; },
+      async docHoSoDungChung() { return new Map(); },
+      async lietKeKenh(id) { ghi.push(`liet:${id}`); return (kenh[id] ?? []).filter((k) => !daNgat.has(k.id) || o.conSot === id); },
+      async khoaTaiKhoan() { ghi.push("khoa"); },
+      async chotSoKenhNgay() { ghi.push("so"); },
+      async ngatKenh(id) {
+        ghi.push(`ngat:${id}`);
+        if (o.ngatLoi && id === "k2") {
+          // 404 = kênh thật sự đã không còn bên nhà cung cấp → lần liệt kê sau cũng không thấy nó.
+          if (o.ngatLoi === 404) daNgat.add(id);
+          throw Object.assign(new Error("lỗi " + o.ngatLoi), { status: o.ngatLoi });
+        }
+        daNgat.add(id);
+      },
+      async xoaHoSo(id) { ghi.push(`xoaHS:${id}`); },
+      async xoaTaiKhoan() { ghi.push("xoaTK"); },
+      la404: (e) => (e as { status?: number }).status === 404,
+    };
+    return { d, ghi };
+  };
+  {
+    const { d, ghi } = taoGia();
+    const kq = await thucHienXoa(7, d);
+    kiem("xoá tài khoản", "thứ tự đủ: khoá → chốt sổ → (ngắt kênh → liệt kê lại → xoá hồ sơ) từng hồ sơ → xoá tài khoản CUỐI CÙNG",
+      [kq.xong, ghi.join(" ")],
+      [true, "khoa so doc liet:P1 liet:P2 ngat:k1 liet:P1 xoaHS:P1 ngat:k2 liet:P2 xoaHS:P2 xoaTK"]);
+  }
+  {
+    const { d, ghi } = taoGia({ conSot: "P2" });
+    const kq = await thucHienXoa(7, d);
+    kiem("xoá tài khoản", "liệt kê lại còn sót kênh → KHÔNG xoá hồ sơ đó, KHÔNG xoá tài khoản; báo 'bấm xoá lại sau ít phút'",
+      [kq.xong, ghi.includes("xoaHS:P2"), ghi.includes("xoaTK"), "loi" in kq && /bấm xoá lại sau ít phút/.test(kq.loi)],
+      [false, false, false, true]);
+  }
+  {
+    const { d, ghi } = taoGia({ ngatLoi: 500 });
+    const kq = await thucHienXoa(7, d);
+    kiem("xoá tài khoản", "lỗi khác 404 khi ngắt kênh → dừng, không xoá tài khoản (không nuốt chung mọi lỗi)",
+      [kq.xong, ghi.includes("xoaTK"), ghi.includes("xoaHS:P2"), "loi" in kq && /lỗi 500/.test(kq.loi) && /ngắt kênh tiktok/.test(kq.conLai.join(" "))],
+      [false, false, false, true]);
+  }
+  {
+    const { d, ghi } = taoGia({ ngatLoi: 404 });
+    const kq = await thucHienXoa(7, d);
+    kiem("xoá tài khoản", "lỗi 404 khi ngắt kênh = kênh đã mất → làm tiếp (vẫn kiểm lại bằng liệt kê)",
+      [kq.xong, ghi.includes("liet:P2") && ghi.lastIndexOf("liet:P2") > ghi.indexOf("ngat:k2"), ghi[ghi.length - 1]], [true, true, "xoaTK"]);
+  }
+  {
+    const { d, ghi } = taoGia();
+    const kh = await lapKeHoachXoa(7, d);
+    kiem("xoá tài khoản", "xem trước CHỈ ĐỌC: không khoá, không ngắt, không xoá gì",
+      [kh.hoSo.map((h) => `${h.id}:${h.kenh.length}`).join(","), ghi.some((g) => /khoa|so|ngat|xoa/.test(g))], ["P1:1,P2:1", false]);
+  }
+  {
+    // Phiên kiểm duyệt bắt được 18/10/2026: xoá dở rồi bấm lại thì hồ sơ đã xoá ở lượt trước trả 404 khi liệt kê —
+    // phải coi là "đã mất" và làm tiếp, không kẹt mãi. Trạng thái nhà cung cấp GIỮ NGUYÊN qua hai lượt.
+    const ghi: string[] = [];
+    const daXoaHS = new Set<string>();
+    const daNgat = new Set<string>();
+    let loiLan1 = true;
+    const kenh: Record<string, KenhNcc[]> = {
+      P1: [{ id: "k1", platform: "facebook", ten: "FB", dangNoi: true }],
+      P2: [{ id: "k2", platform: "tiktok", ten: "TT", dangNoi: true }],
+    };
+    const loi404 = () => Object.assign(new Error("Profile not found or access denied"), { status: 404 });
+    const d: PhuThuocXoa = {
+      async docHoSoCuaToi() { return [{ nguon: "mặc định", id: "P1" }, { nguon: "cửa hàng", id: "P2" }]; },
+      async docHoSoDungChung() { return new Map(); },
+      async lietKeKenh(id) { ghi.push(`liet:${id}`); if (daXoaHS.has(id)) throw loi404(); return kenh[id].filter((k) => !daNgat.has(k.id)); },
+      async khoaTaiKhoan() { ghi.push("khoa"); },
+      async chotSoKenhNgay() {},
+      async ngatKenh(id) {
+        ghi.push(`ngat:${id}`);
+        if (id === "k2" && loiLan1) throw Object.assign(new Error("lỗi 500"), { status: 500 });
+        daNgat.add(id);
+      },
+      async xoaHoSo(id) { ghi.push(`xoaHS:${id}`); daXoaHS.add(id); },
+      async xoaTaiKhoan() { ghi.push("xoaTK"); },
+      la404: (e) => (e as { status?: number }).status === 404,
+    };
+    const lan1 = await thucHienXoa(7, d);
+    loiLan1 = false;
+    ghi.length = 0;
+    const truoc2 = await lapKeHoachXoa(7, d);
+    ghi.length = 0;
+    const lan2 = await thucHienXoa(7, d);
+    kiem("xoá tài khoản", "xoá dở rồi bấm lại: hồ sơ đã xoá ở lượt trước (404) coi là đã mất → lượt 2 xoá xong P2 và xoá tài khoản",
+      [lan1.xong, truoc2.hoSo.map((h) => `${h.id}:${h.daMat ? "mat" : h.kenh.length}`).join(","), lan2.xong,
+        ghi.includes("xoaHS:P1"), ghi.includes("xoaHS:P2"), ghi[ghi.length - 1],
+        // Hồ sơ đã mất thì bỏ qua luôn — không gọi nhà cung cấp lần nữa (chỉ một lần liệt kê lúc lập kế hoạch).
+        ghi.filter((g) => g === "liet:P1").length],
+      [false, "P1:mat,P2:1", true, false, true, "xoaTK", 1]);
+  }
+  {
+    const daLam: string[] = [];
+    const kq = await donHoSo("PX", [{ id: "kx", platform: "facebook", ten: "FB", dangNoi: false }], {
+      async ngatKenh() {},
+      async lietKeKenh() { throw Object.assign(new Error("not found"), { status: 404 }); },
+      async xoaHoSo() { daLam.push("XOA_GOI"); },
+      la404: (e) => (e as { status?: number }).status === 404,
+    }, daLam);
+    kiem("xoá tài khoản", "liệt kê lại trả 404 (hồ sơ đã mất) → coi như dọn xong, không gọi xoá hồ sơ nữa",
+      [kq.ok, daLam.includes("XOA_GOI")], [true, false]);
+  }
+  const zn = fs.readFileSync(path.join(GOC, "server/services/zernio.ts"), "utf8");
+  const that = fs.readFileSync(path.join(GOC, "server/services/xoa-tai-khoan-that.ts"), "utf8");
+  const adX = fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8");
+  const cnX = fs.readFileSync(path.join(GOC, "server/routes/connections.ts"), "utf8");
+  kiem("xoá tài khoản", "liệt kê kênh kèm hồ sơ vượt hạn mức; chỉ 404 của nhà cung cấp được coi là 'đã mất'; khoá giết cả phiên mở hộ",
+    [/\.\.\.\(tuyChon\.includeOverLimit \? \{ includeOverLimit: "true" \} : \{\}\)/.test(zn),
+      /zernio\.listAccounts\(profileId, \{ includeOverLimit: true \}\)/.test(that),
+      /e instanceof zernio\.ZernioError && e\.status === 404/.test(that),
+      /DELETE FROM sessions WHERE user_id = \$1 OR mo_boi = \$1/.test(that)],
+    [true, true, true, true]);
+  kiem("xoá tài khoản", "đường quản trị: xem trước + xoá dùng bộ mới; xoá dở ghi nhật ký riêng; xoá cửa hàng dùng chung luật dọn hồ sơ",
+    [/"\/accounts\/:id\/xem-truoc-xoa"[\s\S]{0,200}?lapKeHoachXoa\(dich\.id, phuThuocXoaThat\)/.test(adX),
+      /const kq = await thucHienXoa\(dich\.id, phuThuocXoaThat\);/.test(adX), /action: "xoa_tai_khoan_do"/.test(adX),
+      /await donHoSo\(t\.profile_ref, await lietKeKenhHoSo\(t\.profile_ref\), phuThuocXoaThat, daLam\)/.test(cnX),
+      /DELETE FROM users WHERE id = \$1", \[dich\.id\]/.test(adX)],
+    [true, true, true, true, false]);
+}
+
+// ---------------------------------------------------------------------------
+// B1-b2 (duyệt kỹ thuật 18/10/2026; chủ dự án bỏ nút "Kết thúc"): lệnh thao tác chiến dịch ĐÚNG tài liệu — đổi trạng
+// thái một chiến dịch (30086), nhân bản (28550, platform bắt buộc, bản sao tạm dừng, mã chống trùng mỗi lần bấm).
+// ---------------------------------------------------------------------------
+{
+  kiem("quảng cáo", "lệnh đổi trạng thái: PUT /ads/campaigns/{mã}/status, body {status chữ thường, platform}",
+    lenhDoiTrangThai("1202/x", "facebook", "paused"),
+    { path: "/ads/campaigns/1202%2Fx/status", method: "PUT", body: { status: "paused", platform: "facebook" } });
+  kiem("quảng cáo", "lệnh nhân bản: platform + deepCopy + PAUSED + Idempotency-Key; chỉ 4 nền tảng tài liệu cho phép",
+    [lenhNhanBan("99", "tiktok", "k-123"), NEN_TANG_NHAN_BAN],
+    [{ path: "/ads/campaigns/99/duplicate", method: "POST", body: { platform: "tiktok", deepCopy: true, statusOption: "PAUSED" }, headers: { "Idempotency-Key": "k-123" } },
+      ["facebook", "instagram", "tiktok", "linkedin"]]);
+  const rtB2 = fs.readFileSync(path.join(GOC, "server/routes/ads.ts"), "utf8");
+  const svB2 = fs.readFileSync(path.join(GOC, "server/services/ads.ts"), "utf8");
+  const uiB2 = fs.readFileSync(path.join(GOC, "src/pages/Ads.tsx"), "utf8");
+  kiem("quảng cáo", "đường đổi trạng thái: updated = 0 thì KHÔNG báo đã đổi; lỗi 'nhiều tài khoản' nói rõ; không còn bulk-status / ARCHIVED",
+    [/"\/campaigns\/:id\/status"/.test(rtB2), /if \(!result\?\.updated\) \{\s*throw new AppError\(/.test(rtB2),
+      /\/multiple social accounts\/i\.test\(error\.message\)/.test(rtB2), /bulk-status|ARCHIVED/.test(svB2.replace(/\/\*[\s\S]*?\*\//g, "") + rtB2)],
+    [true, true, true, false]);
+  kiem("quảng cáo", "đường nhân bản: kiểm nền tảng + bắt buộc mã chống trùng; giao diện sinh mã NGẪU NHIÊN mỗi lần bấm",
+    [/if \(!ads\.NEN_TANG_NHAN_BAN\.includes\(platform\)\)/.test(rtB2), /if \(!khoa\) throw new AppError\("Thiếu mã chống bấm trùng", 400\);/.test(rtB2),
+      /api\.ads\.duplicateCampaign\(id, platform, crypto\.randomUUID\(\)\)/.test(uiB2)],
+    [true, true, true]);
+  kiem("quảng cáo", "sửa ngân sách + xem chi tiết cũng kiểm chiến dịch thuộc shop; ngân sách chỉ facebook/instagram/google; bỏ danh sách nhóm ngoài tài liệu",
+    [(rtB2.match(/if \(!\(await ads\.chienDichThuocTaiKhoan\(/g) ?? []).length,
+      /if \(!ads\.NEN_TANG_NGAN_SACH\.includes\(platform\)\)[\s\S]{0,900}?chienDichThuocTaiKhoan[\s\S]{0,600}?ads\.updateCampaignBudget\(/.test(rtB2),
+      /listAdSets|"\/ads\/ad-sets"/.test(svB2 + rtB2), /api\.ads\.adSets|moNhomQuangCao/.test(uiB2),
+      /disabled=\{busy \|\| !NEN_TANG_NGAN_SACH\.includes\(camp\.nenTang\)\}/.test(uiB2)],
+    [4, true, false, false, true]);
+  kiem("quảng cáo", "bỏ nút 'Kết thúc'; nút Nhân bản khoá với nền tảng không hỗ trợ; ngân sách ghi đúng tiền tệ",
+    [/>Kết thúc<\/button>|handleEndCampaign/.test(uiB2), /disabled=\{busy \|\| !NEN_TANG_NHAN_BAN\.includes\(camp\.nenTang\)\}/.test(uiB2),
+      /nhan: `Ngân sách mỗi ngày \(\$\{!tienTe \|\| tienTe === 'VND' \? 'đồng' : tienTe\}\)`/.test(uiB2)],
+    [false, true, true]);
+  kiem("quảng cáo", "số đã chi của chiến dịch theo ĐÚNG kỳ đang xem; ngân sách theo ngày không đặt cạnh số đã chi; ngày dd/MM/yyyy",
+    [/\.listCampaigns\(\{ accountId: resolved\.accountId, adAccountId: resolved\.adAccountId, \.\.\.khoangTheoKy\(datePreset\) \}\)/.test(rtB2),
+      /total: tron > 0 \? tienQc\(tron, c\.tienTe\) : null,/.test(uiB2), ngayDayDu("2026-10-04T18:30:00Z")],
+    [true, true, "05/10/2026"]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

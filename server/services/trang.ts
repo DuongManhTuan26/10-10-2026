@@ -1,4 +1,5 @@
 import { query, queryOne } from "../db.js";
+import { AppError } from "../http.js";
 
 /**
  * Suy ra Trang từ một kênh.
@@ -118,20 +119,18 @@ export async function baoDamTrangChoHoSo(
   if (!profileRef) return null;
 
   /*
-   * Kênh không có khái niệm Fanpage (Instagram, TikTok) thì nhập vào Trang
-   * sẵn có đầu tiên của hồ sơ, không đẻ Trang riêng.
-   *
-   * Cùng một shop bán cùng một mặt hàng trên nhiều nền tảng thì dùng chung
-   * một bộ não là đúng — đã thấy trên tài khoản thật: hồ sơ "hoangtuan" gồm
-   * Fanpage, Instagram và TikTok của đúng một cửa hàng.
+   * MỘT HỒ SƠ = MỘT CỬA HÀNG (chủ dự án chốt 17/10/2026). Hồ sơ của nhà cung cấp là "một cái hộp": mỗi nền tảng một
+   * ngăn (1 Fanpage, 1 TikTok, 1 YouTube…) + một bộ não. Kênh nào nằm trong hồ sơ nào thì thuộc ĐÚNG cửa hàng của hồ sơ
+   * đó — kể cả Facebook. Bỏ khoá cũ "(hồ sơ, Fanpage)" (05/10): nó đẻ thêm cửa hàng mỗi lần đổi Fanpage → một hộp bị
+   * chia làm hai cửa hàng (chủ dự án bắt được 17/10). Nút "Đổi Fanpage" đã bỏ: muốn dùng Fanpage khác thì ngắt Fanpage
+   * cũ rồi nối Fanpage mới, hoặc nối nó vào cửa hàng khác — nên không còn chuyện Fanpage mới thừa kế nhầm bảng giá.
+   * Hồ sơ đã có cửa hàng của NGƯỜI KHÁC → null (không bao giờ nối kênh vào cửa hàng người khác).
    */
-  if (!pageId) {
-    const sanCo = await queryOne<{ id: number }>(
-      "SELECT id FROM trang WHERE user_id = $1 AND profile_ref = $2 ORDER BY id LIMIT 1",
-      [userId, profileRef]
-    );
-    if (sanCo) return sanCo.id;
-  }
+  const sanCo = await queryOne<{ id: number; user_id: number }>(
+    "SELECT id, user_id FROM trang WHERE profile_ref = $1 ORDER BY id LIMIT 1",
+    [profileRef]
+  );
+  if (sanCo) return sanCo.user_id === userId ? sanCo.id : null;
 
   const r = await queryOne<{ id: number; user_id: number }>(
     `INSERT INTO trang (user_id, profile_ref, ten, page_id)
@@ -139,13 +138,13 @@ export async function baoDamTrangChoHoSo(
      ON CONFLICT (profile_ref, COALESCE(page_id, '')) DO UPDATE SET
        -- Tên chủ shop tự đặt thì giữ nguyên; chỉ điền đè lên tên tạm.
        ten = CASE
-               WHEN trang.ten IN ('Trang đầu tiên', 'Trang chưa đặt tên')
+               WHEN trang.ten IN ('Trang đầu tiên', 'Trang chưa đặt tên', 'Cửa hàng đầu tiên', 'Cửa hàng chưa đặt tên')
                  THEN EXCLUDED.ten
                ELSE trang.ten
              END,
        updated_at = now()
      RETURNING id, user_id`,
-    [userId, profileRef, tenGoiY || "Trang chưa đặt tên", pageId]
+    [userId, profileRef, tenGoiY || "Cửa hàng chưa đặt tên", pageId]
   );
   if (!r) return null;
   return r.user_id === userId ? r.id : null;
@@ -177,7 +176,11 @@ export async function hoSoCuaTaiKhoan(userId: number): Promise<string[]> {
   const r = await query<{ ma: string }>(
     `SELECT profile_ref AS ma FROM users WHERE id = $1 AND profile_ref IS NOT NULL
      UNION
-     SELECT profile_ref FROM trang WHERE user_id = $1 AND profile_ref NOT LIKE 'cho-cap-%'`,
+     SELECT profile_ref FROM trang WHERE user_id = $1 AND profile_ref NOT LIKE 'cho-cap-%'
+     -- Hồ sơ đang CHỨA kênh của mình (17/10/2026): kênh chuyển trang chỉ đổi trong app, vẫn ở hồ sơ cũ — xoá trang chủ
+     -- của hồ sơ đó mà bỏ hồ sơ khỏi danh sách thì lượt đồng bộ sau đánh dấu nhầm các kênh ấy là mất kết nối.
+     UNION
+     SELECT DISTINCT profile_ref FROM social_accounts WHERE user_id = $1 AND profile_ref IS NOT NULL AND profile_ref NOT LIKE 'cho-cap-%'`,
     [userId]
   );
   return r.rows.map((x) => x.ma);
@@ -189,6 +192,8 @@ export async function chuCuaHoSo(profileRef: string): Promise<number | null> {
     `SELECT id FROM users WHERE profile_ref = $1
      UNION
      SELECT user_id FROM trang WHERE profile_ref = $1
+     UNION
+     SELECT user_id FROM social_accounts WHERE profile_ref = $1
      LIMIT 1`,
     [profileRef]
   );
@@ -210,4 +215,125 @@ export async function ghiKenhTheoNgay(): Promise<number> {
      ON CONFLICT (ngay, account_id) DO NOTHING`
   );
   return r.rowCount ?? 0;
+}
+
+/**
+ * Kênh chuyển được sang những cửa hàng nào (chủ dự án chốt 17/10/2026 — mỗi cửa hàng một hộp, mỗi nền tảng một ngăn).
+ * Mọi kênh (kể cả Facebook) sang được MỌI cửa hàng khác của chính tài khoản; cửa hàng đã có cùng nền tảng thì đánh dấu
+ * da_co — không cho chuyển (nhà cung cấp chỉ một tài khoản mỗi nền tảng mỗi hồ sơ, chuyển vào là thay tài khoản cũ,
+ * xoá hội thoại). Tài khoản quảng cáo dùng chung, không chuyển.
+ */
+export async function trangChuyenDuoc(
+  userId: number,
+  accountId: string
+): Promise<{
+  kenh: { id: string; platform: string; profile_ref: string; trang_id: number | null } | null;
+  ds: Array<{ id: number; ten: string; profile_ref: string; da_co: boolean }>;
+}> {
+  const kenh = await queryOne<{ id: string; platform: string; profile_ref: string; trang_id: number | null }>(
+    "SELECT id, platform, profile_ref, trang_id FROM social_accounts WHERE id = $1 AND user_id = $2",
+    [accountId, userId]
+  );
+  if (!kenh || kenh.platform === "metaads") return { kenh, ds: [] };
+  const r = await query<{ id: number; ten: string; profile_ref: string; da_co: boolean }>(
+    `SELECT t.id, t.ten, t.profile_ref,
+            EXISTS (SELECT 1 FROM social_accounts s WHERE s.user_id = $1 AND s.profile_ref = t.profile_ref
+                       AND s.platform = $3 AND s.connected) AS da_co
+       FROM trang t
+      WHERE t.user_id = $1 AND t.id IS DISTINCT FROM $2 AND t.profile_ref NOT LIKE 'cho-cap-%'
+        -- chỉ cửa hàng có hộp riêng (cửa hàng cũ dùng chung hộp: kênh chuyển vào sẽ rơi sang cửa hàng kia)
+        AND t.id = (SELECT min(t2.id) FROM trang t2 WHERE t2.profile_ref = t.profile_ref)
+      ORDER BY t.id`,
+    [userId, kenh.trang_id, kenh.platform]
+  );
+  return { kenh, ds: r.rows };
+}
+
+/**
+ * Cửa hàng của tài khoản, kèm số kênh và các nền tảng đã có (ngăn đã đầy) — kể cả cửa hàng CHƯA CÓ KÊNH.
+ * Bộ chọn bộ não (ActivePage) dựng từ danh sách kênh nên không thấy cửa hàng rỗng; màn Kết nối kênh cần thấy để đặt tên,
+ * xoá, nối kênh vào, và tô ô "đã có" đúng theo từng cửa hàng.
+ */
+export async function trangCuaTaiKhoan(
+  userId: number
+): Promise<Array<{ id: number; ten: string; so_kenh: number; nen_tang: string[]; hop_rieng: boolean }>> {
+  /*
+   * hop_rieng: cửa hàng có HỘP (hồ sơ) của riêng nó — là cửa hàng cũ nhất của hồ sơ đó và hồ sơ đã thật. Cửa hàng sinh
+   * ra theo cách cũ (đổi Fanpage, trước 17/10/2026) dùng chung hộp với cửa hàng khác: kênh nối vào sẽ rơi sang cửa hàng
+   * kia → không cho nhận kênh, nhắc xoá. Nền tảng "đã có" tính theo hộp; cửa hàng dùng chung hộp thì theo kênh thật của nó.
+   */
+  const r = await query<{ id: number; ten: string; so_kenh: number; nen_tang: string[]; hop_rieng: boolean }>(
+    `SELECT x.id, x.ten, x.so_kenh, x.hop_rieng,
+            CASE WHEN x.hop_rieng
+                 THEN COALESCE((SELECT array_agg(DISTINCT s.platform) FROM social_accounts s
+                                 WHERE s.user_id = $1 AND s.profile_ref = x.profile_ref AND s.connected), '{}')
+                 ELSE COALESCE((SELECT array_agg(DISTINCT s.platform) FROM social_accounts s
+                                 WHERE s.trang_id = x.id AND s.connected), '{}') END AS nen_tang
+       FROM (SELECT t.id, t.ten, t.profile_ref,
+                    (SELECT count(*)::int FROM social_accounts s
+                      WHERE s.trang_id = t.id AND s.platform <> 'metaads' AND s.connected) AS so_kenh,
+                    (t.profile_ref NOT LIKE 'cho-cap-%'
+                      AND t.id = (SELECT min(t2.id) FROM trang t2 WHERE t2.profile_ref = t.profile_ref)) AS hop_rieng
+               FROM trang t WHERE t.user_id = $1) x
+      ORDER BY x.id`,
+    [userId]
+  );
+  return r.rows;
+}
+
+/**
+ * Tạo CỬA HÀNG MỚI theo tên chủ shop gõ = tạo MỘT HỒ SƠ MỚI bên nhà cung cấp (chủ dự án chốt 17/10/2026: mỗi cửa hàng
+ * một hồ sơ). Tài liệu nhà cung cấp: "There are no profile limits" — không tốn thêm tiền. Bộ não của cửa hàng mới: cấu
+ * hình 4 AI ghi khi chủ shop lưu lần đầu.
+ */
+export async function taoTrangMoi(
+  userId: number,
+  ten: string,
+  tenTaiKhoan: string,
+  taoHoSo: (tenHoSo: string) => Promise<{ _id: string }>
+): Promise<number> {
+  const hoSo = await taoHoSo(`${tenTaiKhoan} · ${ten}`);
+  const r = await queryOne<{ id: number }>(
+    "INSERT INTO trang (user_id, profile_ref, ten, page_id) VALUES ($1, $2, $3, NULL) RETURNING id",
+    [userId, hoSo._id, ten]
+  );
+  return r!.id;
+}
+
+/**
+ * Nối kênh vào cửa hàng: kênh vào ĐÚNG hộp (hồ sơ) của cửa hàng. Ngăn của nền tảng đó đã có tài khoản đang nối thì
+ * chặn, nói rõ cách làm (tạo cửa hàng mới) — KHÔNG lén nối sang hộp khác (bản sáng 17/10 làm vậy, chủ dự án bác: một hộp
+ * phải đúng một cửa hàng). Nhà cung cấp chỉ một tài khoản mỗi nền tảng mỗi hồ sơ; nối thêm là thay tài khoản cũ.
+ */
+export async function hoSoCuaCuaHang(
+  userId: number,
+  trangId: number,
+  platform: string,
+  tenNenTang: string
+): Promise<{ profile_ref: string; ten: string }> {
+  const t = await queryOne<{ profile_ref: string; ten: string; da_co: boolean; hop_rieng: boolean }>(
+    `SELECT t.profile_ref, t.ten,
+            EXISTS (SELECT 1 FROM social_accounts s WHERE s.user_id = $1 AND s.profile_ref = t.profile_ref
+                       AND s.platform = $3 AND s.connected) AS da_co,
+            t.id = (SELECT min(t2.id) FROM trang t2 WHERE t2.profile_ref = t.profile_ref) AS hop_rieng
+       FROM trang t WHERE t.id = $2 AND t.user_id = $1`,
+    [userId, trangId, platform]
+  );
+  if (!t) throw new AppError("Không tìm thấy cửa hàng này", 404);
+  if (!t.hop_rieng) {
+    throw new AppError(
+      `Cửa hàng "${t.ten}" còn sót từ cách làm cũ, dùng chung hộp với cửa hàng khác — kênh nối vào sẽ rơi sang cửa hàng kia. Vui lòng xoá cửa hàng này và tạo cửa hàng mới.`,
+      409
+    );
+  }
+  if (t.profile_ref.startsWith("cho-cap-")) {
+    throw new AppError("Cửa hàng chưa sẵn sàng — tải lại trang rồi thử lại.", 409);
+  }
+  if (t.da_co) {
+    throw new AppError(
+      `Cửa hàng "${t.ten}" đã có ${tenNenTang}. Mỗi cửa hàng chỉ có một ${tenNenTang} — tạo cửa hàng mới để nối ${tenNenTang} thứ hai.`,
+      409
+    );
+  }
+  return { profile_ref: t.profile_ref, ten: t.ten };
 }

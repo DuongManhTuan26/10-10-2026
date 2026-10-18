@@ -44,16 +44,16 @@ export interface PlatformChannel {
 }
 
 export const socialChannels: PlatformChannel[] = [
-  { id: 'fb', name: 'Facebook', platformKey: "facebook", canPost: true, canDm: true, canComment: true, icon: 'facebook', connectionType: 'oauth_with_selection', selectionLabel: 'Trang', 
-    warnings: ['Chỉ hỗ trợ kết nối với Trang (Fanpage), không hỗ trợ Trang cá nhân.'],
-    instructions: ['Bấm nút bên dưới, một cửa sổ xác thực Facebook sẽ mở ra.', 'Cấp quyền truy cập cho tất cả các Trang mà bạn muốn quản lý.'],
+  { id: 'fb', name: 'Facebook', platformKey: "facebook", canPost: true, canDm: true, canComment: true, icon: 'thumb_up', connectionType: 'oauth_with_selection', selectionLabel: 'Fanpage', 
+    warnings: ['Chỉ hỗ trợ kết nối Fanpage, không hỗ trợ trang cá nhân.'],
+    instructions: ['Bấm nút bên dưới, một cửa sổ xác thực Facebook sẽ mở ra.', 'Cấp quyền truy cập cho tất cả các Fanpage mà bạn muốn quản lý.'],
     requestedPermissions: [
-    { icon: 'list', name: 'pages_show_list', desc: 'Liệt kê các Trang bạn quản lý.' },
-    { icon: 'edit', name: 'pages_manage_posts', desc: 'Tạo, chỉnh sửa và xóa bài viết trên Trang.' },
+    { icon: 'list', name: 'pages_show_list', desc: 'Liệt kê các Fanpage bạn quản lý.' },
+    { icon: 'edit', name: 'pages_manage_posts', desc: 'Tạo, chỉnh sửa và xóa bài viết trên Fanpage.' },
     { icon: 'analytics', name: 'pages_read_engagement & read_insights', desc: 'Đọc nội dung và phân tích dữ liệu (lượt xem, nhấp chuột, tương tác).' },
     { icon: 'forum', name: 'pages_manage_engagement & pages_read_user_content', desc: 'Đọc và trả lời bình luận trên bài viết.' },
     { icon: 'chat', name: 'pages_messaging', desc: 'Quản lý hội thoại Messenger trong hộp thư.' },
-    { icon: 'settings', name: 'pages_manage_metadata & business_management', desc: 'Quản lý webhook và các Trang trong Business Manager.' }
+    { icon: 'settings', name: 'pages_manage_metadata & business_management', desc: 'Quản lý webhook và các Fanpage trong Business Manager.' }
   ] },
   { id: 'ig', name: 'Instagram', platformKey: "instagram", canPost: true, canDm: true, canComment: true, icon: 'photo_camera', connectionType: 'oauth_simple',
     warnings: ['Tài khoản Instagram của bạn BẮT BUỘC phải là Tài khoản Doanh nghiệp (Professional/Business/Creator).', 'Phải được liên kết với một Fanpage Facebook mà bạn có quyền quản trị.'],
@@ -124,9 +124,9 @@ export const socialChannels: PlatformChannel[] = [
     { icon: 'forum', name: 'read & edit & history', desc: 'Đọc, trả lời bình luận và lịch sử tương tác.' },
     { icon: 'chat', name: 'privatemessages', desc: 'Quản lý tin nhắn riêng tư.' }
   ] },
-  { id: 'bs', name: 'Bluesky', platformKey: "bluesky", canPost: true, canDm: true, canComment: true, icon: 'cloud', connectionType: 'oauth_simple',
-    warnings: ['Tuyệt đối KHÔNG DÙNG mật khẩu đăng nhập chính. API hộp thư không hỗ trợ đính kèm Media.'],
-    instructions: ['Mở ứng dụng Bluesky > Cài đặt > Advanced > App Passwords.', 'Tạo một mật khẩu ứng dụng mới.', 'Nhập Handle (Tên người dùng) và Mật khẩu ứng dụng vừa tạo vào bước tiếp theo.'],
+  { id: 'bs', name: 'Bluesky', platformKey: "bluesky", canPost: true, canDm: true, canComment: true, icon: 'cloud', connectionType: 'credentials',
+    warnings: ['Tuyệt đối KHÔNG dùng mật khẩu đăng nhập chính — chỉ dùng mật khẩu ứng dụng (App Password).', 'Hộp thư Bluesky không gửi được ảnh / video đính kèm.'],
+    instructions: ['Mở Bluesky > Cài đặt > Quyền riêng tư và bảo mật > Mật khẩu ứng dụng (App Passwords).', 'Tạo một mật khẩu ứng dụng mới.', 'Nhập tên tài khoản (vd. tenban.bsky.social) và mật khẩu ứng dụng vừa tạo vào hai ô bên dưới.'],
     requestedPermissions: [
     { icon: 'lock', name: 'App Password', desc: 'Đăng nhập thông qua mật khẩu ứng dụng (App Password) thay vì OAuth.' }
   ] },
@@ -142,20 +142,19 @@ export const socialChannels: PlatformChannel[] = [
     requestedPermissions: [
     { icon: 'chat', name: 'whatsapp_business_messaging', desc: 'Gửi và nhận tin nhắn, quản lý hội thoại khách hàng qua WhatsApp Business.' }
   ] },
-  { id: 'tg', name: 'Telegram', platformKey: "telegram", canPost: true, canDm: true, canComment: false, capabilityNote: "Hoạt động qua bot, không có bình luận.", icon: 'send', connectionType: 'oauth_simple',
-    warnings: ['Chỉ hỗ trợ kết nối Kênh (Channel) hoặc Nhóm (Group).', 'Bot của chúng tôi phải được thêm làm Quản trị viên (Admin).'],
-    instructions: ['Thêm Bot Zernio làm quản trị viên trong kênh/nhóm Telegram của bạn.', 'Mở hộp thoại với Bot và gửi Mã truy cập được cấp.', 'Hệ thống sẽ tự động xác nhận và hoàn tất kết nối.'],
+  { id: 'tg', name: 'Telegram', platformKey: "telegram", canPost: true, canDm: true, canComment: false, capabilityNote: "Hoạt động qua bot, không có bình luận.", icon: 'send', connectionType: 'access_code',
+    warnings: ['Chỉ nối được Kênh (Channel) hoặc Nhóm (Group) Telegram.', 'Bot kết nối phải được thêm làm Quản trị viên (Admin) của kênh / nhóm.'],
     requestedPermissions: [
-    { icon: 'key', name: 'Zernio Bot', desc: 'Gửi mã Access Code cho Bot để ủy quyền kết nối.' }
+    { icon: 'key', name: 'Mã kết nối', desc: 'Gửi mã kết nối cho bot để cho phép hệ thống đăng bài và nhận tin trong kênh / nhóm.' }
   ] },
   { id: 'di', name: 'Discord', platformKey: "discord", canPost: true, canDm: false, canComment: false, capabilityNote: "Chỉ đăng bài.", icon: 'sports_esports', connectionType: 'oauth_simple',
-    instructions: ['Cài đặt Zernio Bot vào Server (Guild) Discord của bạn.', 'Đảm bảo bạn có quyền Quản trị (Admin) trong Server.'],
+    instructions: ['Cài bot kết nối vào Server (Guild) Discord của bạn.', 'Đảm bảo bạn có quyền Quản trị (Admin) trong Server.'],
     requestedPermissions: [
-    { icon: 'sports_esports', name: 'bot', desc: 'Cài đặt Zernio bot vào máy chủ của bạn; mọi bài đăng đều qua bot.' },
+    { icon: 'sports_esports', name: 'bot', desc: 'Cài bot kết nối vào máy chủ của bạn; mọi bài đăng đều qua bot.' },
     { icon: 'list', name: 'guilds', desc: 'Liệt kê các máy chủ bạn quản lý để chọn nơi đăng bài.' }
   ] },
   { id: 'sl', name: 'Slack', platformKey: "slack", canPost: true, canDm: true, canComment: false, capabilityNote: "Nhắn tin nội bộ, không phải kênh bán hàng cho khách.", icon: 'tag', connectionType: 'oauth_simple',
-    instructions: ['Cấp quyền và thêm ứng dụng Zernio vào Workspace Slack của bạn.'],
+    instructions: ['Cấp quyền và thêm ứng dụng kết nối vào Workspace Slack của bạn.'],
     requestedPermissions: [
     { icon: 'chat', name: 'chat:write & chat:write.public', desc: 'Đăng tin nhắn với tư cách bot vào các kênh công cộng/riêng tư.' },
     { icon: 'forum', name: 'channels:history & im:history', desc: 'Nhận tin nhắn đến từ kênh hoặc tin nhắn trực tiếp.' },
@@ -214,7 +213,7 @@ export const adChannels: PlatformChannel[] = [
 export const communicationChannels: PlatformChannel[] = [
   { id: 'sms', name: 'SMS (Twilio)', platformKey: null, canPost: false, canDm: true, canComment: false, capabilityNote: "Cần tài khoản Twilio riêng, chưa nối vào hệ thống.", icon: 'sms', connectionType: 'manual_credentials',
     warnings: ['Yêu cầu khai báo A2P 10DLC nếu bạn dùng đầu số Mỹ để gửi tin.'],
-    instructions: ['Truy cập Console của Twilio.', 'Sao chép chuỗi Account SID và Auth Token.', 'Nhập vào ô ở màn hình tiếp theo.'],
+    instructions: ['Truy cập Console của Twilio.', 'Sao chép chuỗi Account SID và Auth Token.', 'Dán hai chuỗi đó vào hai ô bên dưới.'],
     requestedPermissions: [
     { icon: 'key', name: 'Account SID & Auth Token', desc: 'Kết nối với Twilio để gửi và nhận tin nhắn SMS.' }
   ] },

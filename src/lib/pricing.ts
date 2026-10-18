@@ -106,6 +106,6 @@ export const PLATFORM_RULES: PlatformRule[] = [
   { title: "Mỗi bình luận chỉ được nhắn riêng một lần", desc: "Facebook chỉ cho phép gửi đúng một tin nhắn cho người vừa bình luận. Hệ thống tự chặn nếu gửi trùng." },
   { title: "AI ngừng nhắn sau 24 giờ khách im lặng", desc: "Quá 24 giờ, chỉ bạn nhắn tay được, tối đa trong 7 ngày." },
   { title: "Phải cho khách biết đang nói chuyện với trợ lý tự động", desc: "Câu giới thiệu bắt buộc có ở đầu mỗi cuộc trò chuyện." },
-  { title: "Người thật phải là người thật", desc: "Tin nhắn sau 24 giờ phải do chính bạn gõ. Để AI giả làm người là vi phạm và có thể bị Facebook khóa trang." },
-  { title: "Giới hạn tốc độ gửi tin", desc: "Gửi quá nhanh khiến Facebook coi trang là spam." }
+  { title: "Người thật phải là người thật", desc: "Tin nhắn sau 24 giờ phải do chính bạn gõ. Để AI giả làm người là vi phạm và có thể bị Facebook khóa Fanpage." },
+  { title: "Giới hạn tốc độ gửi tin", desc: "Gửi quá nhanh khiến Facebook coi Fanpage là spam." }
 ];

@@ -22,8 +22,21 @@ function giaTri(c: ChiSoSucKhoe, v: number | null) {
   return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 }
 
-export default function SucKhoeTrang({ du }: { du: DuLieu }) {
-  const theoMa = new Map<string, ChiSoSucKhoe>(du.chiSo.map((c) => [c.ma, c]));
+/**
+ * `khau`: chỉ hiện chỉ số / sự cố của MỘT khâu — thẻ "Kết quả" của AI viết bài, quảng cáo, bán hàng dùng chung bảng này
+ * (khuôn 4 thẻ). Bỏ trống = cả trang (AI điều hành).
+ */
+export default function SucKhoeTrang({ du: duGoc, khau }: { du: DuLieu; khau?: ChiSoSucKhoe['khau'] }) {
+  const theoMa = new Map<string, ChiSoSucKhoe>(duGoc.chiSo.map((c) => [c.ma, c]));
+  const du: DuLieu = khau
+    ? {
+        ...duGoc,
+        chiSo: duGoc.chiSo.filter((c) => c.khau === khau),
+        suCo: duGoc.suCo.filter((x) => x.khau === khau),
+        uuTien: duGoc.uuTien.filter((m) => theoMa.get(m)?.khau === khau),
+        baoVe: duGoc.baoVe.filter((m) => theoMa.get(m)?.khau === khau),
+      }
+    : duGoc;
 
   return (
     <div className="space-y-3">

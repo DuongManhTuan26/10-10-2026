@@ -54,11 +54,25 @@
   --color-hop-thoai: #0a171b;
   --color-hop-thoai-dau: #0f2227;
   --color-noi: #0e1f24;
+  /* Nền hộp chú thích của biểu đồ (phải đặc để đọc được chữ đè lên đường biểu đồ). */
+  --color-the: #121f25;
 
   --color-outline: #668b99;
   --color-outline-variant: rgb(0 229 255 / 0.34);
   
   --color-error: #ef4444;
+
+  /*
+   * MÀU THEO MỨC QUAN TRỌNG (kế hoạch giao diện lượt 2, bảng B — chủ dự án đồng ý): cho thứ độc lập, không thuộc miền
+   * nào. Đỏ = lỗi / xoá / mất kết nối · hồng = cần làm ngay · cam = cảnh báo · lam = thông tin. Thành công dùng dấu ✓
+   * chữ trắng. Đỏ lỗi luôn kèm biểu tượng + chữ "Lỗi" (② Quảng cáo đỏ tươi — 12/10/2026); cam cảnh báo kèm ⚠.
+   */
+  --color-loi: #f87171;
+  --color-gap: #f472b6;
+  --color-canh-bao: #fb923c;
+  --color-thong-tin: #60a5fa;
+  /* THÀNH CÔNG / ĐÃ KẾT NỐI (chủ dự án 12/10/2026: ô đã kết nối phải khác màu khung, có dấu ✓) — lục bảo, luôn kèm ✓. */
+  --color-thanh-cong: #34d399;
   --color-on-error: #450a0a;
   --color-error-container: #7f1d1d;
   --color-on-error-container: #fca5a5;
@@ -169,6 +183,107 @@
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(71, 85, 105, 0.3);
 }
+/*
+ * THẺ = ĐÚNG CHẤT LIỆU KHUNG CHUẨN CỦA HỆ THỐNG (.khung-muc — chủ dự án 12/10/2026: "màu cố định là màu trong có kẻ vuông,
+ * chỉ thay màu, không thay chất liệu; làm riêng một kiểu là không đồng nhất"). Nền TRONG SUỐT chỉ phủ 5% màu của thẻ
+ * (lưới kẻ vuông của nền vẫn hiện), viền màu 55%, quầng nhẹ cùng màu. Không phủ trắng, không làm mờ nền, không nền đặc.
+ * Màu của thẻ: --nhan (màu AI làm ra số liệu đó); bỏ trống = màu miền đang xem.
+ */
+.the {
+    --mau-the: var(--nhan, var(--color-primary));
+    position: relative;
+    border: 1px solid color-mix(in srgb, var(--mau-the) 55%, transparent);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--mau-the) 5%, transparent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--mau-the) 10%, transparent);
+}
+.the-bam {
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.the-bam:hover {
+    transform: translateY(-2px);
+    border-color: var(--mau-the);
+    box-shadow: 0 0 28px color-mix(in srgb, var(--mau-the) 28%, transparent);
+}
+/* Ô trong thẻ (dòng danh sách): cùng chất liệu, một cấp nhạt hơn. */
+.o-trong {
+    background: color-mix(in srgb, var(--nhan, var(--color-primary)) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--nhan, var(--color-primary)) 30%, transparent);
+    border-radius: 12px;
+}
+/* Ô biểu tượng tô nhạt theo màu nhấn (--nhan). */
+.o-bieu-tuong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 12px;
+    color: var(--nhan, var(--color-primary));
+    background: color-mix(in srgb, var(--nhan, var(--color-primary)) 24%, transparent);
+    border: 1px solid color-mix(in srgb, var(--nhan, var(--color-primary)) 55%, transparent);
+    box-shadow: 0 0 18px -4px color-mix(in srgb, var(--nhan, var(--color-primary)) 55%, transparent);
+}
+/* Số lớn: chữ số đều cột, khít chữ — đọc nhanh. */
+.so-lon {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+}
+
+/*
+ * SƠ ĐỒ NÚT của bộ não (Tổng quan, 12/10/2026). Quầng sáng CHỈ báo trạng thái: đường đang chạy (dòng dữ liệu) và nút có
+ * vấn đề (vòng nhấp nháy) — không trang trí. Màu nút qua --nhan.
+ */
+.vong-so {
+    --c: var(--nhan, var(--color-primary));
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    flex: none;
+    border-radius: 9999px;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: var(--c);
+    border: 2px solid var(--c);
+    background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--c) 30%, transparent), transparent 70%);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 12%, transparent), 0 0 24px color-mix(in srgb, var(--c) 45%, transparent);
+}
+/* Nút có sự cố / chỉ số tụt: vòng ngoài nhấp nháy đỏ. */
+.vong-so.co-van-de::after {
+    content: "";
+    position: absolute;
+    inset: -7px;
+    border-radius: inherit;
+    border: 2px solid var(--color-loi);
+    animation: nhap-nhay 1.6s ease-out infinite;
+}
+@keyframes nhap-nhay {
+    0% { opacity: .9; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.35); }
+}
+/* Dòng dữ liệu chạy trên đường nối (SVG): nét đứt trôi theo hướng chảy. */
+.dong-chay {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 2 10;
+    animation: dong-chay 1.1s linear infinite;
+}
+.dong-chay.nguoc { animation-direction: reverse; }
+.duong-nen {
+    fill: none;
+    stroke-width: 2;
+    opacity: .35;
+}
+@keyframes dong-chay { to { stroke-dashoffset: -24; } }
+@media (prefers-reduced-motion: reduce) {
+    .dong-chay, .vong-so.co-van-de::after { animation: none; }
+}
 .ai-gradient {
     background: linear-gradient(135deg, rgba(0, 229, 255, 0.1) 0%, rgba(11, 15, 25, 0) 100%);
 }
@@ -246,12 +361,39 @@ textarea::placeholder {
     --color-primary-container: var(--color-secondary-container);
     --color-on-primary-container: var(--color-on-secondary-container);
   }
+  /*
+   * MÀU THEO MIỀN (bảng A — chủ dự án đồng ý): mọi chỗ thuộc miền nào dùng màu miền đó — nút chính, viền khung, chip,
+   * thẻ đang chọn, hộp thoại. Đặt lớp .mien-* ở vùng nội dung (App.tsx theo đường dẫn) là mọi `primary` bên trong đổi
+   * theo, không sửa từng nút. Nguồn tên miền ↔ AI: src/lib/bon-ai.ts.
+   */
+  .mien-tong-quan, .mien-dieu-hanh, .mien-noi-dung, .mien-quang-cao, .mien-ban-hang, .mien-he-thong {
+    --color-primary: var(--mien);
+    --color-on-primary: var(--tren-mien);
+    --color-primary-container: color-mix(in srgb, var(--mien) 28%, #050c0e);
+    --color-on-primary-container: color-mix(in srgb, var(--mien) 35%, white);
+    --color-outline-variant: color-mix(in srgb, var(--mien) 32%, transparent);
+  }
+  /* Quy tắc XANH – ĐỎ – TÍM – VÀNG (chủ dự án 12/10/2026 — nguồn tên miền ↔ AI: src/lib/bon-ai.ts). */
+  .mien-noi-dung  { --mien: #4ade80; --tren-mien: #052e16; }
+  .mien-quang-cao { --mien: #ff4d6a; --tren-mien: #2b0309; }
+  .mien-ban-hang  { --mien: #b38bff; --tren-mien: #1e0f40; }
+  .mien-dieu-hanh { --mien: #facc15; --tren-mien: #2a2100; }
+  /* Tổng quan: màu thương hiệu (không thuộc AI nào). */
+  .mien-tong-quan { --mien: #22d3ee; --tren-mien: #003640; }
+  /* Trang hệ thống: trung tính, không tranh màu với 4 AI. */
+  .mien-he-thong  { --mien: #e2e8f0; --tren-mien: #0b1417; --color-outline-variant: rgb(203 213 225 / 0.26); }
+
   .mau-xanh { --mau: #22d3ee; }
-  .mau-tim { --mau: #a78bfa; }
+  .mau-vang { --mau: #facc15; }
+  .mau-tim { --mau: #b38bff; }
+  .mau-la { --mau: #4ade80; }
+  .mau-do { --mau: #ff4d6a; }
   .mau-cam { --mau: #fbbf24; }
   .mau-luc { --mau: #34d399; }
   .mau-hong { --mau: #f472b6; }
   .mau-lam { --mau: #60a5fa; }
+  /* Xám: khung phụ, không mang nghĩa (bảng màu B). */
+  .mau-xam { --mau: #94a3b8; }
 
   /*
    * Nền chung của app — cùng một chất liệu với thanh menu (chủ dự án chọn):

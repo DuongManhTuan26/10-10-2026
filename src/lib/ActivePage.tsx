@@ -66,11 +66,23 @@ export function ActivePageProvider({ children }: { children: ReactNode }) {
     () => localStorage.getItem(STORAGE_KEY)
   );
   const [loading, setLoading] = useState(true);
+  /**
+   * Cửa hàng mặc định khi tài khoản CHƯA nối kênh nào (chủ dự án 18/10/2026: tài khoản mới phải giống 100% tài khoản
+   * mẫu — có sơ đồ 4 AI ngay). Danh sách cửa hàng ở đây dựng từ kênh, nên thiếu dòng này thì cửa hàng chưa có kênh coi
+   * như không tồn tại: Tổng quan mất khối bộ não. Lấy cửa hàng cũ nhất — đúng cửa hàng máy chủ dùng khi chưa chọn kênh
+   * (layTrangMacDinh).
+   */
+  const [cuaHangMacDinh, setCuaHangMacDinh] = useState<{ id: number; ten: string } | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.connections.accounts();
+      const [{ data }, dsCH] = await Promise.all([
+        api.connections.accounts(),
+        api.connections.dsTrang().catch(() => ({ data: [] as Array<{ id: number; ten: string }> })),
+      ]);
+      const cuNhat = [...dsCH.data].sort((a, b) => a.id - b.id)[0];
+      setCuaHangMacDinh(cuNhat ? { id: cuNhat.id, ten: cuNhat.ten } : null);
       // Tài khoản quảng cáo không phải là trang để nhắn tin hay đăng bài,
       // nên không đưa vào bộ chọn này.
       const pages = data.filter((account) => account.platform !== 'metaads');
@@ -86,7 +98,7 @@ export function ActivePageProvider({ children }: { children: ReactNode }) {
         return current;
       });
     } catch (error) {
-      console.error('Không tải được danh sách trang:', error);
+      console.error('Không tải được danh sách cửa hàng:', error);
     } finally {
       setLoading(false);
     }
@@ -110,8 +122,12 @@ export function ActivePageProvider({ children }: { children: ReactNode }) {
       t.kenh.push(k);
       ds.set(khoa, t);
     }
+    // Chưa có kênh nào: vẫn có MỘT cửa hàng (bộ não) để làm việc — cửa hàng mặc định của máy chủ.
+    if (ds.size === 0 && cuaHangMacDinh) {
+      ds.set(`t${cuaHangMacDinh.id}`, { khoa: `t${cuaHangMacDinh.id}`, id: cuaHangMacDinh.id, ten: cuaHangMacDinh.ten, kenh: [] });
+    }
     return [...ds.values()];
-  }, [accounts]);
+  }, [accounts, cuaHangMacDinh]);
 
   const chonTrang = useCallback((khoa: string | null) => {
     if (!khoa) return setActiveAccountId(null);
@@ -119,7 +135,8 @@ export function ActivePageProvider({ children }: { children: ReactNode }) {
     if (!t) return;
     const ketNoi = t.kenh.filter((k) => k.connected);
     // Kênh chính (Fanpage / Instagram — nơi khách nhắn và ra đơn) làm đại diện; cùng trang thì cùng bộ não.
-    setActiveAccountId(kenhMacDinh(ketNoi)[0] ?? ketNoi[0]?.id ?? t.kenh[0].id);
+    // Cửa hàng chưa có kênh: không có kênh đại diện — để trống, máy chủ dùng cửa hàng mặc định.
+    setActiveAccountId(kenhMacDinh(ketNoi)[0] ?? ketNoi[0]?.id ?? t.kenh[0]?.id ?? null);
   }, [trangs, setActiveAccountId]);
 
   const value = useMemo<ActivePageValue>(() => {
@@ -132,7 +149,7 @@ export function ActivePageProvider({ children }: { children: ReactNode }) {
     const trangDangDung =
       dangChon?.trang_id ??
       accounts.find((account) => account.connected && account.trang_id != null)?.trang_id ??
-      null;
+      (accounts.length === 0 ? cuaHangMacDinh?.id ?? null : null);
     return {
       accounts,
       activeAccount: dangChon,
@@ -146,7 +163,7 @@ export function ActivePageProvider({ children }: { children: ReactNode }) {
       loading,
       reload,
     };
-  }, [accounts, activeAccountId, setActiveAccountId, trangs, chonTrang, loading, reload]);
+  }, [accounts, activeAccountId, setActiveAccountId, trangs, chonTrang, loading, reload, cuaHangMacDinh]);
 
   return <ActivePageContext.Provider value={value}>{children}</ActivePageContext.Provider>;
 }

@@ -76,7 +76,8 @@ export default function HopThoai({
         role="dialog"
         aria-modal="true"
         className={clsx(
-          'relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant nen-app shadow-[0_0_40px_rgba(0,229,255,0.12)]',
+          // Quầng sáng theo màu MIỀN đang mở (index.css .mien-*), không ghi cứng xanh ngọc.
+          'relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant nen-app shadow-[0_0_40px_color-mix(in_srgb,var(--color-primary)_12%,transparent)]',
           CO[co]
         )}
       >
@@ -87,7 +88,8 @@ export default function HopThoai({
             </span>
           )}
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold text-on-surface leading-tight truncate">{tieuDe}</h2>
+            {/* Xuống dòng, không cắt chữ (điện thoại từng thành "Kết nối YouT…"). */}
+            <h2 className="text-2xl font-bold text-on-surface leading-tight break-words">{tieuDe}</h2>
             {phuDe && <p className="text-sm text-on-surface-variant mt-1">{phuDe}</p>}
           </div>
           <button

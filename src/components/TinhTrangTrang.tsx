@@ -46,7 +46,7 @@ export function docTinhTrang(t: TrangVanHanh): Viec[] {
     viec.push({ mucDo: 'canXem', chu: 'Cả tuần không có tin nhắn nào' });
   }
 
-  if (!t.is_active) viec.push({ mucDo: 'hong', chu: 'Trang đang bị khoá' });
+  if (!t.is_active) viec.push({ mucDo: 'hong', chu: 'Cửa hàng đang bị khoá' });
 
   if (viec.length === 0) viec.push({ mucDo: 'on', chu: 'Đang chạy bình thường' });
   return viec;

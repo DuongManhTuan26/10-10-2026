@@ -165,7 +165,7 @@ export default function DieuHanhThu({ trangId }: { trangId: number | null }) {
             {dangChay ? 'Đang chạy (1–3 phút)…' : 'Chạy thử AI điều hành'}
           </button>
         </div>
-        <p className="text-[11px] text-on-surface-variant">Chế độ đề xuất — không thực thi gì. Mỗi lần chạy tốn khoảng 0,07–0,17 USD (tiền AI tính vào trang này).</p>
+        <p className="text-[11px] text-on-surface-variant">Chế độ đề xuất — không thực thi gì. Mỗi lần chạy tốn khoảng 0,07–0,17 USD (tiền AI tính vào cửa hàng này).</p>
       </div>
 
       {/* 3. Đề xuất gần đây */}

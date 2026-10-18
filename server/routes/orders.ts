@@ -118,7 +118,7 @@ ordersRouter.post(
             )
           : null;
         if (!r?.trang_id) {
-          throw new AppError("Tài khoản có nhiều trang — chọn trang (kênh) trước khi tạo đơn.", 400);
+          throw new AppError("Tài khoản có nhiều cửa hàng — chọn cửa hàng (kênh) trước khi tạo đơn.", 400);
         }
         trangId = r.trang_id;
       }

@@ -15,29 +15,34 @@ import { useActivePage } from '../lib/ActivePage';
 import BaoCaoChuoi from '../components/BaoCaoChuoi';
 import SucKhoeTrang from '../components/SucKhoeTrang';
 import DieuHanhThu from '../components/DieuHanhThu';
+import { aiTheoMa } from '../lib/bon-ai';
 
-const COLORS = ['#00e5ff', '#d946ef', '#f59e0b', '#3b82f6', '#10b981', '#ef4444'];
+const COLORS = ['#22d3ee', '#d946ef', '#f59e0b', '#3b82f6', '#10b981', '#ef4444'];
 const vnd = (x: number) => `${x.toLocaleString('vi-VN')} ₫`;
 
-function Khung({ tieuDe, phu, icon, children }: { tieuDe: string; phu?: string; icon: string; children: ReactNode }) {
+function Khung({ tieuDe, phu, mau, children }: { tieuDe: string; phu?: string; mau: string; children: ReactNode }) {
   return (
-    <section className="bg-surface-container rounded-xl border border-outline-variant p-6 shadow-lg">
-      <div className="flex items-start gap-3 mb-4">
-        <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-primary shrink-0">
-          <span className="material-symbols-outlined text-[22px]">{icon}</span>
-        </div>
-        <div>
-          <h3 className="text-lg font-bold text-on-surface">{tieuDe}</h3>
-          {phu && <p className="text-xs text-on-surface-variant mt-0.5">{phu}</p>}
-        </div>
-      </div>
+    <section className={clsx('khung-muc', mau)}>
+      <h3 className="tieu-de-muc dau-muc">{tieuDe}</h3>
+      {phu && <p className="text-xs text-on-surface-variant -mt-1 mb-3">{phu}</p>}
       {children}
     </section>
   );
 }
 
-export default function DieuHanh() {
-  const { trangDangChon, activeTrangId } = useActivePage();
+/** ④ AI Điều hành › Đang làm: rà soát, tìm nguyên nhân, đề xuất (chế độ đề xuất — chờ duyệt). */
+export function DangLamDieuHanh() {
+  const { activeTrangId } = useActivePage();
+  return (
+    <Khung tieuDe="Rà soát và đề xuất" phu="Chế độ đề xuất — không thực thi gì, mọi đề xuất chờ duyệt" mau="mau-xanh">
+      <DieuHanhThu trangId={activeTrangId} />
+    </Khung>
+  );
+}
+
+/** ④ AI Điều hành › Kết quả: báo cáo năng suất / hiệu suất 3 AI nhân viên của trang đang chọn. */
+export function KetQuaDieuHanh() {
+  const { activeTrangId } = useActivePage();
   const [ky, setKy] = useState<KyTongQuan>('thang_nay');
   const [du, setDu] = useState<BaoCaoDieuHanh | null>(null);
   const [loi, setLoi] = useState('');
@@ -76,17 +81,8 @@ export default function DieuHanh() {
   ] : [];
 
   return (
-    <main className="flex-1 w-full relative text-on-surface">
-      <div className="pt-8 pb-8 px-margin max-w-[1600px] mx-auto w-full space-y-gutter">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <h2 className="text-on-surface-variant font-body-lg">AI Điều Hành</h2>
-            <p className="text-sm font-medium text-on-surface-variant mt-1">
-              Nhận báo cáo năng suất, hiệu suất của AI viết bài, AI quảng cáo, AI bán hàng
-              {trangDangChon ? <> — trang <b className="text-on-surface">{trangDangChon.ten}</b></> : null}
-            </p>
-          </div>
+    <div className="space-y-6">
+        <div className="flex justify-end">
           <select
             value={ky}
             onChange={(e) => setKy(e.target.value as KyTongQuan)}
@@ -98,7 +94,7 @@ export default function DieuHanh() {
         </div>
 
         {loi && <div className="text-sm text-error bg-error/10 border border-error/30 rounded-xl px-4 py-3">{loi}</div>}
-        {!du && !loi && <p className="text-sm text-on-surface-variant">Đang tải báo cáo của trang…</p>}
+        {!du && !loi && <p className="text-sm text-on-surface-variant">Đang tải báo cáo của cửa hàng…</p>}
 
         {du && bh && (
           <>
@@ -107,7 +103,7 @@ export default function DieuHanh() {
             )}
 
             {/* Thẻ số chính */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {the.map((c) => (
                 <div key={c.nhan} className="bg-surface-container-high rounded-xl p-5 border border-outline-variant shadow-lg flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-surface-variant flex items-center justify-center text-primary shrink-0">
@@ -123,7 +119,7 @@ export default function DieuHanh() {
             </div>
 
             {/* Biểu đồ: doanh thu theo ngày + nguồn khách — của RIÊNG trang này */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="bg-surface-container rounded-xl border border-outline-variant p-6 shadow-lg lg:col-span-2">
                 <h3 className="font-headline-sm text-lg font-bold text-on-surface mb-6">Doanh thu theo ngày</h3>
                 <div className="h-[280px] w-full">
@@ -137,8 +133,8 @@ export default function DieuHanh() {
                       <AreaChart data={du.theoNgay} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="mauDoanhThu" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#00e5ff" stopOpacity={0.4} />
-                            <stop offset="95%" stopColor="#00e5ff" stopOpacity={0} />
+                            <stop offset="5%" stopColor={aiTheoMa('analytics').hex} stopOpacity={0.4} />
+                            <stop offset="95%" stopColor={aiTheoMa('analytics').hex} stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -146,11 +142,11 @@ export default function DieuHanh() {
                         <YAxis stroke="#8b95a1" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000000}M`} />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px' }}
-                          itemStyle={{ color: '#00e5ff', fontWeight: 'bold' }}
+                          itemStyle={{ color: aiTheoMa('analytics').hex, fontWeight: 'bold' }}
                           labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
                           formatter={(v: number) => vnd(v)}
                         />
-                        <Area type="monotone" dataKey="doanhThu" name="Doanh thu" stroke="#00e5ff" strokeWidth={3} fillOpacity={1} fill="url(#mauDoanhThu)" />
+                        <Area type="monotone" dataKey="doanhThu" name="Doanh thu" stroke={aiTheoMa('analytics').hex} strokeWidth={3} fillOpacity={1} fill="url(#mauDoanhThu)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   )}
@@ -180,22 +176,17 @@ export default function DieuHanh() {
             </div>
 
             {/* Báo cáo của 3 AI nhân viên — chuỗi 4 khâu */}
-            <Khung tieuDe="Báo cáo 3 AI nhân viên" phu="Nội dung → Quảng cáo → Bán hàng → Tổng: đã làm gì, tốn bao nhiêu, ra kết quả gì, hỏng ở đâu" icon="account_tree">
+            <Khung tieuDe="Báo cáo 3 AI nhân viên" phu="Nội dung → Quảng cáo → Bán hàng → Tổng: đã làm gì, tốn bao nhiêu, ra kết quả gì, hỏng ở đâu" mau="mau-xanh">
               <BaoCaoChuoi t={du.trang} du={du.chuoi} />
             </Khung>
 
             {/* Điểm tốt / chưa tốt — thống kê chấm, không AI */}
-            <Khung tieuDe="Điểm tốt cần giữ · điểm chưa tốt cần xử lý" phu="7 ngày gần so với 28 ngày trước — chỉ kết luận khi có ý nghĩa thống kê" icon="monitor_heart">
+            <Khung tieuDe="Điểm tốt cần giữ · điểm chưa tốt cần xử lý" phu="7 ngày gần so với 28 ngày trước — chỉ kết luận khi có ý nghĩa thống kê" mau="mau-lam">
               <SucKhoeTrang du={du.sucKhoe} />
             </Khung>
           </>
         )}
 
-        {/* Rà soát, tìm nguyên nhân, đề xuất (chế độ đề xuất — chờ duyệt) */}
-        <Khung tieuDe="Rà soát và đề xuất" phu="Chế độ đề xuất — không thực thi gì, mọi đề xuất chờ duyệt" icon="psychology">
-          <DieuHanhThu trangId={activeTrangId} />
-        </Khung>
-      </div>
-    </main>
+    </div>
   );
 }

@@ -10,6 +10,7 @@
 
 import { query, queryOne } from "../db.js";
 import { AppError } from "../http.js";
+import { cauLenhKenhBai } from "./kenh-dang.js";
 import * as zernio from "./zernio.js";
 import { hoanDiaChiKho } from "./media-proxy.js";
 
@@ -79,21 +80,24 @@ export async function publishPost(
 
   // Zernio cần cả platform và accountId cho từng kênh, nên phải tra lại
   // từ database chứ không thể gửi danh sách id phẳng.
-  const targets = await query<{ id: string; platform: string }>(
-    post.target_account_ids?.length
-      ? `SELECT id, platform FROM social_accounts
-           WHERE user_id = $1 AND connected = TRUE AND id = ANY($2::text[])
-             AND platform <> 'metaads'`
-      : `SELECT id, platform FROM social_accounts
-           WHERE user_id = $1 AND connected = TRUE AND platform <> 'metaads'`,
-    post.target_account_ids?.length ? [userId, post.target_account_ids] : [userId]
-  );
+  // Bài không chọn kênh thì KHÔNG đăng tràn ra mọi kênh của tài khoản (B1-G, services/kenh-dang.ts): chuyển bài sang
+  // 'failed' kèm lý do dễ đọc — báo một lần; không bộ quét nào thử lại bài 'failed'.
+  const lenhKenh = cauLenhKenhBai(userId, post.target_account_ids);
+  if ("loi" in lenhKenh) {
+    await query(`UPDATE posts SET status = 'failed', last_error = $2, updated_at = now() WHERE id = $1`, [
+      post.id,
+      lenhKenh.loi,
+    ]);
+    throw new AppError(lenhKenh.loi, 409);
+  }
+  const targets = await query<{ id: string; platform: string }>(lenhKenh.sql, lenhKenh.thamSo);
 
   if (targets.rows.length === 0) {
-    throw new AppError(
-      "Chưa có kênh nào được kết nối để đăng bài. Vui lòng thêm kênh tại mục Kết Nối Đa Nền Tảng.",
-      409
-    );
+    // Có chọn kênh nhưng mọi kênh đã ngắt: ghi 'failed' + lý do như chặn rỗng kênh, để bài hiện ở mục Cần xử lý
+    // (không nằm im ở Bản nháp) — mọi lối gọi đều được hưởng.
+    const lyDo = "Các kênh đã chọn cho bài này đều đã ngắt kết nối. Vui lòng nối lại kênh hoặc chọn kênh khác rồi đăng lại.";
+    await query(`UPDATE posts SET status = 'failed', last_error = $2, updated_at = now() WHERE id = $1`, [post.id, lyDo]);
+    throw new AppError(lyDo, 409);
   }
 
   /*

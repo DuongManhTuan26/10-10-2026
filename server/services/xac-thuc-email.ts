@@ -8,8 +8,8 @@
  *   - tăng số lần sai TRƯỚC khi so, nên bắn song song cũng không vượt 5 lượt;
  *   - mỗi tài khoản tối đa 5 mã mỗi giờ, chống dùng hệ thống để spam email.
  *
- * Trang con (tên đăng nhập @noi-bo.local, không có hộp thư thật): mã gửi về
- * email của chủ chuỗi quản lý trang đó.
+ * Tài khoản con cũ (tên đăng nhập @noi-bo.local, không có hộp thư thật — tầng
+ * chủ chuỗi đã bỏ 18/10/2026): không nhận được mã, báo rõ để liên hệ quản trị.
  */
 
 import crypto from "node:crypto";
@@ -72,18 +72,15 @@ async function guiEmail(toi: string, tieuDe: string, noiDung: string): Promise<v
   }
 }
 
-/** Email nhận mã: email của chính tài khoản, hoặc của chủ chuỗi nếu là trang con. */
-async function nguoiNhanMa(user: { id: number; email: string }): Promise<{ email: string; laChuChuoi: boolean }> {
-  if (!laTenDangNhapNoiBo(user.email)) return { email: user.email, laChuChuoi: false };
-  const cha = await queryOne<{ email: string }>(
-    `SELECT c.email FROM users c JOIN users t ON t.parent_id = c.id
-      WHERE t.id = $1 AND c.is_active = TRUE`,
-    [user.id]
-  );
-  if (!cha || laTenDangNhapNoiBo(cha.email)) {
-    throw new AppError("Tài khoản trang này không có chủ chuỗi để nhận mã xác thực.", 409);
+/** Email nhận mã: email của chính tài khoản. Tên đăng nhập nội bộ cũ không có hộp thư thật. */
+function nguoiNhanMa(user: { id: number; email: string }): { email: string } {
+  if (laTenDangNhapNoiBo(user.email)) {
+    throw new AppError(
+      "Tài khoản này thuộc cách quản lý cũ, không có email để nhận mã xác thực. Vui lòng liên hệ quản trị.",
+      409
+    );
   }
-  return { email: cha.email, laChuChuoi: true };
+  return { email: user.email };
 }
 
 /**
@@ -102,7 +99,7 @@ export async function taoVeXacThuc(p: {
     throw new AppError("Đã gửi quá nhiều mã cho tài khoản này. Vui lòng thử lại sau một giờ.", 429);
   }
 
-  const nhan = await nguoiNhanMa(p.user);
+  const nhan = nguoiNhanMa(p.user);
   const ma = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
   const ve = crypto.randomBytes(24).toString("base64url");
   await query(
@@ -112,7 +109,7 @@ export async function taoVeXacThuc(p: {
   );
 
   const viec = p.mucDich === "dang_ky" ? "hoàn tất đăng ký" : "đăng nhập";
-  const ai = nhan.laChuChuoi ? `trang "${p.user.name || p.user.email}" trong chuỗi của bạn` : "tài khoản của bạn";
+  const ai = "tài khoản của bạn";
   await guiEmail(
     nhan.email,
     `Mã xác thực: ${ma}`,

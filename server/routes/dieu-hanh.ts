@@ -28,7 +28,7 @@ dieuHanhRouter.use(requireAuth);
 async function trangCuaToi(userId: number): Promise<number> {
   const trangId = await trangHienTai();
   const r = trangId ? await queryOne("SELECT 1 FROM trang WHERE id = $1 AND user_id = $2", [trangId, userId]) : null;
-  if (!r) throw new AppError("Chưa có trang nào — nối kênh bán hàng trước", 400);
+  if (!r) throw new AppError("Chưa có cửa hàng nào — nối kênh bán hàng trước", 400);
   return trangId!;
 }
 
@@ -105,7 +105,7 @@ dieuHanhRouter.post(
     const userId = req.user!.id;
     const trangId = await trangCuaToi(userId);
     const goTay = typeof req.body?.vanDe === "string" ? req.body.vanDe.trim().slice(0, 500) : "";
-    if (dangChayDieuHanh.has(trangId)) throw new AppError("Trang này đang chạy thử, chờ lượt trước xong", 409);
+    if (dangChayDieuHanh.has(trangId)) throw new AppError("Cửa hàng này đang chạy thử, chờ lượt trước xong", 409);
     dangChayDieuHanh.add(trangId);
     try {
       const [so, sk] = await Promise.all([soBangChungTrang(userId, trangId), sucKhoeTrang(trangId)]);
@@ -140,5 +140,65 @@ dieuHanhRouter.post(
       lyDo: typeof req.body?.lyDo === "string" ? req.body.lyDo.trim().slice(0, 1000) : undefined });
     if (!ok) throw new AppError("Đề xuất này đã được quyết rồi", 409);
     res.json({ success: true });
+  })
+);
+
+/** Sức khoẻ từng khâu của trang đang chọn — thẻ "Kết quả" của mỗi AI trong khuôn 4 thẻ (chỉ đọc, không tốn tiền). */
+dieuHanhRouter.get(
+  "/suc-khoe",
+  route(async (req, res) => {
+    const trangId = await trangCuaToi(req.user!.id);
+    res.json({ success: true, data: await sucKhoeTrang(trangId) });
+  })
+);
+
+const AI_HOP_LE = new Set(["content", "ads", "sales", "analytics"]);
+
+/**
+ * Nhật ký của MỘT AI trong bộ não trang đang chọn — thẻ "Nhật ký" của khuôn 4 thẻ (chỉ đọc).
+ *
+ * Thay đổi đọc từ sổ thay đổi (migration 044). Cài đặt / tài liệu gắn theo trang nên lọc theo trang và `kind` của dòng;
+ * luật nhường người, hàng rào, kịch bản bình luận đang lưu theo TÀI KHOẢN (chưa có trang) → thuộc AI bán hàng, lọc theo
+ * tài khoản; kênh là việc chung của trang → hiện ở AI điều hành.
+ */
+dieuHanhRouter.get(
+  "/nhat-ky/:ai",
+  route(async (req, res) => {
+    const ai = String(req.params.ai);
+    if (!AI_HOP_LE.has(ai)) throw new AppError("AI không hợp lệ", 400);
+    const userId = req.user!.id;
+    const trangId = await trangCuaToi(userId);
+
+    const thayDoi = await query(
+      `SELECT d.luc, d.bang, d.hanh_dong, d.truoc, d.sau, d.nguon
+         FROM so_thay_doi d
+        WHERE (d.trang_id = $1 OR (d.trang_id IS NULL AND d.user_id = $3))
+          AND CASE
+                WHEN d.bang IN ('ai_configs', 'ai_documents') THEN d.trang_id = $1 AND COALESCE(d.sau ->> 'kind', d.truoc ->> 'kind') = $2
+                WHEN d.bang IN ('handoff_rules', 'guardrail_configs', 'auto_scripts') THEN $2 = 'sales'
+                WHEN d.bang = 'social_accounts' THEN d.trang_id = $1 AND $2 = 'analytics'
+                ELSE FALSE
+              END
+        ORDER BY d.luc DESC LIMIT 100`,
+      [trangId, ai, userId]
+    );
+
+    // Việc AI đã tự làm: lịch tự đăng (ghi theo tài khoản) · các lần AI điều hành chẩn đoán (theo trang).
+    const viec =
+      ai === "content"
+        ? (await query(
+            `SELECT created_at AS luc, COALESCE(topic, '') || CASE WHEN note IS NOT NULL THEN ' — ' || note ELSE '' END AS noi_dung,
+                    status AS trang_thai
+               FROM auto_pilot_runs WHERE user_id = $1 ORDER BY id DESC LIMIT 50`,
+            [userId]
+          )).rows
+        : ai === "analytics"
+          ? (await query(
+              `SELECT luc, van_de AS noi_dung, trang_thai FROM de_xuat_dieu_hanh WHERE trang_id = $1 ORDER BY id DESC LIMIT 50`,
+              [trangId]
+            )).rows
+          : [];
+
+    res.json({ success: true, data: { thayDoi: thayDoi.rows, viec } });
   })
 );

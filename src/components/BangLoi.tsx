@@ -26,7 +26,8 @@ export default function BangLoi({
       className={`flex items-start gap-2 text-sm text-error bg-error/10 border border-error/30 rounded-xl px-4 py-3 ${className}`}
     >
       <span className="material-symbols-outlined text-[18px] mt-0.5 shrink-0">error</span>
-      <span className="leading-relaxed flex-1">{noiDung}</span>
+      {/* Chữ "Lỗi" luôn đi kèm: ② AI Quảng cáo dùng màu đỏ (12/10/2026) — lỗi phải phân biệt được không chỉ bằng màu. */}
+      <span className="leading-relaxed flex-1"><b>Lỗi:</b> {noiDung}</span>
       {onDong && (
         <button
           type="button"

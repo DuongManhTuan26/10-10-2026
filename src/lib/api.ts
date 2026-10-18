@@ -259,11 +259,10 @@ export interface User {
   /**
    * Máy chủ tự kiểm lại vai trò mỗi request; chỗ này chỉ để vẽ giao diện.
    *
-   * 'admin'     — quản trị tổng.
-   * 'admin_con' — chủ chuỗi, quản lý các tài khoản trang mình lập ra.
-   * 'shop'      — một tài khoản một trang.
+   * 'admin' — quản trị tổng (đồng thời dùng như một tài khoản thường).
+   * 'shop'  — tài khoản dùng thường: tự giữ nhiều cửa hàng.
    */
-  role: 'admin' | 'admin_con' | 'shop';
+  role: 'admin' | 'shop';
   profileRef: string | null;
   /** Khác null nghĩa là đang XEM THAY một trang, không phải tài khoản của mình. */
   moBoi?: number | null;
@@ -277,7 +276,7 @@ export interface TaiKhoanQuanTri {
   email: string;
   name: string;
   plan: string;
-  role: 'admin' | 'admin_con' | 'shop';
+  role: 'admin' | 'shop';
   is_active: boolean;
   created_at: string;
   kenh: number;
@@ -293,14 +292,9 @@ export interface TaiKhoanQuanTri {
   la_toi: boolean;
 }
 
-/**
- * MỘT dòng tài khoản ở màn hình QUẢN LÝ dùng chung (quản trị tổng và admin con) — cùng một bộ cột ở cả hai
- * (server/services/quan-ly-chung.ts). Chủ dự án 04/10/2026: hai màn hình phải giống 100%, chỉ khác phạm vi.
- */
+/** MỘT dòng tài khoản ở màn hình QUẢN LÝ của quản trị tổng (server/services/quan-ly-chung.ts). */
 export interface TaiKhoanQuanLy extends TrangVanHanh {
-  role: 'admin' | 'admin_con' | 'shop';
-  /** Admin con đứng trên tài khoản trang này; null nếu đứng riêng. */
-  parent_id: number | null;
+  role: 'admin' | 'shop';
   /** Dòng của chính người đang xem. */
   la_toi: boolean;
   tai_lieu: number;
@@ -369,6 +363,23 @@ export interface PlatformCatalog {
  * được dạy chưa, tuần qua có chạy không, có khách nào đang chờ người, bán được
  * bao nhiêu. Không phải bấm vào từng trang mới biết.
  */
+/** Số liệu vận hành cơ bản của một tài khoản (màn Quản lý của quản trị tổng). */
+export interface TrangCon {
+  id: number;
+  email: string;
+  name: string;
+  is_active: boolean;
+  plan: string;
+  created_at: string;
+  kenh_noi: number;
+  kenh_can_noi_lai: number;
+  don_hom_nay: number;
+  /** Chuỗi vì Postgres trả bigint dưới dạng chuỗi, đừng ép sang number rồi mất số. */
+  doanh_thu_thang: string;
+  cho_nguoi: number;
+  ten_fanpage: string | null;
+}
+
 export interface TrangVanHanh extends TrangCon {
   /** 1 nếu vai trò AI bán hàng đã có chữ, 0 nếu vẫn để trống. */
   da_day_vai_tro: number;
@@ -415,23 +426,6 @@ export interface BaoCaoTrang {
 }
 
 /** Một trang trong chuỗi, nhìn từ bảng tổng quan của chủ chuỗi. */
-export interface TrangCon {
-  id: number;
-  /** Tên đăng nhập nội bộ do hệ thống sinh, KHÔNG phải email của ai. */
-  email: string;
-  name: string;
-  is_active: boolean;
-  plan: string;
-  created_at: string;
-  kenh_noi: number;
-  kenh_can_noi_lai: number;
-  don_hom_nay: number;
-  /** Chuỗi vì Postgres trả bigint dưới dạng chuỗi, đừng ép sang number rồi mất số. */
-  doanh_thu_thang: string;
-  cho_nguoi: number;
-  ten_fanpage: string | null;
-}
-
 export interface SocialAccount {
   id: string;
   platform: string;
@@ -510,6 +504,8 @@ export interface Order {
   note: string | null;
   telegram_sent_at: string | null;
   created_at: string;
+  /** Hội thoại sinh ra đơn (bảng orders có cột này từ 001); null nếu đơn tạo tay ngoài hội thoại. */
+  conversation_id: string | null;
 }
 
 /**
@@ -535,7 +531,6 @@ export interface SaoKeChiPhi {
     tamDungLuc?: string | null; lyDoTamDung?: string | null; canTraUsd?: number | null; linkHoaDon?: string | null;
     lyDoTuChoiThe?: string | null; lanThuTienTiepTheo?: string | null;
     /** Phạm vi chuỗi: tiền kênh chia theo tỉ lệ số kênh đang nối (nhà cung cấp chỉ báo tổng cả hệ thống). */
-    uocTinh?: { kenhChuoi: number; kenhTatCa: number };
   };
   /** null ở phạm vi chuỗi (ngưỡng cảnh báo là việc của quản trị tổng). */
   nguong: NguongCanhBao | null;
@@ -551,7 +546,7 @@ export interface SaoKeChiPhi {
     /** Mỗi tài khoản một dòng, tiền của RIÊNG tài khoản đó (không cộng con). */
     theoTaiKhoan: {
       userId: number | null; ten: string; email: string | null; vaiTro: string | null;
-      chaId: number | null; chaTen: string | null; lan: number; usd: number;
+      lan: number; usd: number;
     }[];
     tongTuTruocUsd: number;
   };
@@ -565,9 +560,7 @@ export interface SaoKeChiPhi {
     /** lechUsd: phần lệch thật, đã trừ các lượt đang chờ nhà cung cấp chốt. */
     sauMoc: { nhaCungCapUsd: number; soDaChotUsd: number; soChoUsd: number; soLuotCho: number; chenhUsd: number; lechUsd: number };
   } | null;
-  /** null ở phạm vi chuỗi (nạp tiền là việc của quản trị tổng). */
   linkNap: { openrouter: string; kenh: string; database: string } | null;
-  phamVi?: 'chuoi';
 }
 
 /** Một lượt AI bị tính tiền trong sổ. */
@@ -593,8 +586,7 @@ export interface TaiKhoanTongQuan {
   id: number;
   ten: string;
   email: string;
-  role: 'admin' | 'admin_con' | 'shop';
-  parentId: number | null;
+  role: 'admin' | 'shop';
   hoatDong: boolean;
   laToi: boolean;
   trang: TrangTongQuan[];
@@ -602,7 +594,7 @@ export interface TaiKhoanTongQuan {
 }
 export interface TongQuanQuanLy {
   ky: KyTongQuan;
-  phamVi: 'tong' | 'chuoi';
+  phamVi: 'tong';
   /** Kỳ đã kẹp từ mốc bắt đầu tính theo trang. truocMoc = cả kỳ nằm trước mốc (không có số). */
   kyTinh: { tu: string; den: string; keoTuMoc: boolean; truocMoc: boolean; moc: string };
   /** Đã chốt hay còn tạm tính, theo cách từng nguồn chốt sổ. */
@@ -727,7 +719,6 @@ export interface LocLuot {
   ngay?: number;
   /** Mã tài khoản, hoặc 'chung' cho việc không thuộc tài khoản nào. */
   tk?: number | 'chung';
-  kemCon?: boolean;
   nhom?: string;
   viec?: string;
   trang?: number;
@@ -977,6 +968,15 @@ export interface DashboardStats {
 // Nhóm hàm theo từng khu vực
 // ---------------------------------------------------------------------------
 
+/** 4 AI cố định của bộ não mỗi trang (src/lib/bon-ai.ts). */
+export type MaAi = "content" | "ads" | "sales" | "analytics";
+
+/** Nhật ký một AI: thay đổi cài đặt / tài liệu / luật (sổ thay đổi) + việc AI đã tự làm. */
+export interface NhatKyAi {
+  thayDoi: { luc: string; bang: string; hanh_dong: "them" | "sua" | "xoa"; truoc: Record<string, unknown> | null; sau: Record<string, unknown> | null; nguon: string | null }[];
+  viec: { luc: string; noi_dung: string; trang_thai: string }[];
+}
+
 export const api = {
   /** Quản trị hệ thống. Máy chủ chặn người không phải quản trị, đây chỉ là lớp gọi. */
   admin: {
@@ -985,7 +985,6 @@ export const api = {
     luotChiPhi: (loc: LocLuot) => {
       const q = new URLSearchParams({ ngay: String(loc.ngay ?? 0), trang: String(loc.trang ?? 1) });
       if (loc.tk !== undefined) q.set('tk', String(loc.tk));
-      if (loc.kemCon) q.set('kemCon', '1');
       if (loc.nhom) q.set('nhom', loc.nhom);
       if (loc.viec) q.set('viec', loc.viec);
       return get<{ data: { luot: LuotChiPhi[]; tongLan: number; tongUsd: number; trang: number; soTrang: number } }>(
@@ -1003,7 +1002,7 @@ export const api = {
      * là 'shop', nên thiếu trường này là lặng lẽ tạo ra tài khoản đứng riêng.
      */
     /** matKhau: quản trị tự đặt (≥8 ký tự); bỏ trống thì hệ thống sinh. */
-    create: (payload: { email: string; name?: string; role: 'admin_con' | 'shop'; matKhau?: string }) =>
+    create: (payload: { email: string; name?: string; matKhau?: string }) =>
       post<{ data: { id: number; email: string; name: string; matKhauTam: string } }>(
         '/admin/accounts',
         payload
@@ -1022,15 +1021,17 @@ export const api = {
      * lập trúng lúc máy chủ đang chạy bản cũ. Máy chủ từ chối nếu tài khoản đã
      * có kênh, hội thoại, đơn hàng hay vai trò AI đã nhập.
      */
-    thanhChuChuoi: (id: number) =>
-      post<{ data: { id: number; email: string; hoSoDaDon: string | null; loiDonHoSo: string | null } }>(
-        `/admin/accounts/${id}/thanh-chu-chuoi`
-      ),
     remove: (id: number, confirmEmail: string) =>
       request<{ success: boolean }>(`/admin/accounts/${id}`, {
         method: 'DELETE',
         body: { confirmEmail },
       }),
+    /** Xem trước khi xoá (chỉ đọc): hồ sơ sẽ xoá + kênh sẽ ngắt, hồ sơ bỏ qua vì dùng chung. */
+    xemTruocXoa: (id: number) =>
+      get<{ data: {
+        hoSo: { id: string; nguon: string[]; daMat?: boolean; kenh: { id: string; platform: string; ten: string; dangNoi: boolean }[] }[];
+        boQua: { id: string; lyDo: string }[];
+      } }>(`/admin/accounts/${id}/xem-truoc-xoa`),
   },
 
   auth: {
@@ -1076,31 +1077,37 @@ export const api = {
         };
       }>("/connections/pending-selection"),
     /** Chốt các Trang đã chọn — đây là bước thật sự tạo kênh. */
-    /** Các Trang một kênh Facebook vào được, kèm Trang đang gắn. */
-    accountPages: (accountId: string) =>
-      get<{
-        data: {
-          pages: Array<{ id: string; name: string; category?: string; fan_count?: number }>;
-          selectedPageId: string | null;
-        };
-      }>(`/connections/accounts/${accountId}/pages`),
-    /**
-     * Đổi Trang đang gắn. Đây là ĐỔI chứ không phải thêm: Trang cũ sẽ ngừng
-     * nhận tin nhắn và bình luận.
-     */
-    switchPage: (accountId: string, pageId: string) =>
-      request<{ data: { selectedPage: { id: string; name: string } | null }; message?: string }>(
-        `/connections/accounts/${accountId}/page`,
-        { method: "PUT", body: { pageId } }
-      ),
+    /** Đặt tên trang bán hàng (chủ shop tự gõ). */
+    doiTenTrang: (trangId: number, ten: string) =>
+      put<{ message?: string }>(`/connections/trang/${trangId}/ten`, { ten }),
+    /** Chuyển kênh sang trang bán hàng khác — bộ não AI của trang đó sẽ trả lời khách trên kênh. */
+    chuyenKenhSangTrang: (accountId: string, trangId: number) =>
+      put<{ message?: string }>(`/connections/accounts/${accountId}/trang`, { trangId }),
     selectPages: (pageIds: string[]) =>
       post<{ data: { connected: string[]; failed: Array<{ pageId: string; error: string }> } }>(
         "/connections/select-pages",
         { pageIds }
       ),
     sync: () => post<{ synced: number; data: SocialAccount[] }>("/connections/sync"),
-    connectUrl: (platform: string) =>
-      post<{ url: string }>("/connections/connect-url", { platform }),
+    /** trangId: trang bán hàng chủ shop đã chọn — bắt buộc với kênh không phải Facebook / quảng cáo. */
+    /** noiLai: mã kênh đang có cần nối lại — đi vào đúng hồ sơ của kênh đó, giữ nguyên trang. */
+    connectUrl: (platform: string, trangId?: number, noiLai?: string) =>
+      post<{ url: string }>("/connections/connect-url", { platform, trangId, noiLai }),
+    /** Trang bán hàng của tài khoản (kể cả trang chưa có kênh). */
+    dsTrang: () =>
+      get<{ data: Array<{ id: number; ten: string; soKenh: number; nenTang: string[]; hopRieng: boolean }> }>("/connections/trang"),
+    /** Telegram: lấy mã kết nối thật (sống 15 phút) cho trang đã chọn. */
+    layMaTelegram: (trangId: number | null, noiLai?: string) =>
+      post<{ data: { code: string; expiresAt: string; botUsername: string } }>("/connections/telegram/ma", { trangId, noiLai }),
+    trangThaiTelegram: (code: string) =>
+      get<{ data: { status: 'pending' | 'connected' | 'expired' } }>(`/connections/telegram/trang-thai?code=${encodeURIComponent(code)}`),
+    /** Bluesky: nối bằng tên tài khoản + mật khẩu ứng dụng (không lưu). */
+    noiBluesky: (trangId: number | null, identifier: string, appPassword: string, noiLai?: string) =>
+      post<{ message?: string }>("/connections/bluesky", { trangId, identifier, appPassword, noiLai }),
+    /** Xoá trang bán hàng — chỉ trang không còn kênh (xoá cả bộ não của trang). */
+    xoaTrang: (trangId: number) => del<{ message?: string }>(`/connections/trang/${trangId}`),
+    /** Tạo trang bán hàng mới (tên chủ shop gõ). */
+    taoTrang: (ten: string) => post<{ data: { id: number; ten: string }; message?: string }>("/connections/trang", { ten }),
     disconnect: (accountId: string) =>
       del<{ success: boolean }>(`/connections/accounts/${encodeURIComponent(accountId)}`),
     /*
@@ -1181,6 +1188,9 @@ export const api = {
       get<{ data: Array<{ id: number; time: string; content: string; color: string }> }>(
         "/dashboard/activity"
       ),
+    /** Doanh thu và số đơn theo NGÀY (giờ VN) của 7 hoặc 30 ngày gần nhất — ngày không có đơn vẫn có dòng số 0. */
+    chart: (range: "7d" | "30d") =>
+      get<{ data: Array<{ label: string; orders: number; revenue: number | string }> }>(`/dashboard/chart?range=${range}`),
   },
 
   orders: {
@@ -1443,6 +1453,8 @@ export const api = {
           }>;
           /** Đang dùng tài khoản chủ shop chọn, hay hệ thống tự đoán. */
           doChuShopChon?: boolean;
+          /** Đơn mang mã quảng cáo trong kỳ — máy chủ bản này CHƯA gửi (giao diện ghi "Chưa đo được"). */
+          donQuangCao?: { so: number; doanhThu: number; theoNgay: { ngay: string; so: number }[] };
         };
         message?: string;
       }>(`/ads/overview?range=${range}`),
@@ -1456,8 +1468,10 @@ export const api = {
       put<{ data: { adAccountId: string } }>("/ads/tai-khoan-quang-cao", { adAccountId }),
     boostablePosts: () =>
       get<{ data: Post[] }>("/ads/boostable-posts"),
-    setCampaignStatus: (campaignIds: string[], status: "ACTIVE" | "PAUSED" | "ARCHIVED") =>
-      post<{ data: unknown }>("/ads/campaigns/status", { campaignIds, status }),
+    /** Tạm dừng / chạy lại MỘT chiến dịch (mã + nền tảng của chiến dịch, theo tài liệu nhà cung cấp). */
+    doiTrangThaiChienDich: (id: string, platform: string, status: "active" | "paused") =>
+      post<{ data: { updated?: number; skipped?: number; message?: string } }>(
+        `/ads/campaigns/${encodeURIComponent(id)}/status`, { status, platform }),
     /**
      * Sửa ngân sách ngay trong app, đi qua Zernio.
      *
@@ -1468,26 +1482,11 @@ export const api = {
       id: string,
       payload: { amount: number; budgetType?: "daily" | "lifetime"; platform?: string },
     ) => patch<{ data: unknown }>(`/ads/campaigns/${id}/budget`, payload),
-    /**
-     * Các nhóm quảng cáo bên trong một chiến dịch.
-     *
-     * Chiến dịch đặt ngân sách theo nhóm thì sửa ở cấp chiến dịch bị từ chối,
-     * và máy chủ bảo "mở chiến dịch và sửa ngân sách của nhóm bên trong" —
-     * nhưng trước đây không có đường nào để mở nhóm ra. Lời chỉ dẫn dẫn vào
-     * ngõ cụt.
-     */
-    adSets: (campaignId: string, platform = 'facebook') =>
-      get<{ data: Array<Record<string, unknown>> }>(
-        `/ads/campaigns/${encodeURIComponent(campaignId)}/ad-sets?platform=${platform}`
-      ),
-    updateAdSetBudget: (
-      id: string,
-      payload: { amount: number; budgetType?: 'daily' | 'lifetime'; platform?: string },
-    ) => patch<{ data: unknown }>(`/ads/ad-sets/${encodeURIComponent(id)}/budget`, payload),
     updateAudience: (id: string, payload: { name?: string; description?: string }) =>
       request<{ data: unknown }>(`/ads/audiences/${id}`, { method: "PUT", body: payload }),
-    duplicateCampaign: (id: string) =>
-      post<{ data: unknown }>(`/ads/campaigns/${encodeURIComponent(id)}/duplicate`),
+    /** khoa: mã chống bấm trùng, sinh NGẪU NHIÊN mỗi lần bấm (crypto.randomUUID). */
+    duplicateCampaign: (id: string, platform: string, khoa: string) =>
+      post<{ data: unknown }>(`/ads/campaigns/${encodeURIComponent(id)}/duplicate`, { platform, khoa }),
     campaignAnalytics: (id: string, range = "last_7d") =>
       get<{ data: Record<string, unknown> }>(
         `/ads/campaigns/${encodeURIComponent(id)}/analytics?range=${range}`
@@ -1530,70 +1529,28 @@ export const api = {
     chay: (vanDe: string) =>
       post<{ data: { id: number; ketQua: string; soLuotAi: number; tienUsd: number; giay: number } }>("/dieu-hanh/chay", { vanDe }),
     deXuat: () => get<{ data: DeXuatDieuHanh[] }>("/dieu-hanh/de-xuat"),
+    /** Sức khoẻ từng khâu của trang đang chọn — thẻ Kết quả của khuôn 4 thẻ. */
+    sucKhoe: () => get<{ data: SucKhoeTrang }>("/dieu-hanh/suc-khoe"),
+    /** Nhật ký một AI của trang đang chọn — thẻ Nhật ký của khuôn 4 thẻ. */
+    nhatKy: (ai: MaAi) => get<{ data: NhatKyAi }>(`/dieu-hanh/nhat-ky/${ai}`),
     quyet: (id: number, duyet: boolean, lyDo?: string) => post<{ success: true }>(`/dieu-hanh/de-xuat/${id}/quyet`, { duyet, lyDo }),
   },
 
   /**
-   * Quản lý chuỗi trang — chỉ tài khoản 'admin_con' dùng tới.
-   *
-   * Mỗi trang là một TÀI KHOẢN RIÊNG, độc lập hoàn toàn. Không có lệnh nào ở
-   * đây đọc hay ghi dữ liệu bên trong một trang; muốn làm việc trong trang thì
-   * bấm "mở" để bước hẳn vào tài khoản đó.
+   * Phần quản lý của quản trị tổng (server/routes/quan-ly.ts): tổng quan tài sản, sao kê, báo cáo một tài khoản,
+   * mở thẳng vào một tài khoản và quay lại. Tầng chủ chuỗi đã bỏ (chủ dự án 18/10/2026).
    */
   quanLy: {
-    /** Tổng quan tài sản: tài khoản → trang → tiền từng loại. Cùng một đường cho cả hai tầng. */
+    /** Tổng quan tài sản: tài khoản → cửa hàng → tiền từng loại. */
     tongQuan: (ky: KyTongQuan) => get<{ data: TongQuanQuanLy }>(`/quan-ly/tong-quan?ky=${ky}`),
-    /** Sao kê từng lượt AI của một trang. */
+    /** Sao kê từng lượt AI của một cửa hàng. */
     saoKeTrang: (trangId: number, ky: KyTongQuan, trang: number) =>
       get<{ data: { luot: LuotChiPhi[]; tongLan: number; tongUsd: number; trang: number; soTrang: number } }>(
         `/quan-ly/sao-ke-trang?trangId=${trangId}&ky=${ky}&trang=${trang}`
       ),
-    trang: () => get<{ data: TrangCon[] }>("/quan-ly/trang"),
-    /** Màn hình quản lý dùng chung: chính mình + các trang — cùng bộ cột với quản trị tổng. */
-    danhSach: () => get<{ data: TaiKhoanQuanLy[] }>("/quan-ly/danh-sach"),
-    nhatKy: () => get<{ data: NhatKyQuanTri[] }>("/quan-ly/nhat-ky"),
-    /** Chi phí tháng này của chuỗi — cùng dạng với chi phí hệ thống. */
-    chiPhi: (ngay = 0) => get<{ data: SaoKeChiPhi }>(`/quan-ly/chi-phi?ngay=${ngay}`),
-    luotChiPhi: (loc: LocLuot) => {
-      const q = new URLSearchParams({ ngay: String(loc.ngay ?? 0), trang: String(loc.trang ?? 1) });
-      if (loc.tk !== undefined) q.set('tk', String(loc.tk));
-      if (loc.kemCon) q.set('kemCon', '1');
-      if (loc.nhom) q.set('nhom', loc.nhom);
-      if (loc.viec) q.set('viec', loc.viec);
-      return get<{ data: { luot: LuotChiPhi[]; tongLan: number; tongUsd: number; trang: number; soTrang: number } }>(
-        `/quan-ly/chi-phi/luot?${q}`
-      );
-    },
-    /** Báo cáo chi tiết một trang, xem ngay tại tài khoản quản lý. */
+    /** Báo cáo chi tiết một tài khoản, xem ngay tại màn quản lý. */
     baoCao: (id: number, ngay: number) =>
       get<{ data: BaoCaoTrang }>(`/quan-ly/trang/${id}/bao-cao?ngay=${ngay}`),
-    /** matKhau: tự đặt (≥8 ký tự); bỏ trống thì hệ thống sinh. */
-    lapTrang: (ten: string, matKhau?: string) =>
-      post<{ data: { id: number; tenDangNhap: string; name: string; matKhauTam: string } }>(
-        "/quan-ly/trang",
-        matKhau ? { ten, matKhau } : { ten }
-      ),
-    doiTen: (id: number, ten: string) =>
-      patch<{ data: { id: number; name: string } }>(`/quan-ly/trang/${id}`, { ten }),
-    khoa: (id: number, khoa: boolean) =>
-      post<{ data: { id: number; is_active: boolean } }>(`/quan-ly/trang/${id}/khoa`, { khoa }),
-    /** Bỏ trống matKhau thì hệ thống sinh ngẫu nhiên. */
-    capLaiMatKhau: (id: number, matKhau?: string) =>
-      post<{ data: { id: number; matKhauTam: string } }>(
-        `/quan-ly/trang/${id}/mat-khau`,
-        matKhau ? { matKhau } : {}
-      ),
-    doiTenDangNhap: (id: number, ten: string) =>
-      patch<{ data: { id: number; tenDangNhap: string } }>(
-        `/quan-ly/trang/${id}/ten-dang-nhap`,
-        { ten }
-      ),
-    /** Xoá hẳn một trang. Phải gõ đúng tên trang để xác nhận. */
-    xoaTrang: (id: number, xacNhanTen: string) =>
-      request<{ data: { loiXoaHoSo: string | null } }>(`/quan-ly/trang/${id}`, {
-        method: 'DELETE',
-        body: { xacNhanTen },
-      }),
     moTrang: (id: number) =>
       post<{ data: { id: number; name: string } }>(`/quan-ly/trang/${id}/mo`),
     quayLai: () => post<{ data: { id: number; name: string } }>("/quan-ly/quay-lai"),

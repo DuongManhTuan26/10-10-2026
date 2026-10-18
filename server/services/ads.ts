@@ -29,9 +29,11 @@ async function request<T>(
     method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     query?: Record<string, string | number | undefined>;
     body?: unknown;
+    /** Header thêm (vd. Idempotency-Key của lệnh nhân bản). */
+    headers?: Record<string, string>;
   } = {}
 ): Promise<T> {
-  const { method = "GET", query, body } = options;
+  const { method = "GET", query, body, headers } = options;
   const url = new URL(env.zernio.baseUrl + path);
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== undefined && value !== null && value !== "") {
@@ -44,6 +46,7 @@ async function request<T>(
     headers: {
       Authorization: `Bearer ${env.zernio.apiKey}`,
       "Content-Type": "application/json",
+      ...(headers ?? {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(30_000),
@@ -120,15 +123,24 @@ export async function listAds(q: Record<string, string>): Promise<{
 // Chiến dịch
 // ---------------------------------------------------------------------------
 
+/**
+ * Một chiến dịch theo ĐÚNG tài liệu "## AdCampaign" (docs/zernio-api-reference.txt:27312). Bản cũ khai id / name /
+ * dailyBudget / startTime — nhà cung cấp không trả các trường đó (phiên kiểm duyệt bắt được 18/10/2026). Giao diện đọc
+ * qua src/lib/chien-dich.ts.
+ */
 export interface AdCampaign {
-  id: string;
-  name: string;
+  platformCampaignId: string;
+  platform: string;
+  campaignName: string;
   status: string;
-  objective?: string;
-  dailyBudget?: number | string;
-  lifetimeBudget?: number | string;
-  startTime?: string;
-  stopTime?: string;
+  budget?: { amount?: number; type?: "daily" | "lifetime" } | null;
+  campaignBudget?: { amount?: number; type?: "daily" | "lifetime" } | null;
+  budgetLevel?: "campaign" | "adset" | null;
+  currency?: string | null;
+  metrics?: Record<string, unknown> | null;
+  platformAdAccountId?: string;
+  earliestAd?: string;
+  latestAd?: string;
   [key: string]: unknown;
 }
 
@@ -136,6 +148,9 @@ export async function listCampaigns(params: {
   accountId: string;
   adAccountId?: string;
   limit?: number;
+  /** Khoảng ngày của metrics (tài liệu 27196: fromDate/toDate, bỏ trống = 90 ngày) — phải khớp kỳ đang xem. */
+  fromDate?: string;
+  toDate?: string;
 }): Promise<{ campaigns: AdCampaign[]; total: number }> {
   const data = await request<{
     campaigns?: AdCampaign[];
@@ -145,6 +160,8 @@ export async function listCampaigns(params: {
       accountId: params.accountId,
       adAccountId: params.adAccountId,
       limit: params.limit ?? 50,
+      fromDate: params.fromDate,
+      toDate: params.toDate,
     },
   });
   return {
@@ -153,45 +170,76 @@ export async function listCampaigns(params: {
   };
 }
 
+/**
+ * Số liệu một chiến dịch. Tham số theo đúng tài liệu GET /v1/ads/campaigns/{campaignId}/analytics: fromDate / toDate
+ * (YYYY-MM-DD). Bản cũ gửi accountId + datePreset — tài liệu không có hai tham số này, nên chọn kỳ nào cũng ra mặc định
+ * 90 ngày. Mã 202 (backfillPending) vẫn trả nội dung — request() coi 2xx là thành công.
+ */
 export async function getCampaignAnalytics(params: {
   campaignId: string;
-  accountId: string;
-  datePreset?: string;
+  fromDate: string;
+  toDate: string;
 }): Promise<Record<string, unknown>> {
   return request(`/ads/campaigns/${encodeURIComponent(params.campaignId)}/analytics`, {
-    query: { accountId: params.accountId, datePreset: params.datePreset ?? "last_7d" },
+    query: { fromDate: params.fromDate, toDate: params.toDate },
   });
 }
 
-/** Bật, tạm dừng hoặc kết thúc nhiều chiến dịch cùng lúc. */
-export async function setCampaignStatus(params: {
-  accountId: string;
-  adAccountId: string;
-  campaignIds: string[];
-  status: "ACTIVE" | "PAUSED" | "ARCHIVED";
-}): Promise<unknown> {
-  return request("/ads/campaigns/bulk-status", {
-    method: "POST",
-    body: {
-      accountId: params.accountId,
-      adAccountId: params.adAccountId,
-      campaignIds: params.campaignIds,
-      status: params.status,
-    },
-  });
+/** Nền tảng tài liệu cho phép ở lệnh đổi trạng thái chiến dịch (PUT /v1/ads/campaigns/{id}/status — 30086). */
+export const NEN_TANG_CHIEN_DICH = ["facebook", "instagram", "tiktok", "linkedin", "pinterest", "google", "twitter", "openai"];
+/** Nền tảng tài liệu cho phép nhân bản (POST /v1/ads/campaigns/{id}/duplicate — 28550); nền tảng khác trả 501. */
+export const NEN_TANG_NHAN_BAN = ["facebook", "instagram", "tiktok", "linkedin"];
+/** Nền tảng tài liệu cho phép sửa ngân sách chiến dịch (PUT /v1/ads/campaigns/{id} — 28108); khác thì 501. */
+export const NEN_TANG_NGAN_SACH = ["facebook", "instagram", "google"];
+
+/**
+ * Lệnh đổi trạng thái MỘT chiến dịch — hàm thuần, đúng tài liệu 30086: PUT /ads/campaigns/{platformCampaignId}/status,
+ * body { status: active | paused, platform }. Bản cũ gửi POST bulk-status { campaignIds, "ACTIVE"/"PAUSED"/"ARCHIVED" }
+ * — sai cả tên trường lẫn giá trị (tài liệu 27142 đòi `campaigns`, chữ thường, không có ARCHIVED).
+ */
+export function lenhDoiTrangThai(campaignId: string, platform: string, status: "active" | "paused") {
+  return {
+    path: `/ads/campaigns/${encodeURIComponent(campaignId)}/status`,
+    method: "PUT" as const,
+    body: { status, platform },
+  };
 }
 
-export async function duplicateCampaign(params: {
-  campaignId: string;
-  accountId: string;
-  adAccountId: string;
-}): Promise<unknown> {
-  return request(`/ads/campaigns/${encodeURIComponent(params.campaignId)}/duplicate`, {
-    method: "POST",
-    body: { accountId: params.accountId, adAccountId: params.adAccountId },
-  });
+/**
+ * Lệnh nhân bản — hàm thuần, đúng tài liệu 28550: `platform` bắt buộc; deepCopy để chép đủ nhóm / quảng cáo; bản sao
+ * ở trạng thái PAUSED (không tự tiêu tiền). Idempotency-Key do giao diện sinh NGẪU NHIÊN mỗi lần bấm: tài liệu "same
+ * key + same body replays the original response" — dùng lại key cũ thì không tạo bản sao mới mà vẫn báo thành công.
+ */
+export function lenhNhanBan(campaignId: string, platform: string, khoa: string) {
+  return {
+    path: `/ads/campaigns/${encodeURIComponent(campaignId)}/duplicate`,
+    method: "POST" as const,
+    body: { platform, deepCopy: true, statusOption: "PAUSED" },
+    headers: { "Idempotency-Key": khoa },
+  };
 }
 
+/**
+ * Chiến dịch này có thuộc tài khoản quảng cáo của shop không — CHỈ ĐỌC. Khoá API dùng chung cho cả nền tảng, lệnh đổi
+ * trạng thái / nhân bản không nhận accountId (tài liệu 30086, 28550), nên phải tự đối chiếu trước khi đổi: GET
+ * /v1/ads/tree lọc theo campaignId + accountId + adAccountId (tài liệu 28957) — không thuộc thì không trả chiến dịch nào.
+ */
+export async function chienDichThuocTaiKhoan(p: { campaignId: string; accountId: string; adAccountId: string }): Promise<boolean> {
+  const d = await request<{ campaigns?: unknown[] }>("/ads/tree", {
+    query: { campaignId: p.campaignId, accountId: p.accountId, adAccountId: p.adAccountId, limit: 1 },
+  });
+  return (d.campaigns ?? []).length > 0;
+}
+
+export async function doiTrangThaiChienDich(campaignId: string, platform: string, status: "active" | "paused") {
+  const l = lenhDoiTrangThai(campaignId, platform, status);
+  return request<{ updated?: number; skipped?: number; skippedReasons?: string[]; message?: string }>(l.path, l);
+}
+
+export async function nhanBanChienDich(campaignId: string, platform: string, khoa: string): Promise<unknown> {
+  const l = lenhNhanBan(campaignId, platform, khoa);
+  return request(l.path, l);
+}
 
 /**
  * Sửa ngân sách chiến dịch — qua Zernio, không đẩy chủ shop sang Meta.
@@ -228,29 +276,6 @@ export async function updateCampaignBudget(params: {
       ...(params.accountId ? { accountId: params.accountId } : {}),
     },
   });
-}
-
-/**
- * Các nhóm quảng cáo của một chiến dịch.
- *
- * Cần vì chiến dịch đặt ngân sách theo NHÓM (Meta gọi là ABO) thì lệnh sửa ở
- * cấp chiến dịch bị từ chối. Trước đây máy chủ trả lời đúng — "vui lòng mở
- * chiến dịch và sửa ngân sách của nhóm bên trong" — nhưng giao diện không có
- * chỗ nào để mở nhóm ra cả, nên chủ shop bị dẫn vào ngõ cụt.
- */
-export async function listAdSets(params: {
-  accountId: string;
-  campaignId: string;
-  platform?: string;
-}): Promise<Record<string, unknown>[]> {
-  const data = await request<{ adSets?: Record<string, unknown>[] }>("/ads/ad-sets", {
-    query: {
-      accountId: params.accountId,
-      campaignId: params.campaignId,
-      ...(params.platform ? { platform: params.platform } : {}),
-    },
-  });
-  return data.adSets ?? [];
 }
 
 /**

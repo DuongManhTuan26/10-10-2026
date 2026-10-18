@@ -1,17 +1,9 @@
 /**
- * MÀN HÌNH QUẢN LÝ TÀI KHOẢN — DÙNG CHUNG cho quản trị tổng và chủ chuỗi (admin con).
+ * MÀN HÌNH QUẢN LÝ TÀI KHOẢN — chỉ quản trị tổng.
  *
- * Chủ dự án 04/10/2026: "mọi chức năng, tính năng, giao diện tổng thể giữa admin tổng và admin con phải giống 100%
- * tuyệt đối, không được khác dù 1 dấu chấm dấu phẩy … duy nhất khác ở chức năng phân tầng để quản lý. Sau này sửa
- * 1 bên tổng thì phải lập tức đồng nhất luôn với các bên còn lại." Trước đó là hai trang, hai bộ mã (Admin.tsx dạng
- * bảng, QuanLyTrang.tsx dạng thẻ) lệch nhau gần như mọi chỗ.
- *
- * Nay MỘT trang, MỘT bộ mã. Chỉ khác PHẠM VI dữ liệu (máy chủ quyết định, services/quan-ly-chung.ts) và vài việc
- * thuộc tầng:
- *   - quản trị tổng: mọi tài khoản, xếp theo cây (admin con → trang con; tài khoản đứng riêng); tạo được chủ chuỗi
- *     hoặc tài khoản đứng riêng; chuyển tài khoản đứng riêng thành chủ chuỗi; chi phí cả hệ thống + cài đặt cảnh báo;
- *   - admin con: chính mình + các trang mình lập; tạo trang con; chi phí của chuỗi mình.
- * Mọi thứ khác (bố cục, thẻ, số liệu, nút, màu, hộp thoại, nhật ký) là MỘT.
+ * Chủ dự án 18/10/2026: bỏ hẳn tầng chủ chuỗi (admin con) và tài khoản con. Mọi tài khoản là tài khoản dùng thường —
+ * bản sao phần dùng thường của quản trị tổng: một chìa khoá đăng nhập, tự giữ nhiều cửa hàng. Màn này xếp cây
+ * Tài khoản → Cửa hàng, tạo / sửa / khoá / xoá tài khoản, mở thẳng vào một tài khoản để hỗ trợ, chi phí cả hệ thống.
  *
  * Giấu nút trên giao diện không bao giờ là bảo vệ — máy chủ kiểm lại quyền ở mọi lời gọi.
  */
@@ -41,12 +33,10 @@ import {
   gomCay,
   tenTk,
   tienAi,
-  tienNhom,
   tienTaiKhoan,
   tienTrang,
   tong,
   TongQuanTaiSan,
-  trangCuaNhom,
   type NhomGoc,
   type TienTheoLoai,
 } from '../components/QuanLyTongQuan';
@@ -59,7 +49,9 @@ const TEN_VIEC: Record<string, string> = {
   mo_khoa_tai_khoan: 'Mở khoá tài khoản',
   cap_lai_mat_khau: 'Cấp lại mật khẩu',
   xoa_tai_khoan: 'Xoá tài khoản',
-  lap_trang: 'Lập trang',
+  xoa_tai_khoan_do: 'Xoá dở — tài khoản đang khoá',
+  don_ho_so_cua_hang_do: 'Xoá cửa hàng: chưa dọn xong hồ sơ nền tảng',
+  lap_trang: 'Lập tài khoản con (cách cũ)',
   doi_ten_trang: 'Đổi tên',
   doi_ten_dang_nhap: 'Đổi tên đăng nhập',
   khoa_trang: 'Khoá tài khoản',
@@ -75,8 +67,7 @@ const TEN_VIEC: Record<string, string> = {
 const gioVN = (luc: string | null) => (luc ? new Date(luc).toLocaleString('vi-VN') : '—');
 
 export default function QuanLy({ user }: { user: User | null }) {
-  /** Tầng: quản trị tổng hay chủ chuỗi. Mọi khác biệt về giao diện chỉ được rẽ theo biến này. */
-  const laTong = user?.role === 'admin';
+  void user; // màn chỉ quản trị tổng vào được (App.tsx); máy chủ kiểm lại quyền ở mọi lời gọi
 
   const [ds, setDs] = useState<TaiKhoanQuanLy[]>([]);
   const [nhatKy, setNhatKy] = useState<NhatKyQuanTri[]>([]);
@@ -102,12 +93,11 @@ export default function QuanLy({ user }: { user: User | null }) {
   const [ky, setKy] = useState<KyTongQuan>('thang_nay');
   const [tq, setTq] = useState<TongQuanQuanLy | null>(null);
   const [loiTq, setLoiTq] = useState('');
-  /** Dòng đang mở trong cây: tk-<id> (tài khoản/chuỗi), tr-<id> (trang), vh-<id> (số liệu vận hành). Mặc định đóng hết. */
+  /** Dòng đang mở trong cây: tk-<id> (tài khoản), tr-<id> (cửa hàng), vh-<id> (số liệu vận hành). Mặc định đóng hết. */
   const [mo, setMo] = useState<Set<string>>(new Set());
 
   // Tạo tài khoản
   const [moTao, setMoTao] = useState(false);
-  const [vaiTroMoi, setVaiTroMoi] = useState<'admin_con' | 'shop'>('admin_con');
   const [emailMoi, setEmailMoi] = useState('');
   const [tenMoi, setTenMoi] = useState('');
   const [matKhauMoi, setMatKhauMoi] = useState('');
@@ -124,9 +114,7 @@ export default function QuanLy({ user }: { user: User | null }) {
 
   const nap = useCallback(async () => {
     try {
-      const [a, b] = laTong
-        ? await Promise.all([api.admin.accounts(), api.admin.audit()])
-        : await Promise.all([api.quanLy.danhSach(), api.quanLy.nhatKy()]);
+      const [a, b] = await Promise.all([api.admin.accounts(), api.admin.audit()]);
       setDs(a.data);
       setNhatKy(b.data);
     } catch (error) {
@@ -134,7 +122,7 @@ export default function QuanLy({ user }: { user: User | null }) {
     } finally {
       setDangTai(false);
     }
-  }, [laTong]);
+  }, []);
   useEffect(() => {
     void nap();
   }, [nap]);
@@ -190,13 +178,53 @@ export default function QuanLy({ user }: { user: User | null }) {
         nguyHiem: true,
       }))
     ) return;
-    await lam(tk, () => (laTong ? api.admin.setLocked(tk.id, tk.is_active) : api.quanLy.khoa(tk.id, tk.is_active)), 'Không đổi được trạng thái khoá');
+    await lam(tk, () => api.admin.setLocked(tk.id, tk.is_active), 'Không đổi được trạng thái khoá');
   };
 
   const xoa = async (tk: TaiKhoanQuanLy) => {
+    /*
+     * Xem trước (B1-d): hồ sơ nào sẽ xoá, kênh nào sẽ bị NGẮT bên nền tảng, hồ sơ nào bỏ qua vì dùng chung — rồi mới hỏi
+     * gõ email. Chỉ đọc; máy chủ lập lại kế hoạch lúc xoá thật (không tin bản xem trước).
+     */
+    let truoc: Awaited<ReturnType<typeof api.admin.xemTruocXoa>>['data'];
+    setDangLam(tk.id);
+    try {
+      truoc = (await api.admin.xemTruocXoa(tk.id)).data;
+    } catch (error) {
+      setLoi(error instanceof ApiError ? error.message : 'Chưa xem trước được việc xoá');
+      return;
+    } finally {
+      setDangLam(null);
+    }
+    const soKenh = truoc.hoSo.reduce((n, h) => n + h.kenh.length, 0);
     const go = await hoiNhap({
       tieuDe: `Xoá hẳn tài khoản ${tk.email}?`,
-      noiDung: 'Mất sạch khách hàng, hội thoại, đơn hàng, bài đăng và phần AI đã huấn luyện của tài khoản này. Không lấy lại được.',
+      noiDung: (
+        <div className="space-y-3">
+          <p>Mất sạch khách hàng, hội thoại, đơn hàng, bài đăng và phần AI đã huấn luyện của tài khoản này. Không lấy lại được.</p>
+          <div>
+            <p className="font-bold">Bên nền tảng sẽ ngắt {soKenh} kênh và xoá {truoc.hoSo.length} hồ sơ:</p>
+            {truoc.hoSo.length === 0 ? (
+              <p className="text-on-surface-variant">Không có hồ sơ nào.</p>
+            ) : (
+              <ul className="list-disc pl-5 space-y-1">
+                {truoc.hoSo.map((h) => (
+                  <li key={h.id}>
+                    {h.nguon.join(', ')}
+                    {h.daMat ? ': đã xoá ở lượt trước (không còn bên nền tảng)' : h.kenh.length > 0 ? `: ${h.kenh.map((k) => `${k.platform} "${k.ten}"${k.dangNoi ? '' : ' (đã mất kết nối)'}`).join(', ')}` : ': chưa có kênh'}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {truoc.boQua.length > 0 && (
+            <div>
+              <p className="font-bold text-orange-400">⚠ Bỏ qua (không xoá):</p>
+              <ul className="list-disc pl-5">{truoc.boQua.map((b) => <li key={b.id}>Hồ sơ {b.id}: {b.lyDo}</li>)}</ul>
+            </div>
+          )}
+        </div>
+      ),
       nhan: 'Gõ đúng tên đăng nhập của họ để xác nhận',
       goiY: tk.email,
       nutDongY: 'Xoá hẳn',
@@ -204,37 +232,13 @@ export default function QuanLy({ user }: { user: User | null }) {
       kiemTra: (v) => (v.trim().toLowerCase() === tk.email.toLowerCase() ? null : 'Chưa đúng tên đăng nhập.'),
     });
     if (go === null) return;
-    await lam(tk, () => (laTong ? api.admin.remove(tk.id, go.trim()) : api.quanLy.xoaTrang(tk.id, go.trim())), 'Không xoá được tài khoản');
+    await lam(tk, () => api.admin.remove(tk.id, go.trim()), 'Không xoá được tài khoản');
   };
 
-  const thanhChuChuoi = async (tk: TaiKhoanQuanLy) => {
-    if (
-      !(await hoiXacNhan({
-        tieuDe: `Chuyển ${tk.email} thành tài khoản quản lý chuỗi?`,
-        noiDung:
-          'Sau khi chuyển, tài khoản này không gắn Fanpage trực tiếp nữa mà lập các tài khoản trang bên dưới, mỗi trang một Fanpage.\n\n' +
-          'Người dùng sẽ bị đăng xuất và cần đăng nhập lại.',
-        nutDongY: 'Chuyển thành chủ chuỗi',
-        bieuTuong: 'account_tree',
-      }))
-    ) return;
-    await lam(
-      tk,
-      async () => {
-        const { data } = await api.admin.thanhChuChuoi(tk.id);
-        // Dọn hồ sơ hỏng thì việc chuyển vẫn xong — phải nói rõ để còn dọn tay.
-        if (data.loiDonHoSo) throw new ApiError(`Đã chuyển ${data.email}, nhưng chưa dọn được hồ sơ nền tảng. Vui lòng dọn tay.`, 500);
-      },
-      'Không chuyển được tài khoản'
-    );
-  };
-
-  /** Phần trước @ của tên đăng nhập nội bộ (trang do chủ chuỗi lập) — chủ chuỗi chỉ đổi được phần này. */
-  const laNoiBo = (tk: TaiKhoanQuanLy) => !laTong && !tk.la_toi;
   const moSua = (tk: TaiKhoanQuanLy) => {
     setDangSua(tk);
     setSuaTen(tk.name);
-    setSuaDangNhap(laNoiBo(tk) ? tk.email.split('@')[0] : tk.email);
+    setSuaDangNhap(tk.email);
   };
   const luuSua = async () => {
     if (!dangSua) return;
@@ -242,12 +246,7 @@ export default function QuanLy({ user }: { user: User | null }) {
     await lam(
       tk,
       async () => {
-        if (laTong) {
-          await api.admin.update(tk.id, { name: suaTen.trim(), email: suaDangNhap.trim() });
-        } else {
-          if (suaTen.trim() !== tk.name) await api.quanLy.doiTen(tk.id, suaTen.trim());
-          if (laNoiBo(tk) && suaDangNhap.trim() !== tk.email.split('@')[0]) await api.quanLy.doiTenDangNhap(tk.id, suaDangNhap.trim());
-        }
+        await api.admin.update(tk.id, { name: suaTen.trim(), email: suaDangNhap.trim() });
         setDangSua(null);
       },
       'Không lưu được thay đổi'
@@ -261,9 +260,7 @@ export default function QuanLy({ user }: { user: User | null }) {
     await lam(
       tk,
       async () => {
-        const { data } = laTong
-          ? await api.admin.resetPassword(tk.id, mk || undefined)
-          : await api.quanLy.capLaiMatKhau(tk.id, mk || undefined);
+        const { data } = await api.admin.resetPassword(tk.id, mk || undefined);
         setDatMatKhau(null);
         setMatKhauVua({ ten: tk.name, tenDangNhap: tk.email, mk: data.matKhauTam, tuDat: Boolean(mk) });
       },
@@ -277,13 +274,8 @@ export default function QuanLy({ user }: { user: User | null }) {
     setDangTao(true);
     try {
       const mk = matKhauMoi.trim();
-      if (laTong) {
-        const { data } = await api.admin.create({ email: emailMoi.trim(), name: tenMoi.trim(), role: vaiTroMoi, matKhau: mk || undefined });
-        setMatKhauVua({ ten: data.name, tenDangNhap: data.email, mk: data.matKhauTam, tuDat: Boolean(mk) });
-      } else {
-        const { data } = await api.quanLy.lapTrang(tenMoi.trim(), mk || undefined);
-        setMatKhauVua({ ten: data.name, tenDangNhap: data.tenDangNhap, mk: data.matKhauTam, tuDat: Boolean(mk) });
-      }
+      const { data } = await api.admin.create({ email: emailMoi.trim(), name: tenMoi.trim(), matKhau: mk || undefined });
+      setMatKhauVua({ ten: data.name, tenDangNhap: data.email, mk: data.matKhauTam, tuDat: Boolean(mk) });
       setMoTao(false);
       setEmailMoi('');
       setTenMoi('');
@@ -298,8 +290,8 @@ export default function QuanLy({ user }: { user: User | null }) {
 
   const soKhoa = ds.filter((t) => !t.is_active).length;
 
-  /** Tình trạng vận hành — chỉ tài khoản bán hàng; chủ chuỗi không gắn Fanpage nên không có. */
-  const tinhTrang = (t: TaiKhoanQuanLy) => (t.role === 'admin_con' ? [] : docTinhTrang(t));
+  /** Tình trạng vận hành của một tài khoản. */
+  const tinhTrang = (t: TaiKhoanQuanLy) => docTinhTrang(t);
   const canXuLy = ds
     .map((t) => ({ tk: t, viec: tinhTrang(t).filter((v) => v.mucDo !== 'on') }))
     .filter((x) => x.viec.length > 0)
@@ -310,8 +302,6 @@ export default function QuanLy({ user }: { user: User | null }) {
     t.la_toi
       ? { ten: 'Đổi mật khẩu', onChon: () => setDoiMatKhauMo(true) }
       : { ten: 'Đặt lại mật khẩu', onChon: () => setDatMatKhau({ tk: t, mk: '' }) },
-    // Tầng: chỉ quản trị tổng chuyển được tài khoản đứng riêng thành chủ chuỗi.
-    ...(laTong && t.role === 'shop' && t.parent_id === null ? [{ ten: 'Thành chủ chuỗi', onChon: () => thanhChuChuoi(t) }] : []),
     ...(!t.la_toi && t.role !== 'admin'
       ? [
           { ten: t.is_active ? 'Khoá tài khoản' : 'Mở khoá tài khoản', onChon: () => doiKhoa(t) },
@@ -342,9 +332,8 @@ export default function QuanLy({ user }: { user: User | null }) {
     });
 
   const NHAN_TANG = {
-    chuoi: { icon: 'account_tree', chu: 'Chuỗi' },
     tai_khoan: { icon: 'person', chu: 'Tài khoản' },
-    trang: { icon: 'storefront', chu: 'Trang' },
+    trang: { icon: 'storefront', chu: 'Cửa hàng' },
   } as const;
 
   /** Thụt cho dòng phụ ở tầng `sau` (thẳng với chữ của dòng tầng đó): điện thoại 12px/tầng, màn rộng 22px/tầng. */
@@ -440,7 +429,7 @@ export default function QuanLy({ user }: { user: User | null }) {
     );
   };
 
-  /** Nút việc của một tài khoản — CÙNG nút ở cả hai tầng. */
+  /** Nút việc của một tài khoản. */
   const nutTaiKhoan = (id: number) => {
     const t = tkQl(id);
     if (!t) return null;
@@ -451,13 +440,14 @@ export default function QuanLy({ user }: { user: User | null }) {
             type="button"
             onClick={() => moTrang(t)}
             disabled={dangLam === t.id || !t.is_active}
-            title="Mở trang"
-            aria-label="Mở trang"
+            title="Mở tài khoản"
+            aria-label="Mở tài khoản"
             className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg bg-primary text-on-primary font-bold text-xs disabled:opacity-40 whitespace-nowrap"
           >
             {/* Điện thoại: chỉ biểu tượng cho tên đủ chỗ. */}
-            <span className="material-symbols-outlined text-[18px] sm:hidden">login</span>
-            <span className="hidden sm:inline">Mở trang</span>
+            {/* Bọc ngoài: `sm:hidden` gắn thẳng lên biểu tượng không có tác dụng (CSS phông biểu tượng nằm ngoài @layer). */}
+            <span className="sm:hidden inline-flex"><span className="material-symbols-outlined text-[18px]">login</span></span>
+            <span className="hidden sm:inline">Mở tài khoản</span>
           </button>
         )}
         <MenuQuanLyTrang tat={dangLam === t.id} muc={menu(t)} />
@@ -465,7 +455,7 @@ export default function QuanLy({ user }: { user: User | null }) {
     );
   };
 
-  /** Một trang + báo cáo của nó (mở khi bấm). */
+  /** Một cửa hàng + báo cáo của nó (mở khi bấm). */
   const veTrang = (tr: TrangTongQuan, so: string) => {
     const khoa = `tr-${tr.id}`;
     const moRa = mo.has(khoa);
@@ -492,7 +482,7 @@ export default function QuanLy({ user }: { user: User | null }) {
     );
   };
 
-  /** Một tài khoản: bấm mới hiện các trang của nó (và phần không thuộc trang nào, số liệu vận hành). */
+  /** Một tài khoản: bấm mới hiện các cửa hàng của nó (và phần không thuộc cửa hàng nào, số liệu vận hành). */
   const veTaiKhoan = (tk: TaiKhoanTongQuan, so: string) => {
     const khoa = `tk-${tk.id}`;
     const moRa = mo.has(khoa);
@@ -506,7 +496,7 @@ export default function QuanLy({ user }: { user: User | null }) {
           tang: 'tai_khoan',
           ten: tenTk(tk) + (tk.laToi ? ' (bạn)' : ''),
           phu: tk.email,
-          soCon: `${tk.trang.filter((t) => t.hoatDong).length}/${tk.trang.length} trang`,
+          soCon: `${tk.trang.filter((t) => t.hoatDong).length}/${tk.trang.length} cửa hàng`,
           tien: tienTaiKhoan(tk),
           moRa,
           hoatDong: tk.hoatDong,
@@ -517,14 +507,14 @@ export default function QuanLy({ user }: { user: User | null }) {
           <>
             {tk.trang.length === 0 && (
               <p className={clsx(THUT, 'pr-4 py-2.5 border-t border-outline-variant/60 text-sm text-on-surface-variant bg-surface-container-lowest')} style={thut(so.split('.').length)}>
-                Chưa có trang nào.
+                Chưa có cửa hàng nào.
               </p>
             )}
             {tk.trang.map((tr, k) => veTrang(tr, `${so}.${k + 1}`))}
             {khongTrang > 1e-9 && (
               <div className={clsx(LUOI, 'px-4 py-2.5 border-t border-outline-variant/60 bg-surface-container-lowest text-sm')}>
                 <span className={clsx(THUT, 'text-on-surface-variant')} style={thut(so.split('.').length, 0)}>
-                  Tiền AI không thuộc trang nào (lượt cũ hoặc tài khoản không có trang)
+                  Tiền AI không thuộc cửa hàng nào (lượt cũ trước khi tính theo cửa hàng)
                 </span>
                 <span className="hidden lg:block" />
                 <span className={clsx('text-right tabular-nums', mauChi(khongTrang))}>{chi(khongTrang)}</span>
@@ -533,7 +523,7 @@ export default function QuanLy({ user }: { user: User | null }) {
                 <span className="hidden lg:block" />
               </div>
             )}
-            {tk.role !== 'admin_con' && (
+            {(
               <div className="border-t border-outline-variant/60 bg-surface-container-lowest">
                 <button
                   type="button"
@@ -557,59 +547,26 @@ export default function QuanLy({ user }: { user: User | null }) {
     );
   };
 
-  /** Một nhóm gốc: chuỗi (admin con → tài khoản → trang) hoặc tài khoản đứng riêng (→ trang). */
-  const veNhom = (g: NhomGoc) => {
-    if (g.goc.role !== 'admin_con') return veTaiKhoan(g.goc, String(g.so));
-    const khoa = `tk-${g.goc.id}`;
-    const moRa = mo.has(khoa);
-    const trang = trangCuaNhom(g);
-    const conLoi = g.con.filter((c) => canhBaoCua(c.id).length > 0).length;
-    return (
-      <div key={khoa}>
-        {hang({
-          khoa,
-          so: String(g.so),
-          tang: 'chuoi',
-          ten: tenTk(g.goc) + (g.goc.laToi ? ' (bạn)' : ''),
-          phu: `${g.con.length} tài khoản · ${g.goc.email}`,
-          soCon: `${trang.filter((t) => t.hoatDong).length}/${trang.length} trang`,
-          tien: tienNhom(g),
-          moRa,
-          hoatDong: g.goc.hoatDong,
-          canhBao: conLoi > 0 ? [{ mucDo: 'canXem', chu: `${conLoi} tài khoản cần xử lý` } as ReturnType<typeof canhBaoCua>[number]] : [],
-          hanhDong: nutTaiKhoan(g.goc.id),
-        })}
-        {moRa && (
-          <>
-            {g.con.length === 0 && (
-              <p className={clsx(THUT, 'pr-4 py-2.5 border-t border-outline-variant/60 text-sm text-on-surface-variant bg-surface-container-low')} style={thut(1)}>
-                Chuỗi chưa có tài khoản nào.
-              </p>
-            )}
-            {g.con.map((c, j) => veTaiKhoan(c, `${g.so}.${j + 1}`))}
-          </>
-        )}
-      </div>
-    );
-  };
+  /** Một nhóm gốc = một tài khoản (tầng chủ chuỗi đã bỏ 18/10/2026). */
+  const veNhom = (g: NhomGoc) => veTaiKhoan(g.goc, String(g.so));
 
   const mkTaoChuaDu = Boolean(matKhauMoi.trim()) && matKhauMoi.trim().length < 8;
 
   return (
-    <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full">
+    <main className="p-4 md:p-8 max-w-[1600px] mx-auto w-full">
       <BangLoi noiDung={loi} onDong={() => setLoi('')} className="mb-6" />
 
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
         <div>
-          <h1 className="font-headline-sm text-3xl font-bold text-on-surface tracking-tight mb-2">Quản lý tài khoản</h1>
-          <p className="font-body-lg text-on-surface-variant">
+          {/* Tên trang ở thanh trên cùng — không lặp tiêu đề thứ hai. */}
+          <p className="text-sm text-on-surface-variant">
             {ds.length} tài khoản{soKhoa > 0 ? `, ${soKhoa} đang bị khoá` : ''}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setMoTao(true)}
-          className="shrink-0 px-4 py-2 bg-primary text-on-primary font-bold rounded-lg shadow-[0_4px_15px_rgba(0,229,255,0.4)] hover:brightness-110 transition-all flex items-center gap-2"
+          className="shrink-0 px-4 py-2 bg-primary text-on-primary font-bold rounded-lg hover:brightness-110 transition-all flex items-center gap-2"
         >
           <span className="material-symbols-outlined text-[18px]">person_add</span>
           Tạo tài khoản
@@ -646,11 +603,11 @@ export default function QuanLy({ user }: { user: User | null }) {
       {phan === 'tong_quan' && (
         <div className="mb-8 space-y-8">
           {tq ? (
-            <TongQuanTaiSan du={tq} ky={ky} onDoiKy={setKy} phamViChu={laTong ? 'Cả hệ thống' : 'Chuỗi của bạn'} />
+            <TongQuanTaiSan du={tq} ky={ky} onDoiKy={setKy} phamViChu="Cả hệ thống" />
           ) : (
             !loiTq && <p className="text-sm text-on-surface-variant">Đang tải…</p>
           )}
-          <ChiPhiHeThong phamVi={laTong ? 'he_thong' : 'chuoi'} />
+          <ChiPhiHeThong />
         </div>
       )}
 
@@ -675,7 +632,7 @@ export default function QuanLy({ user }: { user: User | null }) {
 
           <section className="mb-8">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <h2 className="tieu-de-muc">Tài khoản &amp; trang</h2>
+              <h2 className="tieu-de-muc">Tài khoản &amp; cửa hàng</h2>
               <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden text-sm">
                 {(
                   [
@@ -701,7 +658,7 @@ export default function QuanLy({ user }: { user: User | null }) {
                 {/* Hàng tiêu đề cột — chỉ màn hình rộng */}
                 <div className={clsx(LUOI, 'hidden lg:grid px-4 py-2.5 bg-surface-container font-mono text-[10px] font-bold uppercase tracking-wider text-on-surface-variant')}>
                   <span className="pl-[26px]">Tên</span>
-                  <span className="text-right">Trang · kênh</span>
+                  <span className="text-right">Cửa hàng · kênh</span>
                   <span className="text-right">Tiền AI</span>
                   <span className="text-right">Tiền kênh</span>
                   <span className="text-right">Tổng đã chi</span>
@@ -743,11 +700,7 @@ export default function QuanLy({ user }: { user: User | null }) {
           co="vua"
           bieuTuong="person_add"
           tieuDe="Tạo tài khoản mới"
-          phuDe={
-            laTong
-              ? 'Tài khoản độc lập, ở trạng thái mặc định để chủ shop tự cài. Bạn tự đặt mật khẩu, hoặc để trống cho hệ thống sinh.'
-              : 'Một trang mới trong chuỗi của bạn: tài khoản riêng, độc lập hoàn toàn. Tên đăng nhập do hệ thống sinh theo tên trang.'
-          }
+          phuDe="Tài khoản dùng thường, giống hệt phần dùng thường của bạn: tự tạo nhiều cửa hàng, mỗi cửa hàng nối nhiều mạng xã hội và có bộ não AI riêng. Bạn tự đặt mật khẩu, hoặc để trống cho hệ thống sinh."
           onDong={() => setMoTao(false)}
           dongKhiBamNgoai={false}
           chan={
@@ -758,7 +711,7 @@ export default function QuanLy({ user }: { user: User | null }) {
               <button
                 type="button"
                 onClick={taoTaiKhoan}
-                disabled={dangTao || (laTong ? !emailMoi.trim() : tenMoi.trim().length < 2) || mkTaoChuaDu}
+                disabled={dangTao || !emailMoi.trim() || mkTaoChuaDu}
                 className={NUT_CHINH}
               >
                 {dangTao ? 'Đang tạo…' : 'Tạo tài khoản'}
@@ -768,47 +721,13 @@ export default function QuanLy({ user }: { user: User | null }) {
         >
           <div className="space-y-6">
             <BangLoi noiDung={loi} onDong={() => setLoi('')} />
-            {/* Tầng: chỉ quản trị tổng chọn loại tài khoản (chủ chuỗi / trang đứng riêng). */}
-            {laTong && (
-              <div>
-                <span className={NHAN_O}>Loại tài khoản</span>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(
-                    [
-                      { id: 'admin_con', ten: 'Chủ chuỗi', mo: 'Tự lập các tài khoản trang của mình, mỗi trang một Fanpage. Đây là loại thường dùng.' },
-                      { id: 'shop', ten: 'Một trang đứng riêng', mo: 'Gắn được đúng một Fanpage và không lập thêm trang nào. Chỉ dùng cho trường hợp đặc biệt.' },
-                    ] as const
-                  ).map((o) => (
-                    <button
-                      key={o.id}
-                      type="button"
-                      onClick={() => setVaiTroMoi(o.id)}
-                      className={clsx(
-                        'text-left p-4 rounded-xl border-2 transition-colors',
-                        vaiTroMoi === o.id ? 'border-primary bg-primary/10' : 'border-outline-variant bg-surface-container-low hover:border-outline'
-                      )}
-                    >
-                      <div className="flex items-center gap-2 text-base font-bold text-on-surface">
-                        <span className={clsx('material-symbols-outlined text-[20px]', vaiTroMoi === o.id ? 'text-primary' : 'text-on-surface-variant')}>
-                          {vaiTroMoi === o.id ? 'radio_button_checked' : 'radio_button_unchecked'}
-                        </span>
-                        {o.ten}
-                      </div>
-                      <div className="text-sm text-on-surface-variant mt-1.5 pl-7">{o.mo}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             <div className="grid gap-5 sm:grid-cols-2">
-              {laTong && (
-                <label className="block">
-                  <span className={NHAN_O}>Email đăng nhập</span>
-                  <input type="email" value={emailMoi} onChange={(e) => setEmailMoi(e.target.value)} placeholder="chushop@email.com" className={O_NHAP} />
-                </label>
-              )}
-              <label className={clsx('block', !laTong && 'sm:col-span-2')}>
-                <span className={NHAN_O}>{laTong ? 'Tên shop' : 'Tên trang'}</span>
+              <label className="block">
+                <span className={NHAN_O}>Email đăng nhập</span>
+                <input type="email" value={emailMoi} onChange={(e) => setEmailMoi(e.target.value)} placeholder="chushop@email.com" className={O_NHAP} />
+              </label>
+              <label className="block">
+                <span className={NHAN_O}>Tên shop</span>
                 <input type="text" value={tenMoi} onChange={(e) => setTenMoi(e.target.value)} placeholder="Ví dụ: Chạm Tay Vạn Điều Hay" className={O_NHAP} />
               </label>
               <label className="block sm:col-span-2">
@@ -854,16 +773,10 @@ export default function QuanLy({ user }: { user: User | null }) {
               <span className={NHAN_O}>Tên</span>
               <input type="text" value={suaTen} onChange={(e) => setSuaTen(e.target.value)} className={O_NHAP} />
             </label>
-            {/* Chủ chuỗi không đổi tên đăng nhập của chính mình ở đây (việc của quản trị tổng). */}
-            {(laTong || laNoiBo(dangSua)) && (
-              <label className="block">
-                <span className={NHAN_O}>Tên đăng nhập</span>
-                <div className="flex items-center gap-2">
-                  <input type="text" value={suaDangNhap} onChange={(e) => setSuaDangNhap(e.target.value)} className={O_NHAP} />
-                  {laNoiBo(dangSua) && <span className="text-sm text-on-surface-variant shrink-0">@{dangSua.email.split('@')[1]}</span>}
-                </div>
-              </label>
-            )}
+            <label className="block">
+              <span className={NHAN_O}>Tên đăng nhập</span>
+              <input type="text" value={suaDangNhap} onChange={(e) => setSuaDangNhap(e.target.value)} className={O_NHAP} />
+            </label>
           </div>
         </HopThoai>
       )}

@@ -592,7 +592,7 @@ settingsRouter.get(
         success: true,
         data: { connected: false, accounts: [], analytics: null },
         message:
-          "Chưa kết nối tài khoản quảng cáo. Vào mục Kết Nối Đa Nền Tảng để thêm Meta Ads.",
+          "Chưa kết nối tài khoản quảng cáo. Vào mục Kết nối kênh để thêm Meta Ads.",
       });
       return;
     }

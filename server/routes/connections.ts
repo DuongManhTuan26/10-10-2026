@@ -6,8 +6,13 @@ import { AppError, requireString, route } from "../http.js";
 import * as zernio from "../services/zernio.js";
 import { env } from "../env.js";
 import { syncAccountsForUser, ensureProfile } from "../services/accounts.js";
+import { donHoSo } from "../services/xoa-tai-khoan.js";
+import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
+import { lietKeKenhHoSo, phuThuocXoaThat } from "../services/xoa-tai-khoan-that.js";
 import { chanNeuThemFanpage } from "../services/gioi-han.js";
-import { ghiKenhTheoNgay } from "../services/trang.js";
+import {
+  chuCuaHoSo, ghiKenhTheoNgay, hoSoCuaCuaHang, taoTrangMoi, trangChuyenDuoc, trangCuaTaiKhoan,
+} from "../services/trang.js";
 import {
   socialChannels,
   adChannels,
@@ -139,7 +144,8 @@ connectionsRouter.get(
  * là cách mọi luồng cấp quyền trên web vẫn làm.
  */
 function backToApp(params: { ok: boolean; message?: string }): string {
-  const url = new URL(`${env.appUrl}/connections`);
+  // Màn Kết nối kênh ở /ket-noi (đường /connections cũ vẫn chuyển hướng, giữ tham số).
+  const url = new URL(`${env.appUrl}/ket-noi`);
   url.searchParams.set("connect", params.ok ? "select" : "error");
   if (params.message) url.searchParams.set("message", params.message);
   return url.toString();
@@ -278,9 +284,14 @@ connectionsRouter.get(
       connect_token: string | null;
       step: string;
     }>(
+      /*
+       * CHỈ phiên đã có dữ liệu cấp quyền (temp_token). Dòng do /connect-url ghi lúc bấm nối chỉ có mã bí mật — bản cũ
+       * coi nó là phiên chọn Fanpage → nối YouTube / Instagram / TikTok xong quay về lại báo "Phiên cấp quyền không
+       * thuộc về tài khoản này", che mất câu báo thành công (rà 17/10/2026).
+       */
       `SELECT platform, profile_id, temp_token, connect_token, step
          FROM pending_connections
-        WHERE user_id = $1 AND expires_at > now()`,
+        WHERE user_id = $1 AND expires_at > now() AND temp_token IS NOT NULL`,
       [req.user!.id]
     );
 
@@ -289,8 +300,9 @@ connectionsRouter.get(
       return;
     }
 
-    // Chốt chặn: chỉ chủ của hồ sơ đó mới được xem danh sách Trang.
-    if (pending.profile_id !== req.user!.profileRef) {
+    // Chốt chặn: chỉ chủ của hồ sơ đó mới được xem danh sách Trang (hồ sơ mặc định HOẶC hồ sơ của một trang của mình —
+    // kênh nay nối thẳng vào hồ sơ của trang đã chọn).
+    if ((await chuCuaHoSo(pending.profile_id)) !== req.user!.id) {
       throw new AppError("Phiên cấp quyền không thuộc về tài khoản này", 403);
     }
 
@@ -328,7 +340,7 @@ connectionsRouter.post(
     const pageIds = Array.isArray(req.body?.pageIds)
       ? req.body.pageIds.filter((id: unknown): id is string => typeof id === "string")
       : [];
-    if (pageIds.length === 0) throw new AppError("Chưa chọn Trang nào");
+    if (pageIds.length === 0) throw new AppError("Chưa chọn Fanpage nào");
 
     const pending = await queryOne<{
       profile_id: string;
@@ -338,7 +350,7 @@ connectionsRouter.post(
     }>(
       `SELECT profile_id, temp_token, user_profile, connect_token
          FROM pending_connections
-        WHERE user_id = $1 AND expires_at > now()`,
+        WHERE user_id = $1 AND expires_at > now() AND temp_token IS NOT NULL`,
       [req.user!.id]
     );
 
@@ -349,7 +361,7 @@ connectionsRouter.post(
       );
     }
 
-    if (pending.profile_id !== req.user!.profileRef) {
+    if ((await chuCuaHoSo(pending.profile_id)) !== req.user!.id) {
       throw new AppError("Phiên cấp quyền không thuộc về tài khoản này", 403);
     }
 
@@ -358,7 +370,7 @@ connectionsRouter.post(
      * thì kênh đã được tạo bên họ, mình từ chối ở đây nhưng vẫn bị tính tiền
      * và vẫn phải đi dọn.
      */
-    await chanNeuThemFanpage(req.user!.id, pageIds);
+    await chanNeuThemFanpage(req.user!.id, pending.profile_id, pageIds);
 
     const connected: string[] = [];
     const failed: Array<{ pageId: string; error: string }> = [];
@@ -388,7 +400,7 @@ connectionsRouter.post(
 
     if (connected.length === 0) {
       throw new AppError(
-        `Không kết nối được Trang nào. ${failed[0]?.error ?? ""}`.trim(),
+        `Không kết nối được Fanpage nào. ${failed[0]?.error ?? ""}`.trim(),
         502
       );
     }
@@ -446,7 +458,25 @@ connectionsRouter.post(
       );
     }
 
-    const profileId = await ensureProfile(req.user!);
+    const hoSoMacDinh = await ensureProfile(req.user!);
+
+    /*
+     * GẮN VÀO TRANG BÁN HÀNG NÀO — chủ shop BẮT BUỘC chọn, không có mặc định (chủ dự án 17/10/2026; như Sprout Social
+     * bắt chọn "In Group" lúc nối). Kênh được nối THẲNG vào hồ sơ của trang đó bên nhà cung cấp — không nối vào hồ sơ
+     * mặc định rồi rơi vào trang nào không ai thấy (đã xảy ra: trang cũ rỗng, bị ẩn khỏi bảng).
+     * Mỗi cửa hàng một hộp: mọi kênh (kể cả Facebook) vào đúng hộp đó; trừ tài khoản quảng cáo (dùng chung).
+     */
+    // Mọi kênh — KỂ CẢ Facebook — vào đúng hộp của cửa hàng đã chọn (mỗi cửa hàng một Fanpage). Trừ tài khoản quảng cáo.
+    const canChonTrang = !adChannels.some((c) => c.id === channel.id);
+    const noiLai = await hoSoNoiLai(req.user!.id, (req.body as { noiLai?: unknown })?.noiLai, channel.platformKey);
+    let profileId = noiLai ?? hoSoMacDinh;
+    if (canChonTrang && !noiLai) {
+      const trangId = Number((req.body as { trangId?: unknown })?.trangId);
+      if (!Number.isInteger(trangId) || trangId <= 0) {
+        throw new AppError("Chọn cửa hàng cho kênh này trước khi kết nối", 400);
+      }
+      profileId = (await hoSoCuaCuaHang(req.user!.id, trangId, channel.platformKey, channel.name)).profile_ref;
+    }
 
     /*
      * Luồng headless: Zernio KHÔNG dựng màn hình chọn Trang, mà đẩy trình duyệt
@@ -563,63 +593,232 @@ connectionsRouter.post(
 );
 
 /*
- * Các Trang một kênh Facebook vào được, kèm Trang đang gắn.
- *
- * Chủ shop cần nhìn thấy danh sách này TRƯỚC khi đổi, để biết mình đang đổi
- * đi đâu và Trang nào sắp ngừng nhận tin.
+ * "ĐỔI FANPAGE" ĐÃ BỎ (chủ dự án chốt 17/10/2026): mỗi cửa hàng một Fanpage. Muốn dùng Fanpage khác thì ngắt Fanpage
+ * cũ rồi nối Fanpage mới, hoặc nối Fanpage đó vào một cửa hàng khác. Đổi Fanpage tại chỗ từng làm một hộp bị chia làm
+ * hai cửa hàng và bảng lệch với thực tế (bắt được 17/10).
  */
-connectionsRouter.get(
-  "/accounts/:id/pages",
-  route(async (req, res) => {
-    const account = await queryOne<{ id: string; platform: string }>(
-      "SELECT id, platform FROM social_accounts WHERE id = $1 AND user_id = $2",
-      [req.params.id, req.user!.id]
-    );
-    if (!account) throw new AppError("Không tìm thấy kênh này", 404);
-    if (account.platform !== "facebook") {
-      throw new AppError("Chỉ kênh Facebook mới có nhiều Trang để chọn", 400);
-    }
 
-    const { pages, selectedPageId } = await zernio.layTrangCuaKenh(account.id);
-    res.json({ success: true, data: { pages, selectedPageId } });
+/*
+ * TELEGRAM + BLUESKY — hai nền tảng KHÔNG nối bằng đăng nhập (tài liệu nhà cung cấp). Vẫn bắt chọn trang trước như
+ * mọi kênh khác (kiemTrangNhanKenh), kênh nối thẳng vào hồ sơ của trang đó.
+ *
+ * Mã Telegram mình đã phát giữ trong bộ nhớ tiến trình (một tiến trình — chủ dự án chuộng gọn): chỉ chủ mã mới dò được
+ * trạng thái, mã tự bỏ khi hết hạn 15 phút.
+ */
+const maTelegramDaPhat = new Map<string, { userId: number; het: number }>();
+
+/*
+ * NỐI LẠI một kênh đang có (token chết / cần cấp lại quyền): phải đi vào ĐÚNG hồ sơ đang chứa kênh đó để nhà cung cấp
+ * làm mới chính tài khoản ấy, giữ nguyên trang. Nối vào hồ sơ khác là đẻ thêm một tài khoản thứ hai (Instagram) hoặc
+ * nối Facebook vào hồ sơ mặc định trong khi Fanpage ở hồ sơ riêng — đã thấy 17/10/2026 khi rà nút "Nối lại".
+ */
+async function hoSoNoiLai(userId: number, accountId: unknown, platform: string): Promise<string | null> {
+  if (typeof accountId !== "string" || !accountId) return null;
+  const k = await queryOne<{ profile_ref: string }>(
+    "SELECT profile_ref FROM social_accounts WHERE id = $1 AND user_id = $2 AND platform = $3",
+    [accountId, userId, platform]
+  );
+  if (!k?.profile_ref) throw new AppError("Không tìm thấy kênh cần nối lại", 404);
+  return k.profile_ref;
+}
+
+connectionsRouter.post(
+  "/telegram/ma",
+  route(async (req, res) => {
+    await ensureProfile(req.user!);
+    const noiLai = await hoSoNoiLai(req.user!.id, (req.body as { noiLai?: unknown })?.noiLai, "telegram");
+    const trangId = Number((req.body as { trangId?: unknown })?.trangId);
+    if (!noiLai && (!Number.isInteger(trangId) || trangId <= 0)) throw new AppError("Chọn cửa hàng cho kênh này trước khi kết nối", 400);
+    const profile_ref = noiLai ?? (await hoSoCuaCuaHang(req.user!.id, trangId, "telegram", "Telegram")).profile_ref;
+    const ma = await zernio.layMaTelegram(profile_ref);
+    const bayGio = Date.now();
+    for (const [k, v] of maTelegramDaPhat) if (v.het < bayGio) maTelegramDaPhat.delete(k);
+    maTelegramDaPhat.set(ma.code, { userId: req.user!.id, het: new Date(ma.expiresAt).getTime() });
+    res.json({ success: true, data: ma });
+  })
+);
+
+connectionsRouter.get(
+  "/telegram/trang-thai",
+  route(async (req, res) => {
+    const code = String(req.query.code ?? "");
+    const ma = maTelegramDaPhat.get(code);
+    if (!ma || ma.userId !== req.user!.id) throw new AppError("Không tìm thấy mã này — bấm lấy mã mới", 404);
+    if (ma.het < Date.now()) {
+      maTelegramDaPhat.delete(code);
+      res.json({ success: true, data: { status: "expired" } });
+      return;
+    }
+    const status = await zernio.kiemMaTelegram(code);
+    if (status === "connected") {
+      maTelegramDaPhat.delete(code);
+      await syncAccountsForUser(req.user!.id, req.user!.profileRef!);
+    }
+    res.json({ success: true, data: { status } });
+  })
+);
+
+connectionsRouter.post(
+  "/bluesky",
+  route(async (req, res) => {
+    const identifier = requireString(req.body, "identifier", "Tên tài khoản Bluesky");
+    const appPassword = requireString(req.body, "appPassword", "Mật khẩu ứng dụng");
+    await ensureProfile(req.user!);
+    const noiLai = await hoSoNoiLai(req.user!.id, (req.body as { noiLai?: unknown })?.noiLai, "bluesky");
+    const trangId = Number((req.body as { trangId?: unknown })?.trangId);
+    if (!noiLai && (!Number.isInteger(trangId) || trangId <= 0)) throw new AppError("Chọn cửa hàng cho kênh này trước khi kết nối", 400);
+    const dich = noiLai ? { profile_ref: noiLai, ten: "" } : await hoSoCuaCuaHang(req.user!.id, trangId, "bluesky", "Bluesky");
+    await zernio.noiBluesky(identifier, appPassword, dich.profile_ref);
+    await syncAccountsForUser(req.user!.id, req.user!.profileRef!);
+    res.json({ success: true, message: noiLai ? `Đã nối lại Bluesky ${identifier}.` : `Đã nối Bluesky ${identifier} vào cửa hàng "${dich.ten}".` });
+  })
+);
+
+/** Trang bán hàng của tài khoản kèm số kênh — kể cả trang chưa có kênh (bộ chọn bộ não không thấy được trang rỗng). */
+connectionsRouter.get(
+  "/trang",
+  route(async (req, res) => {
+    /*
+     * Cửa hàng đầu tiên còn mã hồ sơ tạm (tài khoản chủ chuỗi cũ được cấp ở migration 055) → cấp hồ sơ nền tảng thật
+     * ngay, đúng như lúc đăng ký mới. Không làm thì cửa hàng đó bị coi là "dùng chung hộp" và không nối được kênh.
+     */
+    if (!req.user!.profileRef) {
+      const choCap = await queryOne("SELECT 1 FROM trang WHERE user_id = $1 AND profile_ref LIKE 'cho-cap-%'", [req.user!.id]);
+      if (choCap) await ensureProfile(req.user!);
+    }
+    const ds = await trangCuaTaiKhoan(req.user!.id);
+    res.json({
+      success: true,
+      data: ds.map((t) => ({ id: t.id, ten: t.ten, soKenh: t.so_kenh, nenTang: t.nen_tang, hopRieng: t.hop_rieng })),
+    });
+  })
+);
+
+/** Tạo trang bán hàng mới theo tên chủ shop gõ — để nối kênh vào hoặc chuyển kênh sang. */
+connectionsRouter.post(
+  "/trang",
+  route(async (req, res) => {
+    const ten = requireString(req.body, "ten", "Tên cửa hàng").trim();
+    if (ten.length > 80) throw new AppError("Tên cửa hàng dài tối đa 80 ký tự", 400);
+    await ensureProfile(req.user!);
+    const id = await taoTrangMoi(req.user!.id, ten, req.user!.name || req.user!.email, zernio.createProfile);
+    res.json({ success: true, data: { id, ten }, message: `Đã tạo cửa hàng "${ten}".` });
   })
 );
 
 /*
- * Đổi Trang đang gắn.
+ * ĐẶT TÊN TRANG BÁN HÀNG (chủ dự án duyệt 12/10/2026).
  *
- * Một kết nối Facebook chỉ phục vụ MỘT Trang tại một thời điểm — đã đo thật:
- * kênh gắn Trang A trả về 2 hội thoại, đổi sang Trang B thì còn 0. Nên đây là
- * hành động ĐỔI, không phải thêm, và giao diện phải nói đúng như vậy.
- *
- * Đổi xong đồng bộ lại ngay để tên kênh trong database khớp Trang mới, chủ
- * shop không phải chờ vòng đồng bộ 30 phút mới thấy đúng.
+ * Trang được tự đặt tên theo kênh đầu tiên (thường là Fanpage) — đổi Fanpage xong thì trang cũ vẫn mang tên Fanpage
+ * cũ, trang mới trùng chữ với kênh của nó; chủ shop đọc không hiểu (đã xảy ra thật). Tên tự đặt được đồng bộ giữ
+ * nguyên (baoDamTrangChoHoSo chỉ đè tên tạm). Chỉ trang của chính tài khoản đang đăng nhập.
  */
 connectionsRouter.put(
-  "/accounts/:id/page",
+  "/trang/:id/ten",
   route(async (req, res) => {
-    const pageId = requireString(req.body, "pageId", "Trang");
-
-    const account = await queryOne<{ id: string; platform: string }>(
-      "SELECT id, platform FROM social_accounts WHERE id = $1 AND user_id = $2",
-      [req.params.id, req.user!.id]
+    const ten = requireString(req.body, "ten", "Tên cửa hàng").trim();
+    if (ten.length > 80) throw new AppError("Tên cửa hàng dài tối đa 80 ký tự", 400);
+    const r = await queryOne<{ id: number }>(
+      "UPDATE trang SET ten = $1, updated_at = now() WHERE id = $2 AND user_id = $3 RETURNING id",
+      [ten, Number(req.params.id), req.user!.id]
     );
-    if (!account) throw new AppError("Không tìm thấy kênh này", 404);
-    if (account.platform !== "facebook") {
-      throw new AppError("Chỉ kênh Facebook mới đổi được Trang", 400);
+    if (!r) throw new AppError("Không tìm thấy cửa hàng này", 404);
+    res.json({ success: true, message: `Đã đổi tên cửa hàng thành "${ten}".` });
+  })
+);
+
+/*
+ * XOÁ TRANG BÁN HÀNG (chủ dự án 17/10/2026: "ko có phần xoá đi à?").
+ *
+ * Xoá trang là xoá LUÔN bộ não của nó (ai_configs, ai_documents — ON DELETE CASCADE), video AI, dự án video, thư viện
+ * ảnh; đơn hàng và sổ chi phí giữ lại nhưng mất liên kết trang (SET NULL). Nên chỉ cho xoá trang KHÔNG CÒN KÊNH NÀO,
+ * và luôn chừa lại ít nhất một trang. Hồ sơ bên nhà cung cấp chỉ xoá khi không còn ai dùng và không còn kênh nào.
+ */
+connectionsRouter.delete(
+  "/trang/:id",
+  route(async (req, res) => {
+    const userId = req.user!.id;
+    const t = await queryOne<{ id: number; ten: string; profile_ref: string; so_kenh: number; so_trang: number }>(
+      `SELECT t.id, t.ten, t.profile_ref,
+              (SELECT count(*)::int FROM social_accounts s WHERE s.trang_id = t.id AND s.connected) AS so_kenh,
+              (SELECT count(*)::int FROM trang t2 WHERE t2.user_id = $2) AS so_trang
+         FROM trang t WHERE t.id = $1 AND t.user_id = $2`,
+      [Number(req.params.id), userId]
+    );
+    if (!t) throw new AppError("Không tìm thấy cửa hàng này", 404);
+    if (t.so_kenh > 0) throw new AppError(`Cửa hàng "${t.ten}" còn ${t.so_kenh} kênh — chuyển hoặc ngắt các kênh đó trước khi xoá.`, 409);
+    if (t.so_trang <= 1) throw new AppError("Phải giữ lại ít nhất một cửa hàng.", 409);
+
+    await query("DELETE FROM trang WHERE id = $1 AND user_id = $2", [t.id, userId]);
+
+    // Dọn hồ sơ nhà cung cấp nếu không còn trang / tài khoản nào dùng và hồ sơ đã rỗng (rác hồ sơ — xem xoaHoSo).
+    const conDung = await queryOne(
+      `SELECT 1 FROM trang WHERE profile_ref = $1 UNION SELECT 1 FROM users WHERE profile_ref = $1 LIMIT 1`,
+      [t.profile_ref]
+    );
+    if (!conDung && !t.profile_ref.startsWith("cho-cap-")) {
+      /*
+       * Cùng luật với xoá tài khoản (services/xoa-tai-khoan.ts — donHoSo): kênh ĐÃ NGẮT còn trong hồ sơ sẽ bị nhà cung cấp
+       * chuyển sang một hồ sơ khác khi xoá hồ sơ (tài liệu 16373) → ngắt hết (kèm hồ sơ vượt hạn mức), liệt kê lại, còn
+       * sót thì KHÔNG xoá hồ sơ. Cửa hàng chỉ xoá được khi không còn kênh đang nối, nên đây chỉ đụng kênh đã ngắt.
+       */
+      try {
+        const daLam: string[] = [];
+        const kq = await donHoSo(t.profile_ref, await lietKeKenhHoSo(t.profile_ref), phuThuocXoaThat, daLam);
+        if ("loi" in kq) {
+          // Ghi vào nhật ký quản lý (admin xem ở màn Quản lý) để còn dọn sau — không chỉ log máy chủ.
+          await ghiNhatKyQuanTri({
+            adminId: userId, targetId: userId, targetEmail: req.user!.email, action: "don_ho_so_cua_hang_do",
+            detail: { cuaHang: t.ten, hoSo: t.profile_ref, daLam, conLai: kq.conLai, loi: kq.loi },
+          });
+        }
+      } catch (error) {
+        await ghiNhatKyQuanTri({
+          adminId: userId, targetId: userId, targetEmail: req.user!.email, action: "don_ho_so_cua_hang_do",
+          detail: { cuaHang: t.ten, hoSo: t.profile_ref, loi: error instanceof Error ? error.message : String(error) },
+        });
+      }
     }
+    res.json({ success: true, message: `Đã xoá cửa hàng "${t.ten}".` });
+  })
+);
 
-    // Chốt trạng thái hôm nay TRƯỚC khi đổi: ngày đổi vẫn tính cho trang cũ (sổ kênh theo ngày, chia tiền kênh).
+/*
+ * CHUYỂN KÊNH SANG CỬA HÀNG KHÁC (chủ dự án chốt 17/10/2026 — mỗi cửa hàng một hộp/hồ sơ, mỗi nền tảng một ngăn).
+ *
+ * Chuyển THẬT kênh sang hồ sơ của cửa hàng đích (đồng bộ xếp kênh theo hồ sơ). Cửa hàng đích đã có cùng nền tảng thì
+ * chặn — nhà cung cấp chỉ một tài khoản mỗi nền tảng mỗi hồ sơ, chuyển vào là thay tài khoản cũ, xoá hội thoại. Chốt sổ
+ * kênh-theo-ngày trước khi chuyển: ngày chuyển tính cửa hàng cũ, từ hôm sau cửa hàng mới.
+ */
+connectionsRouter.put(
+  "/accounts/:id/trang",
+  route(async (req, res) => {
+    const trangId = Number((req.body as { trangId?: unknown })?.trangId);
+    const { kenh, ds } = await trangChuyenDuoc(req.user!.id, String(req.params.id));
+    if (!kenh) throw new AppError("Không tìm thấy kênh này", 404);
+    const dich = ds.find((t) => t.id === trangId);
+    if (!dich) throw new AppError("Không chuyển được kênh sang cửa hàng này", 400);
+    const tenNenTang = allChannels.find((c) => c.platformKey === kenh.platform)?.name ?? kenh.platform;
+    if (dich.da_co) {
+      throw new AppError(`Cửa hàng "${dich.ten}" đã có ${tenNenTang} — mỗi cửa hàng chỉ có một ${tenNenTang}.`, 409);
+    }
+    // Chốt sổ ngày TRƯỚC khi chuyển: hôm nay tính cửa hàng cũ, từ mai cửa hàng mới. Chuyển THẬT kênh sang hộp (hồ sơ)
+    // của cửa hàng đích — mỗi hồ sơ đúng một cửa hàng; đồng bộ ngay để kênh vào đúng cửa hàng.
     await ghiKenhTheoNgay();
-    const trangMoi = await zernio.doiTrangDangGan(account.id, pageId);
+    if (kenh.profile_ref !== dich.profile_ref) await zernio.chuyenKenhSangHoSo(kenh.id, dich.profile_ref);
+    await query("UPDATE social_accounts SET trang_chon = NULL WHERE id = $1 AND user_id = $2", [kenh.id, req.user!.id]);
     await syncAccountsForUser(req.user!.id, req.user!.profileRef!);
-
+    // Kiểm lại thật — không báo "đã chuyển" khi kênh chưa nằm ở cửa hàng đích.
+    const sau = await queryOne<{ trang_id: number | null }>(
+      "SELECT trang_id FROM social_accounts WHERE id = $1 AND user_id = $2",
+      [kenh.id, req.user!.id]
+    );
+    if (sau?.trang_id !== dich.id) {
+      throw new AppError("Nhà cung cấp chưa chuyển xong kênh. Đợi ít phút rồi bấm \"Kiểm tra lại kết nối\".", 502);
+    }
     res.json({
       success: true,
-      data: { selectedPage: trangMoi },
-      message: trangMoi
-        ? `Đã chuyển sang Trang ${trangMoi.name}. Trang trước đó ngừng nhận tin nhắn và bình luận.`
-        : "Đã đổi Trang.",
+      message: `Đã chuyển kênh sang cửa hàng "${dich.ten}". Từ giờ bộ não AI của cửa hàng này trả lời khách trên kênh đó.`,
     });
   })
 );

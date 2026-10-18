@@ -40,13 +40,10 @@ export default function NhatKyChiPhi({
   loc,
   tieuDe,
   onDong,
-  phamVi = 'he_thong',
 }: {
   loc: LocLuot;
   tieuDe: string;
   onDong: () => void;
-  /** 'chuoi': admin con — chỉ lượt của chuỗi mình (máy chủ kẹp phạm vi). */
-  phamVi?: 'he_thong' | 'chuoi';
 }) {
   const [trang, setTrang] = useState(1);
   const [du, setDu] = useState<{ luot: LuotChiPhi[]; tongLan: number; tongUsd: number; soTrang: number } | null>(null);
@@ -55,13 +52,13 @@ export default function NhatKyChiPhi({
   useEffect(() => {
     let huy = false;
     setDu(null);
-    (phamVi === 'chuoi' ? api.quanLy.luotChiPhi({ ...loc, trang }) : api.admin.luotChiPhi({ ...loc, trang }))
+    api.admin.luotChiPhi({ ...loc, trang })
       .then(({ data }) => !huy && setDu(data))
       .catch((error) => !huy && setLoi(error instanceof ApiError ? error.message : 'Chưa tải được nhật ký'));
     return () => {
       huy = true;
     };
-  }, [loc, trang, phamVi]);
+  }, [loc, trang]);
 
   return (
     <HopThoai

@@ -9,6 +9,7 @@ import { loadKnowledge } from "../services/knowledge.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "../services/text.js";
 import { chanLamDungAI } from "../services/chong-lam-dung.js";
 import { ghiThayDoiNgoai } from "../services/so-thay-doi.js";
+import { khoangTheoKy } from "../../src/lib/ky-ngay.js";
 
 export const adsRouter = Router();
 
@@ -83,7 +84,7 @@ adsRouter.get(
         },
         message:
           "Chưa kết nối tài khoản quảng cáo. Tài khoản Meta Ads tự có khi bạn " +
-          "kết nối Facebook với quyền quảng cáo — vào mục Kết Nối Đa Nền Tảng.",
+          "kết nối Facebook với quyền quảng cáo — vào mục Kết nối kênh.",
       });
       return;
     }
@@ -94,7 +95,8 @@ adsRouter.get(
     // Từng phần lấy độc lập: một phần lỗi không được làm trắng cả trang.
     const [campaigns, insights, audiences] = await Promise.all([
       ads
-        .listCampaigns({ accountId: resolved.accountId, adAccountId: resolved.adAccountId })
+        // Số "đã chi" của từng chiến dịch theo ĐÚNG kỳ đang xem (bỏ trống thì nhà cung cấp tính 90 ngày).
+        .listCampaigns({ accountId: resolved.accountId, adAccountId: resolved.adAccountId, ...khoangTheoKy(datePreset) })
         .catch((error) => {
           console.error("[quảng cáo] Không lấy được chiến dịch:", error.message);
           return { campaigns: [], total: 0 };
@@ -206,31 +208,45 @@ adsRouter.get(
   })
 );
 
+/**
+ * Tạm dừng / chạy lại MỘT chiến dịch (B1-b2, đúng tài liệu PUT /v1/ads/campaigns/{id}/status — 30086).
+ * - updated = 0 → KHÔNG báo "đã đổi": trả lời rõ không có quảng cáo nào đổi được (kèm câu của nhà cung cấp).
+ * - 400 "spans multiple social accounts" → nói rõ lý do bằng tiếng Việt.
+ */
 adsRouter.post(
-  "/campaigns/status",
+  "/campaigns/:id/status",
   route(async (req, res) => {
-    const status = requireString(req.body, "status", "trạng thái");
-    const allowed = new Set(["ACTIVE", "PAUSED", "ARCHIVED"]);
-    if (!allowed.has(status)) throw new AppError(`Trạng thái không hợp lệ: ${status}`);
-
-    const campaignIds = Array.isArray(req.body?.campaignIds)
-      ? req.body.campaignIds.filter((id: unknown): id is string => typeof id === "string")
-      : [];
-    if (campaignIds.length === 0) throw new AppError("Chưa chọn chiến dịch nào");
+    const status = req.body?.status === "active" || req.body?.status === "paused" ? req.body.status : null;
+    if (!status) throw new AppError("Trạng thái không hợp lệ (chỉ tạm dừng hoặc chạy lại)");
+    const platform = typeof req.body?.platform === "string" ? req.body.platform : "";
+    if (!ads.NEN_TANG_CHIEN_DICH.includes(platform)) throw new AppError("Thiếu hoặc sai nền tảng của chiến dịch");
 
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
 
-    const result = await ads.setCampaignStatus({
-      accountId: resolved.accountId,
-      adAccountId: resolved.adAccountId,
-      campaignIds,
-      status: status as "ACTIVE" | "PAUSED" | "ARCHIVED",
-    });
-    // Sổ thay đổi: quảng cáo đổi qua API nhà cung cấp, trigger không thấy — ghi tay SAU khi thành công.
-    for (const id of campaignIds) {
-      await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_chien_dich", banGhi: id, hanhDong: "sua", sau: { trang_thai: status }, nguon: "nguoi_dung" });
+    if (!(await ads.chienDichThuocTaiKhoan({ campaignId: req.params.id, accountId: resolved.accountId, adAccountId: resolved.adAccountId }))) {
+      throw new AppError("Không tìm thấy chiến dịch này trong tài khoản quảng cáo của bạn", 404);
     }
+    let result: Awaited<ReturnType<typeof ads.doiTrangThaiChienDich>>;
+    try {
+      result = await ads.doiTrangThaiChienDich(req.params.id, platform, status);
+    } catch (error) {
+      if (error instanceof ads.AdsError && error.status === 400 && /multiple social accounts/i.test(error.message)) {
+        throw new AppError(
+          "Chiến dịch này gồm quảng cáo của nhiều tài khoản mạng xã hội nên chưa đổi trạng thái cùng lúc được.",
+          409
+        );
+      }
+      throw error;
+    }
+    if (!result?.updated) {
+      throw new AppError(
+        `Không có quảng cáo nào trong chiến dịch đổi được trạng thái${result?.message ? ` (${result.message})` : ""}.`,
+        409
+      );
+    }
+    // Sổ thay đổi: quảng cáo đổi qua API nhà cung cấp, trigger không thấy — ghi tay SAU khi thành công.
+    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_chien_dich", banGhi: req.params.id, hanhDong: "sua", sau: { trang_thai: status }, nguon: "nguoi_dung" });
 
     res.json({ success: true, data: result });
   })
@@ -253,10 +269,19 @@ adsRouter.patch(
     }
 
     const budgetType = body.budgetType === "lifetime" ? "lifetime" : "daily";
-    const platform = typeof body.platform === "string" ? body.platform : "facebook";
+    // Tài liệu 28108: sửa ngân sách chiến dịch chỉ cho facebook / instagram / google (nền tảng khác 501).
+    const platform = typeof body.platform === "string" ? body.platform : "";
+    if (!ads.NEN_TANG_NGAN_SACH.includes(platform)) {
+      throw new AppError("Nền tảng của chiến dịch này chưa hỗ trợ sửa ngân sách trong app.", 409);
+    }
 
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
+    // Lệnh tiêu tiền: PUT /v1/ads/campaigns/{id} không ràng buộc tài khoản quảng cáo (accountId "ignored otherwise") →
+    // phải tự đối chiếu chiến dịch thuộc shop TRƯỚC khi đổi (phiên kiểm duyệt bắt được 18/10/2026).
+    if (!(await ads.chienDichThuocTaiKhoan({ campaignId: req.params.id, accountId: resolved.accountId, adAccountId: resolved.adAccountId }))) {
+      throw new AppError("Không tìm thấy chiến dịch này trong tài khoản quảng cáo của bạn", 404);
+    }
 
     try {
       const result = await ads.updateCampaignBudget({
@@ -276,9 +301,10 @@ adsRouter.patch(
        */
       const status = (error as { status?: number })?.status;
       if (status === 409) {
+        // ABO: ngân sách nằm ở tầng nhóm quảng cáo. Danh sách nhóm của nhà cung cấp chưa có trong tài liệu (chỉ có
+        // /v1/ads/tree với adSets "No description") → chưa sửa được trong app; xem sổ tồn đọng TD-13.
         throw new AppError(
-          "Chiến dịch này đặt ngân sách ở từng nhóm quảng cáo, không đặt chung " +
-            "ở cấp chiến dịch. Vui lòng mở chiến dịch và sửa ngân sách của nhóm bên trong.",
+          "Chiến dịch này đặt ngân sách ở từng nhóm quảng cáo — ngân sách nằm ở tầng nhóm quảng cáo, chưa sửa được trong app.",
           409
         );
       }
@@ -287,28 +313,8 @@ adsRouter.patch(
   })
 );
 
-/**
- * Các nhóm quảng cáo bên trong một chiến dịch.
- *
- * Chiến dịch đặt ngân sách theo nhóm thì sửa ở cấp chiến dịch bị từ chối, và
- * máy chủ bảo chủ shop "mở chiến dịch và sửa ngân sách của nhóm bên trong" —
- * nhưng trước đây KHÔNG có đường nào để mở nhóm ra. Lời chỉ dẫn dẫn vào ngõ cụt.
- */
-adsRouter.get(
-  "/campaigns/:id/ad-sets",
-  route(async (req, res) => {
-    const resolved = await resolveAdAccount(req.user!.id);
-    if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
-
-    const platform = typeof req.query.platform === "string" ? req.query.platform : "facebook";
-    const adSets = await ads.listAdSets({
-      accountId: resolved.accountId,
-      campaignId: req.params.id,
-      platform,
-    });
-    res.json({ success: true, data: adSets });
-  })
-);
+// Đường danh sách nhóm quảng cáo (GET /api/ads/campaigns/:id/ad-sets) đã BỎ 18/10/2026: nó gọi GET /v1/ads/ad-sets —
+// tài liệu nhà cung cấp KHÔNG có đường danh sách này (chỉ có /v1/ads/ad-sets/{id} và /v1/ads/tree). Sổ tồn đọng TD-13.
 
 adsRouter.patch(
   "/ad-sets/:id/budget",
@@ -363,11 +369,17 @@ adsRouter.post(
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
 
-    const result = await ads.duplicateCampaign({
-      campaignId: req.params.id,
-      accountId: resolved.accountId,
-      adAccountId: resolved.adAccountId,
-    });
+    const platform = typeof req.body?.platform === "string" ? req.body.platform : "";
+    if (!ads.NEN_TANG_NHAN_BAN.includes(platform)) {
+      throw new AppError("Nền tảng của chiến dịch này chưa hỗ trợ nhân bản.", 409);
+    }
+    // Mỗi LẦN BẤM một khoá ngẫu nhiên do giao diện sinh (dùng lại khoá cũ thì nhà cung cấp trả lại kết quả cũ).
+    const khoa = typeof req.body?.khoa === "string" && /^[\w-]{8,100}$/.test(req.body.khoa) ? req.body.khoa : null;
+    if (!khoa) throw new AppError("Thiếu mã chống bấm trùng", 400);
+    if (!(await ads.chienDichThuocTaiKhoan({ campaignId: req.params.id, accountId: resolved.accountId, adAccountId: resolved.adAccountId }))) {
+      throw new AppError("Không tìm thấy chiến dịch này trong tài khoản quảng cáo của bạn", 404);
+    }
+    const result = await ads.nhanBanChienDich(req.params.id, platform, khoa);
     await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_chien_dich", banGhi: req.params.id, hanhDong: "them", sau: { nhan_ban_tu: req.params.id }, nguon: "nguoi_dung" });
     res.json({ success: true, data: result });
   })
@@ -379,10 +391,13 @@ adsRouter.get(
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
 
+    // Đọc số liệu cũng phải là chiến dịch của shop (khoá API dùng chung cả nền tảng).
+    if (!(await ads.chienDichThuocTaiKhoan({ campaignId: req.params.id, accountId: resolved.accountId, adAccountId: resolved.adAccountId }))) {
+      throw new AppError("Không tìm thấy chiến dịch này trong tài khoản quảng cáo của bạn", 404);
+    }
     const data = await ads.getCampaignAnalytics({
       campaignId: req.params.id,
-      accountId: resolved.accountId,
-      datePreset: typeof req.query.range === "string" ? req.query.range : undefined,
+      ...khoangTheoKy(typeof req.query.range === "string" ? req.query.range : "last_7d"),
     });
     res.json({ success: true, data });
   })

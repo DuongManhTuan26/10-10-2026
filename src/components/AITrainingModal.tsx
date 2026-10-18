@@ -15,6 +15,11 @@ export type AiKind = 'content' | 'ads' | 'sales' | 'analytics';
 interface AITrainingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /**
+   * Hiện thẳng trong thẻ "Hướng dẫn AI" của khuôn khối não (KhuonAi) thay vì hộp thoại. Cùng một biểu mẫu, cùng một
+   * đường lưu — không có bản thứ hai.
+   */
+  noiTuyen?: boolean;
   aiName: string;
   /**
    * AI nào đang được đặt vai trò.
@@ -28,8 +33,39 @@ interface AITrainingModalProps {
 }
 
 
+/*
+ * Chữ của hai ô theo ĐÚNG cách từng AI dùng chúng (máy chủ):
+ *   content — content-ai.ts đọc lời dặn + tài liệu khi viết bài
+ *   ads     — routes/ads.ts đọc lời dặn + tài liệu khi phân tích chiến dịch
+ *   sales   — sales-ai.ts đọc lời dặn + tài liệu khi trả lời khách
+ *   analytics — AI điều hành KHÔNG nhận lời dặn làm lệnh (cách làm việc do code cố định: services/dieu-hanh.ts); lời dặn
+ *               và tài liệu vào sổ bằng chứng như một nguồn thông tin có nhãn (so-bang-chung.ts). Bản cũ ghi chung chữ của
+ *               AI bán hàng ("để AI trả lời khách") cho cả bốn AI.
+ */
+const CHU_THEO_AI: Record<AiKind, { nhanVaiTro: string; giaiThichVaiTro?: string; taiLieu: string }> = {
+  content: {
+    nhanVaiTro: 'Vai trò & Định hướng (System Prompt)',
+    taiLieu: 'Tải danh sách sản phẩm, điểm mạnh, câu chuyện thương hiệu… để AI viết bài đúng sản phẩm và giọng của shop.',
+  },
+  ads: {
+    nhanVaiTro: 'Vai trò & Định hướng (System Prompt)',
+    taiLieu: 'Tải thông tin sản phẩm, khách hàng mục tiêu, mục tiêu quảng cáo… để AI phân tích chiến dịch đúng bối cảnh của shop.',
+  },
+  sales: {
+    nhanVaiTro: 'Vai trò & Định hướng (System Prompt)',
+    taiLieu: 'Tải bảng giá, danh sách sản phẩm, câu hỏi thường gặp… để AI trả lời khách đúng thông tin của shop.',
+  },
+  analytics: {
+    nhanVaiTro: 'Bối cảnh & mục tiêu của shop',
+    giaiThichVaiTro:
+      'AI Điều hành làm việc theo quy trình cố định của hệ thống (để hạn chế sai). Phần bạn ghi ở đây và tài liệu bên dưới ' +
+      'được AI đọc như một nguồn thông tin — ví dụ mục tiêu tháng, sản phẩm chủ lực, mùa vụ — không phải mệnh lệnh.',
+    taiLieu: 'Tải số liệu ngoài hệ thống, kế hoạch kinh doanh, mục tiêu… — AI Điều hành dùng làm bằng chứng khi rà soát.',
+  },
+};
+
 export default function AITrainingModal({
-  isOpen, onClose, aiName, kind, onSaved,
+  isOpen, onClose, aiName, kind, onSaved, noiTuyen = false,
 }: AITrainingModalProps) {
   const { activeAccountId, activeTrangId } = useActivePage();
   const [role, setRole] = useState('');
@@ -161,30 +197,19 @@ export default function AITrainingModal({
     }
   };
 
-  return (
-    <HopThoai
-      bieuTuong="badge"
-      tieuDe={`Vai trò: ${aiName}`}
-      phuDe="Cấu hình vai trò và nguồn kiến thức riêng cho AI này"
-      onDong={onClose}
-      dongKhiBamNgoai={false}
-      chan={
-        <>
-          <button type="button" onClick={onClose} className={NUT_PHU}>
-            Huỷ
-          </button>
-          <button type="button" onClick={handleSave} disabled={dangLuu || dangTai} className={NUT_CHINH}>
-            <span className={clsx("material-symbols-outlined text-[20px]", dangLuu && "animate-spin")}>
-              {dangLuu ? 'progress_activity' : 'save'}
-            </span>
-            {dangLuu ? 'Đang lưu…' : 'Lưu cấu hình AI'}
-          </button>
-        </>
-      }
-    >
+  const nutLuu = (
+    <button type="button" onClick={handleSave} disabled={dangLuu || dangTai} className={NUT_CHINH}>
+      <span className={clsx("material-symbols-outlined text-[20px]", dangLuu && "animate-spin")}>
+        {dangLuu ? 'progress_activity' : 'save'}
+      </span>
+      {dangLuu ? 'Đang lưu…' : 'Lưu cấu hình AI'}
+    </button>
+  );
+  const thanBieuMau = (
         <div className="space-y-6">
           {/* Vai trò và tài liệu của AI này thuộc về Trang đang chọn, không dùng chung. */}
-          <TrangDangHuanLuyen />
+          {/* Trong khuôn khối não thì đầu khuôn đã ghi rõ trang — không lặp. */}
+          {!noiTuyen && <TrangDangHuanLuyen />}
           {loi && (
             <div className="flex items-start gap-3 text-sm text-error bg-error/10 border border-error/30 rounded-xl px-4 py-3">
               <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">error</span>
@@ -208,10 +233,15 @@ export default function AITrainingModal({
 
           {/* Vai trò */}
           <div>
-            <label className="block text-sm font-bold text-on-surface mb-2">Vai trò & Định hướng (System Prompt)</label>
+            <label className="block text-sm font-bold text-on-surface mb-2">{CHU_THEO_AI[kind].nhanVaiTro}</label>
+            {CHU_THEO_AI[kind].giaiThichVaiTro && (
+              <p className="text-sm text-on-surface-variant mb-3">{CHU_THEO_AI[kind].giaiThichVaiTro}</p>
+            )}
             <textarea 
               className="bg-surface-container-high w-full h-32 border border-outline-variant rounded-xl p-4 text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none"
-              placeholder={`Ví dụ: Bạn là một chuyên gia đảm nhiệm ${aiName}. Nhiệm vụ của bạn là...`}
+              placeholder={kind === 'analytics'
+                ? 'Ví dụ: Mục tiêu tháng này 300 đơn; sản phẩm chủ lực là combo A; tháng 12 là mùa cao điểm.'
+                : `Ví dụ: Bạn là một chuyên gia đảm nhiệm ${aiName}. Nhiệm vụ của bạn là...`}
               value={role}
               onChange={(e) => setRole(e.target.value)}
             ></textarea>
@@ -221,8 +251,7 @@ export default function AITrainingModal({
           <div>
             <label className="block text-sm font-bold text-on-surface mb-2">Tài liệu tham khảo (Knowledge Base)</label>
             <p className="text-sm text-on-surface-variant mb-4">
-              Tải bảng giá, danh sách sản phẩm, câu hỏi thường gặp… để AI trả lời khách
-              đúng thông tin của shop. Tệp chữ (.txt, .md, .csv, .json) dùng được ngay;
+              {CHU_THEO_AI[kind].taiLieu} Tệp chữ (.txt, .md, .csv, .json) dùng được ngay;
               ảnh chụp thì AI sẽ <b className="text-on-surface">đọc chữ trong ảnh</b> rồi
               học từ phần chữ đó.
             </p>
@@ -339,6 +368,35 @@ export default function AITrainingModal({
             )}
           </div>
         </div>
+  );
+
+  if (noiTuyen) {
+    return (
+      <div className="space-y-5">
+        {thanBieuMau}
+        <div className="flex justify-end">{nutLuu}</div>
+      </div>
+    );
+  }
+
+  return (
+    <HopThoai
+      bieuTuong="badge"
+      tieuDe={`Vai trò: ${aiName}`}
+      phuDe="Cấu hình vai trò và nguồn kiến thức riêng cho AI này"
+      onDong={onClose}
+      dongKhiBamNgoai={false}
+      chan={
+        <>
+          <button type="button" onClick={onClose} className={NUT_PHU}>
+            Huỷ
+          </button>
+          {nutLuu}
+        </>
+      }
+    >
+      {thanBieuMau}
     </HopThoai>
   );
 }
+

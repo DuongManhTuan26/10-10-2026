@@ -800,7 +800,7 @@ export default function VideoDaiPanel({
 
       {duAn.length > 0 && (
         <div className="space-y-2">
-          <label className="block text-xs font-bold text-on-surface">Video dài của trang này</label>
+          <label className="block text-xs font-bold text-on-surface">Video dài của cửa hàng này</label>
           <p className="text-[11px] text-on-surface-variant leading-relaxed">
             Video ghép nhiều cảnh đã được mã hoá lại nên Facebook có thể không tự nhận ra là video AI. Nếu video trông
             như thật, hãy tự bật nhãn "Nội dung AI" khi đăng để đúng quy định của nền tảng.
