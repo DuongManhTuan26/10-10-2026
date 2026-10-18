@@ -3660,10 +3660,10 @@ const DUC: PhepDuc[] = [
     thay: "      ORDER BY dm_due_at",
   },
   {
-    ten: "hàng đợi vẫn cho AI trả lời tin của tài khoản khoá",
+    ten: "hàng đợi không truyền 'chỉ lưu' xuống (AI trả lời tin của tài khoản khoá)",
     tep: "server/worker.ts",
-    tim: "if (SU_KIEN_GOI_AI.has(event.event_type) && (await kenhThuocTaiKhoanKhoa(event.account_id))) {",
-    thay: "if (false) {",
+    tim: "      payload: event.payload,\n      chiLuu,\n    }));",
+    thay: "      payload: event.payload,\n    }));",
   },
   {
     ten: "lỗi khoá bị coi là lỗi AI → hội thoại chuyển người",
@@ -3686,13 +3686,13 @@ const DUC: PhepDuc[] = [
   {
     ten: "rà hộp thư trả lời bù tin đến lúc khoá",
     tep: "server/services/reconcile.ts",
-    tim: "        if (!sauMoKhoa(luc, account.mo_khoa_luc)) continue;\n",
+    tim: "            chiLuu: !sauMoKhoa(luc, account.mo_khoa_luc),\n",
     thay: "",
   },
   {
     ten: "vớt tin bỏ sót trả lời bù tin đến lúc khoá",
     tep: "server/services/sales-ai.ts",
-    tim: "        AND ${DK_SAU_MO_KHOA(\"c.user_id\", \"cuoi.created_at\")}\n",
+    tim: "        AND ${DK_SAU_MO_KHOA(\"c.user_id\", \"COALESCE(cuoi.sent_at, cuoi.created_at)\")}\n",
     thay: "",
   },
   {
@@ -3765,6 +3765,54 @@ const DUC: PhepDuc[] = [
     ten: "tự đổi mật khẩu bỏ luật chung (≥ 8 ký tự)",
     tep: "server/routes/auth.ts",
     tim: "    if (loiMoi) throw new AppError(loiMoi);",
+    thay: "",
+  },
+  {
+    ten: "chỉ lưu chỉ xét 'lúc xử lý có đang khoá' (tin lúc khoá xử lý sau khi mở bị trả lời bù)",
+    tep: "server/services/tai-khoan-mo.ts",
+    tim: "  return p.dangKhoa || !sauMoKhoa(p.lucTin, p.moKhoaLuc);",
+    thay: "  return p.dangKhoa;",
+  },
+  {
+    ten: "giờ của tin lấy giờ hệ thống nhận thay vì giờ khách gửi",
+    tep: "server/services/tai-khoan-mo.ts",
+    tim: "  return luc && !Number.isNaN(luc.getTime()) ? luc : nhanLuc;",
+    thay: "  return nhanLuc;",
+  },
+  {
+    ten: "vớt tin so mốc mở khoá theo giờ LƯU (tin lúc khoá lưu muộn bị trả lời bù)",
+    tep: "server/services/sales-ai.ts",
+    tim: "\"COALESCE(cuoi.sent_at, cuoi.created_at)\"",
+    thay: "\"cuoi.created_at\"",
+  },
+  {
+    ten: "chỉ lưu vẫn đọc ảnh khách gửi (tốn tiền AI)",
+    tep: "server/services/events.ts",
+    tim: "if (!event.chiLuu && attachments.length > 0) {",
+    thay: "if (attachments.length > 0) {",
+  },
+  {
+    ten: "chỉ lưu vẫn gọi AI trả lời tin",
+    tep: "server/services/events.ts",
+    tim: "  if (event.chiLuu) {\n    console.log(",
+    thay: "  if (false) {\n    console.log(",
+  },
+  {
+    ten: "bình luận chỉ lưu vẫn chạy kịch bản / trả lời công khai",
+    tep: "server/services/comment-ai.ts",
+    tim: "  if (event.chiLuu) {\n    await markSkipped(",
+    thay: "  if (false) {\n    await markSkipped(",
+  },
+  {
+    ten: "sự kiện bình luận không truyền 'chỉ lưu'",
+    tep: "server/services/events.ts",
+    tim: ", chiLuu: event.chiLuu });",
+    thay: " });",
+  },
+  {
+    ten: "bình luận vớt lại sau mở khoá bị trả lời bù",
+    tep: "server/services/reconcile.ts",
+    tim: "          chiLuu: Boolean(c.createdTime) && !sauMoKhoa(Date.parse(c.createdTime!), account.mo_khoa_luc),\n",
     thay: "",
   },
   {

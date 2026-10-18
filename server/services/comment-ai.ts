@@ -33,6 +33,8 @@ interface CommentPayload {
 export interface CommentEvent {
   accountId: string | null;
   payload: Record<string, unknown>;
+  /** Bình luận của lúc tài khoản bị khoá: chỉ lưu, không kịch bản / tin riêng / trả lời công khai (mục f, điểm e). */
+  chiLuu?: boolean;
 }
 
 /** Bỏ dấu và hạ chữ thường để so từ khoá không phụ thuộc cách gõ. */
@@ -261,6 +263,11 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
       comment.createdAt ? new Date(comment.createdAt) : null,
     ]
   );
+
+  if (event.chiLuu) {
+    await markSkipped(comment.id, "Đến lúc tài khoản đang khoá — không tự trả lời");
+    return;
+  }
 
   if (!platformPostId) {
     await markSkipped(comment.id, "Nền tảng không trả về id bài đăng nên không gửi được");

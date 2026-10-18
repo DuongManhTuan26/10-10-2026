@@ -1330,7 +1330,7 @@ export async function runDueBoSot(): Promise<number> {
     `SELECT c.id, c.social_account_id
        FROM conversations c
        JOIN LATERAL (
-         SELECT sender_type, created_at
+         SELECT sender_type, created_at, sent_at
            FROM messages
           WHERE conversation_id = c.id
           ORDER BY created_at DESC
@@ -1342,8 +1342,9 @@ export async function runDueBoSot(): Promise<number> {
         AND cuoi.created_at < now() - ($1 || ' milliseconds')::interval
         AND c.last_customer_message_at > now() - interval '24 hours'
         AND ${DK_TAI_KHOAN_MO("c.user_id")}
-        -- Tin khách nhắn lúc tài khoản đang khoá: không trả lời bù (mục f).
-        AND ${DK_SAU_MO_KHOA("c.user_id", "cuoi.created_at")}
+        -- Tin khách nhắn lúc tài khoản đang khoá: không trả lời bù (mục f). So theo giờ KHÁCH GỬI (sent_at), không
+        -- theo giờ lưu: tin lúc khoá có thể được lưu SAU khi mở (hàng đợi trễ, rà soát nạp bù — điểm e).
+        AND ${DK_SAU_MO_KHOA("c.user_id", "COALESCE(cuoi.sent_at, cuoi.created_at)")}
       ORDER BY cuoi.created_at
       LIMIT $2`,
     [String(CHO_TRUOC_KHI_VOT_MS), VOT_MOI_LUOT]

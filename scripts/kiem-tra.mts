@@ -43,7 +43,7 @@ import { khoangTheoKy, lichChay, ngayVN, ngayDayDu } from "../src/lib/ky-ngay.js
 import { lenhDoiTrangThai, lenhNhanBan, NEN_TANG_NHAN_BAN } from "../server/services/ads.js";
 import { docChienDich, nhanTrangThaiChienDich } from "../src/lib/chien-dich.js";
 import { chonHoSo, thucHienXoa, lapKeHoachXoa, donHoSo, type PhuThuocXoa, type KenhNcc } from "../server/services/xoa-tai-khoan.js";
-import { cauLenhDonQuaHan, chanNeuTaiKhoanKhoa, DK_SAU_MO_KHOA, DK_TAI_KHOAN_MO, khoaTaiKhoan, moKhoaTaiKhoan, sauMoKhoa, TaiKhoanKhoaError } from "../server/services/tai-khoan-mo.js";
+import { canChiLuu, cauLenhDonQuaHan, chanNeuTaiKhoanKhoa, DK_SAU_MO_KHOA, DK_TAI_KHOAN_MO, khoaTaiKhoan, lucTinCuaSuKien, moKhoaTaiKhoan, sauMoKhoa, TaiKhoanKhoaError } from "../server/services/tai-khoan-mo.js";
 import { GHI_CHU_DUNG_DO_KHOA, laDungDoKhoa } from "../src/lib/tai-khoan-khoa.js";
 import { nhomTheoHoiThoai, khoaHoiThoai } from "../server/worker.js";
 import { daTuKhaiBao } from "../server/services/comment-ai.js";
@@ -6202,7 +6202,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     return n.slice(dau, cuoi < 0 ? undefined : cuoi);
   };
   const noiCHAN: [string, string, RegExp][] = [
-    ["server/worker.ts", "processEvent", /SU_KIEN_GOI_AI\.has\(event\.event_type\) && \(await kenhThuocTaiKhoanKhoa\(event\.account_id\)\)/],
+    // Điểm e: hàng đợi không bỏ sự kiện của tài khoản khoá nữa mà CHỈ LƯU (xem phép kiểm "chỉ lưu" bên dưới).
+    ["server/worker.ts", "processEvent", /if \(SU_KIEN_GOI_AI\.has\(event\.event_type\)\) \{\s*const tt = await trangThaiKhoaCuaKenh\(event\.account_id\);/],
     ["server/services/reconcile.ts", "reconcileInbox", /\$\{DK_TAI_KHOAN_MO\("social_accounts\.user_id"\)\}/],
     ["server/services/autopilot.ts", "runDueAutoPilot", /\$\{DK_TAI_KHOAN_MO\("ai_configs\.user_id"\)\}/],
     ["server/services/autopilot.ts", "runDueAutoPublishes", /\$\{DK_TAI_KHOAN_MO\("posts\.user_id"\)\}/],
@@ -6215,11 +6216,11 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [...noiCHAN.map(([tep, ten, mau]) => `${ten}:${mau.test(thanHam(tep, ten))}`),
       `runDueCommentActions:${(thanHam("server/services/comment-ai.ts", "runDueCommentActions").match(/\$\{DK_TAI_KHOAN_MO\("comments\.user_id"\)\}/g) ?? []).length}`],
     [...noiCHAN.map(([, ten]) => `${ten}:true`), "runDueCommentActions:2"]);
-  kiem("khoá tài khoản", "không trả lời / nhắc / viết bù: vớt tin + nhắc khách dùng DK_SAU_MO_KHOA; rà hộp thư (tin + bình luận) + ô lịch dùng sauMoKhoa",
-    [/\$\{DK_SAU_MO_KHOA\("c\.user_id", "cuoi\.created_at"\)\}/.test(thanHam("server/services/sales-ai.ts", "runDueBoSot")),
+  kiem("khoá tài khoản", "không trả lời / nhắc / viết bù: vớt tin (theo GIỜ KHÁCH GỬI) + nhắc khách dùng DK_SAU_MO_KHOA; rà hộp thư (tin + bình luận) nạp CHỈ LƯU theo sauMoKhoa; ô lịch dùng sauMoKhoa",
+    [/\$\{DK_SAU_MO_KHOA\("c\.user_id", "COALESCE\(cuoi\.sent_at, cuoi\.created_at\)"\)\}/.test(thanHam("server/services/sales-ai.ts", "runDueBoSot")),
       /\$\{DK_SAU_MO_KHOA\(\s*"c\.user_id",/.test(thanHam("server/services/sales-ai.ts", "runDueFollowUps")),
-      /if \(!sauMoKhoa\(luc, account\.mo_khoa_luc\)\) continue;/.test(thanHam("server/services/reconcile.ts", "reconcileInbox")),
-      /if \(c\.createdTime && !sauMoKhoa\(Date\.parse\(c\.createdTime\), account\.mo_khoa_luc\)\) continue;/.test(thanHam("server/services/reconcile.ts", "raSoatBinhLuan")),
+      /chiLuu: !sauMoKhoa\(luc, account\.mo_khoa_luc\),/.test(thanHam("server/services/reconcile.ts", "reconcileInbox")),
+      /chiLuu: Boolean\(c\.createdTime\) && !sauMoKhoa\(Date\.parse\(c\.createdTime!\), account\.mo_khoa_luc\),/.test(thanHam("server/services/reconcile.ts", "raSoatBinhLuan")),
       /if \(!sauMoKhoa\(o\.moc, shop\.mo_khoa_luc\)\) continue;/.test(thanHam("server/services/autopilot.ts", "runDueAutoPilot"))],
     [true, true, true, true, true]);
 
@@ -6257,6 +6258,44 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /if \(error instanceof TaiKhoanKhoaError\) \{\s*await query\(`UPDATE auto_pilot_runs SET status = 'skipped'/.test(thanHam("server/services/autopilot.ts", "runDueAutoPilot")),
       /if \(error instanceof TaiKhoanKhoaError\) continue;\s*const loi = error instanceof Error/.test(thanHam("server/services/video-dai.ts", "runDueVideoProjects"))],
     [true, true, true, true]);
+
+  // Điểm e (chủ dự án 19/10/2026): tin / bình luận của lúc khoá được LƯU, AI / kịch bản / trả lời công khai KHÔNG chạy.
+  // Điều kiện phiên kiểm duyệt: không chỉ xét "lúc xử lý có đang khoá" — tin lúc khoá nằm hàng đợi / thử lại sau khi mở vẫn chỉ lưu.
+  const moK = new Date("2026-10-19T03:00:00Z");
+  kiem("khoá tài khoản", "chỉ lưu: đang khoá → chỉ lưu; khoá → tin vào hàng đợi → MỞ KHOÁ → xử lý ⇒ vẫn chỉ lưu; tin sau mở / chưa từng khoá → xử lý thường",
+    [canChiLuu({ dangKhoa: true, lucTin: new Date("2026-10-19T04:00:00Z"), moKhoaLuc: null }),
+      canChiLuu({ dangKhoa: false, lucTin: new Date("2026-10-19T02:50:00Z"), moKhoaLuc: moK }),
+      canChiLuu({ dangKhoa: false, lucTin: new Date("2026-10-19T03:00:01Z"), moKhoaLuc: moK }),
+      canChiLuu({ dangKhoa: false, lucTin: new Date("2020-01-01T00:00:00Z"), moKhoaLuc: null })],
+    [true, true, false, false]);
+  const nhan = new Date("2026-10-19T02:55:00Z");
+  kiem("khoá tài khoản", "giờ của tin: lấy createdAt trong payload (tin / bình luận); thiếu hoặc hỏng → giờ hệ thống nhận sự kiện",
+    [lucTinCuaSuKien({ message: { createdAt: "2026-10-19T02:40:00Z" } }, nhan).toISOString(),
+      lucTinCuaSuKien({ comment: { createdAt: "2026-10-19T02:41:00Z" } }, nhan).toISOString(),
+      lucTinCuaSuKien({ message: { createdAt: "rác" } }, nhan).toISOString(), lucTinCuaSuKien({}, nhan).toISOString()],
+    ["2026-10-19T02:40:00.000Z", "2026-10-19T02:41:00.000Z", "2026-10-19T02:55:00.000Z", "2026-10-19T02:55:00.000Z"]);
+  const nguonEv = boChuThich(fs.readFileSync(path.join(GOC, "server/services/events.ts"), "utf8"));
+  const thanNhanTin = thanHam("server/services/events.ts", "handleMessageReceived");
+  const viTri = (mau: RegExp) => thanNhanTin.search(mau);
+  const thanBinhLuan = thanHam("server/services/comment-ai.ts", "handleCommentReceived");
+  const thanXuLy = thanHam("server/worker.ts", "processEvent");
+  kiem("khoá tài khoản", "chỉ lưu — tin nhắn: lưu tin TRƯỚC; không đọc ảnh (AI trả phí); dừng TRƯỚC khi gọi AI trả lời",
+    [viTri(/INSERT INTO messages/) > 0 && viTri(/INSERT INTO messages/) < viTri(/if \(event\.chiLuu\) \{/),
+      /if \(!event\.chiLuu && attachments\.length > 0\) \{/.test(thanNhanTin),
+      viTri(/if \(event\.chiLuu\) \{\s*console\.log\([\s\S]{0,200}?\);\s*return;\s*\}/) > 0 && viTri(/if \(event\.chiLuu\) \{/) < viTri(/await handleIncomingMessage\(/),
+      /handleCommentReceived\(\{ accountId: event\.accountId, payload: event\.payload, chiLuu: event\.chiLuu \}\)/.test(nguonEv)],
+    [true, true, true, true]);
+  kiem("khoá tài khoản", "chỉ lưu — bình luận: ghi bình luận TRƯỚC, đánh dấu bỏ qua rồi dừng TRƯỚC khi chọn kịch bản / tin riêng / trả lời công khai",
+    [thanBinhLuan.search(/INSERT INTO comments/) < thanBinhLuan.search(/if \(event\.chiLuu\) \{/),
+      /if \(event\.chiLuu\) \{\s*await markSkipped\(comment\.id, "Đến lúc tài khoản đang khoá — không tự trả lời"\);\s*return;\s*\}/.test(thanBinhLuan),
+      thanBinhLuan.search(/if \(event\.chiLuu\) \{/) < thanBinhLuan.search(/FROM auto_scripts|const scripts = await query/)],
+    [true, true, true]);
+  kiem("khoá tài khoản", "hàng đợi: tính chỉ lưu theo canChiLuu (đang khoá HOẶC tin trước mở khoá, giờ tin từ payload / received_at) và truyền xuống; không còn bỏ hẳn sự kiện",
+    [/chiLuu = canChiLuu\(\{ dangKhoa: tt\.dangKhoa, lucTin: lucTinCuaSuKien\(event\.payload, event\.received_at\), moKhoaLuc: tt\.moKhoaLuc \}\);/.test(thanXuLy),
+      /payload: event\.payload,\s*chiLuu,\s*\}\)\);/.test(thanXuLy),
+      /SELECT id, event_id, event_type, account_id, payload, attempts, received_at/.test(nguonWorker),
+      /Bỏ qua: tài khoản đang khoá — AI dừng hẳn/.test(nguonWorker)],
+    [true, true, true, false]);
 
   // Nút khoá / mở khoá + xoá tài khoản đi qua đúng hàm chung; hộp hỏi nói rõ luật.
   const ad = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8"));

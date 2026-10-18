@@ -15,7 +15,7 @@ HỆ THỐNG
 │     │     │       duyệt + thử khoá thật). Bài hẹn giờ sẵn bên nền tảng vẫn đăng.
 │     │     │       Mở khoá: việc tới hạn trong lúc khoá KHÔNG tự bùng ra (chốt 19/10 — như trên)
 │     │     │       Tin / bình luận khách gửi lúc khoá: LƯU vào hộp thư để chủ shop tự đọc, KHÔNG chạy AI / kịch bản /
-│     │     │       trả lời công khai (chốt 19/10 — CHƯA ĐẠT: mã hiện bỏ hẳn, chưa lưu)
+│     │     │       trả lời công khai (chốt 19/10 — mã xong 19/10, CHỜ kiểm duyệt; chưa thử với kênh thật)
 │     │     │     · Xoá = xem trước → ngắt mọi kênh + xoá mọi hồ sơ của tài khoản bên nhà cung cấp → xoá dữ liệu (đạt)
 │     │     ├── "Mở tài khoản": admin đăng nhập thẳng vào tài khoản khác để hỗ trợ (cơ chế mo_boi). 04/10 chỉ bỏ chữ /
 │     │     │     màu "đang xem" — KHÔNG bỏ cơ chế. Chỉ còn nút "Quay lại quản lý". (đạt)

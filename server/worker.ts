@@ -17,7 +17,7 @@ import { doiChieuLuotAi } from "./services/so-ai.js";
 import { chayChoKenh } from "./services/ngu-canh-trang.js";
 import { ghiKenhTheoNgay } from "./services/trang.js";
 import { chupSoBaiNgay } from "./services/so-lieu-kenh.js";
-import { kenhThuocTaiKhoanKhoa, TaiKhoanKhoaError } from "./services/tai-khoan-mo.js";
+import { canChiLuu, lucTinCuaSuKien, TaiKhoanKhoaError, trangThaiKhoaCuaKenh } from "./services/tai-khoan-mo.js";
 
 /**
  * Worker xử lý hàng đợi sự kiện.
@@ -106,6 +106,7 @@ interface EventRow {
   account_id: string | null;
   payload: Record<string, unknown>;
   attempts: number;
+  received_at: Date;
 }
 
 /**
@@ -119,7 +120,7 @@ async function claimBatch(): Promise<EventRow[]> {
   try {
     await client.query("BEGIN");
     const result = await client.query<EventRow>(
-      `SELECT id, event_id, event_type, account_id, payload, attempts
+      `SELECT id, event_id, event_type, account_id, payload, attempts, received_at
          FROM webhook_events
         WHERE status = 'pending'
            OR (status = 'failed' AND attempts < $2
@@ -149,7 +150,11 @@ async function claimBatch(): Promise<EventRow[]> {
   }
 }
 
-/** Sự kiện dẫn tới AI trả lời — bỏ qua khi tài khoản đang khoá (mục f). Kết quả đăng bài / đổi kênh vẫn xử lý. */
+/**
+ * Sự kiện dẫn tới AI trả lời. Của tài khoản đang khoá, hoặc tin gửi TRƯỚC lần mở khoá gần nhất (nằm hàng đợi / thử
+ * lại sau khi mở) → CHỈ LƯU vào hộp thư, không AI / kịch bản / trả lời công khai (mục f, điểm e). Kết quả đăng bài /
+ * đổi kênh vẫn xử lý bình thường.
+ */
 export const SU_KIEN_GOI_AI = new Set(["message.received", "comment.received"]);
 
 async function boQuaVIKhoa(event: EventRow, lyDo: string): Promise<void> {
@@ -160,9 +165,12 @@ async function boQuaVIKhoa(event: EventRow, lyDo: string): Promise<void> {
 }
 
 async function processEvent(event: EventRow): Promise<void> {
-  if (SU_KIEN_GOI_AI.has(event.event_type) && (await kenhThuocTaiKhoanKhoa(event.account_id))) {
-    await boQuaVIKhoa(event, "Bỏ qua: tài khoản đang khoá — AI dừng hẳn");
-    return;
+  let chiLuu = false;
+  if (SU_KIEN_GOI_AI.has(event.event_type)) {
+    const tt = await trangThaiKhoaCuaKenh(event.account_id);
+    if (tt) {
+      chiLuu = canChiLuu({ dangKhoa: tt.dangKhoa, lucTin: lucTinCuaSuKien(event.payload, event.received_at), moKhoaLuc: tt.moKhoaLuc });
+    }
   }
   try {
     // Mỗi sự kiện thuộc một kênh → một Trang: tiền AI trả lời khách / bình luận ghi đúng trang đó.
@@ -174,6 +182,7 @@ async function processEvent(event: EventRow): Promise<void> {
       eventType: event.event_type,
       accountId: event.account_id,
       payload: event.payload,
+      chiLuu,
     }));
 
     await query(

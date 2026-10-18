@@ -40,14 +40,33 @@ export function sauMoKhoa(moc: Date | number, moKhoaLuc: Date | null | undefined
   return new Date(moc).getTime() >= moKhoaLuc.getTime();
 }
 
-/** Kênh này thuộc tài khoản đang khoá? (kênh lạ / đã xoá → false: để luồng thường tự xử lý như cũ). */
-export async function kenhThuocTaiKhoanKhoa(accountId: string | null): Promise<boolean> {
-  if (!accountId) return false;
-  const r = await queryOne<{ khoa: boolean }>(
-    "SELECT NOT u.is_active AS khoa FROM social_accounts s JOIN users u ON u.id = s.user_id WHERE s.id = $1",
+/** Trạng thái khoá của tài khoản sở hữu kênh (kênh lạ / đã xoá → null: để luồng thường tự xử lý như cũ). */
+export async function trangThaiKhoaCuaKenh(
+  accountId: string | null
+): Promise<{ dangKhoa: boolean; moKhoaLuc: Date | null } | null> {
+  if (!accountId) return null;
+  const r = await queryOne<{ dang_khoa: boolean; mo_khoa_luc: Date | null }>(
+    `SELECT NOT u.is_active AS dang_khoa, u.mo_khoa_luc
+       FROM social_accounts s JOIN users u ON u.id = s.user_id WHERE s.id = $1`,
     [accountId]
   );
-  return r?.khoa === true;
+  return r ? { dangKhoa: r.dang_khoa, moKhoaLuc: r.mo_khoa_luc } : null;
+}
+
+/**
+ * Tin / bình luận "CHỈ LƯU" (điểm e — chủ dự án chốt 19/10/2026: tin đến lúc khoá được LƯU vào hộp thư, AI / kịch
+ * bản / trả lời công khai KHÔNG chạy). Không chỉ xét "lúc xử lý có đang khoá không" (phiên kiểm duyệt 19/10): tin đến
+ * lúc khoá nằm trong hàng đợi hoặc lỗi rồi thử lại SAU khi mở khoá vẫn là tin của lúc khoá → chỉ lưu.
+ */
+export function canChiLuu(p: { dangKhoa: boolean; lucTin: Date | number; moKhoaLuc: Date | null }): boolean {
+  return p.dangKhoa || !sauMoKhoa(p.lucTin, p.moKhoaLuc);
+}
+
+/** Thời điểm khách gửi tin / bình luận theo payload; thiếu hoặc hỏng thì lấy lúc hệ thống nhận sự kiện. */
+export function lucTinCuaSuKien(payload: Record<string, unknown>, nhanLuc: Date): Date {
+  const goc = (payload.message ?? payload.comment) as { createdAt?: unknown } | undefined;
+  const luc = typeof goc?.createdAt === "string" ? new Date(goc.createdAt) : null;
+  return luc && !Number.isNaN(luc.getTime()) ? luc : nhanLuc;
 }
 
 /** Lưới tiền: ném TaiKhoanKhoaError nếu tài khoản đang khoá. userId null (việc chung của hệ thống) → không chặn. */

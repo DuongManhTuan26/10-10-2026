@@ -32,6 +32,11 @@ export interface WebhookEvent {
    */
   attempt?: number;
   maxAttempts?: number;
+  /**
+   * CHỈ LƯU (mục f, điểm e — chủ dự án 19/10/2026): tin / bình luận của lúc tài khoản bị khoá. Lưu vào hộp thư cho
+   * chủ shop tự đọc; KHÔNG đọc ảnh (gọi AI trả phí), KHÔNG AI trả lời, KHÔNG kịch bản / trả lời công khai.
+   */
+  chiLuu?: boolean;
 }
 
 /** Cửa sổ nhắn tin của Meta: 24 giờ kể từ tin cuối cùng của khách. */
@@ -46,7 +51,7 @@ export async function handleWebhookEvent(event: WebhookEvent): Promise<void> {
       await handleMessageSent(event);
       break;
     case "comment.received":
-      await handleCommentReceived({ accountId: event.accountId, payload: event.payload });
+      await handleCommentReceived({ accountId: event.accountId, payload: event.payload, chiLuu: event.chiLuu });
       break;
     case "account.connected":
     case "account.disconnected":
@@ -311,8 +316,10 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
    *
    * Phải đọc TRƯỚC khi gọi AI bán hàng ở dưới, nếu không lượt trả lời này vẫn
    * mù. Đọc hỏng thì bỏ qua, AI vẫn biết là có ảnh nhờ cột attachments.
+   *
+   * CHỈ LƯU (tài khoản khoá) thì không đọc: đọc ảnh là một lượt AI trả phí.
    */
-  if (attachments.length > 0) {
+  if (!event.chiLuu && attachments.length > 0) {
     const moTa: string[] = [];
     for (const t of attachments.slice(0, 3)) {
       const o = (t ?? {}) as Record<string, unknown>;
@@ -355,6 +362,12 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
     `[sự kiện] Tin nhắn mới trong hội thoại ${message.conversationId} ` +
       `(${platform}): "${text.slice(0, 60)}"`
   );
+
+  // Tin của lúc tài khoản bị khoá: đã lưu xong, dừng ở đây — chủ shop tự đọc và trả lời (mục f, điểm e).
+  if (event.chiLuu) {
+    console.log(`[sự kiện] Chỉ lưu tin trong ${message.conversationId}: đến lúc tài khoản bị khoá, AI không trả lời`);
+    return;
+  }
 
   // Để AI đọc và trả lời. Lỗi ở bước này không được làm sự kiện thất bại:
   // tin nhắn đã lưu an toàn rồi, thử lại sẽ gửi trùng cho khách.
