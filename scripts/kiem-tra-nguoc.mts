@@ -4170,6 +4170,18 @@ const DUC: PhepDuc[] = [
     thay: "const LOCAL_URL = `http://localhost:${process.env.PORT ?? 3000}`;",
   },
   {
+    ten: "người canh: bỏ ân hạn sau khi dựng (dựng lại oan khi tên miền mới chưa phân giải)",
+    tep: "scripts/nguoi-canh-luat.mjs",
+    tim: "  if (msTuLucDung < AN_HAN_SAU_KHI_DUNG_MS) return { hanhDong: \"an_han\", soLanKhongThong: 0 };\n",
+    thay: "",
+  },
+  {
+    ten: "người canh: không ghi lúc dựng (ân hạn không bao giờ áp)",
+    tep: "scripts/tunnel-watchdog.mjs",
+    tim: "  lucDung = Date.now();\n",
+    thay: "",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

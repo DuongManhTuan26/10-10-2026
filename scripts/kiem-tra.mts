@@ -41,7 +41,7 @@ import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { cauLenhKenhBai, cauLenhKenhLich, kenhNgoaiCuaHang, LOI_BAI_KHONG_CUA_HANG, LOI_BAI_KHONG_KENH, LOI_LICH_KHONG_CUA_HANG } from "../server/services/kenh-dang.js";
 import { chanCuaRa, locKenhGuiDuoc, LOI_KENH_DA_ROI, LOI_KENH_MAT_KET_NOI } from "../server/services/cua-ra.js";
 import { chonNhiemKy, doiNhiemKy, maHoiThoai, type NhiemKy } from "../server/services/nhiem-ky.js";
-import { baoGoc, quyetDinh, BAO_GOC_SAU_MS } from "./nguoi-canh-luat.mjs";
+import { baoGoc, quyetDinh, AN_HAN_SAU_KHI_DUNG_MS, BAO_GOC_SAU_MS } from "./nguoi-canh-luat.mjs";
 import { khoangTheoKy, lichChay, ngayVN, ngayDayDu } from "../src/lib/ky-ngay.js";
 import { lenhDoiTrangThai, lenhNhanBan, NEN_TANG_NHAN_BAN } from "../server/services/ads.js";
 import { docChienDich, nhanTrangThaiChienDich } from "../src/lib/chien-dich.js";
@@ -6579,6 +6579,14 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [qd(true, true, 2), qd(false, false, 2), qd(true, false, 0), qd(true, false, 1), qd(true, false, 2), qd(true, false, 0, 1)],
     [{ hanhDong: "thong", soLanKhongThong: 0 }, { hanhDong: "cho_goc", soLanKhongThong: 0 }, { hanhDong: "dem", soLanKhongThong: 1 },
       { hanhDong: "dem", soLanKhongThong: 2 }, { hanhDong: "dung_lai", soLanKhongThong: 0 }, { hanhDong: "dung_lai", soLanKhongThong: 0 }]);
+  // Ân hạn sau khi dựng (phiên kiểm duyệt 19/10): máy này cần ~80 giây mới phân giải tên miền mới; 90 giây là dựng lại.
+  const qdAn = (ms: number, soLan = 0) => quyetDinh({ gocSong: true, duongHamThong: false, soLanKhongThong: soLan, nguong: 3, msTuLucDung: ms });
+  kiem("người canh", "3 phút đầu sau khi dựng: 'không thông' KHÔNG đếm (ân hạn); hết ân hạn thì đếm như thường; thông thì vẫn là thông",
+    [AN_HAN_SAU_KHI_DUNG_MS, qdAn(80_000), qdAn(179_000, 2), qdAn(180_000), qdAn(180_000, 2),
+      quyetDinh({ gocSong: true, duongHamThong: true, soLanKhongThong: 1, msTuLucDung: 10_000 })],
+    [3 * 60_000, { hanhDong: "an_han", soLanKhongThong: 0 }, { hanhDong: "an_han", soLanKhongThong: 0 },
+      { hanhDong: "dem", soLanKhongThong: 1 }, { hanhDong: "dung_lai", soLanKhongThong: 0 }, { hanhDong: "thong", soLanKhongThong: 0 }]);
+
   // Báo quản trị: tắt quá 5 phút LIÊN TIẾP → một lần; vẫn tắt → không lặp; sống lại → một lần; sống mà chưa từng báo → im.
   const p = 60_000;
   let tt = { chetTu: null as number | null, daBao: false };
@@ -6592,6 +6600,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/const LOCAL_URL = `http:\/\/127\.0\.0\.1:\$\{process\.env\.PORT \?\? 3000\}`;/.test(wd),
       /if \(dangXet\) return;\s*dangXet = true;\s*try \{\s*await motLuot\(\);\s*\} finally \{\s*dangXet = false;\s*\}/.test(wd),
       /const qd = quyetDinh\(\{\s*gocSong: song,\s*duongHamThong: healthy,/.test(wd) && /if \(qd\.hanhDong === "cho_goc"\) \{[\s\S]{0,200}?return;/.test(wd),
+      /currentUrl = await startTunnel\(\);\s*lucDung = Date\.now\(\);/.test(wd) && /msTuLucDung: currentUrl \? Date\.now\(\) - lucDung : Infinity,/.test(wd)
+        && /if \(qd\.hanhDong === "an_han"\) \{[\s\S]{0,200}?return;/.test(wd) &&
       /if \(bao\.gui === "tat"\) await baoQuanTri\(TIN_GOC_TAT\);\s*if \(bao\.gui === "song"\) await baoQuanTri\(TIN_GOC_SONG\);/.test(wd),
       // Gốc xét TRƯỚC nhánh lùi (đang bị Cloudflare chặn vẫn báo được máy chủ tắt).
       wd.search(/const song = await gocSong\(\);/) < wd.search(/if \(choToiPhut > 0\) \{/)],

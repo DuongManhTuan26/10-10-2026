@@ -177,3 +177,14 @@ AI không trả lời; bình luận skipped_reason "Đến lúc tài khoản đa
 Mã + phép kiểm + đột biến đạt (822b793, phiên kiểm duyệt cho đạt). Chưa cửa hàng nào bật lịch; bật thử = AI tốn tiền +
 đăng thật. Cách thử khi chủ dự án cho phép: bật lịch 2 cửa hàng cùng một khung giờ, chế độ "Chờ tôi duyệt" (không đăng
 thật), xem auto_pilot_runs có 2 dòng (mỗi cửa hàng một) và mỗi cửa hàng có 1 bài chờ duyệt đúng kênh của nó.
+
+## TD-16 — Webhook / người canh đường hầm: phần chưa kiểm thật + bản ân hạn chờ áp dụng (19/10/2026)
+
+Điều tra: máy chủ chạy dưới khung xem trước bị app tắt 11:28–12:44 → người canh dựng lại ~30 đường hầm → Cloudflare chặn
+→ webhook chết tới 13:21. Đã sửa: máy chủ chạy độc lập bằng scripts/mo-app.sh; người canh mới (0435d64) không dựng lại khi
+máy chủ tắt, chống chồng lượt, báo Telegram quản trị; đã áp dụng 13:53 (đường hầm thông 13:54).
+- CHỜ ÁP DỤNG: khoảng ân hạn 3 phút sau khi dựng (máy này cần ~80 giây mới phân giải tên miền mới) — mã đã xong + kiểm,
+  phải khởi động lại người canh (đổi đường hầm một lần) ở lần khởi động tới, khi chủ dự án cho phép.
+- CHƯA KIỂM THẬT: webhook_events có sự kiện mới qua đường hầm mới (cần khách nhắn thật); Telegram "máy chủ tắt" (cần tắt
+  máy chủ ≥ 5 phút).
+- LÂU DÀI (chủ dự án quyết): máy chủ thật + tên miền cố định thay cho đường hầm tạm trycloudflare trên máy cá nhân.

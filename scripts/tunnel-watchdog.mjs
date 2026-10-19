@@ -40,6 +40,8 @@ if (!CLOUDFLARED || !fs.existsSync(CLOUDFLARED)) {
 
 let child = null;
 let currentUrl = null;
+/** Lúc dựng xong đường hầm hiện tại — tính khoảng ân hạn chờ tên miền mới phân giải (nguoi-canh-luat.mjs). */
+let lucDung = 0;
 
 function log(message) {
   console.log(`[tunnel] ${new Date().toLocaleTimeString("vi-VN")} ${message}`);
@@ -323,6 +325,7 @@ async function rotate() {
     await new Promise((r) => setTimeout(r, 2_000));
   }
   currentUrl = await startTunnel();
+  lucDung = Date.now();
   fs.writeFileSync(STATE_FILE, currentUrl);
   log(`Tunnel mới: ${currentUrl}`);
   /*
@@ -457,11 +460,17 @@ async function main() {
       duongHamThong: healthy,
       soLanKhongThong,
       nguong: currentUrl ? HONG_LIEN_TIEP_MOI_DUNG_LAI : 1,
+      msTuLucDung: currentUrl ? Date.now() - lucDung : Infinity,
     });
     soLanKhongThong = qd.soLanKhongThong;
 
     if (qd.hanhDong === "cho_goc") {
       log("Máy chủ trong máy đang tắt — giữ đường hầm, KHÔNG dựng lại (dựng lại không chữa được máy chủ tắt).");
+      return;
+    }
+
+    if (qd.hanhDong === "an_han") {
+      log("Đường hầm mới chưa thông từ máy này — đang chờ tên miền mới phân giải (ân hạn 3 phút), chưa đếm.");
       return;
     }
 

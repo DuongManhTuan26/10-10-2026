@@ -12,12 +12,16 @@
  *  - "thong": đường hầm thông → đếm về 0 (người canh còn gỡ trạng thái ngắt gửi của nhà cung cấp).
  *  - "cho_goc": máy chủ trong máy đang tắt → GIỮ đường hầm, không đếm, không dựng lại (dựng lại vô ích, chỉ tốn lượt
  *    Cloudflare).
+ *  - "an_han": đường hầm mới dựng chưa đủ 3 phút → "không thông" KHÔNG đếm (máy này cần ~80 giây mới phân giải được tên
+ *    miền mới — đo 2 lần 19/10; đếm ngay thì 90 giây là dựng lại oan, rồi lại oan… đúng vòng làm Cloudflare chặn).
  *  - "dem": gốc sống mà đường hầm không thông → đếm, chưa đủ ngưỡng thì chờ xem lại.
  *  - "dung_lai": đủ ngưỡng liên tiếp → dựng đường hầm mới.
  */
-export function quyetDinh({ gocSong, duongHamThong, soLanKhongThong, nguong = 3 }) {
+export const AN_HAN_SAU_KHI_DUNG_MS = 3 * 60_000;
+export function quyetDinh({ gocSong, duongHamThong, soLanKhongThong, nguong = 3, msTuLucDung = Infinity }) {
   if (duongHamThong) return { hanhDong: "thong", soLanKhongThong: 0 };
   if (!gocSong) return { hanhDong: "cho_goc", soLanKhongThong: 0 };
+  if (msTuLucDung < AN_HAN_SAU_KHI_DUNG_MS) return { hanhDong: "an_han", soLanKhongThong: 0 };
   const dem = soLanKhongThong + 1;
   if (dem < nguong) return { hanhDong: "dem", soLanKhongThong: dem };
   return { hanhDong: "dung_lai", soLanKhongThong: 0 };
