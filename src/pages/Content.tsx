@@ -169,8 +169,6 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
    * thì mọi kênh" sẽ đăng lan sang kênh của trang khác = nhầm bộ não.
    */
   const kenhKetNoi = (trangDangChon?.kenh ?? accounts).filter((a) => a.connected);
-  /** Kênh sẽ đăng (đăng nhanh / sửa bài): các kênh của trang đang chọn. */
-  const targetAccountIds = kenhKetNoi.map((a) => a.id);
 
   /** Đang gõ phong cách của riêng mình, không phải một mẫu dựng sẵn. */
 
@@ -204,15 +202,11 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
     }
   };
 
-  /** Duyệt rồi đăng thật lên nền tảng. */
-  const handleApprove = (id: number) =>
-    runAction(id, async () => {
-      if (targetAccountIds.length === 0) {
-        throw new ApiError('Chưa có kênh nào được kết nối để đăng bài.', 409);
-      }
-      await api.posts.update(id, { targetAccountIds });
-      await api.posts.publish(id);
-    });
+  /**
+   * Duyệt rồi đăng thật lên nền tảng — đúng các kênh ĐÃ LƯU của bài (A1: Duyệt / Lên lịch KHÔNG đổi kênh đích; bản cũ
+   * ghi đè bằng mọi kênh của cửa hàng đang xem). Bài chưa có kênh thì máy chủ trả lỗi rõ ràng.
+   */
+  const handleApprove = (id: number) => runAction(id, () => api.posts.publish(id));
 
   const handleSchedule = async (id: number, current?: string | null) => {
     // Gợi ý theo GIỜ MÁY (bản cũ dùng toISOString → giờ UTC, lệch 7 tiếng so với câu hỏi "theo giờ trên máy bạn").
@@ -242,10 +236,10 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
       return;
     }
     return runAction(id, () =>
+      // Giữ nguyên kênh đích của bài (A1).
       api.posts.update(id, {
         status: 'scheduled',
         scheduledFor: when.toISOString(),
-        targetAccountIds,
       })
     );
   };

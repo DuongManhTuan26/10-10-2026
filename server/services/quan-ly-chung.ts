@@ -35,6 +35,7 @@ export const COT_QUAN_LY = `
   (SELECT max(m.created_at) FROM messages m WHERE m.user_id = u.id) AS hoat_dong_cuoi,
   (SELECT count(*)::int FROM conversations c WHERE c.user_id = u.id) AS hoi_thoai,
   (SELECT count(*)::int FROM conversations c WHERE c.user_id = u.id AND c.status = 'waiting_human') AS cho_nguoi,
+  /* Cả tài khoản (màn quản trị liệt kê theo tài khoản) — không theo cửa hàng. */
   (SELECT count(*)::int FROM posts p WHERE p.user_id = u.id) AS bai,
   (SELECT t.enabled FROM telegram_configs t WHERE t.user_id = u.id) AS telegram,
   /* --- Kết quả --- */

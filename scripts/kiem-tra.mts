@@ -38,7 +38,7 @@ import {
 import { docTuChu } from "../server/services/sales-autonomy.js";
 import { matchesKeywords } from "../server/services/comment-ai.js";
 import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
-import { cauLenhKenhBai, cauLenhKenhLich, LOI_BAI_KHONG_KENH, LOI_LICH_KHONG_CUA_HANG } from "../server/services/kenh-dang.js";
+import { cauLenhKenhBai, cauLenhKenhLich, kenhNgoaiCuaHang, LOI_BAI_KHONG_KENH, LOI_LICH_KHONG_CUA_HANG } from "../server/services/kenh-dang.js";
 import { khoangTheoKy, lichChay, ngayVN, ngayDayDu } from "../src/lib/ky-ngay.js";
 import { lenhDoiTrangThai, lenhNhanBan, NEN_TANG_NHAN_BAN } from "../server/services/ads.js";
 import { docChienDich, nhanTrangThaiChienDich } from "../src/lib/chien-dich.js";
@@ -5109,7 +5109,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     { bat: true, model: "openai/gpt-image-1-mini", doNet: undefined, chatLuong: "low", khung: undefined, chuTrongAnh: "khong", chanNhanHieuGia: false, chanNguoiThat: true });
   const nguonLich = fs.readFileSync(path.join(GOC, "server/services/autopilot.ts"), "utf8");
   kiem("ảnh tự động", "ảnh đi cùng bài: lưu vào media của bài, ghi sổ việc riêng, theo luật/chữ người dùng chọn",
-    [/INSERT INTO posts \(user_id, content, media,/.test(nguonLich), /JSON\.stringify\(media\),/.test(nguonLich), /viec: "tao_anh_tu_dong",/.test(nguonLich),
+    [/INSERT INTO posts \(user_id, trang_id, content, media,/.test(nguonLich), /JSON\.stringify\(media\),/.test(nguonLich), /viec: "tao_anh_tu_dong",/.test(nguonLich),
       /chuTrongAnh: cau\.anh\.chuTrongAnh,/.test(nguonLich), /media = \[\{ url: anh\.url, type: "image" \}\];/.test(nguonLich)], [true, true, true, true, true]);
   kiem("ảnh tự động", "vẽ ảnh lỗi → bài chuyển chờ duyệt (không tự đăng trơn chữ), ghi rõ lý do, báo Telegram",
     [/const guard: AutoPilotConfig\["guard"\] = loiAnh \? "approve" : cau\.guard;/.test(nguonLich), /guard === "publish" \? "draft" : "pending_approval"/.test(nguonLich),
@@ -5202,8 +5202,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /UPDATE video_ai SET tu_dong = TRUE WHERE id = \$1/.test(nguonLichV),
       /date_trunc\('month', now\(\) AT TIME ZONE 'Asia\/Ho_Chi_Minh'\)/.test(nguonLichV)], [true, true, true, true]);
   kiem("video tự động", "bài chờ video không đăng ngay; giữ chế độ đăng đã chọn để áp khi video xong",
-    [/VALUES \(\$1, \$2, \$3::jsonb, \$4::text\[\], 'pending_approval', TRUE, \$5, NULL, \$6, \$7\)/.test(nguonLichV),
-      /\[userId, noiDung, JSON\.stringify\(media\), kenh\.rows\.map\(\(k\) => k\.id\), chuDe, choVideo\.id, guard\]/.test(nguonLichV)], [true, true]);
+    [/VALUES \(\$1, \$8, \$2, \$3::jsonb, \$4::text\[\], 'pending_approval', TRUE, \$5, NULL, \$6, \$7\)/.test(nguonLichV),
+      /\[userId, noiDung, JSON\.stringify\(media\), kenh\.rows\.map\(\(k\) => k\.id\), chuDe, choVideo\.id, guard, trangId\]/.test(nguonLichV)], [true, true]);
   kiem("video tự động", "video xong → gắn video; lỗi / quá 25 phút → ảnh thay thế; giành bài trước để không xử lý trùng; áp đúng chế độ đăng",
     [CHO_VIDEO_TOI_DA_PHUT, /UPDATE posts SET cho_video_id = NULL WHERE id = \$1 AND cho_video_id = \$2 RETURNING id/.test(nguonLichV),
       /media = \[\.\.\.media, \{ url: b\.url, type: "video" \}\];/.test(nguonLichV),
@@ -5710,7 +5710,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /setActiveAccountId\(kenhMacDinh\(ketNoi\)\[0\] \?\? ketNoi\[0\]\?\.id \?\? t\.kenh\[0\]\?\.id \?\? null\);/.test(ap)],
       [true, true]);
     kiem("bộ não AI", "không đăng lan sang kênh của trang khác; hộp thư theo trang đang chọn",
-      [/const kenhKetNoi = \(trangDangChon\?\.kenh \?\? accounts\)\.filter\(\(a\) => a\.connected\);\s*\/\*\* [^\n]*\*\/\s*const targetAccountIds = kenhKetNoi\.map\(\(a\) => a\.id\);/.test(doc("src/pages/Content.tsx")),
+      // A1 (19/10/2026): Duyệt / Lên lịch không còn ghi đè kênh đích (targetAccountIds của trang đang xem đã bỏ).
+      [/const kenhKetNoi = \(trangDangChon\?\.kenh \?\? accounts\)\.filter\(\(a\) => a\.connected\);/.test(doc("src/pages/Content.tsx")),
         /const accounts = trangDangChon\?\.kenh \?\? tatCaKenh;/.test(doc("src/pages/Inbox.tsx"))],
       [true, true]);
     kiem("bộ não AI", "mọi đường AI điều hành làm việc với trang CỦA CHÍNH người đăng nhập (n/n); duyệt / bác chỉ đề xuất của mình; khoá chạy theo trang; chế độ đề xuất",
@@ -6309,6 +6310,80 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/AI dừng hẳn mọi việc tự chạy/.test(ql), /Bài đã hẹn giờ sẵn bên nền tảng vẫn đăng đúng giờ/.test(ql),
       /không trả lời bù/.test(ql), /vào mục Chờ duyệt, không tự đăng/.test(ql), /Lượt nhắc khách đã quá hạn: bỏ/.test(ql), /chờ bấm "Tạo tiếp"/.test(ql)],
     [true, true, true, true, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// A1 (19/10/2026): BÀI ĐĂNG THUỘC MỘT CỬA HÀNG — danh sách, tạo, sửa kênh, duyệt / hẹn, lịch tự đăng, đẩy quảng cáo.
+// ---------------------------------------------------------------------------
+{
+  const doc1 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  kiem("A1 bài theo cửa hàng", "kênh ngoài cửa hàng: rỗng = hợp lệ; kênh lạ / của cửa hàng khác bị chỉ ra; trùng chỉ tính một",
+    [kenhNgoaiCuaHang(["fb1", "ig1"], ["fb1", "ig1", "tt1"]), kenhNgoaiCuaHang([], ["fb1"]), kenhNgoaiCuaHang(["fb2", "fb1", "fb2"], ["fb1"]),
+      kenhNgoaiCuaHang(["fb1"], [])],
+    [[], [], ["fb2"], ["fb1"]]);
+
+  // Đúng 3 chỗ ghi bài (phiên kiểm duyệt đếm 19/10) — cả 3 đều ghi trang_id.
+  const tepMC = moiTepMayChu(path.join(GOC, "server"));
+  const choGhi = tepMC.flatMap((t) => [...doc1(path.relative(GOC, t)).matchAll(/INSERT INTO posts\s*\(([^)]*)\)/g)].map((m) => `${path.basename(t)}:${/\btrang_id\b/.test(m[1])}`));
+  kiem("A1 bài theo cửa hàng", "đúng 3 câu INSERT INTO posts, câu nào cũng ghi trang_id",
+    choGhi.sort(), ["autopilot.ts:true", "autopilot.ts:true", "posts.ts:true"]);
+
+  const ps = doc1("server/routes/posts.ts");
+  kiem("A1 bài theo cửa hàng", "GET danh sách + bảng đếm lọc cửa hàng đang chọn; POST kiểm kênh thuộc cửa hàng TRƯỚC khi ghi; PATCH kiểm kênh thuộc cửa hàng CỦA BÀI",
+    [/const trang = await trangHienTai\(\);[\s\S]{0,300}const conditions = \["user_id = \$1", "trang_id = \$2"\];/.test(ps),
+      /FROM posts WHERE user_id = \$1 AND trang_id = \$2`,\s*\[req\.user!\.id, trang\]/.test(ps),
+      /if \(kenhNgoaiCuaHang\(targetAccountIds, await kenhCuaCuaHang\(req\.user!\.id, trang\)\)\.length > 0\) \{\s*throw new AppError\(LOI_KENH_NGOAI_CUA_HANG, 400\);/.test(ps)
+        && ps.search(/kenhNgoaiCuaHang\(targetAccountIds/) < ps.search(/INSERT INTO posts/),
+      /if \(kenhNgoaiCuaHang\(kenhMoi, await kenhCuaCuaHang\(req\.user!\.id, current\.trang_id\)\)\.length > 0\) \{\s*throw new AppError\(LOI_KENH_NGOAI_CUA_HANG, 400\);/.test(ps)
+        && ps.search(/kenhNgoaiCuaHang\(kenhMoi/) < ps.search(/assign\("target_account_ids"/)],
+    [true, true, true, true]);
+
+  const ct = doc1("src/pages/Content.tsx");
+  const thanDuyet = ct.slice(ct.indexOf("const handleApprove"), ct.indexOf("const handleSchedule"));
+  const thanHen = ct.slice(ct.indexOf("const handleSchedule"), ct.indexOf("const handleCancelSchedule"));
+  kiem("A1 bài theo cửa hàng", "Duyệt / Lên lịch KHÔNG gửi targetAccountIds (giữ kênh đã lưu của bài)",
+    [/targetAccountIds/.test(thanDuyet), /api\.posts\.publish\(id\)/.test(thanDuyet), /targetAccountIds/.test(thanHen), /status: 'scheduled',/.test(thanHen)],
+    [false, true, false, true]);
+
+  const ap = doc1("server/services/autopilot.ts");
+  const mig = fs.readFileSync(path.join(GOC, "server/migrations/057_bai_theo_cua_hang.sql"), "utf8");
+  kiem("A1 bài theo cửa hàng", "ô lịch theo cửa hàng: INSERT auto_pilot_runs LUÔN có trang_id; ON CONFLICT khớp chỉ mục có điều kiện; bỏ khoá cũ (user_id, slot_key)",
+    [(ap.match(/INSERT INTO auto_pilot_runs \(([^)]*)\)/g) ?? []).map((x) => /\btrang_id\b/.test(x)),
+      /ON CONFLICT \(user_id, trang_id, slot_key\) WHERE trang_id IS NOT NULL DO NOTHING/.test(ap),
+      /if \(!cau\.enabled \|\| shop\.trang_id == null\) continue;/.test(ap),
+      /DROP INDEX IF EXISTS auto_pilot_runs_user_slot_key;/.test(mig),
+      /CREATE UNIQUE INDEX IF NOT EXISTS auto_pilot_runs_trang_slot_key\s*ON auto_pilot_runs \(user_id, trang_id, slot_key\) WHERE trang_id IS NOT NULL;/.test(mig)],
+    [[true], true, true, true, true]);
+  kiem("A1 bài theo cửa hàng", "migration 057: sao lưu trước; posts.trang_id ON DELETE SET NULL (chủ dự án chốt giữ bài); gán 1 cửa hàng theo kênh, còn lại → cửa hàng cũ nhất",
+    [mig.search(/CREATE TABLE IF NOT EXISTS posts_truoc_057 AS/) >= 0 && mig.search(/CREATE TABLE IF NOT EXISTS posts_truoc_057/) < mig.search(/UPDATE posts/),
+      /ALTER TABLE posts ADD COLUMN IF NOT EXISTS trang_id BIGINT REFERENCES trang\(id\) ON DELETE SET NULL;/.test(mig),
+      /WHERE x\.id = p\.id AND x\.so = 1 AND p\.trang_id IS NULL;/.test(mig),
+      /UPDATE posts p SET trang_id = \(SELECT MIN\(t\.id\) FROM trang t WHERE t\.user_id = p\.user_id\)\s*WHERE p\.trang_id IS NULL;/.test(mig)],
+    [true, true, true, true]);
+
+  kiem("A1 bài theo cửa hàng", "bảng lịch tự đăng chỉ hiện kênh của cửa hàng đang chọn",
+    [/const kenhKetNoi = \(trangDangChon\?\.kenh \?\? \[\]\)\.filter\(\(a\) => a\.connected\);/.test(doc1("src/components/AutoPilotPanel.tsx")),
+      /\baccounts\b/.test(doc1("src/components/AutoPilotPanel.tsx"))],
+    [true, false]);
+
+  // Điều kiện 1 của phiên kiểm duyệt: MỌI tệp đọc bảng posts được xếp loại — tệp mới đọc posts phải được xếp trước.
+  const DOC_THEO_CUA_HANG = ["ads.ts", "bao-cao-chuoi.ts", "so-lieu-kenh.ts", "suc-khoe.ts"];
+  const DOC_THEO_BAI = ["autopilot.ts", "post-status.ts", "posts.ts", "publish.ts"]; // theo mã bài + chủ bài / việc chạy nền
+  const DOC_THEO_TAI_KHOAN = ["quan-ly-chung.ts", "settings.ts"]; // Gói dịch vụ + màn quản trị: theo cả tài khoản (sơ đồ §1)
+  const tepDocPosts = [...new Set(tepMC.filter((t) => /FROM posts\b/.test(doc1(path.relative(GOC, t)))).map((t) => path.basename(t)))].sort();
+  console.log(`  [A1] ${tepDocPosts.length} tệp đọc bảng posts: theo cửa hàng ${DOC_THEO_CUA_HANG.length} · theo bài ${DOC_THEO_BAI.length} · theo tài khoản ${DOC_THEO_TAI_KHOAN.length}`);
+  kiem("A1 bài theo cửa hàng", "mọi tệp đọc posts đã được xếp loại (cửa hàng / bài / tài khoản)",
+    tepDocPosts, [...DOC_THEO_CUA_HANG, ...DOC_THEO_BAI, ...DOC_THEO_TAI_KHOAN].sort());
+  const ad = doc1("server/routes/ads.ts");
+  kiem("A1 bài theo cửa hàng", "đẩy quảng cáo: danh sách + đẩy theo mã bài chỉ bài của cửa hàng đang chọn; số liệu kênh / sức khoẻ / báo cáo theo cửa hàng; Gói + quản trị theo tài khoản",
+    [/WHERE user_id = \$1 AND trang_id = \$2 AND status = 'published' AND platform_post_ref IS NOT NULL/.test(ad),
+      /"SELECT platform_post_ref FROM posts WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3",\s*\[postId, req\.user!\.id, trangDangChon\]/.test(ad),
+      /AND \(\$2::bigint IS NULL OR trang_id = \$2\)`,\s*\[k\.user_id, k\.trang_id\]/.test(doc1("server/services/so-lieu-kenh.ts")),
+      /FROM posts WHERE trang_id = \$1 AND status = 'failed' AND updated_at >= \$2`,\s*\[trangId, w\.gan\[0\]\]/.test(doc1("server/services/suc-khoe.ts")),
+      /FROM posts WHERE trang_id = \$1`,[\s\S]{0,200}\[trangId, \.\.\.ky2\]/.test(doc1("server/services/bao-cao-chuoi.ts")),
+      /target_account_ids &&/.test(doc1("server/services/suc-khoe.ts") + doc1("server/services/bao-cao-chuoi.ts")),
+      /Gói dịch vụ tính trên cả tài khoản/.test(fs.readFileSync(path.join(GOC, "server/routes/settings.ts"), "utf8"))],
+    [true, true, true, true, true, false, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

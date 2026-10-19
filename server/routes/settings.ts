@@ -472,6 +472,7 @@ settingsRouter.get(
            WHERE user_id = $1 AND created_at >= ${DAU_THANG_VN})        AS tokens_month,
          (SELECT COUNT(*) FROM orders
            WHERE user_id = $1 AND created_at >= ${DAU_THANG_VN})        AS orders_month,
+         -- Theo CẢ TÀI KHOẢN, không theo cửa hàng: Gói dịch vụ tính trên cả tài khoản (chủ dự án chốt 19/10/2026).
          (SELECT COUNT(*) FROM posts
            WHERE user_id = $1 AND created_at >= ${DAU_THANG_VN})        AS posts_month`,
       [req.user!.id]

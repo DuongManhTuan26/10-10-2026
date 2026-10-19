@@ -10,6 +10,7 @@ import { boMarkdown, DAN_KHONG_MARKDOWN } from "../services/text.js";
 import { chanLamDungAI } from "../services/chong-lam-dung.js";
 import { ghiThayDoiNgoai } from "../services/so-thay-doi.js";
 import { khoangTheoKy } from "../../src/lib/ky-ngay.js";
+import { trangHienTai } from "../services/ngu-canh-trang.js";
 
 export const adsRouter = Router();
 
@@ -193,16 +194,24 @@ adsRouter.put(
   })
 );
 
-/** Bài đã đăng có thể đem đi quảng cáo. */
+/**
+ * Bài đã đăng có thể đem đi quảng cáo — CHỈ bài của cửa hàng đang chọn (A1: bản cũ lấy cả tài khoản → cửa hàng B đẩy
+ * được bài của A bằng tài khoản quảng cáo của B = tiêu tiền sai cửa hàng).
+ */
 adsRouter.get(
   "/boostable-posts",
   route(async (req, res) => {
+    const trang = await trangHienTai();
+    if (trang == null) {
+      res.json({ success: true, data: [] });
+      return;
+    }
     const rows = await query(
       `SELECT id, content, platform_post_ref, published_at, stats, platform_urls
          FROM posts
-        WHERE user_id = $1 AND status = 'published' AND platform_post_ref IS NOT NULL
+        WHERE user_id = $1 AND trang_id = $2 AND status = 'published' AND platform_post_ref IS NOT NULL
         ORDER BY published_at DESC LIMIT 50`,
-      [req.user!.id]
+      [req.user!.id, trang]
     );
     res.json({ success: true, data: rows.rows });
   })
@@ -377,11 +386,13 @@ adsRouter.post(
       throw new AppError("Số ngày chạy phải từ 1 trở lên");
     }
 
+    // A1: chỉ đẩy bài của CỬA HÀNG ĐANG CHỌN (kiểm TRƯỚC mọi lệnh gửi nhà cung cấp — tiêu tiền thật).
+    const trangDangChon = await trangHienTai();
     const post = await queryOne<{ platform_post_ref: string | null }>(
-      "SELECT platform_post_ref FROM posts WHERE id = $1 AND user_id = $2",
-      [postId, req.user!.id]
+      "SELECT platform_post_ref FROM posts WHERE id = $1 AND user_id = $2 AND trang_id = $3",
+      [postId, req.user!.id, trangDangChon]
     );
-    if (!post) throw new AppError("Không tìm thấy bài viết", 404);
+    if (!post) throw new AppError("Không tìm thấy bài viết của cửa hàng đang chọn", 404);
     if (!post.platform_post_ref) {
       throw new AppError("Bài này chưa được đăng nên chưa thể quảng cáo", 409);
     }

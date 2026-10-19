@@ -6,6 +6,8 @@ import * as zernio from "../services/zernio.js";
 import { publishPost, toMediaItems } from "../services/publish.js";
 import { doiChieuMotBai, ghiKetQua } from "../services/post-status.js";
 import { anDiaChiKho, doiDiaChiMedia } from "../services/media-proxy.js";
+import { kenhNgoaiCuaHang, LOI_KENH_NGOAI_CUA_HANG } from "../services/kenh-dang.js";
+import { trangHienTai } from "../services/ngu-canh-trang.js";
 
 export const postsRouter = Router();
 
@@ -38,6 +40,15 @@ function assertMediaSurvivesSchedule(
   );
 }
 
+/** Mọi kênh (nối hay chưa) của một cửa hàng — để kiểm kênh đích của bài thuộc đúng cửa hàng (A1). */
+async function kenhCuaCuaHang(userId: number, trangId: number): Promise<string[]> {
+  const r = await query<{ id: string }>("SELECT id FROM social_accounts WHERE user_id = $1 AND trang_id = $2", [
+    userId,
+    trangId,
+  ]);
+  return r.rows.map((k) => k.id);
+}
+
 const STATUSES = new Set([
   "draft",
   "pending_approval",
@@ -63,8 +74,14 @@ postsRouter.get(
   "/",
   route(async (req, res) => {
     const { status } = req.query;
-    const conditions = ["user_id = $1"];
-    const params: unknown[] = [req.user!.id];
+    // A1: danh sách bài của CỬA HÀNG ĐANG CHỌN (bản cũ lấy cả tài khoản → cửa hàng B thấy và duyệt được bài của A).
+    const trang = await trangHienTai();
+    if (trang == null) {
+      res.json({ success: true, data: [], summary: { pending_approval: 0, scheduled: 0, published: 0, draft: 0, failed: 0 } });
+      return;
+    }
+    const conditions = ["user_id = $1", "trang_id = $2"];
+    const params: unknown[] = [req.user!.id, trang];
 
     if (typeof status === "string" && status !== "" && status !== "all") {
       params.push(status);
@@ -83,8 +100,8 @@ postsRouter.get(
               COUNT(*) FILTER (WHERE status = 'published')::int        AS published,
               COUNT(*) FILTER (WHERE status = 'draft')::int            AS draft,
               COUNT(*) FILTER (WHERE status = 'failed')::int           AS failed
-         FROM posts WHERE user_id = $1`,
-      [req.user!.id]
+         FROM posts WHERE user_id = $1 AND trang_id = $2`,
+      [req.user!.id, trang]
     );
 
     res.json({ success: true, data: rows.rows.map(anMediaTrongBai), summary });
@@ -120,6 +137,13 @@ postsRouter.post(
     const media = toMediaItems(body.media);
     assertMediaSurvivesSchedule(media, scheduledFor);
 
+    // A1: bài thuộc cửa hàng đang chọn; kênh đích phải là kênh của chính cửa hàng đó (kiểm TRƯỚC khi ghi).
+    const trang = await trangHienTai();
+    if (trang == null) throw new AppError("Chưa có cửa hàng nào để lưu bài. Vui lòng tạo cửa hàng trước.", 409);
+    if (kenhNgoaiCuaHang(targetAccountIds, await kenhCuaCuaHang(req.user!.id, trang)).length > 0) {
+      throw new AppError(LOI_KENH_NGOAI_CUA_HANG, 400);
+    }
+
     /*
      * CHẶN TẠO TRÙNG Ở TẦNG MÁY CHỦ.
      *
@@ -148,9 +172,9 @@ postsRouter.post(
 
     const inserted = await queryOne(
       `INSERT INTO posts
-         (user_id, content, media, target_account_ids, status, scheduled_for,
+         (user_id, trang_id, content, media, target_account_ids, status, scheduled_for,
           ai_generated, ai_prompt)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       VALUES ($1,$9,$2,$3,$4,$5,$6,$7,$8)
        RETURNING *`,
       [
         req.user!.id,
@@ -161,6 +185,7 @@ postsRouter.post(
         scheduledFor,
         body.aiGenerated === true,
         typeof body.aiPrompt === "string" ? body.aiPrompt : null,
+        trang,
       ]
     );
 
@@ -186,11 +211,23 @@ postsRouter.patch(
     const current = await queryOne<{
       media: unknown;
       scheduled_for: Date | null;
+      trang_id: number | null;
     }>(
-      "SELECT media, scheduled_for FROM posts WHERE id = $1 AND user_id = $2",
+      "SELECT media, scheduled_for, trang_id FROM posts WHERE id = $1 AND user_id = $2",
       [req.params.id, req.user!.id]
     );
     if (!current) throw new AppError("Không tìm thấy bài viết", 404);
+
+    // A1: đổi kênh đích thì mọi kênh phải thuộc CỬA HÀNG CỦA BÀI (kiểm TRƯỚC khi ghi).
+    if (Array.isArray(body.targetAccountIds)) {
+      if (current.trang_id == null) {
+        throw new AppError("Bài này không thuộc cửa hàng nào (cửa hàng đã xoá) nên không đổi kênh được.", 409);
+      }
+      const kenhMoi = body.targetAccountIds.filter((id: unknown): id is string => typeof id === "string");
+      if (kenhNgoaiCuaHang(kenhMoi, await kenhCuaCuaHang(req.user!.id, current.trang_id)).length > 0) {
+        throw new AppError(LOI_KENH_NGOAI_CUA_HANG, 400);
+      }
+    }
 
     if (typeof body.content === "string") assign("content", body.content);
     if (Array.isArray(body.targetAccountIds)) assign("target_account_ids", body.targetAccountIds);

@@ -38,8 +38,9 @@ export async function baoCaoChuoi(trangId: number, ky: KyTongQuan, khoang?: { tu
       `SELECT count(*) FILTER (WHERE status = 'published' AND published_at >= $2 AND published_at < $3)::int AS dang,
               count(*) FILTER (WHERE status = 'published' AND ai_generated AND published_at >= $2 AND published_at < $3)::int AS ai,
               count(*) FILTER (WHERE status = 'failed' AND updated_at >= $2 AND updated_at < $3)::int AS loi
-         FROM posts WHERE target_account_ids && $1::text[]`,
-      [kenhIds, ...ky2]
+         FROM posts WHERE trang_id = $1`,
+      // A1: bài thuộc cửa hàng theo trang_id (bản cũ suy qua kênh đích — bài có kênh đã chuyển cửa hàng bị đếm nhầm).
+      [trangId, ...ky2]
     ),
     // Số MỚI NHẤT đã chụp của từng bài đăng trong kỳ (số cộng dồn trọn đời bài).
     queryOne<{ bai: number; hien_thi: number; tiep_can: number; tuong_tac: number; binh_luan: number }>(

@@ -283,8 +283,9 @@ export async function sucKhoeTrang(trangId: number, bayGio = new Date()) {
     else if (k.needs_reconnection) suCo.push({ khau: "kenh", ten: "Kênh cần nối lại", chiTiet: k.display_name });
   }
   const baiLoi = await queryOne<{ so: number }>(
-    `SELECT count(*)::int AS so FROM posts WHERE target_account_ids && $1::text[] AND status = 'failed' AND updated_at >= $2`,
-    [ids, w.gan[0]]
+    // A1: bài thuộc cửa hàng theo trang_id (bản cũ suy qua kênh đích).
+    `SELECT count(*)::int AS so FROM posts WHERE trang_id = $1 AND status = 'failed' AND updated_at >= $2`,
+    [trangId, w.gan[0]]
   );
   if (baiLoi?.so) suCo.push({ khau: "noi_dung", ten: "Bài đăng lỗi", chiTiet: `${baiLoi.so} bài trong 7 ngày` });
   const aiLoi = await queryOne<{ so: number }>(

@@ -87,8 +87,9 @@ export default function AutoPilotPanel({ onSaved }: AutoPilotPanelProps) {
    * Chỉ cần một kênh khó tính như TikTok là cả lệnh đăng hỏng, mà chủ shop
    * không có cách nào bỏ nó ra.
    */
-  const { accounts, activeAccountId, activeTrangId } = useActivePage();
-  const kenhKetNoi = accounts.filter((a) => a.connected);
+  const { activeAccountId, activeTrangId, trangDangChon } = useActivePage();
+  // A1: chỉ kênh của CỬA HÀNG đang chọn (bản cũ lấy mọi kênh của tài khoản).
+  const kenhKetNoi = (trangDangChon?.kenh ?? []).filter((a) => a.connected);
 
   const nap = useCallback(async () => {
     try {

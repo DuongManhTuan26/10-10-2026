@@ -280,7 +280,7 @@ export async function runDueAutoPilot(bayGio = new Date()): Promise<number> {
   let daLam = 0;
   for (const shop of shops.rows) {
     const cau = docCauHinh(shop.settings.autoPilot);
-    if (!cau.enabled) continue;
+    if (!cau.enabled || shop.trang_id == null) continue;
 
     for (const o of oLichToiHan(cau, bayGio)) {
       // Ô lịch tới giờ lúc tài khoản đang khoá: không viết bù sau khi mở (cửa sổ nhận ô rộng 20 phút) — mục f.
@@ -291,12 +291,14 @@ export async function runDueAutoPilot(bayGio = new Date()): Promise<number> {
        * Gọi AI rồi mới ghi thì hai lượt quét song song sẽ cùng viết bài và
        * Fanpage có hai bài. Ghi trước thì lượt thua cuộc dừng ngay tại đây.
        */
+      // Khoá ô lịch THEO CỬA HÀNG (A1, migration 057): hai cửa hàng cùng giờ không còn đụng nhau. trang_id luôn có
+      // (chỉ mục duy nhất chỉ áp cho dòng có trang_id — NULL thì mất tác dụng chống trùng).
       const cho = await queryOne<{ id: number }>(
-        `INSERT INTO auto_pilot_runs (user_id, slot_key, status)
-         VALUES ($1, $2, 'running')
-         ON CONFLICT (user_id, slot_key) DO NOTHING
+        `INSERT INTO auto_pilot_runs (user_id, trang_id, slot_key, status)
+         VALUES ($1, $2, $3, 'running')
+         ON CONFLICT (user_id, trang_id, slot_key) WHERE trang_id IS NOT NULL DO NOTHING
          RETURNING id`,
-        [shop.user_id, o.khoa]
+        [shop.user_id, shop.trang_id, o.khoa]
       );
       if (!cho) continue;
 
@@ -479,11 +481,11 @@ async function lamMotO(
   if (choVideo) {
     // Chờ video: chưa đăng, chưa hẹn giờ. Chế độ đăng đã chọn giữ lại để áp khi video xong.
     const baiCho = await queryOne<{ id: number }>(
-      `INSERT INTO posts (user_id, content, media, target_account_ids, status,
+      `INSERT INTO posts (user_id, trang_id, content, media, target_account_ids, status,
                           ai_generated, ai_prompt, auto_publish_at, cho_video_id, cho_video_guard)
-       VALUES ($1, $2, $3::jsonb, $4::text[], 'pending_approval', TRUE, $5, NULL, $6, $7)
+       VALUES ($1, $8, $2, $3::jsonb, $4::text[], 'pending_approval', TRUE, $5, NULL, $6, $7)
        RETURNING id`,
-      [userId, noiDung, JSON.stringify(media), kenh.rows.map((k) => k.id), chuDe, choVideo.id, guard]
+      [userId, noiDung, JSON.stringify(media), kenh.rows.map((k) => k.id), chuDe, choVideo.id, guard, trangId]
     );
     if (!baiCho) throw new Error("Không lưu được bài vừa viết.");
     await query(`UPDATE auto_pilot_runs SET status = 'ok', topic = $2, post_id = $3, note = $4 WHERE id = $1`, [
@@ -499,9 +501,9 @@ async function lamMotO(
     guard === "notify" ? new Date(Date.now() + cau.notifyMinutes * 60_000) : null;
 
   const bai = await queryOne<{ id: number }>(
-    `INSERT INTO posts (user_id, content, media, target_account_ids, status,
+    `INSERT INTO posts (user_id, trang_id, content, media, target_account_ids, status,
                         ai_generated, ai_prompt, auto_publish_at)
-     VALUES ($1, $2, $3::jsonb, $4::text[], $5, TRUE, $6, $7)
+     VALUES ($1, $8, $2, $3::jsonb, $4::text[], $5, TRUE, $6, $7)
      RETURNING id`,
     [
       userId,
@@ -511,6 +513,7 @@ async function lamMotO(
       guard === "publish" ? "draft" : "pending_approval",
       chuDe,
       tuDangLuc,
+      trangId,
     ]
   );
   if (!bai) throw new Error("Không lưu được bài vừa viết.");

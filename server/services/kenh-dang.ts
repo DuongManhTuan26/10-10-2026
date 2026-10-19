@@ -33,3 +33,13 @@ export function cauLenhKenhLich(userId: number, trangId: number | null, kenhDaCh
     ? { sql: `${goc} AND id = ANY($3::text[])`, thamSo: [userId, trangId, kenhDaChon] }
     : { sql: goc, thamSo: [userId, trangId] };
 }
+
+/**
+ * A1 (19/10/2026): bài thuộc MỘT cửa hàng — kênh đích của bài chỉ được là kênh của chính cửa hàng đó. Trả về các kênh
+ * NẰM NGOÀI cửa hàng (rỗng = hợp lệ). Dùng chung lúc tạo bài (cửa hàng đang chọn) và lúc sửa kênh (cửa hàng của bài).
+ */
+export const LOI_KENH_NGOAI_CUA_HANG = "Kênh không thuộc cửa hàng của bài này. Vui lòng chọn lại kênh của đúng cửa hàng.";
+export function kenhNgoaiCuaHang(kenhCuaBai: string[], kenhCuaCuaHang: string[]): string[] {
+  const co = new Set(kenhCuaCuaHang);
+  return [...new Set(kenhCuaBai)].filter((id) => !co.has(id));
+}

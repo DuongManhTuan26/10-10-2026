@@ -62,6 +62,9 @@ CỬA HÀNG
            • Duyệt / Lên lịch KHÔNG đổi kênh đích của bài
            • Bài chỉ đăng vào kênh của ĐÚNG cửa hàng — không bao giờ "mọi kênh của tài khoản" (chặn tràn đã có ở B1-G)
            • Bảng tự chạy chỉ hiện kênh của cửa hàng; thư viện ảnh / video AI theo cửa hàng
+           • Đẩy quảng cáo: chỉ chọn / đẩy được bài của cửa hàng đang chọn (không tiêu tiền sai cửa hàng)
+           • Xoá cửa hàng: GIỮ bài, bỏ gán cửa hàng; bài không rõ cửa hàng → cửa hàng cũ nhất (chủ dự án chốt 19/10)
+           (A1 — mã xong 19/10, migration 057 đã chạy: 12/12 bài có cửa hàng; CHỜ kiểm duyệt)
       A2 • Hội thoại; KHÁCH HÀNG riêng theo cửa hàng (Facebook cấp mã khác nhau cho cùng một người ở mỗi Fanpage)
            • Số đếm hộp thư theo cửa hàng; nhắc khách cũ + nút bật tự chủ chỉ chạm hội thoại của cửa hàng đó
       A3 • Đơn hàng (danh sách + số tổng); kịch bản + thống kê kịch bản

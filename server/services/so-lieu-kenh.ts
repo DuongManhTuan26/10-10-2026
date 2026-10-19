@@ -34,8 +34,10 @@ export async function chupSoBaiNgay(): Promise<number> {
       const tu = ngayVN(new Date(Date.now() - SO_NGAY_THEO_DOI * NGAY_MS));
       const bai = await zernio.layThongKeBai(k.id, tu, homNay);
       const cuaMinh = await query<{ id: number; ref: string; ai_generated: boolean }>(
-        "SELECT id, platform_post_ref AS ref, ai_generated FROM posts WHERE user_id = $1 AND platform_post_ref IS NOT NULL",
-        [k.user_id]
+        // A1: chỉ bài của cửa hàng sở hữu kênh (kênh chưa gắn cửa hàng thì như cũ: cả tài khoản).
+        `SELECT id, platform_post_ref AS ref, ai_generated FROM posts
+          WHERE user_id = $1 AND platform_post_ref IS NOT NULL AND ($2::bigint IS NULL OR trang_id = $2)`,
+        [k.user_id, k.trang_id]
       );
       const theoRef = new Map(cuaMinh.rows.map((p) => [p.ref, p]));
       for (const b of bai) {
