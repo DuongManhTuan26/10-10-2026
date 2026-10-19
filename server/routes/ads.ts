@@ -11,6 +11,7 @@ import { chanLamDungAI } from "../services/chong-lam-dung.js";
 import { ghiThayDoiNgoai } from "../services/so-thay-doi.js";
 import { khoangTheoKy } from "../../src/lib/ky-ngay.js";
 import { trangHienTai } from "../services/ngu-canh-trang.js";
+import { chanCuaRa } from "../services/cua-ra.js";
 
 export const adsRouter = Router();
 
@@ -388,14 +389,17 @@ adsRouter.post(
 
     // A1: chỉ đẩy bài của CỬA HÀNG ĐANG CHỌN (kiểm TRƯỚC mọi lệnh gửi nhà cung cấp — tiêu tiền thật).
     const trangDangChon = await trangHienTai();
-    const post = await queryOne<{ platform_post_ref: string | null }>(
-      "SELECT platform_post_ref FROM posts WHERE id = $1 AND user_id = $2 AND trang_id = $3",
+    const post = await queryOne<{ platform_post_ref: string | null; target_account_ids: string[]; trang_id: number | null }>(
+      "SELECT platform_post_ref, target_account_ids, trang_id FROM posts WHERE id = $1 AND user_id = $2 AND trang_id = $3",
       [postId, req.user!.id, trangDangChon]
     );
     if (!post) throw new AppError("Không tìm thấy bài viết của cửa hàng đang chọn", 404);
     if (!post.platform_post_ref) {
       throw new AppError("Bài này chưa được đăng nên chưa thể quảng cáo", 409);
     }
+    // CHỐT CỬA RA (services/cua-ra.ts): kênh của bài phải còn thuộc cửa hàng của bài (kênh đã rời → không đẩy bài cũ
+    // trên Fanpage giờ làm cho cửa hàng khác). Lệnh đẩy chỉ nhận mã bài, nên chốt chỉ chặn.
+    await chanCuaRa(req.user!.id, post.target_account_ids, post.trang_id);
 
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);

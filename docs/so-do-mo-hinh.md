@@ -54,6 +54,13 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 │         · Chat cũ trên kênh đã đi = lịch sử của cửa hàng cũ (không nhắn tiếp được qua kênh đó — luật Facebook).
 │         · Hệ thống KHÔNG tự nhắn hàng loạt cho khách khi đổi kênh (ngoài 24 giờ = vi phạm luật Facebook); việc chào
 │           khách khi đổi kênh do người dùng tự làm.
+│         · ĐỢT 1 (mã xong 19/10, CHỜ kiểm duyệt): CHỐT CỬA RA (services/cua-ra.ts) — 7 lệnh gửi ra ngoài (tin, tin riêng,
+│           trả lời bình luận, đăng / sửa / gỡ bài, đẩy bài) chỉ đi qua kênh còn thuộc đúng cửa hàng của việc. Bài cũ
+│           không lên / sửa / gỡ / đẩy được trên kênh đã rời (giữ làm lịch sử). Số liệu bài ghi theo cửa hàng của bài.
+│           LƯU Ý: đợt 1 CHƯA chặn tin / bình luận của hội thoại nhiệm kỳ cũ (cửa hàng của tin tạm theo kênh) — đợt 2
+│           (nhiệm kỳ kênh + cột cửa hàng chốt cho hội thoại / khách / bình luận / kịch bản) mới chặn.
+│         · Đợt 3: giao diện "Kênh đã rời — chỉ xem lịch sử", hộp xác nhận chuyển kênh, gỡ / đổi lịch bài đã hẹn bên
+│           nhà cung cấp (hiện Đổi / Huỷ lịch bài đã gửi nền tảng bị chặn, nói thật).
 │     • Không có "Đổi Fanpage": ngắt cái cũ, nối cái mới
 │     • Quảng cáo Meta đi kèm Facebook, không nối riêng
 ├── BỘ NÃO AI — 4 AI cố định, liền mạch, không tách rời

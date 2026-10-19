@@ -3278,8 +3278,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "đăng bài lách hàm chọn kênh bằng danh sách giả",
     tep: "server/services/publish.ts",
-    tim: "  const lenhKenh = cauLenhKenhBai(userId, post.target_account_ids);",
-    thay: "  const lenhKenh = cauLenhKenhBai(userId, post.target_account_ids?.length ? post.target_account_ids : [\"*\"]);",
+    tim: "  const lenhKenh = cauLenhKenhBai(userId, post.trang_id, post.target_account_ids);",
+    thay: "  const lenhKenh = cauLenhKenhBai(userId, post.trang_id, post.target_account_ids?.length ? post.target_account_ids : [\"*\"]);",
   },
   {
     ten: "lịch tự đăng gọi hàm chọn kênh nhưng vẫn truy vấn câu cũ không kẹp cửa hàng",
@@ -3854,8 +3854,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "Lên lịch lại ghi đè kênh đích",
     tep: "src/pages/Content.tsx",
-    tim: "        scheduledFor: when.toISOString(),\n      })",
-    thay: "        scheduledFor: when.toISOString(),\n        targetAccountIds: kenhKetNoi.map((a) => a.id),\n      })",
+    tim: "      await api.posts.update(id, { scheduledFor: when.toISOString() });",
+    thay: "      await api.posts.update(id, { scheduledFor: when.toISOString(), targetAccountIds: kenhKetNoi.map((a) => a.id) });",
   },
   {
     ten: "ô lịch tự đăng ghi không có cửa hàng (chỉ mục chống trùng mất tác dụng)",
@@ -3884,8 +3884,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "đẩy quảng cáo theo mã bài không kiểm cửa hàng",
     tep: "server/routes/ads.ts",
-    tim: "\"SELECT platform_post_ref FROM posts WHERE id = $1 AND user_id = $2 AND trang_id = $3\",",
-    thay: "\"SELECT platform_post_ref FROM posts WHERE id = $1 AND user_id = $2\",",
+    tim: "\"SELECT platform_post_ref, target_account_ids, trang_id FROM posts WHERE id = $1 AND user_id = $2 AND trang_id = $3\",",
+    thay: "\"SELECT platform_post_ref, target_account_ids, trang_id FROM posts WHERE id = $1 AND user_id = $2 AND $3::bigint IS NOT NULL\",",
   },
   {
     ten: "bảng lịch tự đăng hiện mọi kênh của tài khoản",
@@ -3894,10 +3894,112 @@ const DUC: PhepDuc[] = [
     thay: "const kenhKetNoi = (useActivePage().accounts).filter((a) => a.connected);",
   },
   {
-    ten: "chụp số liệu kênh nạp mọi bài của tài khoản",
+    ten: "chụp số liệu kênh lọc theo cửa hàng hiện tại của kênh (bài cũ của kênh đã chuyển ngừng cập nhật)",
     tep: "server/services/so-lieu-kenh.ts",
-    tim: " AND ($2::bigint IS NULL OR trang_id = $2)`",
-    thay: "`",
+    tim: " AND $2 = ANY(target_account_ids)`,\n        [k.user_id, k.id]",
+    thay: " AND trang_id = $2`,\n        [k.user_id, k.trang_id]",
+  },
+  {
+    ten: "đăng bài không kẹp cửa hàng của bài (bài cũ lên kênh đã chuyển sang bộ não khác)",
+    tep: "server/services/kenh-dang.ts",
+    tim: "WHERE user_id = $1 AND trang_id = $2 AND ${DANG_NOI} AND id = ANY($3::text[])",
+    thay: "WHERE user_id = $1 AND $2::bigint IS NOT NULL AND ${DANG_NOI} AND id = ANY($3::text[])",
+  },
+  {
+    ten: "bài của cửa hàng đã xoá vẫn đăng",
+    tep: "server/services/kenh-dang.ts",
+    tim: "  if (trangCuaBai == null) return { loi: LOI_BAI_KHONG_CUA_HANG };\n",
+    thay: "",
+  },
+  {
+    ten: "cửa ra: hàm lọc kênh luôn cho qua (kênh đã rời vẫn gửi được)",
+    tep: "server/services/cua-ra.ts",
+    tim: "    if (k.trang_id === trangCuaViec && k.connected) duoc.push(k.id);",
+    thay: "    duoc.push(k.id);",
+  },
+  {
+    ten: "cửa ra: không kênh nào dùng được mà vẫn cho gửi",
+    tep: "server/services/cua-ra.ts",
+    tim: "  if (kq.duoc.length === 0) throw new AppError(LOI_KENH_DA_ROI, 409);\n",
+    thay: "",
+  },
+  {
+    ten: "cửa ra: gửi tin bằng biến kênh ban đầu, không lấy từ kết quả chốt",
+    tep: "server/services/outbound.ts",
+    tim: "      accountId: kenhGui,",
+    thay: "      accountId: conversation.social_account_id!,",
+  },
+  {
+    ten: "cửa ra: gửi tin lấy kênh không qua kết quả chốt",
+    tep: "server/services/outbound.ts",
+    tim: "    kenhGui = cuaRa.duoc[0];",
+    thay: "    kenhGui = conversation.social_account_id!; void cuaRa;",
+  },
+  {
+    ten: "cửa ra: tin riêng bình luận gửi bằng kênh ban đầu",
+    tep: "server/services/comment-ai.ts",
+    tim: "      commentId: params.commentId,\n      accountId: cuaRa.duoc[0],",
+    thay: "      commentId: params.commentId,\n      accountId: params.accountId,",
+  },
+  {
+    ten: "cửa ra: trả lời công khai gửi bằng kênh ban đầu",
+    tep: "server/services/comment-ai.ts",
+    tim: "      commentId: params.targetCommentId,\n      accountId: cuaRa.duoc[0],",
+    thay: "      commentId: params.targetCommentId,\n      accountId: params.accountId,",
+  },
+  {
+    ten: "cửa ra: đăng bài gửi mọi kênh, không lọc theo kết quả chốt",
+    tep: "server/services/publish.ts",
+    tim: "      targets: kenhDang.map((row) => ({",
+    thay: "      targets: targets.rows.map((row) => ({",
+  },
+  {
+    ten: "cửa ra: sửa chữ bài đã đăng không qua chốt",
+    tep: "server/routes/posts.ts",
+    tim: "    await chanCuaRa(req.user!.id, post.target_account_ids, post.trang_id);\n    await zernio.updatePost(",
+    thay: "    await zernio.updatePost(",
+  },
+  {
+    ten: "cửa ra: gỡ bài không qua chốt (cửa hàng cũ gỡ bài trên kênh đã rời)",
+    tep: "server/routes/posts.ts",
+    tim: "    await chanCuaRa(req.user!.id, post.target_account_ids, post.trang_id);\n    await zernio.deletePost(",
+    thay: "    await zernio.deletePost(",
+  },
+  {
+    ten: "cửa ra: đẩy quảng cáo bài trên kênh đã rời",
+    tep: "server/routes/ads.ts",
+    tim: "    await chanCuaRa(req.user!.id, post.target_account_ids, post.trang_id);\n",
+    thay: "",
+  },
+  {
+    ten: "cửa ra: nhập tên riêng hàm gửi để lách cách đếm",
+    tep: "server/services/outbound.ts",
+    tim: "import { chanCuaRa, trangTamTheoKenh } from \"./cua-ra.js\";",
+    thay: "import { chanCuaRa, trangTamTheoKenh } from \"./cua-ra.js\";\nimport { sendMessage as guiThang } from \"./zernio.js\";\nvoid guiThang;",
+  },
+  {
+    ten: "số liệu bài cũ ghi theo cửa hàng hiện tại của kênh (tính nhầm sang cửa hàng mới)",
+    tep: "server/services/so-lieu-kenh.ts",
+    tim: "p?.trang_id ?? k.trang_id,",
+    thay: "k.trang_id,",
+  },
+  {
+    ten: "Lên lịch ở danh sách lại chỉ đổi trạng thái trong app (bài không bao giờ lên)",
+    tep: "src/pages/Content.tsx",
+    tim: "      await api.posts.update(id, { scheduledFor: when.toISOString() });\n      await api.posts.publish(id);",
+    thay: "      await api.posts.update(id, { status: 'scheduled', scheduledFor: when.toISOString() });",
+  },
+  {
+    ten: "Đổi lịch bài đã gửi nền tảng mà không báo (nền tảng vẫn đăng giờ cũ)",
+    tep: "src/pages/Content.tsx",
+    tim: "  const handleSchedule = async (id: number, current?: string | null) => {\n    if (lichDaGui(id)) {",
+    thay: "  const handleSchedule = async (id: number, current?: string | null) => {\n    if (false) {",
+  },
+  {
+    ten: "Huỷ lịch bài đã gửi nền tảng mà không báo",
+    tep: "src/pages/Content.tsx",
+    tim: "  const handleCancelSchedule = (id: number) => {\n    if (lichDaGui(id)) {",
+    thay: "  const handleCancelSchedule = (id: number) => {\n    if (false) {",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

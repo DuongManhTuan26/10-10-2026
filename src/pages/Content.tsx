@@ -208,7 +208,19 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
    */
   const handleApprove = (id: number) => runAction(id, () => api.posts.publish(id));
 
+  /*
+   * Bài đã giao nhà cung cấp hẹn giờ (có platform_post_ref): đổi / huỷ lịch trong app KHÔNG đổi được lịch bên nền tảng —
+   * nền tảng vẫn đăng đúng giờ cũ. Chặn, nói thật, cho tới khi làm đường sửa / huỷ lịch bên nhà cung cấp (đợt 3).
+   */
+  const LOI_LICH_DA_GUI =
+    'Bài này đã gửi hẹn giờ lên nền tảng — đổi hoặc huỷ lịch sẽ có ở bản sau. Hiện nền tảng vẫn đăng đúng giờ đã hẹn.';
+  const lichDaGui = (id: number) => Boolean(dbPosts.find((p) => p.id === id)?.platform_post_ref);
+
   const handleSchedule = async (id: number, current?: string | null) => {
+    if (lichDaGui(id)) {
+      setErrorMessage(LOI_LICH_DA_GUI);
+      return;
+    }
     // Gợi ý theo GIỜ MÁY (bản cũ dùng toISOString → giờ UTC, lệch 7 tiếng so với câu hỏi "theo giờ trên máy bạn").
     const goc = current ? new Date(current) : new Date(Date.now() + 3600000);
     const suggestion = new Date(goc.getTime() - goc.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -235,20 +247,27 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
       setErrorMessage('Thời gian hẹn đăng phải ở tương lai.');
       return;
     }
-    return runAction(id, () =>
-      // Giữ nguyên kênh đích của bài (A1).
-      api.posts.update(id, {
-        status: 'scheduled',
-        scheduledFor: when.toISOString(),
-      })
-    );
+    /*
+     * Lưu giờ hẹn rồi GIAO NHÀ CUNG CẤP HẸN (publishPost gửi kèm scheduledFor, nền tảng tự đăng đúng giờ) — cùng đường với
+     * "Hẹn giờ" ở khung soạn. Bản cũ chỉ đổi trạng thái trong app: không ai gửi bài đi, bài KHÔNG BAO GIỜ lên. Giữ nguyên
+     * kênh đích của bài (A1).
+     */
+    return runAction(id, async () => {
+      await api.posts.update(id, { scheduledFor: when.toISOString() });
+      await api.posts.publish(id);
+    });
   };
 
-  /** Huỷ lịch: đưa bài về chờ duyệt và xoá thời gian hẹn. */
-  const handleCancelSchedule = (id: number) =>
-    runAction(id, () =>
+  /** Huỷ lịch: đưa bài về chờ duyệt và xoá thời gian hẹn (chỉ bài CHƯA giao nhà cung cấp — xem LOI_LICH_DA_GUI). */
+  const handleCancelSchedule = (id: number) => {
+    if (lichDaGui(id)) {
+      setErrorMessage(LOI_LICH_DA_GUI);
+      return;
+    }
+    return runAction(id, () =>
       api.posts.update(id, { status: 'pending_approval', scheduledFor: null })
     );
+  };
 
   const handleDelete = async (id: number) => {
     if (!(await hoiXacNhan({ tieuDe: 'Xoá bài này?', nutDongY: 'Xoá', nguyHiem: true }))) return;

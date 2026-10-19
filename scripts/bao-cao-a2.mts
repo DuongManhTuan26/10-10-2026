@@ -69,6 +69,13 @@ try {
   console.log("\nCửa hàng bật tự chủ, theo tài khoản:");
   console.table(tuChu.rows);
 
+  // Điều kiện 2 của phiên kiểm duyệt (19/10): kênh chưa gắn cửa hàng → khách của kênh đó không có cửa hàng để gán.
+  const kenhRong = await c.query(`
+    SELECT COUNT(*)::int AS tong, COUNT(*) FILTER (WHERE trang_id IS NULL)::int AS chua_gan,
+           COUNT(*) FILTER (WHERE trang_id IS NULL AND connected)::int AS chua_gan_dang_noi
+      FROM social_accounts`);
+  console.log("\nKênh (social_accounts): tổng / chưa gắn cửa hàng / chưa gắn mà đang nối:", kenhRong.rows[0]);
+
   await c.query("ROLLBACK");
 } finally {
   c.release();

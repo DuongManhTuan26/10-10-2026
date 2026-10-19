@@ -3,6 +3,7 @@ import * as zernio from "./zernio.js";
 import { loadConfig, xinPhepGuiBinhLuan } from "./guardrails.js";
 import { commentReplyAllowed } from "./guardrails.js";
 import { DK_TAI_KHOAN_MO } from "./tai-khoan-mo.js";
+import { chanCuaRa, trangTamTheoKenh } from "./cua-ra.js";
 
 /**
  * Xử lý bình luận mới: trả lời công khai và nhắn tin riêng cho người bình luận.
@@ -476,6 +477,7 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
       );
     } else {
     await sendPublicReply({
+      userId: account.user_id,
       commentId: comment.id,
       platformPostId,
       accountId,
@@ -617,10 +619,12 @@ export async function sendPrivateReply(params: {
   const coKhaiBao = config.disclosure_enabled;
 
   try {
+    // CHỐT CỬA RA (services/cua-ra.ts) — đợt 1 tạm: cửa hàng của bình luận = cửa hàng hiện tại của kênh.
+    const cuaRa = await chanCuaRa(params.userId, [params.accountId], await trangTamTheoKenh(params.accountId));
     await zernio.privateReplyToComment({
       postId: params.platformPostId,
       commentId: params.commentId,
-      accountId: params.accountId,
+      accountId: cuaRa.duoc[0],
       text: noiDung,
     });
 
@@ -667,6 +671,7 @@ export async function sendPrivateReply(params: {
 
 /** Trả lời công khai dưới bình luận, qua Zernio. */
 export async function sendPublicReply(params: {
+  userId: number;
   commentId: string;
   platformPostId: string;
   accountId: string;
@@ -674,10 +679,12 @@ export async function sendPublicReply(params: {
   text: string;
 }): Promise<void> {
   try {
+    // CHỐT CỬA RA (services/cua-ra.ts) — đợt 1 tạm: cửa hàng của bình luận = cửa hàng hiện tại của kênh.
+    const cuaRa = await chanCuaRa(params.userId, [params.accountId], await trangTamTheoKenh(params.accountId));
     await zernio.replyToComment({
       postId: params.platformPostId,
       commentId: params.targetCommentId,
-      accountId: params.accountId,
+      accountId: cuaRa.duoc[0],
       text: params.text.trim(),
     });
     await query(
@@ -814,6 +821,7 @@ export async function runDueCommentActions(): Promise<number> {
     }
 
     await sendPublicReply({
+      userId: row.user_id,
       commentId: row.id,
       platformPostId: row.platform_post_id,
       accountId: row.social_account_id,

@@ -38,7 +38,8 @@ import {
 import { docTuChu } from "../server/services/sales-autonomy.js";
 import { matchesKeywords } from "../server/services/comment-ai.js";
 import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
-import { cauLenhKenhBai, cauLenhKenhLich, kenhNgoaiCuaHang, LOI_BAI_KHONG_KENH, LOI_LICH_KHONG_CUA_HANG } from "../server/services/kenh-dang.js";
+import { cauLenhKenhBai, cauLenhKenhLich, kenhNgoaiCuaHang, LOI_BAI_KHONG_CUA_HANG, LOI_BAI_KHONG_KENH, LOI_LICH_KHONG_CUA_HANG } from "../server/services/kenh-dang.js";
+import { chanCuaRa, locKenhGuiDuoc } from "../server/services/cua-ra.js";
 import { khoangTheoKy, lichChay, ngayVN, ngayDayDu } from "../src/lib/ky-ngay.js";
 import { lenhDoiTrangThai, lenhNhanBan, NEN_TANG_NHAN_BAN } from "../server/services/ads.js";
 import { docChienDich, nhanTrangThaiChienDich } from "../src/lib/chien-dich.js";
@@ -5736,14 +5737,18 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
 // lịch tự đăng chỉ đăng vào kênh của ĐÚNG cửa hàng sở hữu lịch. Kiểm HÀNH VI bằng hàm thuần, không chỉ soi chữ.
 // ---------------------------------------------------------------------------
 {
-  const bRong = cauLenhKenhBai(5, []);
-  const bNull = cauLenhKenhBai(5, null);
-  const bCo = cauLenhKenhBai(5, ["k1", "k2"]);
+  const bRong = cauLenhKenhBai(5, 47, []);
+  const bNull = cauLenhKenhBai(5, 47, null);
+  const bCo = cauLenhKenhBai(5, 47, ["k1", "k2"]);
   kiem("đăng đúng kênh", "bài rỗng kênh → báo lỗi, không có câu lệnh nào", [bRong, bNull], [{ loi: LOI_BAI_KHONG_KENH }, { loi: LOI_BAI_KHONG_KENH }]);
-  kiem("đăng đúng kênh", "bài có kênh → chỉ đúng các kênh đó, của đúng tài khoản, còn nối, bỏ quảng cáo",
-    "sql" in bCo && [/WHERE user_id = \$1\b/.test(bCo.sql), /id = ANY\(\$2::text\[\]\)/.test(bCo.sql), /connected = TRUE/.test(bCo.sql),
+  // A1 (19/10/2026, chủ dự án duyệt): bài chỉ lên kênh của ĐÚNG cửa hàng của bài — kênh đã chuyển cửa hàng bị loại.
+  kiem("đăng đúng kênh", "bài có kênh → chỉ đúng các kênh đó, của đúng tài khoản, CỦA ĐÚNG CỬA HÀNG CỦA BÀI, còn nối, bỏ quảng cáo",
+    "sql" in bCo && [/WHERE user_id = \$1 AND trang_id = \$2\b/.test(bCo.sql), /id = ANY\(\$3::text\[\]\)/.test(bCo.sql), /connected = TRUE/.test(bCo.sql),
       /platform <> 'metaads'/.test(bCo.sql), JSON.stringify(bCo.thamSo)],
-    [true, true, true, true, JSON.stringify([5, ["k1", "k2"]])]);
+    [true, true, true, true, JSON.stringify([5, 47, ["k1", "k2"]])]);
+  kiem("đăng đúng kênh", "bài không còn cửa hàng (cửa hàng đã xoá) → không đăng; mọi kênh đã chuyển cửa hàng → câu báo riêng",
+    [cauLenhKenhBai(5, null, ["k1"]), /const lyDo = daChuyen\?\.so\s*\? LOI_KENH_DA_CHUYEN/.test(fs.readFileSync(path.join(GOC, "server/services/publish.ts"), "utf8"))],
+    [{ loi: LOI_BAI_KHONG_CUA_HANG }, true]);
   const lNull = cauLenhKenhLich(5, null, []);
   const lRong = cauLenhKenhLich(5, 47, []);
   const lCo = cauLenhKenhLich(5, 47, ["k9"]);
@@ -5757,7 +5762,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const pub = fs.readFileSync(path.join(GOC, "server/services/publish.ts"), "utf8");
   const ap = fs.readFileSync(path.join(GOC, "server/services/autopilot.ts"), "utf8");
   kiem("đăng đúng kênh", "đăng bài và lịch tự đăng dùng đúng hàm chọn kênh; không còn nhánh 'mọi kênh của tài khoản'",
-    [/const lenhKenh = cauLenhKenhBai\(userId, post\.target_account_ids\);/.test(pub),
+    [/const lenhKenh = cauLenhKenhBai\(userId, post\.trang_id, post\.target_account_ids\);/.test(pub),
       /const lenhKenh = cauLenhKenhLich\(userId, trangId, cau\.accountIds\);/.test(ap),
       /WHERE user_id = \$1 AND connected = TRUE AND platform <> 'metaads'`/.test(pub + ap)],
     [true, true, false]);
@@ -6342,7 +6347,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const thanDuyet = ct.slice(ct.indexOf("const handleApprove"), ct.indexOf("const handleSchedule"));
   const thanHen = ct.slice(ct.indexOf("const handleSchedule"), ct.indexOf("const handleCancelSchedule"));
   kiem("A1 bài theo cửa hàng", "Duyệt / Lên lịch KHÔNG gửi targetAccountIds (giữ kênh đã lưu của bài)",
-    [/targetAccountIds/.test(thanDuyet), /api\.posts\.publish\(id\)/.test(thanDuyet), /targetAccountIds/.test(thanHen), /status: 'scheduled',/.test(thanHen)],
+    // 19/10: "Lên lịch" giao nhà cung cấp hẹn (lưu giờ → publish) thay vì chỉ đổi trạng thái trong app (bài không bao giờ lên).
+    [/targetAccountIds/.test(thanDuyet), /api\.posts\.publish\(id\)/.test(thanDuyet), /targetAccountIds/.test(thanHen),
+      /await api\.posts\.update\(id, \{ scheduledFor: when\.toISOString\(\) \}\);\s*await api\.posts\.publish\(id\);/.test(thanHen)],
     [false, true, false, true]);
 
   const ap = doc1("server/services/autopilot.ts");
@@ -6377,13 +6384,93 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const ad = doc1("server/routes/ads.ts");
   kiem("A1 bài theo cửa hàng", "đẩy quảng cáo: danh sách + đẩy theo mã bài chỉ bài của cửa hàng đang chọn; số liệu kênh / sức khoẻ / báo cáo theo cửa hàng; Gói + quản trị theo tài khoản",
     [/WHERE user_id = \$1 AND trang_id = \$2 AND status = 'published' AND platform_post_ref IS NOT NULL/.test(ad),
-      /"SELECT platform_post_ref FROM posts WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3",\s*\[postId, req\.user!\.id, trangDangChon\]/.test(ad),
-      /AND \(\$2::bigint IS NULL OR trang_id = \$2\)`,\s*\[k\.user_id, k\.trang_id\]/.test(doc1("server/services/so-lieu-kenh.ts")),
+      /"SELECT platform_post_ref, target_account_ids, trang_id FROM posts WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3",\s*\[postId, req\.user!\.id, trangDangChon\]/.test(ad),
+      // Số liệu bài: CHỌN theo kênh đích của bài, GHI theo cửa hàng CỦA BÀI (kênh rời đi thì bài cũ vẫn của cửa hàng cũ).
+      /AND \$2 = ANY\(target_account_ids\)`,\s*\[k\.user_id, k\.id\]/.test(doc1("server/services/so-lieu-kenh.ts"))
+        && /\[homNay, k\.id, b\._id, k\.user_id, p\?\.trang_id \?\? k\.trang_id,/.test(doc1("server/services/so-lieu-kenh.ts")),
       /FROM posts WHERE trang_id = \$1 AND status = 'failed' AND updated_at >= \$2`,\s*\[trangId, w\.gan\[0\]\]/.test(doc1("server/services/suc-khoe.ts")),
       /FROM posts WHERE trang_id = \$1`,[\s\S]{0,200}\[trangId, \.\.\.ky2\]/.test(doc1("server/services/bao-cao-chuoi.ts")),
       /target_account_ids &&/.test(doc1("server/services/suc-khoe.ts") + doc1("server/services/bao-cao-chuoi.ts")),
       /Gói dịch vụ tính trên cả tài khoản/.test(fs.readFileSync(path.join(GOC, "server/routes/settings.ts"), "utf8"))],
     [true, true, true, true, true, false, true]);
+}
+
+// ---------------------------------------------------------------------------
+// KÊNH LÀ NHÂN VIÊN — đợt 1: CHỐT CỬA RA (chủ dự án chốt 19/10/2026 "ra đi tay trắng, quay về người không").
+// ---------------------------------------------------------------------------
+{
+  const doc2 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const K = (id: string, trang_id: number | null, connected = true) => ({ id, trang_id, connected });
+  kiem("cửa ra", "chỉ kênh còn thuộc đúng cửa hàng của việc VÀ còn nối được dùng; việc không có cửa hàng → không kênh nào",
+    [locKenhGuiDuoc([K("fb1", 47), K("ig1", 47)], 47), locKenhGuiDuoc([K("fb1", 370), K("ig1", 47)], 47),
+      locKenhGuiDuoc([K("fb1", 47, false)], 47), locKenhGuiDuoc([K("fb1", 47)], null)],
+    [{ duoc: ["fb1", "ig1"], daRoi: [] }, { duoc: ["ig1"], daRoi: ["fb1"] }, { duoc: [], daRoi: ["fb1"] }, { duoc: [], daRoi: ["fb1"] }]);
+
+  // Hành vi của chốt (đọc kênh giả): không còn kênh dùng được → ném 409; kênh lạ / của tài khoản khác → bị loại.
+  const thuChot = async (ids: string[], trang: number | null, co: ReturnType<typeof K>[]) => {
+    try { return await chanCuaRa(5, ids, trang, async () => co); } catch (e) { return `${(e as { status?: number }).status}`; }
+  };
+  kiem("cửa ra", "chốt: kênh đã rời / đã ngắt / lạ → chặn (409); còn một kênh đúng → chỉ kênh đó",
+    [await thuChot(["fb1"], 47, [K("fb1", 370)]), await thuChot(["fb1"], 47, [K("fb1", 47, false)]), await thuChot(["la"], 47, []),
+      await thuChot(["fb1", "ig1", "la"], 47, [K("fb1", 370), K("ig1", 47)]), await thuChot([], 47, [])],
+    ["409", "409", "409", { duoc: ["ig1"], daRoi: ["fb1", "la"] }, "409"]);
+
+  // Mọi lời gọi gửi ra ngoài nhân danh bài / khách: đúng 7 chỗ, chỗ nào cũng có chốt ngay phía trên.
+  const MAU_GUI = /(zernio\.(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|deletePost)|ads\.boostPost)\(/g;
+  const choGui: string[] = [];
+  const thieuChot: string[] = [];
+  for (const t of moiTepMayChu(path.join(GOC, "server"))) {
+    const rel = path.relative(GOC, t);
+    if (/services\/(zernio|ads)\.ts$/.test(rel)) continue;
+    const n = doc2(rel);
+    for (const m of n.matchAll(MAU_GUI)) {
+      const viTriDong = n.slice(0, m.index).split("\n").length;
+      choGui.push(`${path.basename(t)}:${m[1]}`);
+      const tren = n.split("\n").slice(Math.max(0, viTriDong - 31), viTriDong).join("\n");
+      const duoi = n.split("\n").slice(viTriDong - 1, viTriDong + 5).join("\n");
+      // Chốt ngay phía trên (30 dòng), HOẶC lệnh gửi bằng biến kênh gán từ kết quả chốt (outbound: chốt đặt trước hàng
+      // rào để lần bị chặn không tính lượt gửi — xem phép kiểm (a) bên dưới).
+      const quaBienChot = /accountId: kenhGui,/.test(duoi) && /kenhGui = cuaRa\.duoc\[0\];/.test(n);
+      if (!/await chanCuaRa\(/.test(tren) && !quaBienChot) thieuChot.push(`${rel}:${viTriDong}`);
+    }
+  }
+  console.log(`  [cửa ra] ${choGui.length} lời gọi gửi ra ngoài, ${choGui.length - thieuChot.length} có chốt`);
+  kiem("cửa ra", "đúng 7 lời gọi gửi ra ngoài (tin, tin riêng, trả lời bình luận, đăng / sửa / gỡ bài, đẩy bài), chỗ nào cũng qua chốt",
+    [choGui.sort(), thieuChot],
+    [["ads.ts:ads.boostPost", "comment-ai.ts:zernio.privateReplyToComment", "comment-ai.ts:zernio.replyToComment", "outbound.ts:zernio.sendMessage",
+      "posts.ts:zernio.deletePost", "posts.ts:zernio.updatePost", "publish.ts:zernio.createPost"], []]);
+  // (a) gửi bằng kênh LẤY TỪ KẾT QUẢ CHỐT, không dùng biến kênh ban đầu (lệnh nào có tham số kênh).
+  const ob = doc2("server/services/outbound.ts"), ca = doc2("server/services/comment-ai.ts"), pb = doc2("server/services/publish.ts");
+  kiem("cửa ra", "lệnh có tham số kênh gửi bằng kênh từ kết quả chốt (duoc); lệnh chỉ nhận mã bài thì chốt chỉ chặn",
+    [/kenhGui = cuaRa\.duoc\[0\];[\s\S]*?zernio\.sendMessage\(\{\s*conversationId: params\.conversationId,\s*accountId: kenhGui,/.test(ob),
+      (ca.match(/const cuaRa = await chanCuaRa\(params\.userId, \[params\.accountId\], await trangTamTheoKenh\(params\.accountId\)\);\s*await zernio\.(privateReplyToComment|replyToComment)\(\{[^}]*accountId: cuaRa\.duoc\[0\],/g) ?? []).length,
+      /const kenhDang = targets\.rows\.filter\(\(row\) => cuaRa\.duoc\.includes\(row\.id\)\);[\s\S]*?targets: kenhDang\.map\(/.test(pb),
+      // Chốt đặt TRƯỚC khi đổi trạng thái bài (bị chặn thì bài không kẹt "đang đăng").
+      pb.search(/const cuaRa = await chanCuaRa\(/) < pb.search(/henGio \? "scheduled" : "publishing"/)],
+    [true, 2, true, true]);
+  // (b) CẤM nhập tên riêng các hàm gửi — để không ai lách được cách đếm `zernio.X(`.
+  const nhapRieng = moiTepMayChu(path.join(GOC, "server")).filter((t) =>
+    /import\s*\{[^}]*\b(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|deletePost|boostPost)\b[^}]*\}\s*from\s*"[^"]*\/(zernio|ads)\.js"/.test(fs.readFileSync(t, "utf8")))
+    .map((t) => path.relative(GOC, t));
+  kiem("cửa ra", "không tệp nào nhập tên riêng hàm gửi từ zernio / ads", nhapRieng, []);
+  // Đợt 1 CHƯA chặn tin của hội thoại nhiệm kỳ cũ: cửa hàng của tin / bình luận tạm theo kênh (trangTamTheoKenh) — đợt 2
+  // thay bằng cột cửa hàng chốt. Ghi đúng 3 chỗ để đợt 2 không sót.
+  kiem("cửa ra", "ĐỢT 1 TẠM: tin / bình luận lấy cửa hàng theo kênh ở đúng 3 chỗ (đợt 2 thay bằng cột chốt)",
+    [(ob.match(/await trangTamTheoKenh\(/g) ?? []).length + (ca.match(/await trangTamTheoKenh\(/g) ?? []).length], [3]);
+  const ps2 = doc2("server/routes/posts.ts"), ad2 = doc2("server/routes/ads.ts");
+  kiem("cửa ra", "sửa chữ / gỡ bài / đẩy bài: kênh của bài phải còn thuộc cửa hàng của bài (kênh rời → giữ bài làm lịch sử)",
+    [(ps2.match(/await chanCuaRa\(req\.user!\.id, post\.target_account_ids, post\.trang_id\);\s*await zernio\.(updatePost|deletePost)\(/g) ?? []).length,
+      (() => {
+        // Trong thân đường đẩy bài: chốt đặt TRƯỚC khi lấy tài khoản quảng cáo / gọi đẩy.
+        const than = ad2.slice(ad2.indexOf("Không tìm thấy bài viết của cửa hàng đang chọn"), ad2.indexOf("await ads.boostPost("));
+        return /await chanCuaRa\(req\.user!\.id, post\.target_account_ids, post\.trang_id\);/.test(than) && than.search(/await chanCuaRa\(/) < than.search(/resolveAdAccount\(/);
+      })()],
+    [2, true]);
+  const ct2 = doc2("src/pages/Content.tsx");
+  kiem("cửa ra", "bài đã giao nhà cung cấp hẹn giờ: Đổi / Huỷ lịch trong app bị chặn kèm câu nói thật (nền tảng vẫn đăng giờ cũ)",
+    [/const handleSchedule = async[^\n]*\{\s*if \(lichDaGui\(id\)\) \{\s*setErrorMessage\(LOI_LICH_DA_GUI\);\s*return;/.test(ct2),
+      /const handleCancelSchedule = \(id: number\) => \{\s*if \(lichDaGui\(id\)\) \{\s*setErrorMessage\(LOI_LICH_DA_GUI\);\s*return;/.test(ct2)],
+    [true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

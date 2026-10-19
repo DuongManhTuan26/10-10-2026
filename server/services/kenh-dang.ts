@@ -15,13 +15,26 @@ const DANG_NOI = "connected = TRUE AND platform <> 'metaads'";
 
 export const LOI_BAI_KHONG_KENH = "Bài chưa chọn kênh đăng. Vui lòng mở bài, chọn kênh rồi đăng lại.";
 export const LOI_LICH_KHONG_CUA_HANG = "Chưa xác định được cửa hàng của lịch tự đăng, nên không đăng.";
+/** A1 (19/10/2026): bài có cửa hàng đã xoá (trang_id NULL) — không biết đăng dưới danh nghĩa ai. */
+export const LOI_BAI_KHONG_CUA_HANG = "Bài này không còn thuộc cửa hàng nào (cửa hàng đã xoá), nên không đăng.";
+/** A1: mọi kênh đã chọn của bài đã chuyển sang cửa hàng khác. */
+export const LOI_KENH_DA_CHUYEN =
+  "Kênh của bài đã chuyển sang cửa hàng khác, nên bài không đăng lên đó nữa. Vui lòng chọn kênh của cửa hàng này rồi đăng lại.";
 
-/** Kênh đích của một bài: đúng danh sách bài đã chọn, còn nối, thuộc tài khoản. */
-export function cauLenhKenhBai(userId: number, kenhDaChon: string[] | null | undefined): CauLenhKenh {
+/**
+ * Kênh đích của một bài: đúng danh sách bài đã chọn, còn nối, thuộc tài khoản VÀ thuộc ĐÚNG cửa hàng của bài (A1 —
+ * kênh đã chuyển sang cửa hàng khác thì bị loại: bài của bộ não cũ không được lên kênh của bộ não mới).
+ */
+export function cauLenhKenhBai(
+  userId: number,
+  trangCuaBai: number | null | undefined,
+  kenhDaChon: string[] | null | undefined
+): CauLenhKenh {
   if (!kenhDaChon || kenhDaChon.length === 0) return { loi: LOI_BAI_KHONG_KENH };
+  if (trangCuaBai == null) return { loi: LOI_BAI_KHONG_CUA_HANG };
   return {
-    sql: `${COT} WHERE user_id = $1 AND ${DANG_NOI} AND id = ANY($2::text[])`,
-    thamSo: [userId, kenhDaChon],
+    sql: `${COT} WHERE user_id = $1 AND trang_id = $2 AND ${DANG_NOI} AND id = ANY($3::text[])`,
+    thamSo: [userId, trangCuaBai, kenhDaChon],
   };
 }
 

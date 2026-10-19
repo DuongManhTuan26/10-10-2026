@@ -10,7 +10,8 @@
 
 import { query, queryOne } from "../db.js";
 import { AppError } from "../http.js";
-import { cauLenhKenhBai } from "./kenh-dang.js";
+import { cauLenhKenhBai, LOI_KENH_DA_CHUYEN } from "./kenh-dang.js";
+import { chanCuaRa } from "./cua-ra.js";
 import * as zernio from "./zernio.js";
 import { hoanDiaChiKho } from "./media-proxy.js";
 
@@ -60,6 +61,7 @@ interface PostRow {
   target_account_ids: string[];
   media: unknown[];
   scheduled_for: Date | null;
+  trang_id: number | null;
 }
 
 export async function publishPost(
@@ -67,7 +69,7 @@ export async function publishPost(
   postId: number | string
 ): Promise<Record<string, unknown>> {
   const post = await queryOne<PostRow>(
-    `SELECT id, content, status, target_account_ids, media, scheduled_for
+    `SELECT id, content, status, target_account_ids, media, scheduled_for, trang_id
        FROM posts WHERE id = $1 AND user_id = $2`,
     [postId, userId]
   );
@@ -82,7 +84,7 @@ export async function publishPost(
   // từ database chứ không thể gửi danh sách id phẳng.
   // Bài không chọn kênh thì KHÔNG đăng tràn ra mọi kênh của tài khoản (B1-G, services/kenh-dang.ts): chuyển bài sang
   // 'failed' kèm lý do dễ đọc — báo một lần; không bộ quét nào thử lại bài 'failed'.
-  const lenhKenh = cauLenhKenhBai(userId, post.target_account_ids);
+  const lenhKenh = cauLenhKenhBai(userId, post.trang_id, post.target_account_ids);
   if ("loi" in lenhKenh) {
     await query(`UPDATE posts SET status = 'failed', last_error = $2, updated_at = now() WHERE id = $1`, [
       post.id,
@@ -93,12 +95,24 @@ export async function publishPost(
   const targets = await query<{ id: string; platform: string }>(lenhKenh.sql, lenhKenh.thamSo);
 
   if (targets.rows.length === 0) {
-    // Có chọn kênh nhưng mọi kênh đã ngắt: ghi 'failed' + lý do như chặn rỗng kênh, để bài hiện ở mục Cần xử lý
-    // (không nằm im ở Bản nháp) — mọi lối gọi đều được hưởng.
-    const lyDo = "Các kênh đã chọn cho bài này đều đã ngắt kết nối. Vui lòng nối lại kênh hoặc chọn kênh khác rồi đăng lại.";
+    // Có chọn kênh nhưng không kênh nào dùng được: ghi 'failed' + lý do như chặn rỗng kênh, để bài hiện ở mục Cần xử lý
+    // (không nằm im ở Bản nháp) — mọi lối gọi đều được hưởng. Phân biệt "đã chuyển sang cửa hàng khác" (A1) với "đã ngắt".
+    const daChuyen = await queryOne<{ so: number }>(
+      `SELECT count(*)::int AS so FROM social_accounts
+        WHERE user_id = $1 AND id = ANY($2::text[]) AND trang_id IS DISTINCT FROM $3`,
+      [userId, post.target_account_ids, post.trang_id]
+    );
+    const lyDo = daChuyen?.so
+      ? LOI_KENH_DA_CHUYEN
+      : "Các kênh đã chọn cho bài này đều đã ngắt kết nối. Vui lòng nối lại kênh hoặc chọn kênh khác rồi đăng lại.";
     await query(`UPDATE posts SET status = 'failed', last_error = $2, updated_at = now() WHERE id = $1`, [post.id, lyDo]);
     throw new AppError(lyDo, 409);
   }
+
+  // CHỐT CỬA RA (services/cua-ra.ts): chỉ đăng qua kênh còn thuộc đúng cửa hàng của bài — gửi bằng `duoc`. Đặt TRƯỚC
+  // khi đổi trạng thái bài (bị chặn thì bài không kẹt ở "đang đăng").
+  const cuaRa = await chanCuaRa(userId, targets.rows.map((row) => row.id), post.trang_id);
+  const kenhDang = targets.rows.filter((row) => cuaRa.duoc.includes(row.id));
 
   /*
    * Bài hẹn giờ: giao việc hẹn cho Zernio, không tự dựng bộ hẹn giờ riêng.
@@ -119,7 +133,7 @@ export async function publishPost(
 
   try {
     const created = await zernio.createPost({
-      targets: targets.rows.map((row) => ({
+      targets: kenhDang.map((row) => ({
         platform: row.platform,
         accountId: row.id,
       })),

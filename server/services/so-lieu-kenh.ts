@@ -33,11 +33,12 @@ export async function chupSoBaiNgay(): Promise<number> {
     try {
       const tu = ngayVN(new Date(Date.now() - SO_NGAY_THEO_DOI * NGAY_MS));
       const bai = await zernio.layThongKeBai(k.id, tu, homNay);
-      const cuaMinh = await query<{ id: number; ref: string; ai_generated: boolean }>(
-        // A1: chỉ bài của cửa hàng sở hữu kênh (kênh chưa gắn cửa hàng thì như cũ: cả tài khoản).
-        `SELECT id, platform_post_ref AS ref, ai_generated FROM posts
-          WHERE user_id = $1 AND platform_post_ref IS NOT NULL AND ($2::bigint IS NULL OR trang_id = $2)`,
-        [k.user_id, k.trang_id]
+      const cuaMinh = await query<{ id: number; ref: string; ai_generated: boolean; trang_id: number | null }>(
+        // CHỌN bài đã đăng lên KÊNH NÀY (kênh đích của bài), không theo cửa hàng hiện tại của kênh: kênh rời cửa hàng thì
+        // số liệu bài cũ vẫn được cập nhật. GHI theo cửa hàng CỦA BÀI (kênh là nhân viên — bài cũ vẫn của cửa hàng cũ).
+        `SELECT id, platform_post_ref AS ref, ai_generated, trang_id FROM posts
+          WHERE user_id = $1 AND platform_post_ref IS NOT NULL AND $2 = ANY(target_account_ids)`,
+        [k.user_id, k.id]
       );
       const theoRef = new Map(cuaMinh.rows.map((p) => [p.ref, p]));
       for (const b of bai) {
@@ -48,7 +49,9 @@ export async function chupSoBaiNgay(): Promise<number> {
              hien_thi, tiep_can, thich, binh_luan, chia_se, nhap, luot_xem, la_quang_cao)
            VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
            ON CONFLICT (ngay, account_id, post_ref) DO NOTHING`,
-          [homNay, k.id, b._id, k.user_id, k.trang_id, p?.id ?? null, p ? p.ai_generated : null,
+          // Bài không có trong app (đăng thẳng trên nền tảng): tạm theo cửa hàng hiện tại của kênh — đợt 2 (nhiệm kỳ
+          // kênh) sẽ xét theo giờ đăng.
+          [homNay, k.id, b._id, k.user_id, p?.trang_id ?? k.trang_id, p?.id ?? null, p ? p.ai_generated : null,
             b.publishedAt ? new Date(b.publishedAt) : null,
             a.impressions ?? 0, a.reach ?? 0, a.likes ?? 0, a.comments ?? 0, a.shares ?? 0, a.clicks ?? 0, a.views ?? 0,
             b.isAd === true]

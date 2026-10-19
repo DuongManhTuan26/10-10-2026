@@ -10,6 +10,7 @@ import {
   evaluateAutoPause,
   type Actor,
 } from "./guardrails.js";
+import { chanCuaRa, trangTamTheoKenh } from "./cua-ra.js";
 
 /**
  * Đường duy nhất để gửi tin nhắn ra ngoài.
@@ -73,6 +74,23 @@ export async function sendMessageSafely(params: {
       blockReason: "conversation_not_found",
       blockMessage: "Không tìm thấy hội thoại",
     };
+  }
+
+  /*
+   * CHỐT CỬA RA (services/cua-ra.ts): chỉ gửi qua kênh còn thuộc đúng cửa hàng của việc. ĐỢT 1 TẠM: cửa hàng của tin =
+   * cửa hàng hiện tại của kênh (trangTamTheoKenh) — chưa chặn tin của hội thoại nhiệm kỳ cũ; đợt 2 thay bằng cột chốt.
+   */
+  let kenhGui: string;
+  try {
+    const cuaRa = await chanCuaRa(
+      conversation.user_id,
+      [conversation.social_account_id],
+      await trangTamTheoKenh(conversation.social_account_id)
+    );
+    kenhGui = cuaRa.duoc[0];
+  } catch (error) {
+    if (params.throwOnBlock || !(error instanceof AppError)) throw error;
+    return { sent: false, text: params.text, externalId: null, blockReason: "kenh_da_roi", blockMessage: error.message };
   }
 
   const decision = await checkOutbound({
@@ -151,7 +169,7 @@ export async function sendMessageSafely(params: {
   try {
     const sent = await zernio.sendMessage({
       conversationId: params.conversationId,
-      accountId: conversation.social_account_id!,
+      accountId: kenhGui,
       text,
       messageTag: decision.messageTag as zernio.MessageTag | undefined,
     });

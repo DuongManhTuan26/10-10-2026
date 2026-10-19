@@ -8,6 +8,7 @@ import { doiChieuMotBai, ghiKetQua } from "../services/post-status.js";
 import { anDiaChiKho, doiDiaChiMedia } from "../services/media-proxy.js";
 import { kenhNgoaiCuaHang, LOI_KENH_NGOAI_CUA_HANG, LOI_KENH_NGOAI_CUA_HANG_DANG_CHON } from "../services/kenh-dang.js";
 import { trangHienTai } from "../services/ngu-canh-trang.js";
+import { chanCuaRa } from "../services/cua-ra.js";
 
 export const postsRouter = Router();
 
@@ -299,8 +300,14 @@ postsRouter.put(
   route(async (req, res) => {
     const content = requireString(req.body, "content", "nội dung bài viết");
 
-    const post = await queryOne<{ id: number; status: string; platform_post_ref: string | null }>(
-      "SELECT id, status, platform_post_ref FROM posts WHERE id = $1 AND user_id = $2",
+    const post = await queryOne<{
+      id: number;
+      status: string;
+      platform_post_ref: string | null;
+      target_account_ids: string[];
+      trang_id: number | null;
+    }>(
+      "SELECT id, status, platform_post_ref, target_account_ids, trang_id FROM posts WHERE id = $1 AND user_id = $2",
       [req.params.id, req.user!.id]
     );
     if (!post) throw new AppError("Không tìm thấy bài viết này", 404);
@@ -311,6 +318,9 @@ postsRouter.put(
       );
     }
 
+    // CHỐT CỬA RA (services/cua-ra.ts): kênh của bài phải còn thuộc cửa hàng của bài. Lệnh sửa chỉ nhận mã bài (không
+    // nhận kênh), nên chốt chỉ chặn — không có biến kênh để thay bằng `duoc`.
+    await chanCuaRa(req.user!.id, post.target_account_ids, post.trang_id);
     await zernio.updatePost({ postId: post.platform_post_ref, content });
 
     const updated = await queryOne(
@@ -330,8 +340,14 @@ postsRouter.put(
 postsRouter.post(
   "/:id/unpublish",
   route(async (req, res) => {
-    const post = await queryOne<{ id: number; status: string; platform_post_ref: string | null }>(
-      "SELECT id, status, platform_post_ref FROM posts WHERE id = $1 AND user_id = $2",
+    const post = await queryOne<{
+      id: number;
+      status: string;
+      platform_post_ref: string | null;
+      target_account_ids: string[];
+      trang_id: number | null;
+    }>(
+      "SELECT id, status, platform_post_ref, target_account_ids, trang_id FROM posts WHERE id = $1 AND user_id = $2",
       [req.params.id, req.user!.id]
     );
     if (!post) throw new AppError("Không tìm thấy bài viết này", 404);
@@ -339,6 +355,9 @@ postsRouter.post(
       throw new AppError("Bài này chưa lên nền tảng nên không có gì để gỡ.", 400);
     }
 
+    // CHỐT CỬA RA: kênh đã rời cửa hàng → không gỡ được, bài giữ làm lịch sử (không xoá bản ghi trong app). Lệnh gỡ chỉ
+    // nhận mã bài, nên chốt chỉ chặn.
+    await chanCuaRa(req.user!.id, post.target_account_ids, post.trang_id);
     await zernio.deletePost(post.platform_post_ref);
 
     const updated = await queryOne(
