@@ -3920,7 +3920,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "cửa ra: không kênh nào dùng được mà vẫn cho gửi",
     tep: "server/services/cua-ra.ts",
-    tim: "  if (kq.duoc.length === 0) throw new AppError(LOI_KENH_DA_ROI, 409);\n",
+    tim: "  if (kq.duoc.length === 0) throw new AppError(kq.daRoi.length > 0 ? LOI_KENH_DA_ROI : LOI_KENH_MAT_KET_NOI, 409);",
     thay: "",
   },
   {
