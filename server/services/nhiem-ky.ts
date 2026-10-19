@@ -92,7 +92,7 @@ export async function layHoiThoaiChoTin(
   // Dòng gốc chưa thuộc nhiệm kỳ nào (tin đến trước lúc kênh được gắn cửa hàng) → NHẬN vào nhiệm kỳ này (phiên kiểm duyệt
   // 19/10: không tách một khách thành 2 hội thoại khi kênh chưa từng chuyển đi đâu).
   if (!daCo && dongGoc && dongGoc.nhiem_ky_id == null) {
-    await db.query("UPDATE conversations SET nhiem_ky_id = $2, trang_id = $3 WHERE id = $1 AND nhiem_ky_id IS NULL", [
+    await db.query("UPDATE conversations SET nhiem_ky_id = $2, trang_id = $3 WHERE id = $1 AND nhiem_ky_id IS NULL AND trang_id IS NULL", [
       p.maLuong,
       nk.id,
       nk.trang_id,

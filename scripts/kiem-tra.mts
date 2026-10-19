@@ -6505,7 +6505,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     ["t_1", "t_1", "t_1~3", "t_1", "t_1"]);
   const nkSrc = d3("server/services/nhiem-ky.ts");
   kiem("nhiệm kỳ", "dòng gốc chưa có nhiệm kỳ được NHẬN vào nhiệm kỳ hiện tại (UPDATE kèm cửa hàng); AI không trả lời hội thoại chưa có cửa hàng",
-    [/if \(!daCo && dongGoc && dongGoc\.nhiem_ky_id == null\) \{\s*await db\.query\("UPDATE conversations SET nhiem_ky_id = \$2, trang_id = \$3 WHERE id = \$1 AND nhiem_ky_id IS NULL"/.test(nkSrc),
+    [/if \(!daCo && dongGoc && dongGoc\.nhiem_ky_id == null\) \{\s*await db\.query\("UPDATE conversations SET nhiem_ky_id = \$2, trang_id = \$3 WHERE id = \$1 AND nhiem_ky_id IS NULL AND trang_id IS NULL"/.test(nkSrc),
       /if \(conversation\.trang_id == null\) return false;/.test(d3("server/services/sales-ai.ts"))],
     [true, true]);
   const KN = (id: string, trang_id: number, nhiem_ky_mo: number) => ({ id, trang_id, connected: true, nhiem_ky_mo });

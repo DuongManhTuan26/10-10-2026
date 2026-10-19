@@ -68,6 +68,11 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 │             - bài cửa hàng cũ đã hẹn giờ bên nhà cung cấp trên kênh: GỠ LỊCH lúc chuyển;
 │             - bài cũ trên kênh đã rời: CHO XOÁ khỏi app (bài trên nền tảng vẫn còn, cửa hàng không gỡ được);
 │             - kịch bản bình luận của cửa hàng cũ trên kênh: TẮT lúc kênh rời; kênh quay về thì chủ shop tự bật lại.
+│         · ĐỢT 2a (19/10, phiên kiểm duyệt cho đạt; thử tự hoàn tác trên dữ liệu thật 6/6): NHIỆM KỲ KÊNH — hội thoại chốt
+│           cửa hàng + nhiệm kỳ lúc phát sinh; cùng luồng sau khi chuyển → hội thoại mới; AI theo cửa hàng của hội thoại,
+│           không đụng hội thoại nhiệm kỳ đã đóng; gửi tin chặn theo cửa hàng + nhiệm kỳ. Kênh CHƯA gắn cửa hàng (thoáng
+│           qua lúc nối) → AI im, tin vẫn lưu; gắn xong thì dòng được nhận vào nhiệm kỳ, vớt tin trả lời nếu còn khung giờ.
+│           Còn lại đợt 2b: khách, bình luận, kịch bản, đơn, các chỗ đếm theo cửa hàng của hội thoại.
 │     • Không có "Đổi Fanpage": ngắt cái cũ, nối cái mới
 │     • Quảng cáo Meta đi kèm Facebook, không nối riêng
 ├── BỘ NÃO AI — 4 AI cố định, liền mạch, không tách rời
