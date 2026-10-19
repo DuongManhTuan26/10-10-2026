@@ -41,6 +41,7 @@ import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { cauLenhKenhBai, cauLenhKenhLich, kenhNgoaiCuaHang, LOI_BAI_KHONG_CUA_HANG, LOI_BAI_KHONG_KENH, LOI_LICH_KHONG_CUA_HANG } from "../server/services/kenh-dang.js";
 import { chanCuaRa, locKenhGuiDuoc, LOI_KENH_DA_ROI, LOI_KENH_MAT_KET_NOI } from "../server/services/cua-ra.js";
 import { chonNhiemKy, doiNhiemKy, maHoiThoai, type NhiemKy } from "../server/services/nhiem-ky.js";
+import { baoGoc, quyetDinh, BAO_GOC_SAU_MS } from "./nguoi-canh-luat.mjs";
 import { khoangTheoKy, lichChay, ngayVN, ngayDayDu } from "../src/lib/ky-ngay.js";
 import { lenhDoiTrangThai, lenhNhanBan, NEN_TANG_NHAN_BAN } from "../server/services/ads.js";
 import { docChienDich, nhanTrangThaiChienDich } from "../src/lib/chien-dich.js";
@@ -4828,7 +4829,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     /for \(let i = 0; i < 12 && !\(await tunnelHealthy\(currentUrl\)\); i\+\+\) \{[\s\S]{0,120}?\}\s*await updateZernioWebhook\(currentUrl\);/.test(nguonCanh), true);
   kiem("webhook", "hỏng một lần chưa dựng lại (đã thấy: đập bỏ đường hầm đang chạy tốt)",
     /const HONG_LIEN_TIEP_MOI_DUNG_LAI = 3;/.test(nguonCanh) &&
-      /if \(!healthy && currentUrl && soLanKhongThong < HONG_LIEN_TIEP_MOI_DUNG_LAI\) \{[\s\S]{0,200}?return;/.test(nguonCanh), true);
+      // 19/10/2026: đếm qua luật chung quyetDinh (nguoi-canh-luat.mjs — chưa đủ ngưỡng thì "dem", chỉ ghi nhật ký rồi chờ).
+      /nguong: currentUrl \? HONG_LIEN_TIEP_MOI_DUNG_LAI : 1,/.test(nguonCanh) &&
+      /if \(qd\.hanhDong === "dem"\) \{[\s\S]{0,200}?return;/.test(nguonCanh), true);
   const nguonWk = fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8");
   kiem("webhook", "webhook chết thì worker tự sửa ngay",
     /webhookDangChet = nhatKy\.length > 0 && hong\.length === nhatKy\.length;\s*if \(webhookDangChet\) \{[\s\S]{0,500}?tuSuaWebhook\(\)/.test(nguonWk), true);
@@ -6562,6 +6565,36 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /CREATE UNIQUE INDEX IF NOT EXISTS kenh_nhiem_ky_mot_mo ON kenh_nhiem_ky \(account_id\) WHERE den_luc IS NULL;/.test(m58),
       /FROM social_accounts s\s*WHERE s\.trang_id IS NOT NULL\s*AND NOT EXISTS/.test(m58) && !/connected/.test(m58.slice(m58.indexOf("INSERT INTO kenh_nhiem_ky"), m58.indexOf("ALTER TABLE conversations ADD"))),
       /RAISE EXCEPTION '058:/.test(m58), /CREATE UNIQUE INDEX IF NOT EXISTS conversations_luong_nhiem_ky ON conversations \(ma_luong, nhiem_ky_id\);/.test(m58)],
+    [true, true, true, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// NGƯỜI CANH ĐƯỜNG HẦM (điều tra webhook chết 19/10/2026, phiên kiểm duyệt duyệt a–e): máy chủ trong máy tắt thì KHÔNG
+// dựng lại đường hầm (vô ích, làm Cloudflare chặn tần suất); không chạy chồng lượt; báo quản trị khi máy chủ tắt quá 5 phút.
+// ---------------------------------------------------------------------------
+{
+  const qd = (gocSong: boolean, duongHamThong: boolean, soLanKhongThong: number, nguong = 3) =>
+    quyetDinh({ gocSong, duongHamThong, soLanKhongThong, nguong });
+  kiem("người canh", "đường hầm thông → về 0; gốc TẮT → giữ, không đếm, không dựng lại; gốc sống mà không thông → đếm 1, 2 rồi dựng lại",
+    [qd(true, true, 2), qd(false, false, 2), qd(true, false, 0), qd(true, false, 1), qd(true, false, 2), qd(true, false, 0, 1)],
+    [{ hanhDong: "thong", soLanKhongThong: 0 }, { hanhDong: "cho_goc", soLanKhongThong: 0 }, { hanhDong: "dem", soLanKhongThong: 1 },
+      { hanhDong: "dem", soLanKhongThong: 2 }, { hanhDong: "dung_lai", soLanKhongThong: 0 }, { hanhDong: "dung_lai", soLanKhongThong: 0 }]);
+  // Báo quản trị: tắt quá 5 phút LIÊN TIẾP → một lần; vẫn tắt → không lặp; sống lại → một lần; sống mà chưa từng báo → im.
+  const p = 60_000;
+  let tt = { chetTu: null as number | null, daBao: false };
+  const buoc = (song: boolean, luc: number) => { const r = baoGoc(tt, song, luc); tt = r.trangThai; return r.gui; };
+  const chuoi = [buoc(false, 0), buoc(false, 4 * p), buoc(false, 5 * p), buoc(false, 9 * p), buoc(true, 10 * p), buoc(true, 11 * p),
+    buoc(false, 12 * p), buoc(true, 13 * p)];
+  kiem("người canh", "báo máy chủ tắt quá 5 phút một lần, không lặp; sống lại báo một lần; đợt tắt ngắn (< 5 phút) không báo",
+    [BAO_GOC_SAU_MS, chuoi], [5 * p, [null, null, "tat", null, "song", null, null, null]]);
+  const wd = boChuThich(fs.readFileSync(path.join(GOC, "scripts/tunnel-watchdog.mjs"), "utf8"));
+  kiem("người canh", "gọi gốc bằng 127.0.0.1; có cờ chống chồng lượt; dùng luật chung (quyetDinh / baoGoc) + báo Telegram quản trị",
+    [/const LOCAL_URL = `http:\/\/127\.0\.0\.1:\$\{process\.env\.PORT \?\? 3000\}`;/.test(wd),
+      /if \(dangXet\) return;\s*dangXet = true;\s*try \{\s*await motLuot\(\);\s*\} finally \{\s*dangXet = false;\s*\}/.test(wd),
+      /const qd = quyetDinh\(\{\s*gocSong: song,\s*duongHamThong: healthy,/.test(wd) && /if \(qd\.hanhDong === "cho_goc"\) \{[\s\S]{0,200}?return;/.test(wd),
+      /if \(bao\.gui === "tat"\) await baoQuanTri\(TIN_GOC_TAT\);\s*if \(bao\.gui === "song"\) await baoQuanTri\(TIN_GOC_SONG\);/.test(wd),
+      // Gốc xét TRƯỚC nhánh lùi (đang bị Cloudflare chặn vẫn báo được máy chủ tắt).
+      wd.search(/const song = await gocSong\(\);/) < wd.search(/if \(choToiPhut > 0\) \{/)],
     [true, true, true, true, true]);
 }
 

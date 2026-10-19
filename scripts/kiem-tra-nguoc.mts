@@ -4140,6 +4140,36 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
+    ten: "người canh: máy chủ tắt vẫn dựng lại đường hầm (Cloudflare chặn tần suất)",
+    tep: "scripts/nguoi-canh-luat.mjs",
+    tim: "  if (!gocSong) return { hanhDong: \"cho_goc\", soLanKhongThong: 0 };\n",
+    thay: "",
+  },
+  {
+    ten: "người canh: báo máy chủ tắt lặp lại mỗi lượt",
+    tep: "scripts/nguoi-canh-luat.mjs",
+    tim: "  if (!trangThai.daBao && bayGio - chetTu >= nguongMs) {",
+    thay: "  if (bayGio - chetTu >= nguongMs) {",
+  },
+  {
+    ten: "người canh: sống lại không báo quản trị",
+    tep: "scripts/nguoi-canh-luat.mjs",
+    tim: "gui: trangThai.daBao ? \"song\" : null",
+    thay: "gui: null",
+  },
+  {
+    ten: "người canh: bỏ cờ chống chồng lượt",
+    tep: "scripts/tunnel-watchdog.mjs",
+    tim: "    if (dangXet) return;\n",
+    thay: "",
+  },
+  {
+    ten: "người canh: gọi gốc bằng localhost (dính ::1)",
+    tep: "scripts/tunnel-watchdog.mjs",
+    tim: "const LOCAL_URL = `http://127.0.0.1:${process.env.PORT ?? 3000}`;",
+    thay: "const LOCAL_URL = `http://localhost:${process.env.PORT ?? 3000}`;",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

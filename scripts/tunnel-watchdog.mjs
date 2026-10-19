@@ -20,9 +20,12 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import "dotenv/config";
+import pg from "pg";
+import { baoGoc, quyetDinh, TIN_GOC_SONG, TIN_GOC_TAT } from "./nguoi-canh-luat.mjs";
 
 const CLOUDFLARED = process.env.CLOUDFLARED_PATH;
-const LOCAL_URL = `http://localhost:${process.env.PORT ?? 3000}`;
+// 127.0.0.1, không "localhost": máy này phân giải localhost ra cả ::1, còn máy chủ chỉ nghe IPv4 (server.ts listen 0.0.0.0).
+const LOCAL_URL = `http://127.0.0.1:${process.env.PORT ?? 3000}`;
 const CHECK_INTERVAL_MS = 30_000;
 const STATE_FILE = path.join(process.cwd(), ".tunnel-url");
 const PID_FILE = path.join(process.cwd(), ".tunnel.pid");
@@ -273,6 +276,46 @@ async function tunnelHealthy(url) {
   }
 }
 
+/** Máy chủ trong máy (gốc của đường hầm) còn trả lời không — gọi THẲNG, không qua đường hầm. */
+async function gocSong() {
+  try {
+    const response = await fetch(`${LOCAL_URL}/api/health`, { signal: AbortSignal.timeout(5_000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Gửi Telegram cho quản trị (chủ dự án) — dùng khi máy chủ trong máy tắt: lúc đó máy chủ không tự báo được. Đọc cấu hình
+ * Telegram của tài khoản quản trị trong database (chỉ đọc). Hỏng thì chỉ ghi nhật ký, không làm dừng người canh.
+ */
+async function baoQuanTri(noiDung) {
+  if (!process.env.DATABASE_URL) return;
+  const kho = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+  try {
+    const r = await kho.query(
+      `SELECT tc.chat_id, tc.bot_token, tc.uses_platform_bot FROM telegram_configs tc JOIN users u ON u.id = tc.user_id
+        WHERE u.role = 'admin' AND tc.enabled AND COALESCE(tc.chat_id, '') <> ''`
+    );
+    for (const dong of r.rows) {
+      const token = dong.uses_platform_bot ? process.env.TELEGRAM_BOT_TOKEN : dong.bot_token;
+      if (!token) continue;
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: dong.chat_id, text: noiDung, parse_mode: "HTML" }),
+        signal: AbortSignal.timeout(15_000),
+      });
+    }
+    log(`Đã báo quản trị qua Telegram (${r.rows.length} nơi nhận).`);
+  } catch (error) {
+    log(`Không báo được quản trị qua Telegram: ${error.message}`);
+  } finally {
+    await kho.end().catch(() => {});
+  }
+}
+
 async function rotate() {
   if (child) {
     child.kill();
@@ -375,8 +418,33 @@ async function main() {
    */
   const HONG_LIEN_TIEP_MOI_DUNG_LAI = 3;
   let soLanKhongThong = 0;
+  let trangThaiGoc = { chetTu: null, daBao: false };
+  /*
+   * Cờ chống CHỒNG LƯỢT (19/10/2026): setInterval(async) chạy lượt mới cả khi lượt trước (dựng lại đường hầm — có thể
+   * quá 60 giây) chưa xong → lượt mới đếm "không phản hồi" ngay lúc tên miền mới chưa kịp phân giải, đủ 3 lần là đập bỏ
+   * đường hầm vừa dựng.
+   */
+  let dangXet = false;
 
   setInterval(async () => {
+    if (dangXet) return;
+    dangXet = true;
+    try {
+      await motLuot();
+    } finally {
+      dangXet = false;
+    }
+  }, CHECK_INTERVAL_MS);
+
+  async function motLuot() {
+    // Gốc (máy chủ trong máy) xét MỌI lượt, kể cả lúc đang lùi: tắt quá 5 phút liên tiếp → báo quản trị một lần; sống lại
+    // → báo một lần nữa (nguoi-canh-luat.mjs — baoGoc).
+    const song = await gocSong();
+    const bao = baoGoc(trangThaiGoc, song, Date.now());
+    trangThaiGoc = bao.trangThai;
+    if (bao.gui === "tat") await baoQuanTri(TIN_GOC_TAT);
+    if (bao.gui === "song") await baoQuanTri(TIN_GOC_SONG);
+
     // Đang trong thời gian lùi thì không đụng vào Cloudflare.
     if (choToiPhut > 0) {
       choToiPhut -= CHECK_INTERVAL_MS / 60_000;
@@ -384,15 +452,25 @@ async function main() {
     }
 
     const healthy = currentUrl ? await tunnelHealthy(currentUrl) : false;
-    soLanKhongThong = healthy ? 0 : soLanKhongThong + 1;
+    const qd = quyetDinh({
+      gocSong: song,
+      duongHamThong: healthy,
+      soLanKhongThong,
+      nguong: currentUrl ? HONG_LIEN_TIEP_MOI_DUNG_LAI : 1,
+    });
+    soLanKhongThong = qd.soLanKhongThong;
 
-    if (!healthy && currentUrl && soLanKhongThong < HONG_LIEN_TIEP_MOI_DUNG_LAI) {
+    if (qd.hanhDong === "cho_goc") {
+      log("Máy chủ trong máy đang tắt — giữ đường hầm, KHÔNG dựng lại (dựng lại không chữa được máy chủ tắt).");
+      return;
+    }
+
+    if (qd.hanhDong === "dem") {
       log(`Tunnel không phản hồi (lần ${soLanKhongThong}/${HONG_LIEN_TIEP_MOI_DUNG_LAI}) — chờ xem lại, chưa dựng lại.`);
       return;
     }
 
-    if (!healthy) {
-      soLanKhongThong = 0;
+    if (qd.hanhDong === "dung_lai") {
       log("Tunnel không phản hồi — đang dựng lại");
       try {
         await rotate();
@@ -424,7 +502,7 @@ async function main() {
     // Tunnel sống vẫn phải xét riêng trạng thái ngắt của Zernio: hai tình
     // trạng độc lập, và ngắt không tự hết khi tunnel hồi phục.
     await checkSuppression();
-  }, CHECK_INTERVAL_MS);
+  }
 }
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
