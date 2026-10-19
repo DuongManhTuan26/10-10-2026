@@ -3914,8 +3914,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "cửa ra: hàm lọc kênh luôn cho qua (kênh đã rời vẫn gửi được)",
     tep: "server/services/cua-ra.ts",
-    tim: "    if (k.trang_id === trangCuaViec && k.connected) duoc.push(k.id);",
-    thay: "    duoc.push(k.id);",
+    tim: "    if (k.trang_id !== trangCuaViec) daRoi.push(k.id);",
+    thay: "    if (false) daRoi.push(k.id);",
   },
   {
     ten: "cửa ra: không kênh nào dùng được mà vẫn cho gửi",
@@ -4000,6 +4000,18 @@ const DUC: PhepDuc[] = [
     tep: "src/pages/Content.tsx",
     tim: "  const handleCancelSchedule = (id: number) => {\n    if (lichDaGui(id)) {",
     thay: "  const handleCancelSchedule = (id: number) => {\n    if (false) {",
+  },
+  {
+    ten: "cửa ra: kênh chỉ mất kết nối mà báo 'đã rời cửa hàng'",
+    tep: "server/services/cua-ra.ts",
+    tim: "kq.daRoi.length > 0 ? LOI_KENH_DA_ROI : LOI_KENH_MAT_KET_NOI",
+    thay: "LOI_KENH_DA_ROI",
+  },
+  {
+    ten: "cửa ra: lọc coi kênh mất kết nối là đã rời",
+    tep: "server/services/cua-ra.ts",
+    tim: "    else if (!k.connected) matNoi.push(k.id);",
+    thay: "    else if (!k.connected) daRoi.push(k.id);",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

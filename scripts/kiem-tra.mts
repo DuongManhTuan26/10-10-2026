@@ -39,7 +39,7 @@ import { docTuChu } from "../server/services/sales-autonomy.js";
 import { matchesKeywords } from "../server/services/comment-ai.js";
 import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { cauLenhKenhBai, cauLenhKenhLich, kenhNgoaiCuaHang, LOI_BAI_KHONG_CUA_HANG, LOI_BAI_KHONG_KENH, LOI_LICH_KHONG_CUA_HANG } from "../server/services/kenh-dang.js";
-import { chanCuaRa, locKenhGuiDuoc } from "../server/services/cua-ra.js";
+import { chanCuaRa, locKenhGuiDuoc, LOI_KENH_DA_ROI, LOI_KENH_MAT_KET_NOI } from "../server/services/cua-ra.js";
 import { khoangTheoKy, lichChay, ngayVN, ngayDayDu } from "../src/lib/ky-ngay.js";
 import { lenhDoiTrangThai, lenhNhanBan, NEN_TANG_NHAN_BAN } from "../server/services/ads.js";
 import { docChienDich, nhanTrangThaiChienDich } from "../src/lib/chien-dich.js";
@@ -6404,16 +6404,21 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("cửa ra", "chỉ kênh còn thuộc đúng cửa hàng của việc VÀ còn nối được dùng; việc không có cửa hàng → không kênh nào",
     [locKenhGuiDuoc([K("fb1", 47), K("ig1", 47)], 47), locKenhGuiDuoc([K("fb1", 370), K("ig1", 47)], 47),
       locKenhGuiDuoc([K("fb1", 47, false)], 47), locKenhGuiDuoc([K("fb1", 47)], null)],
-    [{ duoc: ["fb1", "ig1"], daRoi: [] }, { duoc: ["ig1"], daRoi: ["fb1"] }, { duoc: [], daRoi: ["fb1"] }, { duoc: [], daRoi: ["fb1"] }]);
+    [{ duoc: ["fb1", "ig1"], daRoi: [], matNoi: [] }, { duoc: ["ig1"], daRoi: ["fb1"], matNoi: [] }, { duoc: [], daRoi: [], matNoi: ["fb1"] },
+      { duoc: [], daRoi: ["fb1"], matNoi: [] }]);
 
   // Hành vi của chốt (đọc kênh giả): không còn kênh dùng được → ném 409; kênh lạ / của tài khoản khác → bị loại.
   const thuChot = async (ids: string[], trang: number | null, co: ReturnType<typeof K>[]) => {
-    try { return await chanCuaRa(5, ids, trang, async () => co); } catch (e) { return `${(e as { status?: number }).status}`; }
+    try { return await chanCuaRa(5, ids, trang, async () => co); } catch (e) {
+      const loi = e as { status?: number; message?: string };
+      return `${loi.status}:${loi.message === LOI_KENH_DA_ROI ? "roi" : loi.message === LOI_KENH_MAT_KET_NOI ? "matnoi" : "khac"}`;
+    }
   };
-  kiem("cửa ra", "chốt: kênh đã rời / đã ngắt / lạ → chặn (409); còn một kênh đúng → chỉ kênh đó",
+  kiem("cửa ra", "chốt: đã rời / lạ → 409 'đã rời'; chỉ mất kết nối → 409 'nối lại'; có cả hai → ưu tiên 'đã rời'; còn kênh đúng → chỉ kênh đó",
     [await thuChot(["fb1"], 47, [K("fb1", 370)]), await thuChot(["fb1"], 47, [K("fb1", 47, false)]), await thuChot(["la"], 47, []),
+      await thuChot(["fb1", "ig1"], 47, [K("fb1", 370), K("ig1", 47, false)]),
       await thuChot(["fb1", "ig1", "la"], 47, [K("fb1", 370), K("ig1", 47)]), await thuChot([], 47, [])],
-    ["409", "409", "409", { duoc: ["ig1"], daRoi: ["fb1", "la"] }, "409"]);
+    ["409:roi", "409:matnoi", "409:roi", "409:roi", { duoc: ["ig1"], daRoi: ["fb1", "la"], matNoi: [] }, "409:matnoi"]);
 
   // Mọi lời gọi gửi ra ngoài nhân danh bài / khách: đúng 7 chỗ, chỗ nào cũng có chốt ngay phía trên.
   const MAU_GUI = /(zernio\.(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|deletePost)|ads\.boostPost)\(/g;

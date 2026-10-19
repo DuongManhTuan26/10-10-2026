@@ -17,6 +17,8 @@ import { AppError } from "../http.js";
 
 export const LOI_KENH_DA_ROI =
   "Kênh đã rời cửa hàng này — cửa hàng không còn gửi tin, đăng, sửa hay gỡ được gì qua kênh đó.";
+/** Kênh vẫn thuộc đúng cửa hàng nhưng mất kết nối — việc cần làm là NỐI LẠI (khác hẳn "đã rời"). */
+export const LOI_KENH_MAT_KET_NOI = "Kênh đang mất kết nối. Vui lòng vào Kết nối kênh để nối lại rồi thử lại.";
 
 export interface KenhXet {
   id: string;
@@ -24,34 +26,43 @@ export interface KenhXet {
   connected: boolean;
 }
 
-/** Hàm thuần: kênh nào được dùng nhân danh cửa hàng `trangCuaViec` (đúng cửa hàng VÀ còn nối). */
-export function locKenhGuiDuoc(kenh: KenhXet[], trangCuaViec: number | null): { duoc: string[]; daRoi: string[] } {
-  if (trangCuaViec == null) return { duoc: [], daRoi: kenh.map((k) => k.id) };
+/**
+ * Hàm thuần: kênh nào được dùng nhân danh cửa hàng `trangCuaViec` (đúng cửa hàng VÀ còn nối). daRoi = không thuộc cửa
+ * hàng của việc; matNoi = thuộc đúng cửa hàng nhưng mất kết nối.
+ */
+export function locKenhGuiDuoc(
+  kenh: KenhXet[],
+  trangCuaViec: number | null
+): { duoc: string[]; daRoi: string[]; matNoi: string[] } {
+  if (trangCuaViec == null) return { duoc: [], daRoi: kenh.map((k) => k.id), matNoi: [] };
   const duoc: string[] = [];
   const daRoi: string[] = [];
+  const matNoi: string[] = [];
   for (const k of kenh) {
-    if (k.trang_id === trangCuaViec && k.connected) duoc.push(k.id);
-    else daRoi.push(k.id);
+    if (k.trang_id !== trangCuaViec) daRoi.push(k.id);
+    else if (!k.connected) matNoi.push(k.id);
+    else duoc.push(k.id);
   }
-  return { duoc, daRoi };
+  return { duoc, daRoi, matNoi };
 }
 
 /**
- * Chốt: đọc kênh rồi lọc. Không còn kênh nào dùng được → ném AppError 409 (LOI_KENH_DA_ROI). Kênh lạ / của tài khoản
- * khác không có trong kết quả đọc → coi như không dùng được.
+ * Chốt: đọc kênh rồi lọc. Không còn kênh nào dùng được → ném AppError 409 (LOI_KENH_DA_ROI, hoặc LOI_KENH_MAT_KET_NOI
+ * khi mọi kênh đúng cửa hàng chỉ mất kết nối). Kênh lạ / của tài khoản khác không có trong kết quả đọc → tính là đã rời.
  */
 export async function chanCuaRa(
   userId: number,
   kenhIds: (string | null | undefined)[],
   trangCuaViec: number | null,
   docKenh: (userId: number, ids: string[]) => Promise<KenhXet[]> = docKenhThat
-): Promise<{ duoc: string[]; daRoi: string[] }> {
+): Promise<{ duoc: string[]; daRoi: string[]; matNoi: string[] }> {
   const ids = [...new Set(kenhIds.filter((x): x is string => typeof x === "string" && x !== ""))];
   const ds = await docKenh(userId, ids);
   const kq = locKenhGuiDuoc(ds, trangCuaViec);
   const coMat = new Set(ds.map((k) => k.id));
   kq.daRoi.push(...ids.filter((id) => !coMat.has(id)));
-  if (kq.duoc.length === 0) throw new AppError(LOI_KENH_DA_ROI, 409);
+  // Không còn kênh dùng được: báo đúng lý do — có kênh đã rời cửa hàng thì ưu tiên câu đó; chỉ mất kết nối thì bảo nối lại.
+  if (kq.duoc.length === 0) throw new AppError(kq.daRoi.length > 0 ? LOI_KENH_DA_ROI : LOI_KENH_MAT_KET_NOI, 409);
   return kq;
 }
 
