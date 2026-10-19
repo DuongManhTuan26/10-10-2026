@@ -4076,8 +4076,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "nhiệm kỳ: đổi cửa hàng của kênh mà không đổi nhiệm kỳ",
     tep: "server/services/trang.ts",
-    tim: "    const doi = await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });",
-    thay: "    const doi = { daDong: null as { trang_id: number | null } | null }; void doiNhiemKy;",
+    tim: "  const doi = await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });",
+    thay: "  const doi = { daDong: null as { trang_id: number | null } | null }; void doiNhiemKy;",
   },
   {
     ten: "nhiệm kỳ: AI trả lời hội thoại của nhiệm kỳ đã đóng",
@@ -4226,8 +4226,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "2b: kênh rời mà kịch bản của cửa hàng cũ không tắt",
     tep: "server/services/trang.ts",
-    tim: "    if (doi.daDong?.trang_id != null) {",
-    thay: "    if (false) {",
+    tim: "  if (doi.daDong?.trang_id != null) {",
+    thay: "  if (false) {",
   },
   {
     ten: "2b: danh sách kịch bản lấy cả tài khoản",
