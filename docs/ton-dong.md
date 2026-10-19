@@ -161,3 +161,13 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
 - 19/10/2026: đường PATCH /api/ads/ad-sets/:id/budget đã TẮT (không màn nào gọi; kiểm chủ sở hữu qua GET
   /v1/ads/ad-sets/{id}?accountId không đủ — accountId chỉ để lấy token, tài liệu 28755). Làm lại thì phải so account_id
   của nhóm quảng cáo với tài khoản quảng cáo của cửa hàng đang chọn.
+
+## TD-14 — Mục f (khoá tài khoản) còn 3 phần CHƯA THỬ THẬT (19/10/2026)
+
+Mã + phép kiểm + đột biến đã đạt, phiên kiểm duyệt cho đạt (73b82d3, 29a69bc, 025c692). Đã thử thật khoá / mở khoá trên
+tài khoản thử 118 (0 kênh). Còn chưa thử với dữ liệu thật vì tài khoản thử không có kênh / dự án:
+- Nhãn "Tạm dừng" (cam) của video dài dừng do khoá — cần một dự án video dài đang 'dang_tao' lúc mở khoá.
+- Luồng "chỉ lưu": tin / bình luận thật của kênh thuộc tài khoản đang khoá vào hộp thư, AI không trả lời.
+- Worker gặp sự kiện thật của tài khoản đang khoá / tin lúc khoá xử lý sau khi mở.
+Cách thử khi có: tài khoản thử nối 1 Fanpage thử → khoá → nhắn thử 1 tin + 1 bình luận → mở khoá → xem hộp thư (tin có,
+AI không trả lời; bình luận skipped_reason "Đến lúc tài khoản đang khoá…").
