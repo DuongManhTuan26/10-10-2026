@@ -61,6 +61,13 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 │           (nhiệm kỳ kênh + cột cửa hàng chốt cho hội thoại / khách / bình luận / kịch bản) mới chặn.
 │         · Đợt 3: giao diện "Kênh đã rời — chỉ xem lịch sử", hộp xác nhận chuyển kênh, gỡ / đổi lịch bài đã hẹn bên
 │           nhà cung cấp (hiện Đổi / Huỷ lịch bài đã gửi nền tảng bị chặn, nói thật).
+│         · Chủ dự án chốt thêm (19/10):
+│             - bình luận MỚI trên bài cũ của cửa hàng trước (kênh đã sang cửa hàng mới): thuộc cửa hàng mới, AI / kịch bản
+│               của cửa hàng mới TỰ TRẢ LỜI như bình luận thường;
+│             - quảng cáo của cửa hàng cũ đang chạy trên kênh: CHỈ CẢNH BÁO trong hộp xác nhận, không tự dừng;
+│             - bài cửa hàng cũ đã hẹn giờ bên nhà cung cấp trên kênh: GỠ LỊCH lúc chuyển;
+│             - bài cũ trên kênh đã rời: CHO XOÁ khỏi app (bài trên nền tảng vẫn còn, cửa hàng không gỡ được);
+│             - kịch bản bình luận của cửa hàng cũ trên kênh: TẮT lúc kênh rời; kênh quay về thì chủ shop tự bật lại.
 │     • Không có "Đổi Fanpage": ngắt cái cũ, nối cái mới
 │     • Quảng cáo Meta đi kèm Facebook, không nối riêng
 ├── BỘ NÃO AI — 4 AI cố định, liền mạch, không tách rời
