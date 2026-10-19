@@ -94,7 +94,8 @@ try {
   const cx = (await c.query<{ id: string; chi_xem: string | null }>(
     `SELECT c.id, ${LY_DO_CHI_XEM("c", "sa")} AS chi_xem FROM conversations c LEFT JOIN social_accounts sa ON sa.id = c.social_account_id
       WHERE c.id = ANY($1::text[])`, [[h0, h1, h2]])).rows;
-  const cxCua = (id: string) => cx.find((r) => r.id === id)?.chi_xem ?? "khong-thay";
+  // null là giá trị HỢP LỆ (không chỉ xem) — không dùng ?? để phân biệt với "không tìm thấy dòng".
+  const cxCua = (id: string) => { const r = cx.find((x) => x.id === id); return r ? r.chi_xem : "khong-thay"; };
   kiem("chỉ xem: h1 (k1 đã rời) = da_roi; h2 (k2 ở lại) = null; h0 (kênh chưa gắn) = chua_gan", [cxCua(h1), cxCua(h2), cxCua(h0)], ["da_roi", null, "chua_gan"]);
   // Khớp chốt cửa ra: nhiệm kỳ của h1 đã đóng (DK_NHIEM_KY_MO sai), h2 còn mở.
   const mo = (await c.query(
