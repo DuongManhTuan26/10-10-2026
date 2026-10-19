@@ -40,6 +40,7 @@ import { matchesKeywords } from "../server/services/comment-ai.js";
 import { docCauHinh, oLichToiHan } from "../server/services/autopilot.js";
 import { cauLenhKenhBai, cauLenhKenhLich, kenhNgoaiCuaHang, LOI_BAI_KHONG_CUA_HANG, LOI_BAI_KHONG_KENH, LOI_LICH_KHONG_CUA_HANG } from "../server/services/kenh-dang.js";
 import { chanCuaRa, locKenhGuiDuoc, LOI_KENH_DA_ROI, LOI_KENH_MAT_KET_NOI } from "../server/services/cua-ra.js";
+import { chonNhiemKy, doiNhiemKy, maHoiThoai, type NhiemKy } from "../server/services/nhiem-ky.js";
 import { khoangTheoKy, lichChay, ngayVN, ngayDayDu } from "../src/lib/ky-ngay.js";
 import { lenhDoiTrangThai, lenhNhanBan, NEN_TANG_NHAN_BAN } from "../server/services/ads.js";
 import { docChienDich, nhanTrangThaiChienDich } from "../src/lib/chien-dich.js";
@@ -2417,8 +2418,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("vớt tin bỏ sót", "chờ một lúc để đường bình thường làm trước",
     /cuoi\.created_at < now\(\) - \(\$1 \|\| ' milliseconds'\)::interval/.test(thanBoSot), true);
   kiem("vớt tin bỏ sót", "đi qua đúng đường xử lý chính, không viết đường thứ hai",
-    // Chạy trong ngữ cảnh Trang của kênh hội thoại (tiền AI ghi đúng trang) — vẫn đúng một đường xử lý chính.
-    /if \(await chayChoKenh\(hc\.social_account_id, \(\) => handleIncomingMessage\(hc\.id\)\)\) daVot \+= 1;/.test(thanBoSot), true);
+    // Chạy trong ngữ cảnh cửa hàng CỦA HỘI THOẠI (nhiệm kỳ kênh, 19/10/2026) — vẫn đúng một đường xử lý chính.
+    /if \(await chayChoTrang\(hc\.trang_id, \(\) => handleIncomingMessage\(hc\.id\)\)\) daVot \+= 1;/.test(thanBoSot), true);
   kiem("vớt tin bỏ sót", "không đụng hội thoại nhân viên đang giữ",
     /WHERE c\.status = 'ai'/.test(thanBoSot), true);
 
@@ -2703,13 +2704,14 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   // Phép kiểm cũ chỉ hỏi "tệp này có câu LEFT JOIN nào không" — mà tệp có HAI
   // câu truy vấn hội thoại. Bỏ câu này thì câu kia vẫn làm phép kiểm xanh.
   // Nay soi từng câu một, buộc cả hai đều phải tự lấy trang_id.
-  kiem("bộ não theo Trang", "hội thoại mang sẵn trang_id, suy một lần",
-    /s\.trang_id\s*\n\s*FROM conversations c\s*\n\s*LEFT JOIN social_accounts s ON s\.id = c\.social_account_id/
+  // Kênh là nhân viên (19/10/2026): bộ não = cửa hàng CỦA HỘI THOẠI (conversations.trang_id, chốt theo nhiệm kỳ), KHÔNG
+  // suy qua kênh — kênh chuyển cửa hàng thì hội thoại cũ vẫn là việc của cửa hàng cũ.
+  kiem("bộ não theo Trang", "hội thoại mang sẵn trang_id CỦA HỘI THOẠI (không suy qua kênh) + cờ nhiệm kỳ mở",
+    /c\.trang_id, \$\{DK_NHIEM_KY_MO\("c\.nhiem_ky_id"\)\} AS nhiem_ky_mo\s*\n\s*FROM conversations c\s*\n\s*WHERE c\.id = \$1/
       .test(nguonBan2) &&
-      /trang_id: number \| null;/.test(nguonBan2), true);
-  kiem("bộ não theo Trang", "gợi ý trả lời cũng lấy trang_id từ kênh",
-    /SELECT c\.user_id, s\.trang_id FROM conversations c\s*\n\s*LEFT JOIN social_accounts s ON s\.id = c\.social_account_id/
-      .test(nguonBan2), true);
+      /trang_id: number \| null;/.test(nguonBan2) && !/s\.trang_id/.test(nguonBan2), true);
+  kiem("bộ não theo Trang", "gợi ý trả lời cũng lấy trang_id của hội thoại",
+    /SELECT c\.user_id, c\.trang_id FROM conversations c\s*\n\s*WHERE c\.id = \$1/.test(nguonBan2), true);
 
   const nguonKt = fs.readFileSync(path.join(GOC, "server/services/knowledge.ts"), "utf8");
   kiem("bộ não theo Trang", "không biết Trang thì trả kiến thức rỗng, không lấy đại",
@@ -3951,7 +3953,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 
   const nguonSuKien = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/events.ts"), "utf8"));
   kiem("chống đốt tiền AI", "xin suất TRƯỚC khi gọi AI đọc ảnh khách gửi",
-    /if \(!xinSuatDocAnh\(message\.conversationId, accountId\)\) \{[\s\S]{0,200}?break;\s*\}\s*try \{\s*const doc = await docTepKhachGui\(/.test(nguonSuKien), true);
+    /if \(!xinSuatDocAnh\(maHT, accountId\)\) \{[\s\S]{0,200}?break;\s*\}\s*try \{\s*const doc = await docTepKhachGui\(/.test(nguonSuKien), true);
 
   // Đã đo khi quét mọi đường API: /api/posts/abc… vỡ 500 vì chữ vào cột số.
   const thuMa = (v: string) => {
@@ -5258,7 +5260,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/chayVoiCachTim\(\(\) => layTrangDangChon\(userId, kenh \?\? null\), next\);/.test(app),
       /req\.get\("x-kenh"\)/.test(app),
       /await chayChoKenh\(event\.account_id, \(\) => handleWebhookEvent\(\{/.test(wk),
-      /await chayChoKenh\(hoi\.social_account_id, \(\) => soanCauNhac\(hoi, hoi\.nhac_lai_count\)\)/.test(sales),
+      // Nhắc khách chạy bằng bộ não của cửa hàng CỦA HỘI THOẠI (nhiệm kỳ kênh, 19/10/2026).
+      /await chayChoTrang\(hoi\.trang_id, \(\) => soanCauNhac\(hoi, hoi\.nhac_lai_count\)\)/.test(sales),
       /await chayChoTrang\(shop\.trang_id, \(\) => lamMotO\(/.test(ap),
       /await chayChoTrang\(v\.trang_id \?\? null, \(\) => xuLyMotViec\(v\)\);/.test(vd),
       /await chayChoTrang\(d\.trang_id, \(\) => tienMotDuAn\(d\)\);/.test(vdd),
@@ -6286,9 +6289,10 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const thanBinhLuan = thanHam("server/services/comment-ai.ts", "handleCommentReceived");
   const thanXuLy = thanHam("server/worker.ts", "processEvent");
   kiem("khoá tài khoản", "chỉ lưu — tin nhắn: lưu tin TRƯỚC; không đọc ảnh (AI trả phí); dừng TRƯỚC khi gọi AI trả lời",
-    [viTri(/INSERT INTO messages/) > 0 && viTri(/INSERT INTO messages/) < viTri(/if \(event\.chiLuu\) \{/),
-      /if \(!event\.chiLuu && attachments\.length > 0\) \{/.test(thanNhanTin),
-      viTri(/if \(event\.chiLuu\) \{\s*console\.log\([\s\S]{0,200}?\);\s*return;\s*\}/) > 0 && viTri(/if \(event\.chiLuu\) \{/) < viTri(/await handleIncomingMessage\(/),
+    // Nhiệm kỳ kênh (19/10/2026): tin rơi vào nhiệm kỳ ĐÃ ĐÓNG cũng chỉ lưu (ht.daDong).
+    [viTri(/INSERT INTO messages/) > 0 && viTri(/INSERT INTO messages/) < viTri(/if \(event\.chiLuu \|\| ht\.daDong\) \{/),
+      /if \(!event\.chiLuu && !ht\.daDong && attachments\.length > 0\) \{/.test(thanNhanTin),
+      viTri(/if \(event\.chiLuu \|\| ht\.daDong\) \{\s*console\.log\([\s\S]{0,200}?\);\s*return;\s*\}/) > 0 && viTri(/if \(event\.chiLuu \|\| ht\.daDong\) \{/) < viTri(/await handleIncomingMessage\(/),
       /handleCommentReceived\(\{ accountId: event\.accountId, payload: event\.payload, chiLuu: event\.chiLuu \}\)/.test(nguonEv)],
     [true, true, true, true]);
   kiem("khoá tài khoản", "chỉ lưu — bình luận: ghi bình luận TRƯỚC, đánh dấu bỏ qua rồi dừng TRƯỚC khi chọn kịch bản / tin riêng / trả lời công khai",
@@ -6447,7 +6451,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   // (a) gửi bằng kênh LẤY TỪ KẾT QUẢ CHỐT, không dùng biến kênh ban đầu (lệnh nào có tham số kênh).
   const ob = doc2("server/services/outbound.ts"), ca = doc2("server/services/comment-ai.ts"), pb = doc2("server/services/publish.ts");
   kiem("cửa ra", "lệnh có tham số kênh gửi bằng kênh từ kết quả chốt (duoc); lệnh chỉ nhận mã bài thì chốt chỉ chặn",
-    [/kenhGui = cuaRa\.duoc\[0\];[\s\S]*?zernio\.sendMessage\(\{\s*conversationId: params\.conversationId,\s*accountId: kenhGui,/.test(ob),
+    // Gửi bằng MÃ LUỒNG của hội thoại (nhiệm kỳ kênh: mã dòng trong app có thể mang hậu tố nhiệm kỳ).
+    [/kenhGui = cuaRa\.duoc\[0\];[\s\S]*?zernio\.sendMessage\(\{\s*(\/\/[^\n]*\n\s*)?conversationId: conversation\.ma_luong,\s*accountId: kenhGui,/.test(ob),
       (ca.match(/const cuaRa = await chanCuaRa\(params\.userId, \[params\.accountId\], await trangTamTheoKenh\(params\.accountId\)\);\s*await zernio\.(privateReplyToComment|replyToComment)\(\{[^}]*accountId: cuaRa\.duoc\[0\],/g) ?? []).length,
       /const kenhDang = targets\.rows\.filter\(\(row\) => cuaRa\.duoc\.includes\(row\.id\)\);[\s\S]*?targets: kenhDang\.map\(/.test(pb),
       // Chốt đặt TRƯỚC khi đổi trạng thái bài (bị chặn thì bài không kẹt "đang đăng").
@@ -6458,9 +6463,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     /import\s*\{[^}]*\b(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|deletePost|boostPost)\b[^}]*\}\s*from\s*"[^"]*\/(zernio|ads)\.js"/.test(fs.readFileSync(t, "utf8")))
     .map((t) => path.relative(GOC, t));
   kiem("cửa ra", "không tệp nào nhập tên riêng hàm gửi từ zernio / ads", nhapRieng, []);
-  // Đợt 1 CHƯA chặn tin của hội thoại nhiệm kỳ cũ: cửa hàng của tin / bình luận tạm theo kênh (trangTamTheoKenh) — đợt 2
-  // thay bằng cột cửa hàng chốt. Ghi đúng 3 chỗ để đợt 2 không sót.
-  kiem("cửa ra", "ĐỢT 1 TẠM: tin / bình luận lấy cửa hàng theo kênh ở đúng 3 chỗ (đợt 2 thay bằng cột chốt)",
+  // Đợt 2a: tin dùng cửa hàng + nhiệm kỳ CỦA HỘI THOẠI; trangTamTheoKenh ở outbound chỉ còn làm dự phòng khi hội thoại chưa
+  // có cửa hàng (kênh chưa gắn cửa hàng). 2 chỗ của bình luận (comment-ai) — đợt 2b thay bằng comments.trang_id.
+  kiem("cửa ra", "trangTamTheoKenh còn đúng 3 chỗ: 1 dự phòng ở gửi tin + 2 ở bình luận (đợt 2b thay)",
     [(ob.match(/await trangTamTheoKenh\(/g) ?? []).length + (ca.match(/await trangTamTheoKenh\(/g) ?? []).length], [3]);
   const ps2 = doc2("server/routes/posts.ts"), ad2 = doc2("server/routes/ads.ts");
   kiem("cửa ra", "sửa chữ / gỡ bài / đẩy bài: kênh của bài phải còn thuộc cửa hàng của bài (kênh rời → giữ bài làm lịch sử)",
@@ -6476,6 +6481,81 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/const handleSchedule = async[^\n]*\{\s*if \(lichDaGui\(id\)\) \{\s*setErrorMessage\(LOI_LICH_DA_GUI\);\s*return;/.test(ct2),
       /const handleCancelSchedule = \(id: number\) => \{\s*if \(lichDaGui\(id\)\) \{\s*setErrorMessage\(LOI_LICH_DA_GUI\);\s*return;/.test(ct2)],
     [true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// KÊNH LÀ NHÂN VIÊN — đợt 2a: NHIỆM KỲ KÊNH (chủ dự án chốt 19/10/2026 "ra đi tay trắng, quay về người không").
+// ---------------------------------------------------------------------------
+{
+  const d3 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const T = (s: string) => new Date(`2026-10-19T${s}Z`);
+  const nk = (id: number, trang_id: number, tu: string, den: string | null): NhiemKy => ({ id, trang_id, tu_luc: T(tu), den_luc: den ? T(den) : null });
+  // A (47) → B (370) lúc 10:00 → quay về A lúc 12:00 (nhiệm kỳ MỚI).
+  const ds = [nk(1, 47, "08:00:00", "10:00:00"), nk(2, 370, "10:00:00", "12:00:00"), nk(3, 47, "12:00:00", null)];
+  kiem("nhiệm kỳ", "điểm nối: đúng mốc → nhiệm kỳ mới; lệch −1 giây → nhiệm kỳ cũ; +1 giây → mới; trước nhiệm kỳ đầu → nhiệm kỳ đầu",
+    [chonNhiemKy(ds, T("10:00:00"))?.id, chonNhiemKy(ds, T("09:59:59"))?.id, chonNhiemKy(ds, T("10:00:01"))?.id, chonNhiemKy(ds, T("07:00:00"))?.id,
+      chonNhiemKy([], T("10:00:00"))],
+    [2, 1, 2, 1, null]);
+  kiem("nhiệm kỳ", "quay về cửa hàng cũ là nhiệm kỳ MỚI: tin lúc 09:00 vẫn thuộc nhiệm kỳ 1 (đã đóng), tin lúc 13:00 thuộc nhiệm kỳ 3",
+    [chonNhiemKy(ds, T("09:00:00"))?.id, chonNhiemKy(ds, T("13:00:00"))?.id], [1, 3]);
+  kiem("nhiệm kỳ", "mã dòng hội thoại: chưa có / cùng nhiệm kỳ → mã luồng; luồng đã thuộc nhiệm kỳ khác → mã luồng + hậu tố nhiệm kỳ",
+    [maHoiThoai("t_1", 2, null), maHoiThoai("t_1", 2, { nhiem_ky_id: 2 }), maHoiThoai("t_1", 3, { nhiem_ky_id: 1 }), maHoiThoai("t_1", null, { nhiem_ky_id: 1 })],
+    ["t_1", "t_1", "t_1~3", "t_1"]);
+  const KN = (id: string, trang_id: number, nhiem_ky_mo: number) => ({ id, trang_id, connected: true, nhiem_ky_mo });
+  kiem("nhiệm kỳ", "chốt cửa ra theo nhiệm kỳ: kênh quay về A (nhiệm kỳ 3) — hội thoại A nhiệm kỳ 1 KHÔNG gửi được; hội thoại nhiệm kỳ 3 gửi được",
+    [locKenhGuiDuoc([KN("fb1", 47, 3)], 47, 1), locKenhGuiDuoc([KN("fb1", 47, 3)], 47, 3), locKenhGuiDuoc([KN("fb1", 47, 3)], 47)],
+    [{ duoc: [], daRoi: ["fb1"], matNoi: [] }, { duoc: ["fb1"], daRoi: [], matNoi: [] }, { duoc: ["fb1"], daRoi: [], matNoi: [] }]);
+
+  // Mở / đóng nhiệm kỳ (client giả ghi thứ tự câu lệnh).
+  const ghiNk = async (dangMo: { id: number; trang_id: number } | null, trangMoi: number) => {
+    const cau: string[] = [];
+    const kq = await doiNhiemKy({ query: (async (sql: string) => { cau.push(sql.replace(/\s+/g, " ").trim().slice(0, 30)); return { rows: dangMo && sql.startsWith("SELECT") ? [dangMo] : [] }; }) as never },
+      { accountId: "fb1", userId: 5, trangMoi });
+    return { cau, kq };
+  };
+  const a1 = await ghiNk({ id: 1, trang_id: 47 }, 47), a2 = await ghiNk({ id: 1, trang_id: 47 }, 370), a3 = await ghiNk(null, 47);
+  kiem("nhiệm kỳ", "đổi nhiệm kỳ: cùng cửa hàng → không làm gì; khác → đóng cũ rồi mở mới; chưa có → mở mới",
+    [a1.cau.length, a1.kq.moMoi, a2.cau.map((c) => c.split(" ")[0]), a2.kq.daDong?.id, a3.cau.map((c) => c.split(" ")[0]), a3.kq.moMoi],
+    [1, false, ["SELECT", "UPDATE", "INSERT"], 1, ["SELECT", "INSERT"], true]);
+
+  // Điều kiện 1 của phiên kiểm duyệt: SAU khi lấy maHT, KHÔNG còn mã luồng của nhà cung cấp làm tham số SQL / đối số hàm.
+  const evN = d3("server/services/events.ts");
+  const dungMaLuong = (n: string) => [...n.matchAll(/(?<!\$\{)(?<!maLuong: )message\.conversationId/g)].length;
+  kiem("nhiệm kỳ", "events.ts: mã luồng chỉ còn trong log + lời gọi layHoiThoaiChoTin (tin đến và tin shop gửi)",
+    [dungMaLuong(evN), (evN.match(/await layHoiThoaiChoTin\(\{/g) ?? []).length,
+      /const ht = await layHoiThoaiChoTin\(\{ maLuong: message\.conversationId, accountId, lucTin: now \}\);\s*const maHT = ht\.id;/.test(evN)],
+    [0, 2, true]);
+  kiem("nhiệm kỳ", "tin đến: hội thoại ghi kèm mã luồng + cửa hàng + nhiệm kỳ; tự chủ đọc cấu hình theo cửa hàng của HỘI THOẠI",
+    [/origin_ad_id, origin_ref, origin_post_id, origin_at, ma_luong, trang_id, nhiem_ky_id\)/.test(evN) && /ht\.maLuong,\s*ht\.trangId,\s*ht\.nhiemKyId,/.test(evN),
+      /JOIN conversations c ON c\.trang_id = a\.trang_id\s*WHERE c\.id = \$1 AND a\.kind = 'sales'/.test(evN), /JOIN social_accounts s ON s\.trang_id = a\.trang_id/.test(evN)],
+    [true, true, false]);
+  const ib = d3("server/routes/inbox.ts"), rc = d3("server/services/reconcile.ts");
+  kiem("nhiệm kỳ", "đồng bộ hộp thư + rà soát: nhập qua nhiệm kỳ / xét theo cả luồng (không dùng mã luồng làm khoá dòng)",
+    [/const ht = await layHoiThoaiChoTin\(\{ maLuong: conversation\.id, accountId: account\.id, lucTin: lastAt \}\);/.test(ib) && /\[\s*ht\.id,\s*req\.user!\.id,/.test(ib),
+      (rc.match(/ma_luong = \$1|cv\.ma_luong = \$[12]/g) ?? []).length, /conversations WHERE id = \$1/.test(rc)],
+    [true, 3, false]);
+  // Điều kiện 4: social_accounts.trang_id chỉ được ghi ở trang.ts, trong giao dịch cùng việc đổi nhiệm kỳ.
+  const ghiTrangKenh = moiTepMayChu(path.join(GOC, "server")).filter((t) => /UPDATE social_accounts\s+SET[^;`"]*\btrang_id\s*=/.test(d3(path.relative(GOC, t))))
+    .map((t) => path.relative(GOC, t));
+  kiem("nhiệm kỳ", "chỉ trang.ts ghi cửa hàng của kênh, và ghi cùng giao dịch với đổi nhiệm kỳ",
+    [ghiTrangKenh, /await transaction\(async \(k\) => \{\s*const r = await k\.query\(\s*"UPDATE social_accounts SET trang_id = \$1, updated_at = now\(\) WHERE id = \$2 AND user_id = \$3",[\s\S]{0,120}if \(r\.rowCount\) await doiNhiemKy\(k, /.test(d3("server/services/trang.ts"))],
+    [["server/services/trang.ts"], true]);
+  const sa = d3("server/services/sales-ai.ts"), ob2 = d3("server/services/outbound.ts");
+  kiem("nhiệm kỳ", "bộ não theo hội thoại: AI không trả lời hội thoại nhiệm kỳ đã đóng; vớt tin / nhắc khách chỉ nhiệm kỳ mở, chạy bằng cửa hàng của hội thoại",
+    [/if \(\(conversation as ConversationRow & \{ nhiem_ky_mo\?: boolean \}\)\.nhiem_ky_mo === false\) return false;/.test(sa),
+      (sa.match(/\$\{DK_NHIEM_KY_MO\("c\.nhiem_ky_id"\)\}/g) ?? []).length, /AND c\.trang_id = \$4/.test(sa), /chayChoKenh/.test(sa)],
+    [true, 3, true, false]);
+  kiem("nhiệm kỳ", "gửi tin: chốt theo cửa hàng + nhiệm kỳ CỦA HỘI THOẠI, gửi bằng mã luồng",
+    [/conversation\.trang_id \?\? \(await trangTamTheoKenh\(conversation\.social_account_id\)\),\s*undefined,\s*conversation\.nhiem_ky_id\s*\)/.test(ob2),
+      /conversationId: conversation\.ma_luong,/.test(ob2)],
+    [true, true]);
+  const m58 = fs.readFileSync(path.join(GOC, "server/migrations/058_nhiem_ky_kenh.sql"), "utf8");
+  kiem("nhiệm kỳ", "migration 058: sao lưu TRƯỚC; mọi kênh có cửa hàng (kể cả đã ngắt) → 1 nhiệm kỳ mở; RAISE nếu sót; mỗi (luồng, nhiệm kỳ) 1 dòng",
+    [m58.search(/CREATE TABLE IF NOT EXISTS conversations_truoc_058 AS/) >= 0 && m58.search(/conversations_truoc_058/) < m58.search(/ALTER TABLE conversations/),
+      /CREATE UNIQUE INDEX IF NOT EXISTS kenh_nhiem_ky_mot_mo ON kenh_nhiem_ky \(account_id\) WHERE den_luc IS NULL;/.test(m58),
+      /FROM social_accounts s\s*WHERE s\.trang_id IS NOT NULL\s*AND NOT EXISTS/.test(m58) && !/connected/.test(m58.slice(m58.indexOf("INSERT INTO kenh_nhiem_ky"), m58.indexOf("ALTER TABLE conversations ADD"))),
+      /RAISE EXCEPTION '058:/.test(m58), /CREATE UNIQUE INDEX IF NOT EXISTS conversations_luong_nhiem_ky ON conversations \(ma_luong, nhiem_ky_id\);/.test(m58)],
+    [true, true, true, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

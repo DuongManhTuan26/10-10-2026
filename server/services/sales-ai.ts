@@ -8,7 +8,8 @@ import { sendHandoffAlert } from "./telegram.js";
 import { taoDon, daCoDon } from "./orders.js";
 import { sendMessageSafely } from "./outbound.js";
 import { xinSuatTraLoiAI } from "./chong-lam-dung.js";
-import { chayChoKenh } from "./ngu-canh-trang.js";
+import { chayChoTrang } from "./ngu-canh-trang.js";
+import { DK_NHIEM_KY_MO } from "./nhiem-ky.js";
 import { DK_SAU_MO_KHOA, DK_TAI_KHOAN_MO, TaiKhoanKhoaError } from "./tai-khoan-mo.js";
 
 /**
@@ -90,14 +91,17 @@ export async function handleIncomingMessage(conversationId: string): Promise<boo
     `SELECT c.id, c.user_id, c.social_account_id, c.customer_id, c.platform, c.status,
             c.ai_enabled, c.window_expires_at, c.last_customer_message_at,
             c.handoff_at, c.holding_sent_at, c.sales_stage,
-            s.trang_id
+            -- Bộ não = cửa hàng CỦA HỘI THOẠI (chốt theo nhiệm kỳ), không suy qua kênh — kênh là nhân viên: kênh chuyển
+            -- cửa hàng thì hội thoại cũ vẫn là việc của cửa hàng cũ (chủ dự án chốt 19/10/2026).
+            c.trang_id, ${DK_NHIEM_KY_MO("c.nhiem_ky_id")} AS nhiem_ky_mo
        FROM conversations c
-       LEFT JOIN social_accounts s ON s.id = c.social_account_id
       WHERE c.id = $1`,
     [conversationId]
   );
 
   if (!conversation) return false;
+  // Hội thoại của nhiệm kỳ kênh ĐÃ ĐÓNG (kênh đã rời cửa hàng): lịch sử — AI không trả lời, dù được gọi từ đường nào.
+  if ((conversation as ConversationRow & { nhiem_ky_mo?: boolean }).nhiem_ky_mo === false) return false;
 
   // Nhân viên đang trực tiếp xử lý — tuyệt đối không xen vào.
   if (conversation.status === "human") return false;
@@ -1243,8 +1247,8 @@ export async function extractOrderInfo(conversationId: string): Promise<{
 /** Soạn gợi ý trả lời cho nhân viên, không tự gửi đi. */
 export async function suggestReply(conversationId: string): Promise<string> {
   const conversation = await queryOne<{ user_id: number; trang_id: number | null }>(
-    `SELECT c.user_id, s.trang_id FROM conversations c
-       LEFT JOIN social_accounts s ON s.id = c.social_account_id
+    // Bộ não = cửa hàng của hội thoại (nhiệm kỳ kênh).
+    `SELECT c.user_id, c.trang_id FROM conversations c
       WHERE c.id = $1`,
     [conversationId]
   );
@@ -1326,8 +1330,8 @@ const CHO_TRUOC_KHI_VOT_MS = 3 * 60_000;
 const VOT_MOI_LUOT = 20;
 
 export async function runDueBoSot(): Promise<number> {
-  const ungVien = await query<{ id: string; social_account_id: string | null }>(
-    `SELECT c.id, c.social_account_id
+  const ungVien = await query<{ id: string; trang_id: number | null }>(
+    `SELECT c.id, c.trang_id
        FROM conversations c
        JOIN LATERAL (
          SELECT sender_type, created_at, sent_at
@@ -1345,6 +1349,8 @@ export async function runDueBoSot(): Promise<number> {
         -- Tin khách nhắn lúc tài khoản đang khoá: không trả lời bù (mục f). So theo giờ KHÁCH GỬI (sent_at), không
         -- theo giờ lưu: tin lúc khoá có thể được lưu SAU khi mở (hàng đợi trễ, rà soát nạp bù — điểm e).
         AND ${DK_SAU_MO_KHOA("c.user_id", "COALESCE(cuoi.sent_at, cuoi.created_at)")}
+        -- Chỉ hội thoại của nhiệm kỳ kênh CÒN MỞ: kênh đã rời cửa hàng thì hội thoại cũ là lịch sử, không vớt.
+        AND ${DK_NHIEM_KY_MO("c.nhiem_ky_id")}
       ORDER BY cuoi.created_at
       LIMIT $2`,
     [String(CHO_TRUOC_KHI_VOT_MS), VOT_MOI_LUOT]
@@ -1353,7 +1359,8 @@ export async function runDueBoSot(): Promise<number> {
   let daVot = 0;
   for (const hc of ungVien.rows) {
     try {
-      if (await chayChoKenh(hc.social_account_id, () => handleIncomingMessage(hc.id))) daVot += 1;
+      // Chạy bằng bộ não của cửa hàng CỦA HỘI THOẠI (không theo cửa hàng hiện tại của kênh).
+      if (await chayChoTrang(hc.trang_id, () => handleIncomingMessage(hc.id))) daVot += 1;
     } catch (error) {
       if (error instanceof TaiKhoanKhoaError) continue;
       console.error(
@@ -1366,8 +1373,8 @@ export async function runDueBoSot(): Promise<number> {
 }
 
 export async function runDueFollowUps(): Promise<number> {
-  const shops = await query<{ user_id: number; settings: Record<string, unknown> }>(
-    `SELECT user_id, settings FROM ai_configs
+  const shops = await query<{ user_id: number; trang_id: number; settings: Record<string, unknown> }>(
+    `SELECT user_id, trang_id, settings FROM ai_configs
       WHERE kind = 'sales' AND settings->'tuChu'->>'bat' = 'true'
         AND ${DK_TAI_KHOAN_MO("ai_configs.user_id")}`
   );
@@ -1382,11 +1389,14 @@ export async function runDueFollowUps(): Promise<number> {
     >(
       `SELECT c.id, c.user_id, c.social_account_id, c.customer_id, c.platform,
               c.status, c.ai_enabled, c.window_expires_at, c.last_customer_message_at,
-              c.handoff_at, c.holding_sent_at, c.sales_stage, c.nhac_lai_count,
+              c.handoff_at, c.holding_sent_at, c.sales_stage, c.nhac_lai_count, c.trang_id,
               (SELECT max(m.sent_at) FROM messages m
                 WHERE m.conversation_id = c.id AND m.sender_type = 'ai') AS last_ai_at
          FROM conversations c
         WHERE c.user_id = $1
+          -- Cài đặt nhắc khách của cửa hàng nào chỉ áp lên hội thoại CỦA cửa hàng đó, nhiệm kỳ kênh còn mở.
+          AND c.trang_id = $4
+          AND ${DK_NHIEM_KY_MO("c.nhiem_ky_id")}
           AND c.status = 'ai'
           AND c.ai_enabled = TRUE
           AND c.nhac_lai_count < $2
@@ -1401,7 +1411,7 @@ export async function runDueFollowUps(): Promise<number> {
                 WHERE m2.conversation_id = c.id AND m2.sender_type = 'ai') + ($3 || ' minutes')::interval)`
           )}
         LIMIT 20`,
-      [shop.user_id, tuChu.nhacToiDa, String(tuChu.nhacSauPhut)]
+      [shop.user_id, tuChu.nhacToiDa, String(tuChu.nhacSauPhut), shop.trang_id]
     );
 
     for (const hoi of ungVien.rows) {
@@ -1418,7 +1428,7 @@ export async function runDueFollowUps(): Promise<number> {
       if (cuoi?.sender_type === "customer") continue;
 
       try {
-        const cau = await chayChoKenh(hoi.social_account_id, () => soanCauNhac(hoi, hoi.nhac_lai_count));
+        const cau = await chayChoTrang(hoi.trang_id, () => soanCauNhac(hoi, hoi.nhac_lai_count));
         if (!cau.trim()) continue;
 
         const ketQua = await sendMessageSafely({

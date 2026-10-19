@@ -1,5 +1,6 @@
-import { query, queryOne } from "../db.js";
+import { query, queryOne, transaction } from "../db.js";
 import { AppError } from "../http.js";
+import { doiNhiemKy } from "./nhiem-ky.js";
 
 /**
  * Suy ra Trang từ một kênh.
@@ -156,10 +157,17 @@ export async function ganKenhVaoTrang(
   userId: number,
   trangId: number
 ): Promise<void> {
-  await query(
-    "UPDATE social_accounts SET trang_id = $1, updated_at = now() WHERE id = $2 AND user_id = $3",
-    [trangId, accountId, userId]
-  );
+  /*
+   * Chỗ DUY NHẤT ghi social_accounts.trang_id. Cùng một giao dịch: đổi cửa hàng của kênh + đóng nhiệm kỳ cũ / mở nhiệm
+   * kỳ mới (services/nhiem-ky.ts — "kênh là nhân viên, ra đi tay trắng, quay về người không", chủ dự án chốt 19/10/2026).
+   */
+  await transaction(async (k) => {
+    const r = await k.query(
+      "UPDATE social_accounts SET trang_id = $1, updated_at = now() WHERE id = $2 AND user_id = $3",
+      [trangId, accountId, userId]
+    );
+    if (r.rowCount) await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });
+  });
 }
 
 /*

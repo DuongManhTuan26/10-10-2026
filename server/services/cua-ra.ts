@@ -24,6 +24,8 @@ export interface KenhXet {
   id: string;
   trang_id: number | null;
   connected: boolean;
+  /** Nhiệm kỳ đang mở của kênh (null: kênh chưa gắn cửa hàng). */
+  nhiem_ky_mo?: number | null;
 }
 
 /**
@@ -32,7 +34,10 @@ export interface KenhXet {
  */
 export function locKenhGuiDuoc(
   kenh: KenhXet[],
-  trangCuaViec: number | null
+  trangCuaViec: number | null,
+  /** Nhiệm kỳ của việc (hội thoại). Có thì kênh phải đang ở ĐÚNG nhiệm kỳ đó — kênh quay về cửa hàng cũ là nhiệm kỳ
+   *  MỚI, hội thoại nhiệm kỳ cũ vẫn chỉ xem (quay về người không). undefined: việc không gắn nhiệm kỳ (bài đăng). */
+  nhiemKyCuaViec?: number | null
 ): { duoc: string[]; daRoi: string[]; matNoi: string[] } {
   if (trangCuaViec == null) return { duoc: [], daRoi: kenh.map((k) => k.id), matNoi: [] };
   const duoc: string[] = [];
@@ -40,6 +45,7 @@ export function locKenhGuiDuoc(
   const matNoi: string[] = [];
   for (const k of kenh) {
     if (k.trang_id !== trangCuaViec) daRoi.push(k.id);
+    else if (nhiemKyCuaViec != null && k.nhiem_ky_mo !== nhiemKyCuaViec) daRoi.push(k.id);
     else if (!k.connected) matNoi.push(k.id);
     else duoc.push(k.id);
   }
@@ -54,11 +60,12 @@ export async function chanCuaRa(
   userId: number,
   kenhIds: (string | null | undefined)[],
   trangCuaViec: number | null,
-  docKenh: (userId: number, ids: string[]) => Promise<KenhXet[]> = docKenhThat
+  docKenh: (userId: number, ids: string[]) => Promise<KenhXet[]> = docKenhThat,
+  nhiemKyCuaViec?: number | null
 ): Promise<{ duoc: string[]; daRoi: string[]; matNoi: string[] }> {
   const ids = [...new Set(kenhIds.filter((x): x is string => typeof x === "string" && x !== ""))];
   const ds = await docKenh(userId, ids);
-  const kq = locKenhGuiDuoc(ds, trangCuaViec);
+  const kq = locKenhGuiDuoc(ds, trangCuaViec, nhiemKyCuaViec);
   const coMat = new Set(ds.map((k) => k.id));
   kq.daRoi.push(...ids.filter((id) => !coMat.has(id)));
   // Không còn kênh dùng được: báo đúng lý do — có kênh đã rời cửa hàng thì ưu tiên câu đó; chỉ mất kết nối thì bảo nối lại.
@@ -68,7 +75,9 @@ export async function chanCuaRa(
 
 async function docKenhThat(userId: number, ids: string[]): Promise<KenhXet[]> {
   const r = await query<KenhXet>(
-    "SELECT id, trang_id, connected FROM social_accounts WHERE user_id = $1 AND id = ANY($2::text[])",
+    `SELECT s.id, s.trang_id, s.connected,
+            (SELECT k.id FROM kenh_nhiem_ky k WHERE k.account_id = s.id AND k.den_luc IS NULL) AS nhiem_ky_mo
+       FROM social_accounts s WHERE s.user_id = $1 AND s.id = ANY($2::text[])`,
     [userId, ids]
   );
   return r.rows;

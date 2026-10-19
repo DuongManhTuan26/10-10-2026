@@ -8,6 +8,7 @@ import { syncAccountsForUser } from "./accounts.js";
 import { chuCuaHoSo } from "./trang.js";
 import { xinSuatDocAnh } from "./chong-lam-dung.js";
 import { TaiKhoanKhoaError } from "./tai-khoan-mo.js";
+import { layHoiThoaiChoTin } from "./nhiem-ky.js";
 
 /**
  * Chuyển sự kiện webhook thành dữ liệu nghiệp vụ.
@@ -185,6 +186,14 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
   const now = luc && !Number.isNaN(luc.getTime()) ? luc : new Date();
 
   /*
+   * NHIỆM KỲ KÊNH (services/nhiem-ky.ts — "kênh là nhân viên", chủ dự án chốt 19/10/2026): luồng của nhà cung cấp +
+   * kênh + giờ tin → đúng dòng hội thoại của đúng nhiệm kỳ. TỪ ĐÂY TRỞ XUỐNG MỌI câu SQL / lời gọi dùng maHT, KHÔNG dùng
+   * message.conversationId (sau khi kênh chuyển cửa hàng, mã luồng trỏ vào dòng của nhiệm kỳ cũ).
+   */
+  const ht = await layHoiThoaiChoTin({ maLuong: message.conversationId, accountId, lucTin: now });
+  const maHT = ht.id;
+
+  /*
    * NGUỒN của hội thoại — nối quảng cáo / bài đăng → hội thoại → đơn bằng MÃ THẬT (chủ dự án duyệt 05/10/2026).
    *
    * Meta gửi `referral` ở tin ĐẦU TIÊN sau cú bấm (tài liệu nhà cung cấp kênh: metadata.referral trên message.received):
@@ -242,8 +251,8 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
       `INSERT INTO conversations
          (id, user_id, social_account_id, customer_id, platform, origin, status,
           last_message_at, window_expires_at, unread_count,
-          origin_ad_id, origin_ref, origin_post_id, origin_at)
-       VALUES ($1, $2, $3, $4, $5, $8, 'ai', $6, $7, 1, $9, $10, $11, $6)
+          origin_ad_id, origin_ref, origin_post_id, origin_at, ma_luong, trang_id, nhiem_ky_id)
+       VALUES ($1, $2, $3, $4, $5, $8, 'ai', $6, $7, 1, $9, $10, $11, $6, $12, $13, $14)
        ON CONFLICT (id) DO UPDATE SET
          last_message_at   = EXCLUDED.last_message_at,
          window_expires_at = EXCLUDED.window_expires_at,
@@ -256,7 +265,7 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
                   END,
          updated_at = now()`,
       [
-        message.conversationId,
+        maHT,
         account.user_id,
         accountId,
         customerId,
@@ -267,6 +276,9 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
         maQuangCao,
         maLienKet,
         baiQuangCao ?? (nguon === "binh_luan" ? tuBinhLuan?.platform_post_id ?? null : null),
+        ht.maLuong,
+        ht.trangId,
+        ht.nhiemKyId,
       ]
     );
 
@@ -275,14 +287,14 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
       await client.query(
         `INSERT INTO hoi_thoai_cham (conversation_id, user_id, loai, ad_id, ref, post_id, luc)
          VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING`,
-        [message.conversationId, account.user_id, loaiCham, maQuangCao, maLienKet, baiQuangCao, now]
+        [maHT, account.user_id, loaiCham, maQuangCao, maLienKet, baiQuangCao, now]
       );
     }
     if (tuBinhLuan) {
       await client.query(
         `INSERT INTO hoi_thoai_cham (conversation_id, user_id, loai, post_id, luc)
          VALUES ($1, $2, 'binh_luan', $3, $4) ON CONFLICT DO NOTHING`,
-        [message.conversationId, account.user_id, tuBinhLuan.platform_post_id, tuBinhLuan.private_replied_at]
+        [maHT, account.user_id, tuBinhLuan.platform_post_id, tuBinhLuan.private_replied_at]
       );
     }
 
@@ -298,7 +310,7 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
        DO NOTHING`,
       [
         account.user_id,
-        message.conversationId,
+        maHT,
         message.platformMessageId ?? message.id,
         text,
         JSON.stringify(attachments),
@@ -319,12 +331,12 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
    *
    * CHỈ LƯU (tài khoản khoá) thì không đọc: đọc ảnh là một lượt AI trả phí.
    */
-  if (!event.chiLuu && attachments.length > 0) {
+  if (!event.chiLuu && !ht.daDong && attachments.length > 0) {
     const moTa: string[] = [];
     for (const t of attachments.slice(0, 3)) {
       const o = (t ?? {}) as Record<string, unknown>;
       if (typeof o.url !== "string" || typeof o.type !== "string") continue;
-      if (!xinSuatDocAnh(message.conversationId, accountId)) {
+      if (!xinSuatDocAnh(maHT, accountId)) {
         console.warn(
           `[sự kiện] Bỏ qua đọc ảnh trong ${message.conversationId}: vượt trần đọc ảnh mỗi giờ`
         );
@@ -344,18 +356,18 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
       await query(
         `UPDATE messages SET attachment_text = $3
           WHERE conversation_id = $1 AND external_id = $2`,
-        [message.conversationId, message.platformMessageId ?? message.id, moTa.join("\n")]
+        [maHT, message.platformMessageId ?? message.id, moTa.join("\n")]
       );
     }
   }
 
   // Mốc tính cửa sổ 24 giờ và 7 ngày. Chỉ cập nhật khi KHÁCH gửi tin.
-  await touchCustomerMessage(message.conversationId, now);
+  await touchCustomerMessage(maHT, now);
 
   // Khách vừa nhắn thì bộ đếm nhắc lại về 0: họ đang nói chuyện, không cần đuổi.
   await query(
     "UPDATE conversations SET nhac_lai_count = 0, nhac_lai_at = NULL WHERE id = $1",
-    [message.conversationId]
+    [maHT]
   );
 
   console.log(
@@ -364,7 +376,8 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
   );
 
   // Tin của lúc tài khoản bị khoá: đã lưu xong, dừng ở đây — chủ shop tự đọc và trả lời (mục f, điểm e).
-  if (event.chiLuu) {
+  // Tin rơi vào nhiệm kỳ ĐÃ ĐÓNG (kênh đã rời cửa hàng đó) → chỉ lưu vào hội thoại cũ, không AI (nhiệm kỳ kênh).
+  if (event.chiLuu || ht.daDong) {
     console.log(`[sự kiện] Chỉ lưu tin trong ${message.conversationId}: đến lúc tài khoản bị khoá, AI không trả lời`);
     return;
   }
@@ -372,7 +385,7 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
   // Để AI đọc và trả lời. Lỗi ở bước này không được làm sự kiện thất bại:
   // tin nhắn đã lưu an toàn rồi, thử lại sẽ gửi trùng cho khách.
   try {
-    await handleIncomingMessage(message.conversationId);
+    await handleIncomingMessage(maHT);
   } catch (error) {
     // Tài khoản bị khoá: không phải lỗi AI — không nhường quyền cho người, để worker bỏ qua sự kiện (mục f).
     if (error instanceof TaiKhoanKhoaError) throw error;
@@ -414,17 +427,13 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
      */
     const cauHinh = await queryOne<{ settings: Record<string, unknown> }>(
       /*
-       * Nối qua KÊNH để ra đúng Trang.
-       *
-       * Bản cũ nối ai_configs với conversations bằng user_id, tức là lấy cấu
-       * hình của tài khoản. Tài khoản nhiều Trang thì đó là cấu hình của Trang
-       * nào cũng được — sai ngay khi có Trang thứ hai.
+       * Bộ não = cửa hàng CỦA HỘI THOẠI (conversations.trang_id, chốt theo nhiệm kỳ) — không suy qua kênh: kênh chuyển
+       * cửa hàng thì hội thoại cũ vẫn là của cửa hàng cũ (kênh là nhân viên, chủ dự án chốt 19/10/2026).
        */
       `SELECT a.settings FROM ai_configs a
-         JOIN social_accounts s ON s.trang_id = a.trang_id
-         JOIN conversations c ON c.social_account_id = s.id
+         JOIN conversations c ON c.trang_id = a.trang_id
         WHERE c.id = $1 AND a.kind = 'sales'`,
-      [message.conversationId]
+      [maHT]
     ).catch(() => null);
 
     if (docTuChu(cauHinh?.settings?.tuChu).bat) {
@@ -445,7 +454,7 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
               handoff_reason = COALESCE(handoff_reason, 'AI gặp lỗi, cần người xử lý'),
               handoff_at = COALESCE(handoff_at, now()), updated_at = now()
         WHERE id = $1 AND status = 'ai'`,
-      [message.conversationId]
+      [maHT]
     ).catch(() => {});
   }
 }
@@ -465,11 +474,20 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
  */
 async function handleMessageSent(event: WebhookEvent): Promise<void> {
   const message = event.payload.message as MessagePayload | undefined;
-  if (!message?.conversationId || !message.id) return;
+  if (!message?.conversationId || !message.id || !event.accountId) return;
+
+  // Nhiệm kỳ kênh: tin shop gửi khớp vào đúng dòng hội thoại của nhiệm kỳ lúc gửi (không dùng mã luồng làm khoá).
+  const lucGui = message.createdAt ? new Date(message.createdAt) : new Date();
+  const ht = await layHoiThoaiChoTin({
+    maLuong: message.conversationId,
+    accountId: event.accountId,
+    lucTin: Number.isNaN(lucGui.getTime()) ? new Date() : lucGui,
+  });
+  const maHT = ht.id;
 
   const conversation = await queryOne<{ user_id: number }>(
     "SELECT user_id FROM conversations WHERE id = $1",
-    [message.conversationId]
+    [maHT]
   );
   if (!conversation) return;
 
@@ -486,7 +504,7 @@ async function handleMessageSent(event: WebhookEvent): Promise<void> {
         AND content = $2
         AND sent_at > now() - interval '5 minutes'
       ORDER BY created_at DESC LIMIT 1`,
-    [message.conversationId, text]
+    [maHT, text]
   );
 
   if (existing) {
@@ -507,7 +525,7 @@ async function handleMessageSent(event: WebhookEvent): Promise<void> {
      VALUES ($1, $2, $3, 'human', $4, now())
      ON CONFLICT (conversation_id, external_id) WHERE external_id IS NOT NULL
      DO NOTHING`,
-    [conversation.user_id, message.conversationId, externalId, text]
+    [conversation.user_id, maHT, externalId, text]
   );
 }
 

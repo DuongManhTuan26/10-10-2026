@@ -4,6 +4,7 @@ import { requireAuth } from "../auth.js";
 import { AppError, requireString, route } from "../http.js";
 import * as zernio from "../services/zernio.js";
 import { sendMessageSafely } from "../services/outbound.js";
+import { layHoiThoaiChoTin } from "../services/nhiem-ky.js";
 
 export const inboxRouter = Router();
 
@@ -296,6 +297,9 @@ inboxRouter.post(
         const lastAt = conversation.updatedTime
           ? new Date(conversation.updatedTime)
           : new Date();
+        // Nhiệm kỳ kênh: luồng của nhà cung cấp → đúng dòng hội thoại của nhiệm kỳ lúc có tin cuối (kênh là nhân viên —
+        // luồng của nhiệm kỳ cũ không bị kéo sang / ghi đè cửa hàng mới).
+        const ht = await layHoiThoaiChoTin({ maLuong: conversation.id, accountId: account.id, lucTin: lastAt });
 
         await transaction(async (client) => {
           const customer = await client.query<{ id: number }>(
@@ -320,14 +324,14 @@ inboxRouter.post(
           await client.query(
             `INSERT INTO conversations
                (id, user_id, social_account_id, customer_id, platform, status,
-                last_message_at, window_expires_at, unread_count, external_url)
-             VALUES ($1, $2, $3, $4, $5, 'ai', $6, $7, $8, $9)
+                last_message_at, window_expires_at, unread_count, external_url, ma_luong, trang_id, nhiem_ky_id)
+             VALUES ($1, $2, $3, $4, $5, 'ai', $6, $7, $8, $9, $10, $11, $12)
              ON CONFLICT (id) DO UPDATE SET
                last_message_at = GREATEST(conversations.last_message_at, EXCLUDED.last_message_at),
                external_url    = COALESCE(EXCLUDED.external_url, conversations.external_url),
                updated_at      = now()`,
             [
-              conversation.id,
+              ht.id,
               req.user!.id,
               account.id,
               customer.rows[0].id,
@@ -336,6 +340,9 @@ inboxRouter.post(
               new Date(lastAt.getTime() + 24 * 60 * 60 * 1_000),
               conversation.unreadCount ?? 0,
               conversation.url ?? null,
+              ht.maLuong,
+              ht.trangId,
+              ht.nhiemKyId,
             ]
           );
         });

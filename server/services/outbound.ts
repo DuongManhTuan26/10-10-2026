@@ -61,7 +61,10 @@ export async function sendMessageSafely(params: {
   const conversation = await queryOne<{
     user_id: number;
     social_account_id: string | null;
-  }>("SELECT user_id, social_account_id FROM conversations WHERE id = $1", [
+    ma_luong: string;
+    trang_id: number | null;
+    nhiem_ky_id: number | null;
+  }>("SELECT user_id, social_account_id, ma_luong, trang_id, nhiem_ky_id FROM conversations WHERE id = $1", [
     params.conversationId,
   ]);
 
@@ -77,15 +80,18 @@ export async function sendMessageSafely(params: {
   }
 
   /*
-   * CHỐT CỬA RA (services/cua-ra.ts): chỉ gửi qua kênh còn thuộc đúng cửa hàng của việc. ĐỢT 1 TẠM: cửa hàng của tin =
-   * cửa hàng hiện tại của kênh (trangTamTheoKenh) — chưa chặn tin của hội thoại nhiệm kỳ cũ; đợt 2 thay bằng cột chốt.
+   * CHỐT CỬA RA (services/cua-ra.ts): chỉ gửi qua kênh còn thuộc đúng CỬA HÀNG CỦA HỘI THOẠI và đang ở đúng NHIỆM KỲ
+   * của hội thoại (đợt 2a — nhiệm kỳ kênh). Kênh đã rời / quay về (nhiệm kỳ mới) → hội thoại cũ chỉ xem, không gửi.
+   * Hội thoại chưa có cửa hàng (kênh chưa gắn cửa hàng — hiếm): theo cửa hàng hiện tại của kênh.
    */
   let kenhGui: string;
   try {
     const cuaRa = await chanCuaRa(
       conversation.user_id,
       [conversation.social_account_id],
-      await trangTamTheoKenh(conversation.social_account_id)
+      conversation.trang_id ?? (await trangTamTheoKenh(conversation.social_account_id)),
+      undefined,
+      conversation.nhiem_ky_id
     );
     kenhGui = cuaRa.duoc[0];
   } catch (error) {
@@ -168,7 +174,8 @@ export async function sendMessageSafely(params: {
 
   try {
     const sent = await zernio.sendMessage({
-      conversationId: params.conversationId,
+      // Nhà cung cấp chỉ biết MÃ LUỒNG — mã dòng trong app có thể mang hậu tố nhiệm kỳ (services/nhiem-ky.ts).
+      conversationId: conversation.ma_luong,
       accountId: kenhGui,
       text,
       messageTag: decision.messageTag as zernio.MessageTag | undefined,

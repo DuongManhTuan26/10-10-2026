@@ -192,12 +192,14 @@ export async function reconcileInbox(): Promise<KetQua> {
      */
     const dangNgo: zernio.ZernioConversation[] = [];
     for (const c of conversations) {
-      const ta = await queryOne<{ last_message_at: Date | null }>(
-        "SELECT last_message_at FROM conversations WHERE id = $1",
+      // Nhiệm kỳ kênh: một luồng của nhà cung cấp có thể thành nhiều dòng (mỗi nhiệm kỳ một dòng) → xét theo CẢ LUỒNG
+      // (ma_luong), không theo dòng có mã bằng mã luồng.
+      const ta = await queryOne<{ last_message_at: Date | null; so: number }>(
+        "SELECT MAX(last_message_at) AS last_message_at, COUNT(*)::int AS so FROM conversations WHERE ma_luong = $1",
         [c.id]
       );
       const moiBenZernio = c.updatedTime ? new Date(c.updatedTime) : null;
-      const chuaCo = !ta;
+      const chuaCo = !ta?.so;
       const moiHon =
         moiBenZernio && ta?.last_message_at
           ? moiBenZernio.getTime() > ta.last_message_at.getTime() + 1_000
@@ -225,7 +227,8 @@ export async function reconcileInbox(): Promise<KetQua> {
        * hơn mốc đó là lịch sử, không phải tin bị sót.
        */
       const mocCu = await queryOne<{ moi_nhat: Date | null }>(
-        "SELECT MAX(sent_at) AS moi_nhat FROM messages WHERE conversation_id = $1",
+        `SELECT MAX(m.sent_at) AS moi_nhat FROM messages m JOIN conversations cv ON cv.id = m.conversation_id
+          WHERE cv.ma_luong = $1`,
         [c.id]
       );
       const moc = mocCu?.moi_nhat ? mocCu.moi_nhat.getTime() : 0;
@@ -246,7 +249,8 @@ export async function reconcileInbox(): Promise<KetQua> {
 
         // Đã có trong database rồi thì thôi.
         const daCo = await queryOne(
-          "SELECT id FROM messages WHERE external_id = $1 AND conversation_id = $2",
+          `SELECT m.id FROM messages m JOIN conversations cv ON cv.id = m.conversation_id
+            WHERE m.external_id = $1 AND cv.ma_luong = $2`,
           [m.id, c.id]
         );
         if (daCo) continue;
