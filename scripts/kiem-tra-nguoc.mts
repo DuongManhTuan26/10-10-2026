@@ -4122,6 +4122,24 @@ const DUC: PhepDuc[] = [
     thay: "    RAISE NOTICE 'bỏ qua';",
   },
   {
+    ten: "nhiệm kỳ: tin đến trước khi gắn cửa hàng bị tách oan thành hội thoại thứ hai",
+    tep: "server/services/nhiem-ky.ts",
+    tim: "dongGoc.nhiem_ky_id == null || dongGoc.nhiem_ky_id === nhiemKyId",
+    thay: "dongGoc.nhiem_ky_id === nhiemKyId",
+  },
+  {
+    ten: "nhiệm kỳ: không nhận dòng gốc chưa có nhiệm kỳ (dòng mồ côi không cửa hàng)",
+    tep: "server/services/nhiem-ky.ts",
+    tim: "  if (!daCo && dongGoc && dongGoc.nhiem_ky_id == null) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "nhiệm kỳ: AI trả lời hội thoại chưa có cửa hàng bằng cài đặt mặc định",
+    tep: "server/services/sales-ai.ts",
+    tim: "  if (conversation.trang_id == null) return false;\n",
+    thay: "",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

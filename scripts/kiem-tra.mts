@@ -6499,8 +6499,15 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("nhiệm kỳ", "quay về cửa hàng cũ là nhiệm kỳ MỚI: tin lúc 09:00 vẫn thuộc nhiệm kỳ 1 (đã đóng), tin lúc 13:00 thuộc nhiệm kỳ 3",
     [chonNhiemKy(ds, T("09:00:00"))?.id, chonNhiemKy(ds, T("13:00:00"))?.id], [1, 3]);
   kiem("nhiệm kỳ", "mã dòng hội thoại: chưa có / cùng nhiệm kỳ → mã luồng; luồng đã thuộc nhiệm kỳ khác → mã luồng + hậu tố nhiệm kỳ",
-    [maHoiThoai("t_1", 2, null), maHoiThoai("t_1", 2, { nhiem_ky_id: 2 }), maHoiThoai("t_1", 3, { nhiem_ky_id: 1 }), maHoiThoai("t_1", null, { nhiem_ky_id: 1 })],
-    ["t_1", "t_1", "t_1~3", "t_1"]);
+    [maHoiThoai("t_1", 2, null), maHoiThoai("t_1", 2, { nhiem_ky_id: 2 }), maHoiThoai("t_1", 3, { nhiem_ky_id: 1 }), maHoiThoai("t_1", null, { nhiem_ky_id: 1 }),
+      // Tin đến lúc kênh chưa gắn cửa hàng (dòng gốc không nhiệm kỳ) → gắn A → tin sau: vẫn MỘT dòng (nhận, không tách oan).
+      maHoiThoai("t_1", 1, { nhiem_ky_id: null })],
+    ["t_1", "t_1", "t_1~3", "t_1", "t_1"]);
+  const nkSrc = d3("server/services/nhiem-ky.ts");
+  kiem("nhiệm kỳ", "dòng gốc chưa có nhiệm kỳ được NHẬN vào nhiệm kỳ hiện tại (UPDATE kèm cửa hàng); AI không trả lời hội thoại chưa có cửa hàng",
+    [/if \(!daCo && dongGoc && dongGoc\.nhiem_ky_id == null\) \{\s*await db\.query\("UPDATE conversations SET nhiem_ky_id = \$2, trang_id = \$3 WHERE id = \$1 AND nhiem_ky_id IS NULL"/.test(nkSrc),
+      /if \(conversation\.trang_id == null\) return false;/.test(d3("server/services/sales-ai.ts"))],
+    [true, true]);
   const KN = (id: string, trang_id: number, nhiem_ky_mo: number) => ({ id, trang_id, connected: true, nhiem_ky_mo });
   kiem("nhiệm kỳ", "chốt cửa ra theo nhiệm kỳ: kênh quay về A (nhiệm kỳ 3) — hội thoại A nhiệm kỳ 1 KHÔNG gửi được; hội thoại nhiệm kỳ 3 gửi được",
     [locKenhGuiDuoc([KN("fb1", 47, 3)], 47, 1), locKenhGuiDuoc([KN("fb1", 47, 3)], 47, 3), locKenhGuiDuoc([KN("fb1", 47, 3)], 47)],

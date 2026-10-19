@@ -102,6 +102,9 @@ export async function handleIncomingMessage(conversationId: string): Promise<boo
   if (!conversation) return false;
   // Hội thoại của nhiệm kỳ kênh ĐÃ ĐÓNG (kênh đã rời cửa hàng): lịch sử — AI không trả lời, dù được gọi từ đường nào.
   if ((conversation as ConversationRow & { nhiem_ky_mo?: boolean }).nhiem_ky_mo === false) return false;
+  // Hội thoại CHƯA có cửa hàng (kênh vừa nối, chưa gắn cửa hàng — hiếm, thoáng qua): không có bộ não nào để trả lời →
+  // AI im, tin vẫn lưu. Tin kế tiếp sau khi kênh được gắn sẽ nhận dòng này vào nhiệm kỳ (nhiem-ky.ts) và AI chạy lại.
+  if (conversation.trang_id == null) return false;
 
   // Nhân viên đang trực tiếp xử lý — tuyệt đối không xen vào.
   if (conversation.status === "human") return false;

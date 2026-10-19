@@ -24,11 +24,21 @@ const kiem = (ten: string, thuc: unknown, mong: unknown) => {
   ket.push({ ten, dat, chiTiet: dat ? undefined : { thuc, mong } });
 };
 
+// Điều kiện 1 (phiên kiểm duyệt): chỉ chạy khi hàng đợi rỗng; DDL trong giao dịch giữ khoá tới lúc ROLLBACK → giữ ngắn,
+// chờ khoá tối đa 3 giây, mỗi câu tối đa 30 giây.
+const choXuLy = (await pool.query("SELECT COUNT(*)::int AS so FROM webhook_events WHERE status IN ('pending', 'processing')")).rows[0].so;
+if (choXuLy > 0) {
+  console.error(`Hàng đợi còn ${choXuLy} sự kiện — KHÔNG chạy (tránh giữ khoá lúc máy chủ đang xử lý tin). Thử lại sau.`);
+  await pool.end();
+  process.exit(2);
+}
+const batDau = Date.now();
 const c = await pool.connect();
 let co058Truoc = false;
 try {
   await c.query("BEGIN");
-  await c.query("SET LOCAL statement_timeout = '60s'");
+  await c.query("SET LOCAL lock_timeout = '3s'");
+  await c.query("SET LOCAL statement_timeout = '30s'");
   co058Truoc = (await c.query("SELECT to_regclass('public.kenh_nhiem_ky') IS NOT NULL AS co")).rows[0].co;
   if (!co058Truoc) {
     await c.query(fs.readFileSync(path.join(GOC, "server/migrations/058_nhiem_ky_kenh.sql"), "utf8"));
@@ -85,6 +95,18 @@ try {
     [[h1.id, h1.trangId === A, h1.daDong], [h2.id, h2.trangId === B, h2.daDong], [h3.id, h3.trangId === A, h3.daDong], h1b.id],
     [[maLuong, true, true], [`${maLuong}~${nk2}`, true, true], [`${maLuong}~${nk3}`, true, false], maLuong]);
 
+  // Tin đến lúc kênh CHƯA gắn cửa hàng → gắn A → tin sau: vẫn MỘT dòng, dòng gốc được nhận vào nhiệm kỳ (không tách oan).
+  const kenhMoi = `thu-kenh-moi-${duoi}`;
+  await c.query("INSERT INTO social_accounts (id, user_id, platform) VALUES ($1, $2, 'facebook')", [kenhMoi, TAI_KHOAN_THU]);
+  const maLuong2 = `thu-luong-moi-${duoi}`;
+  const t1 = await layHoiThoaiChoTin({ maLuong: maLuong2, accountId: kenhMoi, lucTin: luc(5) }, c); await ghiDong({ ...t1 });
+  await c.query("UPDATE social_accounts SET trang_id = $2 WHERE id = $1", [kenhMoi, A]);
+  await doiNhiemKy(c, { accountId: kenhMoi, userId: TAI_KHOAN_THU, trangMoi: A });
+  const t2 = await layHoiThoaiChoTin({ maLuong: maLuong2, accountId: kenhMoi, lucTin: gio }, c);
+  const dongMoi = (await c.query("SELECT id, trang_id, nhiem_ky_id IS NOT NULL AS co_nk FROM conversations WHERE ma_luong = $1", [maLuong2])).rows;
+  kiem("tin trước khi gắn cửa hàng → gắn A → tin sau: vẫn 1 dòng (mã luồng), dòng được nhận vào nhiệm kỳ A",
+    [t1.trangId, t2.id, dongMoi.length, dongMoi[0]?.trang_id === A, dongMoi[0]?.co_nk], [null, maLuong2, 1, true, true]);
+
   // Chốt cửa ra theo nhiệm kỳ (đọc kênh qua chính giao dịch này).
   const docQuaGiaoDich = async (uid: number, ids: string[]): Promise<KenhXet[]> =>
     (await c.query(
@@ -99,15 +121,19 @@ try {
 } finally {
   await c.query("ROLLBACK").catch(() => {});
   c.release();
+  console.log(`Giao dịch thử giữ trong ${Date.now() - batDau} ms rồi ROLLBACK.`);
 }
 
 // Sau hoàn tác: không còn dấu vết.
 const sach = (await pool.query(
   `SELECT to_regclass('public.kenh_nhiem_ky') IS NOT NULL AS co_bang,
+          (SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_name = 'conversations' AND column_name IN ('ma_luong', 'trang_id', 'nhiem_ky_id'))::int AS cot_moi,
           (SELECT COUNT(*) FROM trang WHERE profile_ref LIKE 'thu-a-%' OR profile_ref LIKE 'thu-b-%')::int AS trang_thu,
           (SELECT COUNT(*) FROM social_accounts WHERE id LIKE 'thu-kenh-%')::int AS kenh_thu`)).rows[0];
-kiem("sau ROLLBACK: không còn cửa hàng / kênh thử; bảng nhiệm kỳ trở lại đúng như trước",
-  [sach.trang_thu, sach.kenh_thu, sach.co_bang], [0, 0, co058Truoc]);
+// Điều kiện 2: 058 không "lọt" ra ngoài — không còn bảng nhiệm kỳ / 3 cột mới nếu trước đó chưa có.
+kiem("sau ROLLBACK: không còn cửa hàng / kênh thử; bảng nhiệm kỳ + 3 cột mới của conversations trở lại đúng như trước",
+  [sach.trang_thu, sach.kenh_thu, sach.co_bang, sach.cot_moi], [0, 0, co058Truoc, co058Truoc ? 3 : 0]);
 await pool.end();
 
 for (const k of ket) console.log(`${k.dat ? "✓" : "✗"} ${k.ten}${k.dat ? "" : `\n   ${JSON.stringify(k.chiTiet)}`}`);

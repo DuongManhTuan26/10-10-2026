@@ -37,11 +37,12 @@ export function chonNhiemKy(ds: NhiemKy[], luc: Date): NhiemKy | null {
 }
 
 /**
- * Hàm thuần: mã dòng hội thoại cho (luồng, nhiệm kỳ). Dòng mang đúng mã luồng chưa có, hoặc chính là dòng của nhiệm kỳ
- * này → dùng mã luồng (giữ nguyên dữ liệu cũ). Mã luồng đã là của nhiệm kỳ KHÁC → mã mới có hậu tố nhiệm kỳ.
+ * Hàm thuần: mã dòng hội thoại cho (luồng, nhiệm kỳ). Dòng mang đúng mã luồng chưa có, CHƯA THUỘC nhiệm kỳ nào (tin đến
+ * lúc kênh vừa nối, chưa kịp gắn cửa hàng — dòng đó được NHẬN vào nhiệm kỳ này, không tách oan), hoặc chính là dòng của
+ * nhiệm kỳ này → dùng mã luồng. Chỉ khi mã luồng đã thuộc một nhiệm kỳ KHÁC → mã mới có hậu tố nhiệm kỳ.
  */
 export function maHoiThoai(maLuong: string, nhiemKyId: number | null, dongGoc: { nhiem_ky_id: number | null } | null): string {
-  if (!dongGoc || nhiemKyId == null || dongGoc.nhiem_ky_id === nhiemKyId) return maLuong;
+  if (!dongGoc || nhiemKyId == null || dongGoc.nhiem_ky_id == null || dongGoc.nhiem_ky_id === nhiemKyId) return maLuong;
   return `${maLuong}~${nhiemKyId}`;
 }
 
@@ -88,6 +89,15 @@ export async function layHoiThoaiChoTin(
     ? null
     : ((await db.query<{ nhiem_ky_id: number | null }>("SELECT nhiem_ky_id FROM conversations WHERE id = $1", [p.maLuong])).rows[0] ??
       null);
+  // Dòng gốc chưa thuộc nhiệm kỳ nào (tin đến trước lúc kênh được gắn cửa hàng) → NHẬN vào nhiệm kỳ này (phiên kiểm duyệt
+  // 19/10: không tách một khách thành 2 hội thoại khi kênh chưa từng chuyển đi đâu).
+  if (!daCo && dongGoc && dongGoc.nhiem_ky_id == null) {
+    await db.query("UPDATE conversations SET nhiem_ky_id = $2, trang_id = $3 WHERE id = $1 AND nhiem_ky_id IS NULL", [
+      p.maLuong,
+      nk.id,
+      nk.trang_id,
+    ]);
+  }
   return {
     id: daCo?.id ?? maHoiThoai(p.maLuong, nk.id, dongGoc),
     maLuong: p.maLuong,
