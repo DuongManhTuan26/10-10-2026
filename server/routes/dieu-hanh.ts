@@ -60,8 +60,8 @@ dieuHanhRouter.get(
                    AND (o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = d.ngay), 0)::text AS doanh_thu,
                 (SELECT count(*) FROM orders o WHERE o.trang_id = $1
                    AND (o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = d.ngay)::int AS don,
-                (SELECT count(*) FROM conversations c JOIN social_accounts s ON s.id = c.social_account_id
-                  WHERE s.trang_id = $1 AND (c.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = d.ngay)::int AS hoi_thoai
+                (SELECT count(*) FROM conversations c
+                  WHERE c.trang_id = $1 AND (c.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = d.ngay)::int AS hoi_thoai
            FROM generate_series(($2::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,
                                 (($3::timestamptz - interval '1 second') AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, interval '1 day') AS d(ngay)
           ORDER BY d.ngay`,

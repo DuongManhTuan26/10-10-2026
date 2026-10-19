@@ -174,7 +174,6 @@ export async function sucKhoeTrang(trangId: number, bayGio = new Date()) {
     "SELECT id, platform, page_id, connected, needs_reconnection, display_name FROM social_accounts WHERE trang_id = $1",
     [trangId]
   );
-  const ids = kenh.rows.map((k) => k.id);
   const w = cuaSo(bayGio, false);
   const wm = cuaSo(bayGio, true);
   const chiSo: ChiSo[] = [];
@@ -185,8 +184,9 @@ export async function sucKhoeTrang(trangId: number, bayGio = new Date()) {
       `SELECT count(*)::int AS so,
               count(*) FILTER (WHERE EXISTS (SELECT 1 FROM orders o WHERE o.conversation_id = c.id))::int AS co_don,
               count(*) FILTER (WHERE c.handoff_at IS NOT NULL)::int AS nhuong
-         FROM conversations c WHERE c.social_account_id = ANY($1::text[]) AND c.created_at >= $2 AND c.created_at < $3`,
-      [ids, tu, den]
+         FROM conversations c WHERE c.trang_id = $1 AND c.created_at >= $2 AND c.created_at < $3`,
+      // Cửa hàng CỦA HỘI THOẠI (nhiệm kỳ kênh, đợt 2b) — không suy qua kênh hiện tại.
+      [trangId, tu, den]
     );
   const [htGan, htNen, htGanM, htNenM] = await Promise.all([
     hoiThoai(...w.gan), hoiThoai(...w.nen), hoiThoai(...wm.gan), hoiThoai(...wm.nen),
@@ -207,9 +207,9 @@ export async function sucKhoeTrang(trangId: number, bayGio = new Date()) {
            JOIN LATERAL (SELECT created_at FROM messages n WHERE n.conversation_id = m.conversation_id
                           AND n.sender_type IN ('ai', 'human') AND n.created_at > m.created_at
                           ORDER BY n.created_at LIMIT 1) tl ON TRUE
-          WHERE c.social_account_id = ANY($1::text[]) AND m.sender_type = 'customer'
+          WHERE c.trang_id = $1 AND m.sender_type = 'customer'
             AND m.created_at >= $2 AND m.created_at < $3) x`,
-      [ids, tu, den]
+      [trangId, tu, den]
     );
   const [tlGan, tlNen] = await Promise.all([traLoi(...w.gan), traLoi(...w.nen)]);
   chiSo.push(chiSoTiLe("ban_hang", "tra_loi_1_phut", "Tin khách được trả lời trong 1 phút", "cao_tot",
@@ -233,10 +233,11 @@ export async function sucKhoeTrang(trangId: number, bayGio = new Date()) {
               coalesce(sum(thich + binh_luan + chia_se), 0)::int AS tuong_tac, coalesce(sum(binh_luan), 0)::int AS binh_luan
          FROM (SELECT DISTINCT ON (account_id, post_ref) *
                  FROM so_bai_ngay
-                WHERE account_id = ANY($1::text[]) AND post_ref <> '-' AND dang_luc >= $2 AND dang_luc < $3
+                WHERE trang_id = $1 AND post_ref <> '-' AND dang_luc >= $2 AND dang_luc < $3
                   AND ngay >= ((dang_luc AT TIME ZONE 'Asia/Ho_Chi_Minh')::date + $4::int)
                 ORDER BY account_id, post_ref, ngay ASC) b`,
-      [ids, tu, den, TUOI_BAI_NGAY]
+      // so_bai_ngay.trang_id = cửa hàng CỦA BÀI (đợt 1) — không theo kênh hiện tại của cửa hàng.
+      [trangId, tu, den, TUOI_BAI_NGAY]
     );
   // Bài phải đủ tuổi mới có số ở tuổi 2 ngày → dời cửa sổ bài lùi 2 ngày.
   const lui = (a: readonly [Date, Date]) => [new Date(a[0].getTime() - TUOI_BAI_NGAY * NGAY_MS), new Date(a[1].getTime() - TUOI_BAI_NGAY * NGAY_MS)] as const;

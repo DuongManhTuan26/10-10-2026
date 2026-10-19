@@ -1,3 +1,4 @@
+import type pg from "pg";
 import { query, queryOne, transaction } from "../db.js";
 import { AppError } from "../http.js";
 import { doiNhiemKy } from "./nhiem-ky.js";
@@ -159,15 +160,34 @@ export async function ganKenhVaoTrang(
 ): Promise<void> {
   /*
    * Chỗ DUY NHẤT ghi social_accounts.trang_id. Cùng một giao dịch: đổi cửa hàng của kênh + đóng nhiệm kỳ cũ / mở nhiệm
-   * kỳ mới (services/nhiem-ky.ts — "kênh là nhân viên, ra đi tay trắng, quay về người không", chủ dự án chốt 19/10/2026).
+   * kỳ mới + tắt kịch bản của cửa hàng cũ (services/nhiem-ky.ts — "kênh là nhân viên, ra đi tay trắng, quay về người
+   * không", chủ dự án chốt 19/10/2026).
    */
-  await transaction(async (k) => {
-    const r = await k.query(
-      "UPDATE social_accounts SET trang_id = $1, updated_at = now() WHERE id = $2 AND user_id = $3",
-      [trangId, accountId, userId]
+  await transaction((k) => ganKenhVaoTrangTrong(k, accountId, userId, trangId));
+}
+
+/** Thân của ganKenhVaoTrang, chạy trên giao dịch có sẵn (phép thử tự hoàn tác gọi thẳng — không COMMIT riêng). */
+export async function ganKenhVaoTrangTrong(
+  k: Pick<pg.PoolClient, "query">,
+  accountId: string,
+  userId: number,
+  trangId: number
+): Promise<void> {
+  const r = await k.query(
+    "UPDATE social_accounts SET trang_id = $1, updated_at = now() WHERE id = $2 AND user_id = $3",
+    [trangId, accountId, userId]
+  );
+  if (!r.rowCount) return;
+  const doi = await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });
+  // Kênh RỜI cửa hàng cũ → kịch bản bình luận của cửa hàng cũ gắn trên kênh này TẮT (cùng giao dịch); kênh quay về thì
+  // chủ shop tự bật lại (chủ dự án chốt 19/10/2026 — "quay về người không").
+  if (doi.daDong?.trang_id != null) {
+    await k.query(
+      `UPDATE auto_scripts SET is_active = FALSE, tat_ly_do = $3, updated_at = now()
+        WHERE social_account_id = $1 AND trang_id = $2 AND is_active`,
+      [accountId, doi.daDong.trang_id, `Kênh đã rời cửa hàng lúc ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}`]
     );
-    if (r.rowCount) await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });
-  });
+  }
 }
 
 /*

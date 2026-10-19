@@ -154,10 +154,11 @@ async function ghiDon(
     let nguon: { loai: string | null; ad: string | null; bai: string | null } = { loai: null, ad: null, bai: null };
     let trangId: number | null = d.trangId ?? null;
     if (d.conversationId) {
+      // Cửa hàng CỦA HỘI THOẠI (chốt theo nhiệm kỳ — đợt 2b), không suy qua kênh: kênh đã rời cửa hàng thì đơn từ hội thoại
+      // cũ vẫn là doanh thu của cửa hàng cũ.
       const k = await client.query<{ social_account_id: string | null; trang_id: number | null }>(
-        `SELECT c.social_account_id, s.trang_id
+        `SELECT c.social_account_id, c.trang_id
            FROM conversations c
-           LEFT JOIN social_accounts s ON s.id = c.social_account_id AND s.user_id = c.user_id
           WHERE c.id = $1 AND c.user_id = $2`,
         [d.conversationId, d.userId]
       );

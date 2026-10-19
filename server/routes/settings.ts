@@ -12,6 +12,8 @@ import {
   effectiveRateLimit,
 } from "../services/guardrails.js";
 import { DAU_THANG_VN } from "../moc-thoi-gian.js";
+import { trangHienTai } from "../services/ngu-canh-trang.js";
+import { LOI_KENH_NGOAI_CUA_HANG_DANG_CHON } from "../services/kenh-dang.js";
 
 export const settingsRouter = Router();
 
@@ -202,12 +204,14 @@ settingsRouter.post(
 settingsRouter.get(
   "/auto-scripts",
   route(async (req, res) => {
+    // Kịch bản của CỬA HÀNG đang chọn (đợt 2b): cửa hàng B không thấy kịch bản của A, kể cả kịch bản "đã tắt vì kênh rời".
+    const trang = await trangHienTai();
     const rows = await query(
       `SELECT s.*, a.display_name AS account_name, a.platform
          FROM auto_scripts s
          LEFT JOIN social_accounts a ON a.id = s.social_account_id
-        WHERE s.user_id = $1 ORDER BY s.created_at DESC`,
-      [req.user!.id]
+        WHERE s.user_id = $1 AND s.trang_id = $2 ORDER BY s.created_at DESC`,
+      [req.user!.id, trang]
     );
     res.json({ success: true, data: rows.rows });
   })
@@ -350,17 +354,29 @@ settingsRouter.post(
       throw new AppError("Phải có ít nhất một từ khoá kích hoạt");
     }
 
+    // Kịch bản thuộc CỬA HÀNG đang chọn (đợt 2b); kênh (nếu chọn) phải là kênh của chính cửa hàng đó — kiểm TRƯỚC khi ghi.
+    const trangKichBan = await trangHienTai();
+    if (trangKichBan == null) throw new AppError("Chưa có cửa hàng nào để gắn kịch bản. Vui lòng tạo cửa hàng trước.", 409);
+    const kenhKichBan = typeof body.socialAccountId === "string" ? body.socialAccountId : null;
+    if (kenhKichBan) {
+      const cuaCuaHang = await queryOne(
+        "SELECT 1 FROM social_accounts WHERE id = $1 AND user_id = $2 AND trang_id = $3",
+        [kenhKichBan, req.user!.id, trangKichBan]
+      );
+      if (!cuaCuaHang) throw new AppError(LOI_KENH_NGOAI_CUA_HANG_DANG_CHON, 400);
+    }
+
     const inserted = await queryOne(
       `INSERT INTO auto_scripts
          (user_id, social_account_id, name, keywords, exclude_keywords, match_type,
           ignore_typo, message, public_reply_enabled, public_reply_text,
           delay_seconds, public_reply_delay_seconds, message_variations,
-          public_reply_variations, apply_to, is_active, send_dm)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+          public_reply_variations, apply_to, is_active, send_dm, trang_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        RETURNING *`,
       [
         req.user!.id,
-        typeof body.socialAccountId === "string" ? body.socialAccountId : null,
+        kenhKichBan,
         name,
         keywords,
         Array.isArray(body.excludeKeywords) ? body.excludeKeywords : [],
@@ -376,6 +392,7 @@ settingsRouter.post(
         typeof body.applyTo === "string" ? body.applyTo : "all",
         body.isActive !== false,
         sendDm,
+        trangKichBan,
       ]
     );
 

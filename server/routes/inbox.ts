@@ -5,6 +5,8 @@ import { AppError, requireString, route } from "../http.js";
 import * as zernio from "../services/zernio.js";
 import { sendMessageSafely } from "../services/outbound.js";
 import { layHoiThoaiChoTin } from "../services/nhiem-ky.js";
+import { layHoacTaoKhach } from "../services/khach.js";
+import { trangHienTai } from "../services/ngu-canh-trang.js";
 
 export const inboxRouter = Router();
 
@@ -24,13 +26,26 @@ function windowState(expiresAt: Date | null): "open" | "closing" | "expired" {
 }
 
 /** Danh sách hội thoại, lọc theo trang và theo trạng thái. */
+/**
+ * MỘT điều kiện hộp thư dùng CHUNG cho danh sách và các thẻ đếm (đợt 2b — số đếm phải khớp danh sách): hội thoại của
+ * CỬA HÀNG đang chọn (conversations.trang_id, chốt theo nhiệm kỳ kênh); lọc thêm một kênh nếu có.
+ */
+function dieuKienHopThu(userId: number, trang: number | null, kenh: unknown): { conditions: string[]; params: unknown[] } {
+  const conditions = ["c.user_id = $1", "c.trang_id = $2"];
+  const params: unknown[] = [userId, trang];
+  if (typeof kenh === "string" && kenh !== "" && kenh !== "all") {
+    params.push(kenh);
+    conditions.push(`c.social_account_id = $${params.length}`);
+  }
+  return { conditions, params };
+}
+
 inboxRouter.get(
   "/conversations",
   route(async (req, res) => {
     const { accountId, status, search } = req.query;
 
-    const conditions: string[] = ["c.user_id = $1"];
-    const params: unknown[] = [req.user!.id];
+    const { conditions, params } = dieuKienHopThu(req.user!.id, await trangHienTai(), accountId);
 
     /*
      * Phân trang, thay cho LIMIT 100 cắt cụt.
@@ -50,10 +65,6 @@ inboxRouter.get(
     );
     const boQua = Math.max(Number(req.query.boQua) || 0, 0);
 
-    if (typeof accountId === "string" && accountId !== "" && accountId !== "all") {
-      params.push(accountId);
-      conditions.push(`c.social_account_id = $${params.length}`);
-    }
 
     if (typeof status === "string" && status !== "" && status !== "all") {
       if (status === "expiring") {
@@ -111,19 +122,21 @@ inboxRouter.get(
 inboxRouter.get(
   "/counts",
   route(async (req, res) => {
+    // CÙNG điều kiện với danh sách (dieuKienHopThu) — kể cả lọc một kênh — để số đếm khớp danh sách.
+    const { conditions, params } = dieuKienHopThu(req.user!.id, await trangHienTai(), req.query.accountId);
     const row = await queryOne<Record<string, number>>(
       `SELECT
-         COUNT(*) FILTER (WHERE status <> 'done')                      AS all_open,
-         COUNT(*) FILTER (WHERE status = 'waiting_human')              AS waiting_human,
-         COUNT(*) FILTER (WHERE status = 'ai')                         AS ai_handling,
-         COUNT(*) FILTER (WHERE status = 'human')                      AS human_handling,
-         COUNT(*) FILTER (WHERE status = 'done')                       AS done,
-         COUNT(*) FILTER (WHERE status <> 'done'
-                            AND window_expires_at IS NOT NULL
-                            AND window_expires_at > now()
-                            AND window_expires_at < now() + interval '4 hours') AS expiring
-       FROM conversations WHERE user_id = $1`,
-      [req.user!.id]
+         COUNT(*) FILTER (WHERE c.status <> 'done')                      AS all_open,
+         COUNT(*) FILTER (WHERE c.status = 'waiting_human')              AS waiting_human,
+         COUNT(*) FILTER (WHERE c.status = 'ai')                         AS ai_handling,
+         COUNT(*) FILTER (WHERE c.status = 'human')                      AS human_handling,
+         COUNT(*) FILTER (WHERE c.status = 'done')                       AS done,
+         COUNT(*) FILTER (WHERE c.status <> 'done'
+                            AND c.window_expires_at IS NOT NULL
+                            AND c.window_expires_at > now()
+                            AND c.window_expires_at < now() + interval '4 hours') AS expiring
+       FROM conversations c WHERE ${conditions.join(" AND ")}`,
+      params
     );
     res.json({ success: true, data: row ?? {} });
   })
@@ -302,24 +315,16 @@ inboxRouter.post(
         const ht = await layHoiThoaiChoTin({ maLuong: conversation.id, accountId: account.id, lucTin: lastAt });
 
         await transaction(async (client) => {
-          const customer = await client.query<{ id: number }>(
-            `INSERT INTO customers
-               (user_id, social_account_id, platform, participant_id, name, avatar_url)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             ON CONFLICT (user_id, platform, participant_id) DO UPDATE SET
-               name       = COALESCE(NULLIF(customers.name, ''), EXCLUDED.name),
-               avatar_url = COALESCE(customers.avatar_url, EXCLUDED.avatar_url),
-               updated_at = now()
-             RETURNING id`,
-            [
-              req.user!.id,
-              account.id,
-              conversation.platform ?? account.platform,
-              conversation.participantId,
-              conversation.participantName ?? "",
-              conversation.participantPicture ?? null,
-            ]
-          );
+          // Hồ sơ khách của CỬA HÀNG của hội thoại (đợt 2b — services/khach.ts).
+          const customerId = await layHoacTaoKhach(client, {
+            userId: req.user!.id,
+            trangId: ht.trangId,
+            socialAccountId: account.id,
+            platform: conversation.platform ?? account.platform,
+            participantId: conversation.participantId,
+            name: conversation.participantName ?? "",
+            avatarUrl: conversation.participantPicture ?? null,
+          });
 
           await client.query(
             `INSERT INTO conversations
@@ -328,13 +333,14 @@ inboxRouter.post(
              VALUES ($1, $2, $3, $4, $5, 'ai', $6, $7, $8, $9, $10, $11, $12)
              ON CONFLICT (id) DO UPDATE SET
                last_message_at = GREATEST(conversations.last_message_at, EXCLUDED.last_message_at),
+               customer_id     = EXCLUDED.customer_id,
                external_url    = COALESCE(EXCLUDED.external_url, conversations.external_url),
                updated_at      = now()`,
             [
               ht.id,
               req.user!.id,
               account.id,
-              customer.rows[0].id,
+              customerId,
               conversation.platform ?? account.platform,
               lastAt,
               new Date(lastAt.getTime() + 24 * 60 * 60 * 1_000),

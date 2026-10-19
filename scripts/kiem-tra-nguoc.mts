@@ -1787,8 +1787,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "cứu luôn cả hội thoại chủ shop đang tự tay trả lời",
     tep: "server/routes/ai.ts",
-    tim: "          WHERE user_id = $1 AND status = 'waiting_human'",
-    thay: "          WHERE user_id = $1 AND status IN ('waiting_human', 'human')",
+    tim: "AND c.trang_id = $2 AND c.status = 'waiting_human'",
+    thay: "AND c.trang_id = $2 AND c.status IN ('waiting_human', 'human')",
   },
   {
     ten: "trả về lời dặn kiến thức rỗng khi shop chưa có tài liệu",
@@ -3656,8 +3656,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "tin riêng bình luận hẹn giờ không lọc tài khoản khoá",
     tep: "server/services/comment-ai.ts",
-    tim: "        AND ${DK_TAI_KHOAN_MO(\"comments.user_id\")}\n      ORDER BY dm_due_at",
-    thay: "      ORDER BY dm_due_at",
+    tim: "        AND ${DK_TAI_KHOAN_MO(\"comments.user_id\")}\n        -- Việc hẹn của nhiệm kỳ kênh ĐÃ ĐÓNG",
+    thay: "        -- Việc hẹn của nhiệm kỳ kênh ĐÃ ĐÓNG",
   },
   {
     ten: "hàng đợi không truyền 'chỉ lưu' xuống (AI trả lời tin của tài khoản khoá)",
@@ -3974,8 +3974,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "cửa ra: nhập tên riêng hàm gửi để lách cách đếm",
     tep: "server/services/outbound.ts",
-    tim: "import { chanCuaRa, trangTamTheoKenh } from \"./cua-ra.js\";",
-    thay: "import { chanCuaRa, trangTamTheoKenh } from \"./cua-ra.js\";\nimport { sendMessage as guiThang } from \"./zernio.js\";\nvoid guiThang;",
+    tim: "import { chanCuaRa } from \"./cua-ra.js\";\n",
+    thay: "import { chanCuaRa } from \"./cua-ra.js\";\nimport { sendMessage as guiThang } from \"./zernio.js\";\nvoid guiThang;\n",
   },
   {
     ten: "số liệu bài cũ ghi theo cửa hàng hiện tại của kênh (tính nhầm sang cửa hàng mới)",
@@ -4076,8 +4076,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "nhiệm kỳ: đổi cửa hàng của kênh mà không đổi nhiệm kỳ",
     tep: "server/services/trang.ts",
-    tim: "    if (r.rowCount) await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });",
-    thay: "    if (false) await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });",
+    tim: "    const doi = await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });",
+    thay: "    const doi = { daDong: null as { trang_id: number | null } | null }; void doiNhiemKy;",
   },
   {
     ten: "nhiệm kỳ: AI trả lời hội thoại của nhiệm kỳ đã đóng",
@@ -4180,6 +4180,102 @@ const DUC: PhepDuc[] = [
     tep: "scripts/tunnel-watchdog.mjs",
     tim: "  lucDung = Date.now();\n",
     thay: "",
+  },
+  {
+    ten: "2b: ON CONFLICT khách thiếu điều kiện của chỉ mục (mọi tin đến hỏng)",
+    tep: "server/services/khach.ts",
+    tim: "ON CONFLICT (trang_id, platform, participant_id) WHERE trang_id IS NOT NULL DO UPDATE SET",
+    thay: "ON CONFLICT (trang_id, platform, participant_id) DO UPDATE SET",
+  },
+  {
+    ten: "2b: kênh chưa gắn dùng lại hồ sơ mồ côi của cửa hàng đã xoá",
+    tep: "server/services/khach.ts",
+    tim: "AND trang_id IS NULL AND trang_goc IS NULL\n        ORDER BY id LIMIT 1",
+    thay: "AND trang_id IS NULL\n        ORDER BY id LIMIT 1",
+  },
+  {
+    ten: "2b: nhận hồ sơ mồ côi của cửa hàng đã xoá sang cửa hàng mới",
+    tep: "server/services/nhiem-ky.ts",
+    tim: "AND cu.trang_id IS NULL AND cu.trang_goc IS NULL",
+    thay: "AND cu.trang_id IS NULL",
+  },
+  {
+    ten: "2b: hội thoại không trỏ sang hồ sơ khách của cửa hàng nó",
+    tep: "server/services/events.ts",
+    tim: "         customer_id       = EXCLUDED.customer_id,\n",
+    thay: "",
+  },
+  {
+    ten: "2b: bình luận của nhiệm kỳ đã đóng vẫn chạy kịch bản",
+    tep: "server/services/comment-ai.ts",
+    tim: "  if (nkBL?.den_luc) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "2b: chọn kịch bản không lọc cửa hàng (kịch bản 'mọi kênh' của A áp lên kênh đã rời)",
+    tep: "server/services/comment-ai.ts",
+    tim: "        AND trang_id = $3\n",
+    thay: "        AND $3::bigint IS NOT NULL\n",
+  },
+  {
+    ten: "2b: tin riêng hẹn của nhiệm kỳ đã đóng vẫn gửi",
+    tep: "server/services/comment-ai.ts",
+    tim: "        -- Việc hẹn của nhiệm kỳ kênh ĐÃ ĐÓNG (kênh đã rời cửa hàng) không gửi nữa (đợt 2b).\n        AND ${DK_NHIEM_KY_MO(\"comments.nhiem_ky_id\")}",
+    thay: "",
+  },
+  {
+    ten: "2b: kênh rời mà kịch bản của cửa hàng cũ không tắt",
+    tep: "server/services/trang.ts",
+    tim: "    if (doi.daDong?.trang_id != null) {",
+    thay: "    if (false) {",
+  },
+  {
+    ten: "2b: danh sách kịch bản lấy cả tài khoản",
+    tep: "server/routes/settings.ts",
+    tim: "WHERE s.user_id = $1 AND s.trang_id = $2 ORDER BY s.created_at DESC",
+    thay: "WHERE s.user_id = $1 AND $2::bigint IS NOT NULL ORDER BY s.created_at DESC",
+  },
+  {
+    ten: "2b: tạo kịch bản không kiểm kênh thuộc cửa hàng",
+    tep: "server/routes/settings.ts",
+    tim: "      if (!cuaCuaHang) throw new AppError(LOI_KENH_NGOAI_CUA_HANG_DANG_CHON, 400);",
+    thay: "      if (false) throw new AppError(LOI_KENH_NGOAI_CUA_HANG_DANG_CHON, 400);",
+  },
+  {
+    ten: "2b: đơn từ hội thoại lấy cửa hàng hiện tại của kênh",
+    tep: "server/services/orders.ts",
+    tim: "        `SELECT c.social_account_id, c.trang_id\n           FROM conversations c\n          WHERE",
+    thay: "        `SELECT c.social_account_id, s.trang_id\n           FROM conversations c\n           LEFT JOIN social_accounts s ON s.id = c.social_account_id\n          WHERE",
+  },
+  {
+    ten: "2b: hộp thư lấy cả tài khoản (số đếm và danh sách lẫn cửa hàng)",
+    tep: "server/routes/inbox.ts",
+    tim: "\"c.trang_id = $2\"",
+    thay: "\"$2::bigint IS NOT NULL\"",
+  },
+  {
+    ten: "2b: thẻ đếm hộp thư không theo kênh đang lọc (lệch danh sách)",
+    tep: "src/pages/Inbox.tsx",
+    tim: "api.inbox.counts(activeAccount?.id)",
+    thay: "api.inbox.counts()",
+  },
+  {
+    ten: "2b: điều hành đếm hội thoại qua kênh hiện tại",
+    tep: "server/routes/dieu-hanh.ts",
+    tim: "(SELECT count(*) FROM conversations c\n                  WHERE c.trang_id = $1",
+    thay: "(SELECT count(*) FROM conversations c JOIN social_accounts s ON s.id = c.social_account_id\n                  WHERE s.trang_id = $1",
+  },
+  {
+    ten: "2b: báo cáo cửa hàng đếm hội thoại qua danh sách kênh",
+    tep: "server/services/bao-cao-chuoi.ts",
+    tim: "        WHERE c.trang_id = $1 AND c.created_at >= $2 AND c.created_at < $3\n        GROUP BY 1`,",
+    thay: "        WHERE c.social_account_id = ANY($1::text[]) AND c.created_at >= $2 AND c.created_at < $3\n        GROUP BY 1`,",
+  },
+  {
+    ten: "2b: tự chủ cứu hội thoại chờ người của mọi cửa hàng",
+    tep: "server/routes/ai.ts",
+    tim: "WHERE c.user_id = $1 AND c.trang_id = $2 AND c.status = 'waiting_human'",
+    thay: "WHERE c.user_id = $1 AND $2::bigint IS NOT NULL AND c.status = 'waiting_human'",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

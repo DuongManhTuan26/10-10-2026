@@ -1144,7 +1144,9 @@ export const api = {
         phanTrang: { boQua: number; soDong: number; conNua: boolean };
       }>(`/inbox/conversations${suffix}`);
     },
-    counts: () => get<{ data: Record<string, number> }>("/inbox/counts"),
+    /** accountId: CÙNG kênh đang lọc ở danh sách — số đếm khớp danh sách (đợt 2b). */
+    counts: (accountId?: string) =>
+      get<{ data: Record<string, number> }>(`/inbox/counts${accountId ? `?accountId=${encodeURIComponent(accountId)}` : ""}`),
     detail: (id: string) =>
       get<{ data: ConversationDetail }>(`/inbox/conversations/${encodeURIComponent(id)}`),
     send: (id: string, text: string) =>

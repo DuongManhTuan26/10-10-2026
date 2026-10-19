@@ -9,6 +9,7 @@ import { chuCuaHoSo } from "./trang.js";
 import { xinSuatDocAnh } from "./chong-lam-dung.js";
 import { TaiKhoanKhoaError } from "./tai-khoan-mo.js";
 import { layHoiThoaiChoTin } from "./nhiem-ky.js";
+import { layHoacTaoKhach } from "./khach.js";
 
 /**
  * Chuyển sự kiện webhook thành dữ liệu nghiệp vụ.
@@ -219,31 +220,17 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
 
   await transaction(async (client) => {
     // 1. Khách hàng — tạo mới nếu lần đầu nhắn, cập nhật nếu đã có.
-    const customer = await client.query<{ id: number }>(
-      `INSERT INTO customers
-         (user_id, social_account_id, platform, participant_id, name, avatar_url,
-          phone, first_seen_at, last_seen_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())
-       ON CONFLICT (user_id, platform, participant_id) DO UPDATE SET
-         last_seen_at = now(),
-         -- Chỉ ghi đè khi bản ghi đang trống, để không xoá thông tin
-         -- nhân viên đã sửa tay trước đó.
-         name       = COALESCE(NULLIF(customers.name, ''), EXCLUDED.name),
-         avatar_url = COALESCE(customers.avatar_url, EXCLUDED.avatar_url),
-         phone      = COALESCE(customers.phone, EXCLUDED.phone),
-         updated_at = now()
-       RETURNING id`,
-      [
-        account.user_id,
-        accountId,
-        platform,
-        senderId,
-        message.sender?.name ?? message.sender?.username ?? "",
-        message.sender?.picture ?? null,
-        message.sender?.phoneNumber ?? null,
-      ]
-    );
-    const customerId = customer.rows[0].id;
+    // Hồ sơ khách của CỬA HÀNG của hội thoại (đợt 2b — services/khach.ts).
+    const customerId = await layHoacTaoKhach(client, {
+      userId: account.user_id,
+      trangId: ht.trangId,
+      socialAccountId: accountId,
+      platform,
+      participantId: senderId,
+      name: message.sender?.name ?? message.sender?.username ?? "",
+      avatarUrl: message.sender?.picture ?? null,
+      phone: message.sender?.phoneNumber ?? null,
+    });
 
     // 2. Hội thoại — mở mới hoặc dời hạn cửa sổ 24 giờ.
     // Nguồn chỉ ghi khi hội thoại MỚI (lần chạm đầu); các lần chạm sau ghi vào hoi_thoai_cham.
@@ -257,6 +244,8 @@ async function handleMessageReceived(event: WebhookEvent): Promise<void> {
          last_message_at   = EXCLUDED.last_message_at,
          window_expires_at = EXCLUDED.window_expires_at,
          unread_count      = conversations.unread_count + 1,
+         -- Hội thoại luôn trỏ hồ sơ khách của CHÍNH cửa hàng nó (dòng vừa được nhận vào nhiệm kỳ — đợt 2b).
+         customer_id       = EXCLUDED.customer_id,
          -- Khách nhắn lại sau khi đã đóng thì mở lại hội thoại.
          -- Nếu đang chờ người thật xử lý thì giữ nguyên, không trả về cho AI.
          status = CASE

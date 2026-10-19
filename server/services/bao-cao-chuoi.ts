@@ -29,7 +29,6 @@ export async function baoCaoChuoi(trangId: number, ky: KyTongQuan, khoang?: { tu
     "SELECT id, platform, page_id, connected FROM social_accounts WHERE trang_id = $1",
     [trangId]
   );
-  const kenhIds = kenh.rows.map((k) => k.id);
   const ky2 = [tu, den] as const;
 
   const [bai, soBai, tienNoiDung, hoiThoai, cham, don, donNguon, tinAi, phanHoi, nhuong, tienBanHang] = await Promise.all([
@@ -48,31 +47,32 @@ export async function baoCaoChuoi(trangId: number, ky: KyTongQuan, khoang?: { tu
               coalesce(sum(thich + binh_luan + chia_se), 0)::int AS tuong_tac, coalesce(sum(binh_luan), 0)::int AS binh_luan
          FROM (SELECT DISTINCT ON (account_id, post_ref) *
                  FROM so_bai_ngay
-                WHERE account_id = ANY($1::text[]) AND post_ref <> '-' AND dang_luc >= $2 AND dang_luc < $3
+                WHERE trang_id = $1 AND post_ref <> '-' AND dang_luc >= $2 AND dang_luc < $3
                 ORDER BY account_id, post_ref, ngay DESC) b`,
-      [kenhIds, ...ky2]
+      // so_bai_ngay.trang_id = cửa hàng CỦA BÀI (đợt 1) — bài cũ trên kênh đã rời vẫn tính cho cửa hàng cũ (kênh là nhân viên).
+      [trangId, ...ky2]
     ),
     queryOne<{ usd: string }>(
       `SELECT coalesce(sum(${TIEN}), 0)::text AS usd FROM ai_usage a
         WHERE a.trang_id = $1 AND a.created_at >= $2 AND a.created_at < $3 AND a.viec = ANY($4::text[])`,
       [trangId, ...ky2, viecCuaNhom("marketing", "anh", "video")]
     ),
-    // --- BÁN HÀNG: hội thoại MỚI trong kỳ theo nguồn ---
+    // --- BÁN HÀNG: hội thoại MỚI trong kỳ theo nguồn --- (cửa hàng CỦA HỘI THOẠI — nhiệm kỳ kênh, đợt 2b)
     query<{ origin: string; so: number; co_don: number }>(
       `SELECT c.origin, count(*)::int AS so,
               count(*) FILTER (WHERE EXISTS (SELECT 1 FROM orders o WHERE o.conversation_id = c.id))::int AS co_don
          FROM conversations c
-        WHERE c.social_account_id = ANY($1::text[]) AND c.created_at >= $2 AND c.created_at < $3
+        WHERE c.trang_id = $1 AND c.created_at >= $2 AND c.created_at < $3
         GROUP BY 1`,
-      [kenhIds, ...ky2]
+      [trangId, ...ky2]
     ),
     // Lần chạm có mã trong kỳ (khách cũ bấm quảng cáo quay lại cũng tính).
     query<{ loai: string; hoi_thoai: number }>(
       `SELECT h.loai, count(DISTINCT h.conversation_id)::int AS hoi_thoai
          FROM hoi_thoai_cham h JOIN conversations c ON c.id = h.conversation_id
-        WHERE c.social_account_id = ANY($1::text[]) AND h.luc >= $2 AND h.luc < $3
+        WHERE c.trang_id = $1 AND h.luc >= $2 AND h.luc < $3
         GROUP BY 1`,
-      [kenhIds, ...ky2]
+      [trangId, ...ky2]
     ),
     queryOne<{ so: number; huy: number; doanh_thu: string }>(
       `SELECT count(*)::int AS so, count(*) FILTER (WHERE status = 'cancelled')::int AS huy,
@@ -88,8 +88,8 @@ export async function baoCaoChuoi(trangId: number, ky: KyTongQuan, khoang?: { tu
     ),
     queryOne<{ so: number }>(
       `SELECT count(*)::int AS so FROM messages m JOIN conversations c ON c.id = m.conversation_id
-        WHERE c.social_account_id = ANY($1::text[]) AND m.sender_type = 'ai' AND m.created_at >= $2 AND m.created_at < $3`,
-      [kenhIds, ...ky2]
+        WHERE c.trang_id = $1 AND m.sender_type = 'ai' AND m.created_at >= $2 AND m.created_at < $3`,
+      [trangId, ...ky2]
     ),
     // Thời gian trả lời: từ tin khách tới tin trả lời KẾ TIẾP (AI hoặc người), trung vị — không để vài ca cực lâu kéo lệch.
     queryOne<{ trung_vi: number | null; so: number }>(
@@ -100,15 +100,15 @@ export async function baoCaoChuoi(trangId: number, ky: KyTongQuan, khoang?: { tu
            JOIN LATERAL (SELECT created_at FROM messages n
                           WHERE n.conversation_id = m.conversation_id AND n.sender_type IN ('ai', 'human')
                             AND n.created_at > m.created_at ORDER BY n.created_at LIMIT 1) tl ON TRUE
-          WHERE c.social_account_id = ANY($1::text[]) AND m.sender_type = 'customer'
+          WHERE c.trang_id = $1 AND m.sender_type = 'customer'
             AND m.created_at >= $2 AND m.created_at < $3) x`,
-      [kenhIds, ...ky2]
+      [trangId, ...ky2]
     ),
     query<{ ly_do: string; so: number }>(
       `SELECT coalesce(handoff_reason, 'Không rõ lý do') AS ly_do, count(*)::int AS so FROM conversations
-        WHERE social_account_id = ANY($1::text[]) AND handoff_at >= $2 AND handoff_at < $3
+        WHERE trang_id = $1 AND handoff_at >= $2 AND handoff_at < $3
         GROUP BY 1 ORDER BY 2 DESC LIMIT 5`,
-      [kenhIds, ...ky2]
+      [trangId, ...ky2]
     ),
     queryOne<{ usd: string }>(
       `SELECT coalesce(sum(${TIEN}), 0)::text AS usd FROM ai_usage a

@@ -7,12 +7,10 @@
  * biến kênh ban đầu. Kênh đã rời cửa hàng của việc thì cửa hàng đó không làm gì được qua kênh ấy nữa. Chỗ nào lọt (chọn
  * việc sai, đồng bộ sai, hàng đợi trễ) cũng không thành hành động sai ra ngoài.
  *
- * ĐỢT 1 — CHƯA AN TOÀN HẲN cho tin / bình luận: hội thoại và bình luận chưa có cột cửa hàng chốt, nên "cửa hàng của việc"
- * tạm lấy theo cửa hàng HIỆN TẠI của kênh (trangTamTheoKenh) → chốt luôn cho qua với tin của hội thoại nhiệm kỳ cũ.
- * Đợt 2 thay bằng conversations.trang_id / comments.trang_id + điều kiện nhiệm kỳ đang mở. Bài (posts.trang_id) thì chặn
- * thật ngay từ đợt 1.
+ * Cửa hàng của việc: bài = posts.trang_id; tin = conversations.trang_id + nhiem_ky_id; bình luận = comments.trang_id +
+ * nhiem_ky_id (đợt 2a / 2b — nhiệm kỳ kênh). Không còn chỗ nào "tạm theo kênh".
  */
-import { query, queryOne } from "../db.js";
+import { query } from "../db.js";
 import { AppError } from "../http.js";
 
 export const LOI_KENH_DA_ROI =
@@ -81,14 +79,4 @@ async function docKenhThat(userId: number, ids: string[]): Promise<KenhXet[]> {
     [userId, ids]
   );
   return r.rows;
-}
-
-/**
- * ĐỢT 1 TẠM (xem đầu tệp): cửa hàng của tin / bình luận = cửa hàng hiện tại của kênh. Đợt 2 bỏ hàm này, thay bằng cột
- * cửa hàng chốt lúc tạo của hội thoại / bình luận.
- */
-export async function trangTamTheoKenh(kenhId: string | null | undefined): Promise<number | null> {
-  if (!kenhId) return null;
-  const r = await queryOne<{ trang_id: number | null }>("SELECT trang_id FROM social_accounts WHERE id = $1", [kenhId]);
-  return r?.trang_id ?? null;
 }

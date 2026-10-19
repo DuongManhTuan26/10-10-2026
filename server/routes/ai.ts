@@ -67,6 +67,7 @@ import {
 import { baoGiaVideoDai, batDauDuAn, COT_DU_AN, docAmThanh, tiepTucDuAn, suaDuAn, taoDuAn, type DuAnVideo } from "../services/video-dai.js";
 import { layModelSuaVideo, suaVideo } from "../services/video-sua.js";
 import { phanTichTrend } from "../services/video-trend.js";
+import { DK_NHIEM_KY_MO } from "../services/nhiem-ky.js";
 
 export const aiRouter = Router();
 
@@ -208,13 +209,16 @@ aiRouter.put(
      */
     let daCuu = 0;
     if (sach.bat) {
+      // CHỈ hội thoại của CỬA HÀNG vừa bật tự chủ, nhiệm kỳ kênh còn mở (đợt 2b) — bản cũ kéo hội thoại chờ người của MỌI
+      // cửa hàng trong tài khoản về cho AI.
       const cuu = await query(
-        `UPDATE conversations
+        `UPDATE conversations c
             SET status = 'ai', ai_enabled = TRUE, handoff_reason = NULL,
                 handoff_at = NULL, updated_at = now()
-          WHERE user_id = $1 AND status = 'waiting_human'
-          RETURNING id`,
-        [req.user!.id]
+          WHERE c.user_id = $1 AND c.trang_id = $2 AND c.status = 'waiting_human'
+            AND ${DK_NHIEM_KY_MO("c.nhiem_ky_id")}
+          RETURNING c.id`,
+        [req.user!.id, await trangCuaReq(req)]
       );
       daCuu = cuu.rowCount ?? 0;
       if (daCuu > 0) {

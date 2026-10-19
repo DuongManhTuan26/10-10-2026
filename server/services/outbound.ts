@@ -10,7 +10,7 @@ import {
   evaluateAutoPause,
   type Actor,
 } from "./guardrails.js";
-import { chanCuaRa, trangTamTheoKenh } from "./cua-ra.js";
+import { chanCuaRa } from "./cua-ra.js";
 
 /**
  * Đường duy nhất để gửi tin nhắn ra ngoài.
@@ -82,14 +82,15 @@ export async function sendMessageSafely(params: {
   /*
    * CHỐT CỬA RA (services/cua-ra.ts): chỉ gửi qua kênh còn thuộc đúng CỬA HÀNG CỦA HỘI THOẠI và đang ở đúng NHIỆM KỲ
    * của hội thoại (đợt 2a — nhiệm kỳ kênh). Kênh đã rời / quay về (nhiệm kỳ mới) → hội thoại cũ chỉ xem, không gửi.
-   * Hội thoại chưa có cửa hàng (kênh chưa gắn cửa hàng — hiếm): theo cửa hàng hiện tại của kênh.
+   * Hội thoại chưa có cửa hàng (kênh chưa gắn cửa hàng — thoáng qua lúc nối): chanCuaRa(NULL) CHẶN — chưa có cửa hàng thuê
+   * kênh thì không ai gửi được, kể cả nhân viên trả lời tay (phiên kiểm duyệt duyệt 19/10, đợt 2b).
    */
   let kenhGui: string;
   try {
     const cuaRa = await chanCuaRa(
       conversation.user_id,
       [conversation.social_account_id],
-      conversation.trang_id ?? (await trangTamTheoKenh(conversation.social_account_id)),
+      conversation.trang_id,
       undefined,
       conversation.nhiem_ky_id
     );

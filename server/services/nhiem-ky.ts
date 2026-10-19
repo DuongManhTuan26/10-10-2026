@@ -91,12 +91,26 @@ export async function layHoiThoaiChoTin(
       null);
   // Dòng gốc chưa thuộc nhiệm kỳ nào (tin đến trước lúc kênh được gắn cửa hàng) → NHẬN vào nhiệm kỳ này (phiên kiểm duyệt
   // 19/10: không tách một khách thành 2 hội thoại khi kênh chưa từng chuyển đi đâu).
+  // AN TOÀN với cửa hàng đã xoá: xoá cửa hàng chỉ SET NULL trang_id / nhiem_ky_id của NHIỆM KỲ (kenh_nhiem_ky.trang_id) —
+  // hội thoại của cửa hàng đó vẫn giữ nhiem_ky_id (FK tới kenh_nhiem_ky, nhiệm kỳ không bị xoá) → không khớp
+  // "nhiem_ky_id IS NULL AND trang_id IS NULL" → không bao giờ bị kênh khác nhận.
   if (!daCo && dongGoc && dongGoc.nhiem_ky_id == null) {
     await db.query("UPDATE conversations SET nhiem_ky_id = $2, trang_id = $3 WHERE id = $1 AND nhiem_ky_id IS NULL AND trang_id IS NULL", [
       p.maLuong,
       nk.id,
       nk.trang_id,
     ]);
+    // Nhận luôn HỒ SƠ KHÁCH của dòng đó — CHỈ hồ sơ chưa từng thuộc cửa hàng nào (trang_goc NULL; hồ sơ mồ côi của cửa
+    // hàng đã xoá có trang_goc → không đụng), và cửa hàng nhận chưa có hồ sơ cùng (nền tảng, mã) — có rồi thì để nguyên,
+    // không gộp (hội thoại sẽ trỏ sang hồ sơ của cửa hàng ở lần ghi tin kế tiếp).
+    await db.query(
+      `UPDATE customers cu SET trang_id = $2, trang_goc = $2, updated_at = now()
+        WHERE cu.id = (SELECT customer_id FROM conversations WHERE id = $1)
+          AND cu.trang_id IS NULL AND cu.trang_goc IS NULL
+          AND NOT EXISTS (SELECT 1 FROM customers x
+                           WHERE x.trang_id = $2 AND x.platform = cu.platform AND x.participant_id = cu.participant_id)`,
+      [p.maLuong, nk.trang_id]
+    );
   }
   return {
     id: daCo?.id ?? maHoiThoai(p.maLuong, nk.id, dongGoc),

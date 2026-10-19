@@ -3,7 +3,8 @@ import * as zernio from "./zernio.js";
 import { loadConfig, xinPhepGuiBinhLuan } from "./guardrails.js";
 import { commentReplyAllowed } from "./guardrails.js";
 import { DK_TAI_KHOAN_MO } from "./tai-khoan-mo.js";
-import { chanCuaRa, trangTamTheoKenh } from "./cua-ra.js";
+import { chanCuaRa } from "./cua-ra.js";
+import { cacNhiemKy, chonNhiemKy, DK_NHIEM_KY_MO } from "./nhiem-ky.js";
 
 /**
  * Xử lý bình luận mới: trả lời công khai và nhắn tin riêng cho người bình luận.
@@ -242,12 +243,19 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
     comment.platformPostId ?? post?.platformPostId ?? comment.postId ?? post?.id ?? "";
   const content = comment.text ?? "";
 
+  /*
+   * Nhiệm kỳ kênh (đợt 2b — "kênh là nhân viên"): bình luận thuộc cửa hàng đang giữ kênh LÚC KHÁCH BÌNH LUẬN (cả bình luận
+   * mới trên bài cũ của cửa hàng trước — chủ dự án chốt: cửa hàng mới tự trả lời như thường). Giờ hỏng → giờ nhận.
+   */
+  const lucBL = comment.createdAt ? new Date(comment.createdAt) : new Date();
+  const nkBL = chonNhiemKy(await cacNhiemKy(accountId), Number.isNaN(lucBL.getTime()) ? new Date() : lucBL);
+
   // Ghi nhận bình luận. Chạy lại sự kiện không tạo bản ghi trùng.
   await query(
     `INSERT INTO comments
        (id, user_id, social_account_id, platform, platform_post_id, post_permalink,
-        parent_comment_id, is_reply, author_id, author_name, content, platform_created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        parent_comment_id, is_reply, author_id, author_name, content, platform_created_at, trang_id, nhiem_ky_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
      ON CONFLICT (id) DO NOTHING`,
     [
       comment.id,
@@ -262,6 +270,8 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
       comment.author?.name ?? null,
       content,
       comment.createdAt ? new Date(comment.createdAt) : null,
+      nkBL?.trang_id ?? null,
+      nkBL?.id ?? null,
     ]
   );
 
@@ -269,6 +279,17 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
     await markSkipped(comment.id, "Đến lúc tài khoản đang khoá — không tự trả lời");
     return;
   }
+  // Bình luận của nhiệm kỳ ĐÃ ĐÓNG (kênh đã rời cửa hàng đó): lịch sử của cửa hàng cũ — chỉ lưu, không kịch bản.
+  if (nkBL?.den_luc) {
+    await markSkipped(comment.id, "Kênh đã rời cửa hàng lúc bình luận đến — chỉ lưu");
+    return;
+  }
+  // Kênh chưa gắn cửa hàng: không có cửa hàng nào thuê → không có kịch bản nào để chạy.
+  if (!nkBL || nkBL.trang_id == null) {
+    await markSkipped(comment.id, "Kênh chưa gắn cửa hàng — chưa có kịch bản để chạy");
+    return;
+  }
+  const trangBL = nkBL.trang_id;
 
   if (!platformPostId) {
     await markSkipped(comment.id, "Nền tảng không trả về id bài đăng nên không gửi được");
@@ -298,9 +319,11 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
             social_account_id, send_dm
        FROM auto_scripts
       WHERE user_id = $1 AND is_active = TRUE
+        -- Kịch bản của CỬA HÀNG của bình luận (đợt 2b): kịch bản "mọi kênh" của cửa hàng khác không áp lên kênh đã rời.
+        AND trang_id = $3
         AND (social_account_id IS NULL OR social_account_id = $2)
       ORDER BY (social_account_id = $2) DESC, created_at`,
-    [account.user_id, accountId]
+    [account.user_id, accountId, trangBL]
   );
 
   if (scripts.rows.length === 0) {
@@ -456,6 +479,8 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
     } else {
     await sendPrivateReply({
       userId: account.user_id,
+      trangId: trangBL,
+      nhiemKyId: nkBL.id,
       commentId: comment.id,
       platformPostId,
       accountId,
@@ -478,6 +503,8 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
     } else {
     await sendPublicReply({
       userId: account.user_id,
+      trangId: trangBL,
+      nhiemKyId: nkBL.id,
       commentId: comment.id,
       platformPostId,
       accountId,
@@ -595,6 +622,9 @@ export function daTuKhaiBao(text: string): boolean {
 
 /** Gửi tin nhắn riêng cho người bình luận, qua Zernio. */
 export async function sendPrivateReply(params: {
+  /** Cửa hàng + nhiệm kỳ CỦA BÌNH LUẬN (đợt 2b) — chốt cửa ra chặn khi kênh đã rời / quay về (nhiệm kỳ khác). */
+  trangId: number | null;
+  nhiemKyId: number | null;
   commentId: string;
   platformPostId: string;
   accountId: string;
@@ -619,8 +649,8 @@ export async function sendPrivateReply(params: {
   const coKhaiBao = config.disclosure_enabled;
 
   try {
-    // CHỐT CỬA RA (services/cua-ra.ts) — đợt 1 tạm: cửa hàng của bình luận = cửa hàng hiện tại của kênh.
-    const cuaRa = await chanCuaRa(params.userId, [params.accountId], await trangTamTheoKenh(params.accountId));
+    // CHỐT CỬA RA (services/cua-ra.ts): cửa hàng + nhiệm kỳ CỦA BÌNH LUẬN.
+    const cuaRa = await chanCuaRa(params.userId, [params.accountId], params.trangId, undefined, params.nhiemKyId);
     await zernio.privateReplyToComment({
       postId: params.platformPostId,
       commentId: params.commentId,
@@ -672,6 +702,8 @@ export async function sendPrivateReply(params: {
 /** Trả lời công khai dưới bình luận, qua Zernio. */
 export async function sendPublicReply(params: {
   userId: number;
+  trangId: number | null;
+  nhiemKyId: number | null;
   commentId: string;
   platformPostId: string;
   accountId: string;
@@ -679,8 +711,8 @@ export async function sendPublicReply(params: {
   text: string;
 }): Promise<void> {
   try {
-    // CHỐT CỬA RA (services/cua-ra.ts) — đợt 1 tạm: cửa hàng của bình luận = cửa hàng hiện tại của kênh.
-    const cuaRa = await chanCuaRa(params.userId, [params.accountId], await trangTamTheoKenh(params.accountId));
+    // CHỐT CỬA RA (services/cua-ra.ts): cửa hàng + nhiệm kỳ CỦA BÌNH LUẬN.
+    const cuaRa = await chanCuaRa(params.userId, [params.accountId], params.trangId, undefined, params.nhiemKyId);
     await zernio.replyToComment({
       postId: params.platformPostId,
       commentId: params.targetCommentId,
@@ -728,13 +760,17 @@ export async function runDueCommentActions(): Promise<number> {
     matched_script_id: number | null;
     pending_dm_text: string;
     platform_created_at: Date | null;
+    trang_id: number | null;
+    nhiem_ky_id: number | null;
   }>(
     `SELECT id, user_id, social_account_id, platform_post_id, author_id, author_name,
-            content, matched_script_id, pending_dm_text, platform_created_at
+            content, matched_script_id, pending_dm_text, platform_created_at, trang_id, nhiem_ky_id
        FROM comments
       WHERE dm_due_at IS NOT NULL AND dm_due_at <= now()
         AND private_replied_at IS NULL AND pending_dm_text IS NOT NULL
         AND ${DK_TAI_KHOAN_MO("comments.user_id")}
+        -- Việc hẹn của nhiệm kỳ kênh ĐÃ ĐÓNG (kênh đã rời cửa hàng) không gửi nữa (đợt 2b).
+        AND ${DK_NHIEM_KY_MO("comments.nhiem_ky_id")}
       ORDER BY dm_due_at
       LIMIT 50`
   );
@@ -774,6 +810,8 @@ export async function runDueCommentActions(): Promise<number> {
 
     await sendPrivateReply({
       userId: row.user_id,
+      trangId: row.trang_id,
+      nhiemKyId: row.nhiem_ky_id,
       commentId: row.id,
       platformPostId: row.platform_post_id,
       accountId: row.social_account_id,
@@ -799,14 +837,17 @@ export async function runDueCommentActions(): Promise<number> {
     parent_comment_id: string | null;
     is_reply: boolean;
     pending_reply_text: string;
+    trang_id: number | null;
+    nhiem_ky_id: number | null;
   }>(
     `SELECT user_id, id, social_account_id, platform_post_id, parent_comment_id, is_reply,
-            pending_reply_text
+            pending_reply_text, trang_id, nhiem_ky_id
        FROM comments
       WHERE public_reply_due_at IS NOT NULL AND public_reply_due_at <= now()
         AND public_replied_at IS NULL AND pending_reply_text IS NOT NULL
         AND (private_replied_at IS NOT NULL OR dm_due_at IS NULL)
         AND ${DK_TAI_KHOAN_MO("comments.user_id")}
+        AND ${DK_NHIEM_KY_MO("comments.nhiem_ky_id")}
       ORDER BY public_reply_due_at
       LIMIT 50`
   );
@@ -822,6 +863,8 @@ export async function runDueCommentActions(): Promise<number> {
 
     await sendPublicReply({
       userId: row.user_id,
+      trangId: row.trang_id,
+      nhiemKyId: row.nhiem_ky_id,
       commentId: row.id,
       platformPostId: row.platform_post_id,
       accountId: row.social_account_id,

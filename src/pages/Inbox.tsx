@@ -127,7 +127,7 @@ export default function Inbox() {
           search: search.trim() || undefined,
           soDong: SO_DONG_MOI_LAN,
         }),
-        api.inbox.counts(),
+        api.inbox.counts(activeAccount?.id),
       ]);
       setConversations(list.data);
       setConNua(list.phanTrang?.conNua ?? false);
