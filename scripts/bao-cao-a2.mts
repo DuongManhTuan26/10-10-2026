@@ -76,6 +76,34 @@ try {
       FROM social_accounts`);
   console.log("\nKênh (social_accounts): tổng / chưa gắn cửa hàng / chưa gắn mà đang nối:", kenhRong.rows[0]);
 
+  // ĐỢT 2 "nhiệm kỳ kênh" (kênh là nhân viên, chủ dự án chốt 19/10): đo mọi thứ sẽ gắn nhiệm kỳ / cửa hàng chốt.
+  const doi2 = await c.query(`
+    SELECT
+      (SELECT COUNT(*) FROM social_accounts)::int AS kenh,
+      (SELECT COUNT(*) FROM social_accounts WHERE NOT connected)::int AS kenh_da_ngat,
+      (SELECT COUNT(*) FROM conversations)::int AS hoi_thoai,
+      (SELECT COUNT(*) FROM conversations WHERE social_account_id IS NULL)::int AS hoi_thoai_mat_kenh,
+      (SELECT COUNT(*) FROM messages)::int AS tin,
+      (SELECT COUNT(*) FROM orders WHERE conversation_id IS NOT NULL)::int AS don_co_hoi_thoai,
+      (SELECT COUNT(*) FROM send_attempts WHERE conversation_id IS NOT NULL)::int AS luot_gui,
+      (SELECT COUNT(*) FROM hoi_thoai_cham)::int AS lan_cham,
+      (SELECT COUNT(*) FROM comments)::int AS binh_luan,
+      (SELECT COUNT(*) FROM comments WHERE social_account_id IS NULL)::int AS binh_luan_mat_kenh,
+      (SELECT COUNT(*) FROM auto_scripts)::int AS kich_ban,
+      (SELECT COUNT(*) FROM auto_scripts WHERE social_account_id IS NULL)::int AS kich_ban_moi_kenh,
+      (SELECT COUNT(*) FROM customers WHERE social_account_id IS NULL)::int AS khach_mat_kenh,
+      (SELECT COUNT(*) FROM (SELECT customer_id FROM conversations WHERE customer_id IS NOT NULL
+                               GROUP BY customer_id HAVING COUNT(DISTINCT social_account_id) > 1) x)::int AS khach_nhieu_kenh`);
+  console.log("\nĐợt 2 — số dòng sẽ chạm tới:", doi2.rows[0]);
+  // Dữ liệu có trước lúc kênh được tạo (mốc mở nhiệm kỳ đầu phải lùi về trước dòng sớm nhất của kênh).
+  const truocKenh = await c.query(`
+    SELECT s.id IS NOT NULL AS co_kenh, COUNT(*)::int AS so_kenh_co_du_lieu_truoc_luc_tao
+      FROM social_accounts s
+     WHERE EXISTS (SELECT 1 FROM conversations c WHERE c.social_account_id = s.id AND c.created_at < s.created_at)
+        OR EXISTS (SELECT 1 FROM comments m WHERE m.social_account_id = s.id AND m.created_at < s.created_at)
+     GROUP BY 1`);
+  console.log("Kênh có dữ liệu cũ hơn lúc tạo kênh:", truocKenh.rows[0]?.so_kenh_co_du_lieu_truoc_luc_tao ?? 0);
+
   await c.query("ROLLBACK");
 } finally {
   c.release();
