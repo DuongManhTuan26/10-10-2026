@@ -6,7 +6,7 @@ import * as zernio from "../services/zernio.js";
 import { publishPost, toMediaItems } from "../services/publish.js";
 import { doiChieuMotBai, ghiKetQua } from "../services/post-status.js";
 import { anDiaChiKho, doiDiaChiMedia } from "../services/media-proxy.js";
-import { kenhNgoaiCuaHang, LOI_KENH_NGOAI_CUA_HANG } from "../services/kenh-dang.js";
+import { kenhNgoaiCuaHang, LOI_KENH_NGOAI_CUA_HANG, LOI_KENH_NGOAI_CUA_HANG_DANG_CHON } from "../services/kenh-dang.js";
 import { trangHienTai } from "../services/ngu-canh-trang.js";
 
 export const postsRouter = Router();
@@ -141,7 +141,7 @@ postsRouter.post(
     const trang = await trangHienTai();
     if (trang == null) throw new AppError("Chưa có cửa hàng nào để lưu bài. Vui lòng tạo cửa hàng trước.", 409);
     if (kenhNgoaiCuaHang(targetAccountIds, await kenhCuaCuaHang(req.user!.id, trang)).length > 0) {
-      throw new AppError(LOI_KENH_NGOAI_CUA_HANG, 400);
+      throw new AppError(LOI_KENH_NGOAI_CUA_HANG_DANG_CHON, 400);
     }
 
     /*

@@ -39,6 +39,8 @@ export function cauLenhKenhLich(userId: number, trangId: number | null, kenhDaCh
  * NẰM NGOÀI cửa hàng (rỗng = hợp lệ). Dùng chung lúc tạo bài (cửa hàng đang chọn) và lúc sửa kênh (cửa hàng của bài).
  */
 export const LOI_KENH_NGOAI_CUA_HANG = "Kênh không thuộc cửa hàng của bài này. Vui lòng chọn lại kênh của đúng cửa hàng.";
+/** Lúc TẠO bài: bài sẽ thuộc cửa hàng đang chọn (góp ý phiên kiểm duyệt 19/10 — câu riêng cho đúng nghĩa). */
+export const LOI_KENH_NGOAI_CUA_HANG_DANG_CHON = "Kênh không thuộc cửa hàng đang chọn. Vui lòng chọn lại kênh của cửa hàng này.";
 export function kenhNgoaiCuaHang(kenhCuaBai: string[], kenhCuaCuaHang: string[]): string[] {
   const co = new Set(kenhCuaCuaHang);
   return [...new Set(kenhCuaBai)].filter((id) => !co.has(id));

@@ -171,3 +171,9 @@ tài khoản thử 118 (0 kênh). Còn chưa thử với dữ liệu thật vì 
 - Worker gặp sự kiện thật của tài khoản đang khoá / tin lúc khoá xử lý sau khi mở.
 Cách thử khi có: tài khoản thử nối 1 Fanpage thử → khoá → nhắn thử 1 tin + 1 bình luận → mở khoá → xem hộp thư (tin có,
 AI không trả lời; bình luận skipped_reason "Đến lúc tài khoản đang khoá…").
+
+## TD-15 — A1: chưa thử thật lịch tự đăng của 2 cửa hàng cùng giờ (19/10/2026)
+
+Mã + phép kiểm + đột biến đạt (822b793, phiên kiểm duyệt cho đạt). Chưa cửa hàng nào bật lịch; bật thử = AI tốn tiền +
+đăng thật. Cách thử khi chủ dự án cho phép: bật lịch 2 cửa hàng cùng một khung giờ, chế độ "Chờ tôi duyệt" (không đăng
+thật), xem auto_pilot_runs có 2 dòng (mỗi cửa hàng một) và mỗi cửa hàng có 1 bài chờ duyệt đúng kênh của nó.

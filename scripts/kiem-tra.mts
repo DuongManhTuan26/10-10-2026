@@ -6332,7 +6332,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("A1 bài theo cửa hàng", "GET danh sách + bảng đếm lọc cửa hàng đang chọn; POST kiểm kênh thuộc cửa hàng TRƯỚC khi ghi; PATCH kiểm kênh thuộc cửa hàng CỦA BÀI",
     [/const trang = await trangHienTai\(\);[\s\S]{0,300}const conditions = \["user_id = \$1", "trang_id = \$2"\];/.test(ps),
       /FROM posts WHERE user_id = \$1 AND trang_id = \$2`,\s*\[req\.user!\.id, trang\]/.test(ps),
-      /if \(kenhNgoaiCuaHang\(targetAccountIds, await kenhCuaCuaHang\(req\.user!\.id, trang\)\)\.length > 0\) \{\s*throw new AppError\(LOI_KENH_NGOAI_CUA_HANG, 400\);/.test(ps)
+      /if \(kenhNgoaiCuaHang\(targetAccountIds, await kenhCuaCuaHang\(req\.user!\.id, trang\)\)\.length > 0\) \{\s*throw new AppError\(LOI_KENH_NGOAI_CUA_HANG_DANG_CHON, 400\);/.test(ps)
         && ps.search(/kenhNgoaiCuaHang\(targetAccountIds/) < ps.search(/INSERT INTO posts/),
       /if \(kenhNgoaiCuaHang\(kenhMoi, await kenhCuaCuaHang\(req\.user!\.id, current\.trang_id\)\)\.length > 0\) \{\s*throw new AppError\(LOI_KENH_NGOAI_CUA_HANG, 400\);/.test(ps)
         && ps.search(/kenhNgoaiCuaHang\(kenhMoi/) < ps.search(/assign\("target_account_ids"/)],
