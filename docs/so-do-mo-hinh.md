@@ -41,10 +41,19 @@ Menu đủ cả khi tài khoản chưa nối kênh nào (chốt 18/10).
 ## 3. Cửa hàng = một hồ sơ (hộp) bên nhà cung cấp = một bộ não AI
 
 ```
-CỬA HÀNG
+CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kênh đa nền tảng dùng chung bộ não cho MỘT mục đích
+(không có bộ não riêng cho từng kênh). 1 tài khoản tạo được nhiều cửa hàng = nhiều bộ não = nhiều mục đích (chốt 19/10).
 ├── KÊNH (đạt): mỗi nền tảng tối đa 1 tài khoản trong 1 cửa hàng (1 Fanpage, 1 Instagram, 1 TikTok, 1 YouTube…)
 │     • Fanpage thứ 2 → cửa hàng thứ 2; 1 Fanpage chỉ ở 1 cửa hàng
 │     • Chuyển kênh sang cửa hàng khác: người dùng tự chọn, không mặc định
+│     • KÊNH LÀ NHÂN VIÊN — "RA ĐI TAY TRẮNG, QUAY VỀ NGƯỜI KHÔNG" (chủ dự án chốt 19/10, áp MỌI nền tảng:
+│       Fanpage, Instagram, TikTok, YouTube…). CHƯA ĐẠT — đang thiết kế (A2 mới, nhiệm kỳ kênh):
+│         · Dữ liệu (khách, hội thoại, đơn, bài, việc dở) thuộc CỬA HÀNG, không thuộc kênh. Kênh rời đi → dữ liệu ở lại
+│           cửa hàng; kênh thay thế vào thì thấy toàn bộ (bàn giao).
+│         · Kênh vào cửa hàng mới là TRẮNG: bộ não mới, việc mới, không mang gì theo; quay về cũng không mang gì.
+│         · Chat cũ trên kênh đã đi = lịch sử của cửa hàng cũ (không nhắn tiếp được qua kênh đó — luật Facebook).
+│         · Hệ thống KHÔNG tự nhắn hàng loạt cho khách khi đổi kênh (ngoài 24 giờ = vi phạm luật Facebook); việc chào
+│           khách khi đổi kênh do người dùng tự làm.
 │     • Không có "Đổi Fanpage": ngắt cái cũ, nối cái mới
 │     • Quảng cáo Meta đi kèm Facebook, không nối riêng
 ├── BỘ NÃO AI — 4 AI cố định, liền mạch, không tách rời
