@@ -11,7 +11,7 @@ import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
 import { lietKeKenhHoSo, phuThuocXoaThat } from "../services/xoa-tai-khoan-that.js";
 import { chanNeuThemFanpage } from "../services/gioi-han.js";
 import {
-  chuCuaHoSo, ghiKenhTheoNgay, hoSoCuaCuaHang, taoTrangMoi, trangChuyenDuoc, trangCuaTaiKhoan,
+  chuCuaHoSo, ghiKenhTheoNgay, hauQuaChuyenKenh, hoSoCuaCuaHang, taoTrangMoi, trangChuyenDuoc, trangCuaTaiKhoan,
 } from "../services/trang.js";
 import {
   socialChannels,
@@ -800,7 +800,12 @@ connectionsRouter.put(
     if (!dich) throw new AppError("Không chuyển được kênh sang cửa hàng này", 400);
     const tenNenTang = allChannels.find((c) => c.platformKey === kenh.platform)?.name ?? kenh.platform;
     if (dich.da_co) {
-      throw new AppError(`Cửa hàng "${dich.ten}" đã có ${tenNenTang} — mỗi cửa hàng chỉ có một ${tenNenTang}.`, 409);
+      throw new AppError(
+        `Cửa hàng "${dich.ten}" đã có ${tenNenTang} — mỗi cửa hàng chỉ có một ${tenNenTang}. ` +
+          `Muốn đổi chỗ hai kênh: (1) chuyển ${tenNenTang} đang ở "${dich.ten}" sang một cửa hàng khác (có thể tạo cửa hàng tạm); ` +
+          `(2) chuyển kênh này sang "${dich.ten}"; (3) chuyển kênh kia về cửa hàng bạn muốn.`,
+        409
+      );
     }
     // Chốt sổ ngày TRƯỚC khi chuyển: hôm nay tính cửa hàng cũ, từ mai cửa hàng mới. Chuyển THẬT kênh sang hộp (hồ sơ)
     // của cửa hàng đích — mỗi hồ sơ đúng một cửa hàng; đồng bộ ngay để kênh vào đúng cửa hàng.
@@ -820,6 +825,14 @@ connectionsRouter.put(
       success: true,
       message: `Đã chuyển kênh sang cửa hàng "${dich.ten}". Từ giờ bộ não AI của cửa hàng này trả lời khách trên kênh đó.`,
     });
+  })
+);
+
+/** Hậu quả nếu chuyển kênh này đi (đợt 3) — hộp xác nhận chuyển kênh đọc để nói trước. Chỉ đọc. */
+connectionsRouter.get(
+  "/accounts/:id/hau-qua",
+  route(async (req, res) => {
+    res.json({ success: true, data: await hauQuaChuyenKenh(req.user!.id, String(req.params.id)) });
   })
 );
 

@@ -1105,7 +1105,9 @@ const nguonBaiDang2 = fs.readFileSync(path.join(GOC, "server/routes/posts.ts"), 
 kiem("sửa bài", "chỉ cho cập nhật ra nền tảng khi bài đã thật sự lên sóng",
   /post\.status !== "published" \|\| !post\.platform_post_ref/.test(nguonBaiDang2), true);
 kiem("sửa bài", "gỡ bài thì đưa về nháp và xoá dấu vết trên nền tảng",
-  /status = 'draft', platform_post_ref = NULL/.test(nguonBaiDang2), true);
+  // Đợt 3: câu cập nhật nằm ở services/don-lich.ts (BAI_VE_NHAP_SAU_GO — phép thử tự hoàn tác chạy đúng câu này).
+  /await queryOne\(BAI_VE_NHAP_SAU_GO, /.test(nguonBaiDang2) &&
+    /status = 'draft', platform_post_ref = NULL/.test(boChuThich(fs.readFileSync(path.join(GOC, "server/services/don-lich.ts"), "utf8"))), true);
 
 /*
  * Cắt đúng khối JSX của từng trạng thái bằng cách đếm ngoặc.
@@ -6382,8 +6384,10 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [true, false]);
 
   // Điều kiện 1 của phiên kiểm duyệt: MỌI tệp đọc bảng posts được xếp loại — tệp mới đọc posts phải được xếp trước.
-  const DOC_THEO_CUA_HANG = ["ads.ts", "bao-cao-chuoi.ts", "so-lieu-kenh.ts", "suc-khoe.ts"];
-  const DOC_THEO_BAI = ["autopilot.ts", "post-status.ts", "posts.ts", "publish.ts"]; // theo mã bài + chủ bài / việc chạy nền
+  // đợt 3: trang.ts — hậu quả chuyển kênh đếm bài của CỬA HÀNG CŨ của kênh; don-lich.ts — bài có kênh đích đã rời cửa
+  // hàng CỦA BÀI (so từng bài với cửa hàng của chính nó, việc chạy nền).
+  const DOC_THEO_CUA_HANG = ["ads.ts", "bao-cao-chuoi.ts", "so-lieu-kenh.ts", "suc-khoe.ts", "trang.ts"];
+  const DOC_THEO_BAI = ["autopilot.ts", "don-lich.ts", "post-status.ts", "posts.ts", "publish.ts"]; // theo mã bài + chủ bài / việc chạy nền
   const DOC_THEO_TAI_KHOAN = ["quan-ly-chung.ts", "settings.ts"]; // Gói dịch vụ + màn quản trị: theo cả tài khoản (sơ đồ §1)
   const tepDocPosts = [...new Set(tepMC.filter((t) => /FROM posts\b/.test(doc1(path.relative(GOC, t)))).map((t) => path.basename(t)))].sort();
   console.log(`  [A1] ${tepDocPosts.length} tệp đọc bảng posts: theo cửa hàng ${DOC_THEO_CUA_HANG.length} · theo bài ${DOC_THEO_BAI.length} · theo tài khoản ${DOC_THEO_TAI_KHOAN.length}`);
@@ -6429,7 +6433,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     ["409:roi", "409:matnoi", "409:roi", "409:roi", { duoc: ["ig1"], daRoi: ["fb1", "la"], matNoi: [] }, "409:matnoi"]);
 
   // Mọi lời gọi gửi ra ngoài nhân danh bài / khách: đúng 7 chỗ, chỗ nào cũng có chốt ngay phía trên.
-  const MAU_GUI = /(zernio\.(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|deletePost)|ads\.boostPost)\(/g;
+  // Đợt 3: deletePost = HUỶ bài chưa đăng (tài liệu nhà cung cấp) → nhóm "huỷ" riêng bên dưới; gỡ bài đã đăng = unpublishPost.
+  const MAU_GUI = /(zernio\.(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|unpublishPost)|ads\.boostPost)\(/g;
   const choGui: string[] = [];
   const thieuChot: string[] = [];
   for (const t of moiTepMayChu(path.join(GOC, "server"))) {
@@ -6451,7 +6456,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("cửa ra", "đúng 7 lời gọi gửi ra ngoài (tin, tin riêng, trả lời bình luận, đăng / sửa / gỡ bài, đẩy bài), chỗ nào cũng qua chốt",
     [choGui.sort(), thieuChot],
     [["ads.ts:ads.boostPost", "comment-ai.ts:zernio.privateReplyToComment", "comment-ai.ts:zernio.replyToComment", "outbound.ts:zernio.sendMessage",
-      "posts.ts:zernio.deletePost", "posts.ts:zernio.updatePost", "publish.ts:zernio.createPost"], []]);
+      "posts.ts:zernio.unpublishPost", "posts.ts:zernio.updatePost", "publish.ts:zernio.createPost"], []]);
   // (a) gửi bằng kênh LẤY TỪ KẾT QUẢ CHỐT, không dùng biến kênh ban đầu (lệnh nào có tham số kênh).
   const ob = doc2("server/services/outbound.ts"), ca = doc2("server/services/comment-ai.ts"), pb = doc2("server/services/publish.ts");
   kiem("cửa ra", "lệnh có tham số kênh gửi bằng kênh từ kết quả chốt (duoc); lệnh chỉ nhận mã bài thì chốt chỉ chặn",
@@ -6465,7 +6470,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [true, 2, true, true]);
   // (b) CẤM nhập tên riêng các hàm gửi — để không ai lách được cách đếm `zernio.X(`.
   const nhapRieng = moiTepMayChu(path.join(GOC, "server")).filter((t) =>
-    /import\s*\{[^}]*\b(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|deletePost|boostPost)\b[^}]*\}\s*from\s*"[^"]*\/(zernio|ads)\.js"/.test(fs.readFileSync(t, "utf8")))
+    /import\s*\{[^}]*\b(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|deletePost|unpublishPost|boostPost)\b[^}]*\}\s*from\s*"[^"]*\/(zernio|ads)\.js"/.test(fs.readFileSync(t, "utf8")))
     .map((t) => path.relative(GOC, t));
   kiem("cửa ra", "không tệp nào nhập tên riêng hàm gửi từ zernio / ads", nhapRieng, []);
   // Đợt 2b: không còn chỗ nào "tạm theo kênh" — hàm trangTamTheoKenh đã xoá khỏi mọi nơi.
@@ -6473,13 +6478,15 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     moiTepMayChu(path.join(GOC, "server")).filter((t) => /trangTamTheoKenh/.test(boChuThich(fs.readFileSync(t, "utf8")))).map((t) => path.relative(GOC, t)), []);
   const ps2 = doc2("server/routes/posts.ts"), ad2 = doc2("server/routes/ads.ts");
   kiem("cửa ra", "sửa chữ / gỡ bài / đẩy bài: kênh của bài phải còn thuộc cửa hàng của bài (kênh rời → giữ bài làm lịch sử)",
-    [(ps2.match(/await chanCuaRa\(req\.user!\.id, post\.target_account_ids, post\.trang_id\);\s*await zernio\.(updatePost|deletePost)\(/g) ?? []).length,
+    [(ps2.match(/await chanCuaRa\(req\.user!\.id, post\.target_account_ids, post\.trang_id\);\s*await zernio\.updatePost\(/g) ?? []).length,
+      // Gỡ bài (đợt 3): gỡ TỪNG KÊNH, chỉ kênh trong kết quả chốt (duoc).
+      /const cuaRa = await chanCuaRa\(req\.user!\.id, post\.target_account_ids, post\.trang_id\);[\s\S]*?if \(!cuaRa\.duoc\.includes\(k\.id\)\) \{[\s\S]*?continue;[\s\S]*?zernio\.unpublishPost\(\{ postId: post\.platform_post_ref, platform: k\.platform, accountId: k\.id \}\)/.test(ps2),
       (() => {
         // Trong thân đường đẩy bài: chốt đặt TRƯỚC khi lấy tài khoản quảng cáo / gọi đẩy.
         const than = ad2.slice(ad2.indexOf("Không tìm thấy bài viết của cửa hàng đang chọn"), ad2.indexOf("await ads.boostPost("));
         return /await chanCuaRa\(req\.user!\.id, post\.target_account_ids, post\.trang_id\);/.test(than) && than.search(/await chanCuaRa\(/) < than.search(/resolveAdAccount\(/);
       })()],
-    [2, true]);
+    [1, true, true]);
   const ct2 = doc2("src/pages/Content.tsx");
   kiem("cửa ra", "bài đã giao nhà cung cấp hẹn giờ: Đổi / Huỷ lịch trong app bị chặn kèm câu nói thật (nền tảng vẫn đăng giờ cũ)",
     [/const handleSchedule = async[^\n]*\{\s*if \(lichDaGui\(id\)\) \{\s*setErrorMessage\(LOI_LICH_DA_GUI\);\s*return;/.test(ct2),
@@ -6550,7 +6557,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     .map((t) => path.relative(GOC, t));
   kiem("nhiệm kỳ", "chỉ trang.ts ghi cửa hàng của kênh, và ghi cùng giao dịch với đổi nhiệm kỳ",
     [ghiTrangKenh, /await transaction\(\(k\) => ganKenhVaoTrangTrong\(k, accountId, userId, trangId\)\);/.test(d3("server/services/trang.ts"))
-      && /const r = await k\.query\(\s*"UPDATE social_accounts SET trang_id = \$1, updated_at = now\(\) WHERE id = \$2 AND user_id = \$3",[\s\S]{0,120}if \(!r\.rowCount\) return;\s*const doi = await doiNhiemKy\(k, /.test(d3("server/services/trang.ts"))],
+      && /const r = await k\.query\(\s*"UPDATE social_accounts SET trang_id = \$1, updated_at = now\(\) WHERE id = \$2 AND user_id = \$3",[\s\S]{0,120}if \(!r\.rowCount\) return null;\s*const doi = await doiNhiemKy\(k, /.test(d3("server/services/trang.ts"))],
     [["server/services/trang.ts"], true]);
   const sa = d3("server/services/sales-ai.ts"), ob2 = d3("server/services/outbound.ts");
   kiem("nhiệm kỳ", "bộ não theo hội thoại: AI không trả lời hội thoại nhiệm kỳ đã đóng; vớt tin / nhắc khách chỉ nhiệm kỳ mở, chạy bằng cửa hàng của hội thoại",
@@ -6681,6 +6688,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     // theo một hội thoại / khách / bình luận cụ thể, hoặc đường nhập
     "services/events.ts": "mot_dong", "services/reconcile.ts": "mot_dong", "services/nhiem-ky.ts": "mot_dong", "services/khach.ts": "mot_dong",
     "services/orders.ts": "mot_dong", "services/outbound.ts": "mot_dong",
+    // đợt 3: hậu quả chuyển MỘT kênh (đếm kịch bản / hội thoại của nhiệm kỳ đang mở của kênh đó)
+    "services/trang.ts": "mot_dong",
     // rào chắn (thuộc tính kênh + cấu hình) → A3; màn đơn → A3
     "services/guardrails.ts": "A3", "routes/orders.ts": "A3",
     // theo tài khoản: Tổng quan (chốt 19/10), màn quản trị, analytics cũ (TD-12); settings: kịch bản theo cửa hàng, thống kê / rào chắn → A3
@@ -6692,6 +6701,131 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   console.log(`  [2b] ${tepDoc.length} tệp đọc hội thoại / khách / bình luận / kịch bản — đã xếp loại ${tepDoc.filter((t) => XEP[t]).length}`);
   kiem("2b đếm", "mọi tệp đọc hội thoại / khách / bình luận / kịch bản đã được xếp loại (tệp mới phải xếp trước)",
     tepDoc, Object.keys(XEP).sort());
+}
+
+// ---------------------------------------------------------------------------
+// KÊNH LÀ NHÂN VIÊN — đợt 3: GỠ LỊCH khi kênh rời, GỠ / XOÁ BÀI đúng tài liệu nhà cung cấp, hội thoại CHỈ XEM, HẬU QUẢ
+// chuyển kênh. Tài liệu: openapi.yaml 1.295.0 (DELETE: mọi trạng thái trừ published, xoá cả bài; unpublish: từng kênh,
+// không hỗ trợ Instagram / TikTok / Snapchat).
+// ---------------------------------------------------------------------------
+{
+  const d5 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const gom = (x: string) => x.replace(/\s+/g, " ");
+  const zn = d5("server/services/zernio.ts"), dl = d5("server/services/don-lich.ts"), ps = d5("server/routes/posts.ts");
+  const tr = d5("server/services/trang.ts"), ac = d5("server/services/accounts.ts");
+
+  kiem("3 nhà cung cấp", "gỡ bài = POST /posts/{id}/unpublish {platform, accountId}; không hỗ trợ instagram / tiktok / snapchat",
+    [/export async function unpublishPost\([\s\S]*?`\/posts\/\$\{encodeURIComponent\(params\.postId\)\}\/unpublish`, \{\s*method: "POST",\s*body: \{ platform: params\.platform, accountId: params\.accountId \}/.test(zn),
+      (await import("../server/services/zernio.js")).NEN_TANG_KHONG_GO_DUOC],
+    [true, ["instagram", "tiktok", "snapchat"]]);
+
+  // Nhóm HUỶ: deletePost chỉ ở 2 chỗ — xoá bài trong app (bài chưa đăng) và gỡ lịch kênh đã rời.
+  const choHuy = moiTepMayChu(path.join(GOC, "server")).filter((t) => !/services\/zernio\.ts$/.test(t) && /zernio\.deletePost\b/.test(d5(path.relative(GOC, t))))
+    .map((t) => path.relative(GOC, t)).sort();
+  kiem("3 huỷ bài", "deletePost chỉ dùng ở xoá bài (routes/posts.ts) và gỡ lịch (services/don-lich.ts)", choHuy,
+    ["server/routes/posts.ts", "server/services/don-lich.ts"]);
+  const xoa = ps.slice(ps.indexOf('postsRouter.delete(\n  "/:id"'));
+  kiem("3 huỷ bài", "xoá bài: hẹn giờ / đang đăng có mã → huỷ phía nhà cung cấp TRƯỚC; 400 (đã kịp đăng) → 409 không xoá; lỗi khác (trừ 404) → không xoá",
+    [/if \(\(post\.status === "scheduled" \|\| post\.status === "publishing"\) && post\.platform_post_ref\) \{\s*try \{\s*await zernio\.deletePost\(post\.platform_post_ref\);/.test(xoa),
+      /if \(status === 400\) \{\s*throw new AppError\([^;]*409\);/.test(xoa),
+      /if \(status !== 404\) throw new AppError\(/.test(xoa),
+      xoa.search(/zernio\.deletePost\(/) < xoa.search(/DELETE FROM posts/) && xoa.search(/if \(status !== 404\) throw/) < xoa.search(/DELETE FROM posts/)],
+    [true, true, true, true]);
+
+  const go = ps.slice(ps.indexOf('"/:id/unpublish"'), ps.indexOf('"/:id/publish"'));
+  kiem("3 gỡ bài", "chỉ bài đã đăng; bỏ qua nền tảng không hỗ trợ TRƯỚC khi gọi; không gỡ được kênh nào → 409; gỡ một phần → chỉ ghi chú (không về nháp); gỡ hết → BAI_VE_NHAP_SAU_GO",
+    [/if \(post\.status !== "published" \|\| !post\.platform_post_ref\)/.test(go),
+      // Phải CÓ nhánh bỏ qua (push lý do + continue) và đứng TRƯỚC lời gọi — so vị trí suông thì mất nhánh (-1) vẫn "đạt".
+      (() => {
+        const i = go.search(/if \(zernio\.NEN_TANG_KHONG_GO_DUOC\.includes\(k\.platform\)\) \{\s*ketQua\.push\(\{ kenh: k\.ten, daGo: false, lyDo: "[^"]+" \}\);\s*continue;\s*\}/);
+        return i >= 0 && i < go.search(/zernio\.unpublishPost\(/);
+      })(),
+      /if \(daGo\.length === 0\) throw new AppError\(`Chưa gỡ được bài khỏi kênh nào: \$\{chuaGo\.join\("; "\)\}\.`, 409\);/.test(go),
+      /const updated = chuaGo\.length\s*\? await queryOne\("UPDATE posts SET last_error = \$2, updated_at = now\(\) WHERE id = \$1 RETURNING \*", \[post\.id, ghiChu\]\)\s*: await queryOne\(BAI_VE_NHAP_SAU_GO, \[post\.id, ghiChu\]\);/.test(go)],
+    [true, true, true, true]);
+  kiem("3 gỡ bài", "bài về nháp: stats / platform_urls = '{}' (cột NOT NULL); không còn chỗ nào ghi stats = NULL",
+    [/stats = '\{\}'::jsonb/.test(dl) && /platform_urls = '\{\}'::jsonb/.test(dl),
+      moiTepMayChu(path.join(GOC, "server")).filter((t) => /stats = NULL/.test(d5(path.relative(GOC, t)))).map((t) => path.basename(t))],
+    [true, []]);
+
+  const ct3 = d5("src/pages/Content.tsx");
+  kiem("3 gỡ bài", "giao diện: hỏi kiểu nguy hiểm, nói rõ gỡ HẲN khỏi kênh nào, không khôi phục được; gỡ một phần → báo đúng câu máy chủ, không mở hộp sửa; xoá bài đã đăng → nói bài trên kênh vẫn còn",
+    [/noiDung:\s*`Bài sẽ bị gỡ hẳn khỏi \$\{tenKenhCuaBai\(post\)\}, không khôi phục được/.test(ct3) &&
+        /const goBaiVeNhap[\s\S]*?nguyHiem: true,[\s\S]*?api\.posts\.unpublish\(/.test(ct3),
+      /if \(kq\.goMotPhan\) setErrorMessage\(kq\.message \?\? [^)]*\);\s*else handleEditPost\(kq\.data\);/.test(ct3),
+      /bai\?\.status === 'published'\s*\? `Chỉ xoá trong ứng dụng — bài trên \$\{tenKenhCuaBai\(bai\)\} vẫn còn\./.test(ct3)],
+    [true, true, true]);
+
+  // ĐIỀU KIỆN 5 (phiên kiểm duyệt): chỉ chọn bài có kênh đích ĐÃ RỜI cửa hàng của bài.
+  const { CHON_BAI_KENH_DA_ROI, donLichKenhDaRoi } = await import("../server/services/don-lich.js");
+  kiem("3 gỡ lịch", "câu chọn: CHỈ bài 'scheduled' đã giao nhà cung cấp CÓ kênh đích hiện không thuộc cửa hàng của bài",
+    [gom(CHON_BAI_KENH_DA_ROI).includes("WHERE p.user_id = $1 AND p.status = 'scheduled' AND p.platform_post_ref IS NOT NULL AND EXISTS (SELECT 1 FROM social_accounts s WHERE s.user_id = p.user_id AND s.id = ANY(p.target_account_ids) AND s.trang_id IS DISTINCT FROM p.trang_id)"),
+      (gom(CHON_BAI_KENH_DA_ROI).match(/WHERE/g) ?? []).length],
+    [true, 3]);
+  {
+    // Hành vi với kết nối + nhà cung cấp mô phỏng: xoá được → failed; 404 → coi như đã gỡ; 400 / lỗi khác → giữ, ghi lý do.
+    const { ZernioError } = await import("../server/services/zernio.js");
+    const ghi: { sql: string; ts: unknown[] }[] = [];
+    const dbGia = { query: async (sql: string, ts: unknown[]) => {
+      ghi.push({ sql: gom(sql), ts });
+      return sql === CHON_BAI_KENH_DA_ROI
+        ? { rows: [1, 2, 3, 4].map((id) => ({ id, platform_post_ref: `r${id}`, kenh_roi: ["Shop X"] })) }
+        : { rows: [] };
+    } } as never;
+    const nccGia = async (ref: string) => {
+      if (ref === "r2") throw new ZernioError("Cannot delete published posts", 400);
+      if (ref === "r3") throw new ZernioError("Post not found", 404);
+      if (ref === "r4") throw new ZernioError("Lỗi mạng", 0);
+      return {};
+    };
+    const kq = await donLichKenhDaRoi(1, nccGia, dbGia);
+    const capNhat = ghi.filter((g) => g.sql.startsWith("UPDATE posts"));
+    kiem("3 gỡ lịch", "xoá được (r1) + 404 (r3) → failed, bỏ mã, 'đã gỡ lịch'; 400 (r2) → giữ, 'đã kịp đăng'; lỗi mạng (r4) → giữ, 'sẽ thử lại'",
+      [kq, capNhat.map((g) => [g.ts[0], /status = 'failed', platform_post_ref = NULL/.test(g.sql),
+        /đã gỡ lịch/.test(String(g.ts[1])) ? "go" : /đã kịp đăng/.test(String(g.ts[1])) ? "kip" : /sẽ thử lại/.test(String(g.ts[1])) ? "lai" : "?"])],
+      [{ daGo: [1, 3], loi: [2, 4] }, [[1, true, "go"], [2, false, "kip"], [3, true, "go"], [4, false, "lai"]]]);
+  }
+  const thanGan = tr.slice(tr.indexOf("export async function ganKenhVaoTrang("), tr.indexOf("export async function ganKenhVaoTrangTrong("));
+  const thanGanTrong = tr.slice(tr.indexOf("export async function ganKenhVaoTrangTrong("), tr.indexOf("export async function hoSoCuaTaiKhoan("));
+  kiem("3 gỡ lịch", "gọi SAU giao dịch đổi cửa hàng (chỉ khi kênh vừa rời một cửa hàng), KHÔNG trong giao dịch; mỗi lượt đồng bộ gọi lại (lưới an toàn)",
+    [/const daRoiTrang = await transaction\(\(k\) => ganKenhVaoTrangTrong\(k, accountId, userId, trangId\)\);[\s\S]*?if \(daRoiTrang != null\) \{\s*await donLichKenhDaRoi\(userId\)\.catch\(/.test(thanGan),
+      /donLichKenhDaRoi/.test(thanGanTrong), /return doi\.daDong\?\.trang_id \?\? null;/.test(thanGanTrong),
+      /await donLichKenhDaRoi\(userId\)\.catch\([\s\S]*?return accounts\.length;/.test(ac)],
+    [true, false, true, true]);
+
+  // 3.3 CHỈ XEM — cùng hai nhánh "đã rời" của chốt cửa ra; máy chủ chặn gửi + giao AI; việc nội bộ vẫn mở.
+  const nk = d5("server/services/nhiem-ky.ts"), ib = d5("server/routes/inbox.ts"), ibx = d5("src/pages/Inbox.tsx");
+  kiem("3 chỉ xem", "LY_DO_CHI_XEM: trang NULL → chua_gan; nhiệm kỳ không mở HOẶC kênh khác cửa hàng → da_roi (dùng DK_NHIEM_KY_MO)",
+    /WHEN \$\{c\}\.trang_id IS NULL THEN 'chua_gan'\s*WHEN NOT \$\{DK_NHIEM_KY_MO\(`\$\{c\}\.nhiem_ky_id`\)\} OR \$\{sa\}\.trang_id IS DISTINCT FROM \$\{c\}\.trang_id THEN 'da_roi'/.test(nk), true);
+  kiem("3 chỉ xem", "danh sách + chi tiết trả chi_xem; gửi tin chặn TRƯỚC sendMessageSafely; đổi trạng thái chặn (trừ 'done'); chặn dùng cùng LY_DO_CHI_XEM",
+    [(ib.match(/\$\{LY_DO_CHI_XEM\("c", "sa"\)\} AS chi_xem/g) ?? []).length,
+      (() => { const g = ib.slice(ib.indexOf('"/conversations/:id/messages"')); return g.search(/await chanHoiThoaiChiXem\(req\.user!\.id, conversation\.id\);/) > 0 && g.search(/await chanHoiThoaiChiXem\(/) < g.search(/sendMessageSafely\(/); })(),
+      /if \(status !== "done"\) await chanHoiThoaiChiXem\(req\.user!\.id, req\.params\.id\);/.test(ib),
+      /if \(r\.chi_xem === "chua_gan"\) throw new AppError\(LOI_HOI_THOAI_CHUA_GAN, 409\);\s*if \(r\.chi_xem === "da_roi"\) throw new AppError\(LOI_KENH_DA_ROI, 409\);/.test(ib)],
+    [3, true, true, true]);
+  kiem("3 chỉ xem", "giao diện: chỉ xem → khoá gửi + soạn AI (canSend), ẩn tiếp quản / trả AI, dải báo riêng cho 'chưa gắn' và 'đã rời'",
+    [/canSend: detail\.window_state !== 'expired' && !detail\.chi_xem,/.test(ibx), /\{selectedConv\.chiXem \? null : selectedConv\.aiHandling \?/.test(ibx),
+      /selectedConv\.chiXem === 'chua_gan'/.test(ibx) && /Kênh đã rời cửa hàng — chỉ xem lịch sử/.test(ibx)],
+    [true, true, true]);
+
+  // 3.4 / 3.5 hậu quả chuyển kênh + cách đổi chỗ hai kênh.
+  const cn = d5("src/pages/Connections.tsx"), cr = d5("server/routes/connections.ts");
+  kiem("3 hậu quả", "đếm đúng của CỬA HÀNG CŨ trên kênh: bài hẹn giờ, bài chưa đăng (nháp / chờ duyệt / lỗi), kịch bản đang bật, hội thoại nhiệm kỳ đang mở",
+    [/p\.trang_id = s\.trang_id AND s\.id = ANY\(p\.target_account_ids\)\s*AND p\.status = 'scheduled'/.test(tr),
+      /AND p\.status IN \('draft', 'pending_approval', 'failed'\)/.test(tr),
+      /WHERE a\.social_account_id = s\.id AND a\.trang_id = s\.trang_id\s*AND a\.is_active/.test(tr),
+      /JOIN kenh_nhiem_ky nk ON nk\.id = c\.nhiem_ky_id\s*WHERE nk\.account_id = s\.id AND nk\.den_luc IS NULL/.test(tr)],
+    [true, true, true, true]);
+  kiem("3 hậu quả", "hộp xác nhận đọc hậu quả TRƯỚC khi hỏi; nói đủ 4 dòng + quảng cáo; kịch bản: chủ shop tự bật lại; 409 trùng nền tảng có cách đổi chỗ 3 bước",
+    [cn.search(/await api\.connections\.hauQuaChuyenKenh\(chuyenKenh\.id\)/) > 0 && cn.search(/await api\.connections\.hauQuaChuyenKenh\(/) < cn.search(/tieuDe: `Chuyển \$\{chuyenKenh\.nenTang\}/),
+      ["hq.hoiThoaiOLai > 0", "hq.baiHenGio > 0", "hq.baiChuaDang > 0", "hq.kichBanSeTat > 0", "Quảng cáo của cửa hàng cũ trên kênh này không tự dừng"].every((x) => cn.includes(x)),
+      /kênh quay về thì bạn tự bật lại/.test(cn), /"\/accounts\/:id\/hau-qua"/.test(cr), /Muốn đổi chỗ hai kênh: \(1\)/.test(cr)],
+    [true, true, true, true, true]);
+
+  // Phiên kiểm duyệt 19/10 (2b): tạm dừng AI là sức khoẻ CỦA KÊNH (tỷ lệ gửi lỗi) — giữ theo kênh, không xoá khi chuyển.
+  kiem("3 xếp loại", "ai_paused_until chỉ ghi ở guardrails.ts (sức khoẻ của chính kênh — giữ theo kênh khi chuyển cửa hàng)",
+    moiTepMayChu(path.join(GOC, "server")).filter((t) => /ai_paused_until\s*=/.test(d5(path.relative(GOC, t)))).map((t) => path.relative(GOC, t)),
+    ["server/services/guardrails.ts"]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

@@ -9,6 +9,7 @@ import { anDiaChiKho, doiDiaChiMedia } from "../services/media-proxy.js";
 import { kenhNgoaiCuaHang, LOI_KENH_NGOAI_CUA_HANG, LOI_KENH_NGOAI_CUA_HANG_DANG_CHON } from "../services/kenh-dang.js";
 import { trangHienTai } from "../services/ngu-canh-trang.js";
 import { chanCuaRa } from "../services/cua-ra.js";
+import { BAI_VE_NHAP_SAU_GO } from "../services/don-lich.js";
 
 export const postsRouter = Router();
 
@@ -332,10 +333,14 @@ postsRouter.put(
 );
 
 /**
- * Gỡ bài khỏi nền tảng.
+ * Gỡ bài đã đăng khỏi nền tảng — TỪNG KÊNH một (POST /v1/posts/{id}/unpublish; tài liệu nhà cung cấp 1.295.0).
  *
- * Đây là cách duy nhất để thay ảnh của một bài đã đăng: gỡ đi rồi đăng lại.
- * Gỡ rồi không lấy lại được, kèm theo mất hết lượt thích và bình luận đã có.
+ * Đây là cách duy nhất để thay ảnh của một bài đã đăng: gỡ đi rồi đăng lại. Gỡ rồi không lấy lại được, mất hết lượt
+ * thích và bình luận. Trước 19/10/2026 nút này gọi DELETE — tài liệu: DELETE bài published trả 400 và không gỡ gì trên
+ * nền tảng, nên nút âm thầm hỏng.
+ *
+ * Gỡ HẾT các kênh → bài về nháp (giữ nội dung, ảnh để sửa rồi đăng lại; bảng posts không có trạng thái "đã huỷ").
+ * Gỡ MỘT PHẦN (vd. Instagram không cho gỡ) → bài vẫn "đã đăng", ghi rõ kênh nào đã gỡ, kênh nào chưa.
  */
 postsRouter.post(
   "/:id/unpublish",
@@ -351,23 +356,45 @@ postsRouter.post(
       [req.params.id, req.user!.id]
     );
     if (!post) throw new AppError("Không tìm thấy bài viết này", 404);
-    if (!post.platform_post_ref) {
+    if (post.status !== "published" || !post.platform_post_ref) {
       throw new AppError("Bài này chưa lên nền tảng nên không có gì để gỡ.", 400);
     }
 
-    // CHỐT CỬA RA: kênh đã rời cửa hàng → không gỡ được, bài giữ làm lịch sử (không xoá bản ghi trong app). Lệnh gỡ chỉ
-    // nhận mã bài, nên chốt chỉ chặn.
-    await chanCuaRa(req.user!.id, post.target_account_ids, post.trang_id);
-    await zernio.deletePost(post.platform_post_ref);
-
-    const updated = await queryOne(
-      `UPDATE posts
-          SET status = 'draft', platform_post_ref = NULL, platform_urls = '{}'::jsonb,
-              published_at = NULL, stats = NULL, updated_at = now()
-        WHERE id = $1 RETURNING *`,
-      [post.id]
+    // CHỐT CỬA RA: chỉ gỡ qua kênh còn thuộc đúng cửa hàng của bài — gỡ bằng `duoc`. Kênh đã rời → bài giữ làm lịch sử.
+    const cuaRa = await chanCuaRa(req.user!.id, post.target_account_ids, post.trang_id);
+    const kenh = await query<{ id: string; platform: string; ten: string }>(
+      `SELECT id, platform, COALESCE(NULLIF(display_name, ''), NULLIF(username, ''), platform) AS ten
+         FROM social_accounts WHERE user_id = $1 AND id = ANY($2::text[]) ORDER BY id`,
+      [req.user!.id, post.target_account_ids]
     );
-    res.json({ success: true, data: anMediaTrongBai(updated) });
+    const ketQua: { kenh: string; daGo: boolean; lyDo?: string }[] = [];
+    for (const k of kenh.rows) {
+      if (!cuaRa.duoc.includes(k.id)) {
+        ketQua.push({ kenh: k.ten, daGo: false, lyDo: cuaRa.matNoi.includes(k.id) ? "kênh đang mất kết nối" : "kênh đã rời cửa hàng" });
+        continue;
+      }
+      if (zernio.NEN_TANG_KHONG_GO_DUOC.includes(k.platform)) {
+        ketQua.push({ kenh: k.ten, daGo: false, lyDo: "nền tảng này không cho gỡ bài qua ứng dụng — vui lòng gỡ trực tiếp trên kênh" });
+        continue;
+      }
+      try {
+        await zernio.unpublishPost({ postId: post.platform_post_ref, platform: k.platform, accountId: k.id });
+        ketQua.push({ kenh: k.ten, daGo: true });
+      } catch (error) {
+        ketQua.push({ kenh: k.ten, daGo: false, lyDo: error instanceof Error ? error.message : String(error) });
+      }
+    }
+
+    const daGo = ketQua.filter((k) => k.daGo).map((k) => k.kenh);
+    const chuaGo = ketQua.filter((k) => !k.daGo).map((k) => `${k.kenh} (${k.lyDo})`);
+    if (daGo.length === 0) throw new AppError(`Chưa gỡ được bài khỏi kênh nào: ${chuaGo.join("; ")}.`, 409);
+    const luc = new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+    const ghiChu = `Đã gỡ khỏi ${daGo.join(", ")} lúc ${luc}.` + (chuaGo.length ? ` Chưa gỡ: ${chuaGo.join("; ")}.` : "");
+
+    const updated = chuaGo.length
+      ? await queryOne("UPDATE posts SET last_error = $2, updated_at = now() WHERE id = $1 RETURNING *", [post.id, ghiChu])
+      : await queryOne(BAI_VE_NHAP_SAU_GO, [post.id, ghiChu]);
+    res.json({ success: true, data: anMediaTrongBai(updated), goMotPhan: chuaGo.length > 0, message: ghiChu });
   })
 );
 
@@ -452,14 +479,33 @@ postsRouter.post(
   })
 );
 
+/**
+ * Xoá bản ghi bài trong app. Bài đã giao nhà cung cấp mà CHƯA đăng (hẹn giờ / đang đăng) thì nhà cung cấp vẫn tự đăng
+ * → HUỶ phía nhà cung cấp TRƯỚC (DELETE /v1/posts/{id}; tài liệu: hợp lệ cho scheduled, publishing), huỷ không được thì
+ * KHÔNG xoá bản ghi. Bài đã đăng: chỉ xoá trong app, bài trên kênh vẫn còn (chủ dự án chốt 19/10/2026 — kể cả bài của
+ * kênh đã rời cửa hàng); muốn gỡ khỏi kênh thì dùng "Gỡ bài".
+ */
 postsRouter.delete(
   "/:id",
   route(async (req, res) => {
-    const result = await query("DELETE FROM posts WHERE id = $1 AND user_id = $2", [
-      req.params.id,
-      req.user!.id,
-    ]);
-    if (!result.rowCount) throw new AppError("Không tìm thấy bài viết", 404);
+    const post = await queryOne<{ id: number; status: string; platform_post_ref: string | null }>(
+      "SELECT id, status, platform_post_ref FROM posts WHERE id = $1 AND user_id = $2",
+      [req.params.id, req.user!.id]
+    );
+    if (!post) throw new AppError("Không tìm thấy bài viết", 404);
+    if ((post.status === "scheduled" || post.status === "publishing") && post.platform_post_ref) {
+      try {
+        await zernio.deletePost(post.platform_post_ref);
+      } catch (error) {
+        const status = error instanceof zernio.ZernioError ? error.status : 0;
+        // 404: không còn bài phía nhà cung cấp → không còn gì để đăng, xoá bản ghi được.
+        if (status === 400) {
+          throw new AppError("Bài đã kịp lên kênh nên không huỷ được. Vui lòng bấm \"Kiểm tra kết quả thật\", rồi dùng \"Gỡ bài\" nếu muốn gỡ.", 409);
+        }
+        if (status !== 404) throw new AppError("Chưa huỷ được bài phía nền tảng nên chưa xoá. Vui lòng thử lại sau ít phút.", 502);
+      }
+    }
+    await query("DELETE FROM posts WHERE id = $1 AND user_id = $2", [post.id, req.user!.id]);
     res.json({ success: true });
   })
 );

@@ -147,3 +147,14 @@ export async function doiNhiemKy(
 /** Điều kiện SQL: hội thoại thuộc nhiệm kỳ còn mở (hoặc chưa có nhiệm kỳ — dữ liệu từ kênh chưa gắn cửa hàng). */
 export const DK_NHIEM_KY_MO = (cot: string) =>
   `(${cot} IS NULL OR EXISTS (SELECT 1 FROM kenh_nhiem_ky nk_mo WHERE nk_mo.id = ${cot} AND nk_mo.den_luc IS NULL))`;
+
+/**
+ * Hội thoại CHỈ XEM (đợt 3) — SQL trả 'chua_gan' | 'da_roi' | NULL, dùng ĐÚNG hai nhánh "đã rời" của chốt cửa ra
+ * (services/cua-ra.ts locKenhGuiDuoc): kênh không còn thuộc cửa hàng của hội thoại, HOẶC hội thoại không thuộc nhiệm kỳ
+ * đang mở của kênh. Giao diện chỉ là lớp ngoài; chốt cửa ra phía máy chủ vẫn là chốt thật.
+ *  c = bí danh conversations, sa = bí danh social_accounts (LEFT JOIN — kênh đã xoá thì coi như đã rời).
+ */
+export const LY_DO_CHI_XEM = (c: string, sa: string) =>
+  `(CASE WHEN ${c}.trang_id IS NULL THEN 'chua_gan'
+         WHEN NOT ${DK_NHIEM_KY_MO(`${c}.nhiem_ky_id`)} OR ${sa}.trang_id IS DISTINCT FROM ${c}.trang_id THEN 'da_roi'
+         ELSE NULL END)`;

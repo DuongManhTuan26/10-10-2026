@@ -387,7 +387,9 @@ export default function Inbox() {
       handoffReason: detail.handoff_reason,
       avatarUrl: detail.avatar_url,
       externalUrl: detail.external_url,
-      canSend: detail.window_state !== 'expired',
+      // Chỉ xem (kênh đã rời / chưa gắn cửa hàng): khoá gửi + giao AI; việc nội bộ (ghi chú, tạo đơn, quét thông tin) vẫn mở.
+      chiXem: detail.chi_xem ?? null,
+      canSend: detail.window_state !== 'expired' && !detail.chi_xem,
       aiHandling: detail.status === 'ai',
       infoCollected: {
         name: detail.customer_name ?? 'Chưa có',
@@ -685,7 +687,7 @@ export default function Inbox() {
                   MỘT nút đổi người trả lời (bản cũ có "Dừng AI" và "Người chat" cùng gọi handleTakeover — rà soát lượt 2,
                   T3): AI đang trả lời → "Tôi tiếp quản"; người đang trả lời → "Trả cho AI".
                 */}
-                {selectedConv.aiHandling ? (
+                {selectedConv.chiXem ? null : selectedConv.aiHandling ? (
                   <button onClick={handleTakeover} className="px-3 py-1.5 border border-primary text-primary hover:bg-primary hover:text-on-primary font-bold text-xs rounded-md transition-colors flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-[16px]">person</span>
                     <span className="hidden sm:inline">Tôi tiếp quản</span>
@@ -797,7 +799,17 @@ export default function Inbox() {
 
             {/* Composer */}
             <div className="p-4 bg-surface-container-low border-t border-outline-variant/60 z-10 shrink-0">
-              {selectedConv.status === 'ai' && (
+              {selectedConv.chiXem && (
+                <div className="mb-3 px-3 py-2 bg-orange-400/10 border border-orange-400/30 rounded-md flex items-start gap-2 text-xs text-orange-400">
+                  <span className="material-symbols-outlined text-[16px] shrink-0">visibility</span>
+                  <span className="font-medium leading-relaxed">
+                    {selectedConv.chiXem === 'chua_gan'
+                      ? 'Kênh chưa gắn cửa hàng — tạm thời chưa gửi được. Vui lòng vào Kết nối kênh để gắn kênh vào cửa hàng.'
+                      : 'Kênh đã rời cửa hàng — chỉ xem lịch sử. Vẫn ghi chú khách và tạo đơn được; không gửi tin hay giao AI qua kênh này nữa.'}
+                  </span>
+                </div>
+              )}
+              {selectedConv.status === 'ai' && !selectedConv.chiXem && (
                 <div className="mb-3 px-3 py-2 bg-primary/10 border border-primary/20 rounded-md flex items-center gap-2 text-xs text-primary">
                   <span className="material-symbols-outlined text-[16px]">smart_toy</span>
                   <span className="font-medium">AI đang trả lời khách. Khi bạn gửi tin nhắn, quyền trả lời sẽ chuyển lại cho bạn.</span>
@@ -831,7 +843,7 @@ export default function Inbox() {
                   }}
                   disabled={!selectedConv.canSend || sending}
                   className="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/70 resize-none py-2 px-2 text-sm max-h-24 min-h-[40px] focus:outline-none custom-scrollbar disabled:cursor-not-allowed" 
-                  placeholder={selectedConv.canSend ? 'Nhập tin nhắn…' : 'Đã quá 24 giờ, nền tảng không cho gửi tin nữa'} 
+                  placeholder={selectedConv.chiXem ? 'Chỉ xem lịch sử — không gửi được qua kênh này' : selectedConv.canSend ? 'Nhập tin nhắn…' : 'Đã quá 24 giờ, nền tảng không cho gửi tin nữa'} 
                   rows={1}
                 ></textarea>
                 <button

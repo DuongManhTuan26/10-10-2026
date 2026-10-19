@@ -4,7 +4,8 @@ import { requireAuth } from "../auth.js";
 import { AppError, requireString, route } from "../http.js";
 import * as zernio from "../services/zernio.js";
 import { sendMessageSafely } from "../services/outbound.js";
-import { layHoiThoaiChoTin } from "../services/nhiem-ky.js";
+import { layHoiThoaiChoTin, LY_DO_CHI_XEM } from "../services/nhiem-ky.js";
+import { LOI_KENH_DA_ROI } from "../services/cua-ra.js";
 import { layHoacTaoKhach } from "../services/khach.js";
 import { trangHienTai } from "../services/ngu-canh-trang.js";
 
@@ -38,6 +39,25 @@ function dieuKienHopThu(userId: number, trang: number | null, kenh: unknown): { 
     conditions.push(`c.social_account_id = $${params.length}`);
   }
   return { conditions, params };
+}
+
+export const LOI_HOI_THOAI_CHUA_GAN =
+  "Kênh của hội thoại này chưa gắn cửa hàng — tạm thời chưa gửi được. Vui lòng vào Kết nối kênh để gắn kênh vào cửa hàng.";
+
+/**
+ * Chặn thao tác GỬI RA / giao AI trên hội thoại chỉ xem (đợt 3), cùng điều kiện với cờ chi_xem giao diện nhận. Chốt cửa
+ * ra trong outbound vẫn chặn lần nữa. Thao tác nội bộ (ghi chú khách, tạo đơn, xem, đóng) không đi qua đây.
+ */
+async function chanHoiThoaiChiXem(userId: number, conversationId: string): Promise<void> {
+  const r = await queryOne<{ chi_xem: string | null }>(
+    `SELECT ${LY_DO_CHI_XEM("c", "sa")} AS chi_xem
+       FROM conversations c LEFT JOIN social_accounts sa ON sa.id = c.social_account_id
+      WHERE c.id = $1 AND c.user_id = $2`,
+    [conversationId, userId]
+  );
+  if (!r) throw new AppError("Không tìm thấy hội thoại", 404);
+  if (r.chi_xem === "chua_gan") throw new AppError(LOI_HOI_THOAI_CHUA_GAN, 409);
+  if (r.chi_xem === "da_roi") throw new AppError(LOI_KENH_DA_ROI, 409);
 }
 
 inboxRouter.get(
@@ -90,7 +110,7 @@ inboxRouter.get(
               c.origin, c.external_url,
               cu.id AS customer_id, cu.name AS customer_name,
               cu.avatar_url, cu.phone,
-              sa.display_name AS account_name,
+              sa.display_name AS account_name, ${LY_DO_CHI_XEM("c", "sa")} AS chi_xem,
               (SELECT m.content FROM messages m
                 WHERE m.conversation_id = c.id
                 ORDER BY m.created_at DESC LIMIT 1) AS last_message
@@ -148,7 +168,7 @@ inboxRouter.get(
   route(async (req, res) => {
     const conversation = await queryOne(
       `SELECT c.*, cu.name AS customer_name, cu.phone, cu.address, cu.avatar_url,
-              cu.tags, cu.note, sa.display_name AS account_name
+              cu.tags, cu.note, sa.display_name AS account_name, ${LY_DO_CHI_XEM("c", "sa")} AS chi_xem
          FROM conversations c
          LEFT JOIN customers cu ON cu.id = c.customer_id
          LEFT JOIN social_accounts sa ON sa.id = c.social_account_id
@@ -203,6 +223,7 @@ inboxRouter.post(
     );
 
     if (!conversation) throw new AppError("Không tìm thấy hội thoại", 404);
+    await chanHoiThoaiChiXem(req.user!.id, conversation.id);
     if (!conversation.social_account_id) {
       throw new AppError("Hội thoại này không còn gắn với tài khoản nào", 409);
     }
@@ -252,6 +273,8 @@ inboxRouter.patch(
     if (!allowed.has(status)) {
       throw new AppError(`Trạng thái không hợp lệ: ${status}`);
     }
+    // Đóng hội thoại là việc NỘI BỘ (bàn giao) — cho phép cả khi chỉ xem; giao lại AI / tiếp quản thì không.
+    if (status !== "done") await chanHoiThoaiChiXem(req.user!.id, req.params.id);
 
     const updated = await queryOne(
       `UPDATE conversations

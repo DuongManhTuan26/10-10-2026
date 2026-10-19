@@ -295,10 +295,28 @@ export default function Connections() {
   };
   const chuyenSangTrang = async (trangId: number, tenTrang: string) => {
     if (!chuyenKenh) return;
+    // Nói trước những gì cửa hàng cũ để lại / mất trên kênh này ("kênh là nhân viên — ra đi tay trắng", đợt 3).
+    let hauQua = '';
+    try {
+      const { data: hq } = await api.connections.hauQuaChuyenKenh(chuyenKenh.id);
+      const dong = [
+        hq.hoiThoaiOLai > 0 && `• ${hq.hoiThoaiOLai} hội thoại ở lại cửa hàng cũ (chỉ xem lịch sử, không trả lời qua kênh này nữa).`,
+        hq.baiHenGio > 0 && `• ${hq.baiHenGio} bài hẹn giờ của cửa hàng cũ sẽ bị gỡ lịch trên kênh này.`,
+        hq.baiChuaDang > 0 && `• ${hq.baiChuaDang} bài chưa đăng (nháp / chờ duyệt / lỗi) của cửa hàng cũ sẽ không đăng được qua kênh này nữa.`,
+        hq.kichBanSeTat > 0 && `• ${hq.kichBanSeTat} kịch bản bình luận của cửa hàng cũ trên kênh này sẽ tắt — kênh quay về thì bạn tự bật lại.`,
+        '• Quảng cáo của cửa hàng cũ trên kênh này không tự dừng — vui lòng kiểm tra ở mục Quảng cáo.',
+      ].filter(Boolean);
+      hauQua = `Cửa hàng cũ:\n${dong.join('\n')}\n\n`;
+    } catch (error) {
+      setLoiHopThoai(error instanceof ApiError ? error.message : 'Không đọc được những gì sẽ thay đổi khi chuyển kênh');
+      return;
+    }
     if (!(await hoiXacNhan({
       tieuDe: `Chuyển ${chuyenKenh.nenTang} "${chuyenKenh.ten}" sang cửa hàng "${tenTrang}"?`,
       noiDung:
-        `Từ giờ bộ não AI của cửa hàng "${tenTrang}" (vai trò, bảng giá, kịch bản) sẽ trả lời khách và đăng bài trên kênh này.\n\n` +
+        `Từ giờ bộ não AI của cửa hàng "${tenTrang}" (vai trò, bảng giá, kịch bản) sẽ trả lời khách và đăng bài trên kênh này. ` +
+        `Khách, hội thoại, đơn và bài cũ ở lại cửa hàng cũ.\n\n` +
+        hauQua +
         `Tiền kênh hôm nay vẫn tính cho cửa hàng cũ, từ ngày mai tính cho cửa hàng mới.`,
       nutDongY: 'Chuyển kênh',
       bieuTuong: 'move_down',

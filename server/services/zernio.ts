@@ -816,9 +816,34 @@ export async function updatePost(params: {
   });
 }
 
-/** Gỡ một bài đã đăng khỏi nền tảng. Không lấy lại được. */
+/**
+ * XOÁ BẢN GHI bài phía Zernio (DELETE /v1/posts/{postId}) — dùng để HUỶ bài hẹn giờ / đang đăng.
+ *
+ * Tài liệu chính thức (openapi.yaml 1.295.0, đọc 19/10/2026): "Any status except `published` can be deleted"; bài
+ * published trả 400 "Cannot delete published posts"; xoá là xoá CẢ bài (mọi kênh đích), KHÔNG gỡ gì đã lên nền tảng.
+ * Gỡ bài đã đăng khỏi Fanpage → unpublishPost. (Chú thích cũ ghi "gỡ bài đã đăng khỏi nền tảng" là SAI.)
+ */
 export async function deletePost(postId: string): Promise<Record<string, unknown>> {
   return request(`/posts/${encodeURIComponent(postId)}`, { method: "DELETE" });
+}
+
+/** Nền tảng nhà cung cấp KHÔNG hỗ trợ gỡ bài đã đăng (tài liệu: "Not supported on Instagram, TikTok, or Snapchat"). */
+export const NEN_TANG_KHONG_GO_DUOC = ["instagram", "tiktok", "snapchat"];
+
+/**
+ * GỠ bài đã đăng khỏi MỘT kênh (POST /v1/posts/{postId}/unpublish). Tài liệu: body bắt buộc `platform`; `accountId`
+ * bắt buộc khi bài đăng lên nhiều tài khoản cùng nền tảng — luôn gửi cho chắc. Gỡ rồi không lấy lại được.
+ */
+export async function unpublishPost(params: {
+  postId: string;
+  platform: string;
+  accountId: string;
+}): Promise<Record<string, unknown>> {
+  return request(`/posts/${encodeURIComponent(params.postId)}/unpublish`, {
+    method: "POST",
+    body: { platform: params.platform, accountId: params.accountId },
+    retries: 0,
+  });
 }
 
 export async function getPost(postId: string): Promise<Record<string, unknown>> {

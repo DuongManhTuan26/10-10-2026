@@ -1,6 +1,7 @@
 import type pg from "pg";
 import { query, queryOne, transaction } from "../db.js";
 import { AppError } from "../http.js";
+import { donLichKenhDaRoi } from "./don-lich.js";
 import { doiNhiemKy } from "./nhiem-ky.js";
 
 /**
@@ -163,21 +164,29 @@ export async function ganKenhVaoTrang(
    * kỳ mới + tắt kịch bản của cửa hàng cũ (services/nhiem-ky.ts — "kênh là nhân viên, ra đi tay trắng, quay về người
    * không", chủ dự án chốt 19/10/2026).
    */
-  await transaction((k) => ganKenhVaoTrangTrong(k, accountId, userId, trangId));
+  const daRoiTrang = await transaction((k) => ganKenhVaoTrangTrong(k, accountId, userId, trangId));
+  // SAU giao dịch (không gọi nhà cung cấp trong giao dịch): kênh vừa rời cửa hàng cũ → gỡ lịch bài hẹn giờ của cửa hàng
+  // cũ trên kênh này (services/don-lich.ts). Lỗi không chặn việc chuyển kênh — lượt đồng bộ sau làm lại.
+  if (daRoiTrang != null) {
+    await donLichKenhDaRoi(userId).catch((e) => console.error("[gỡ lịch] Lỗi, sẽ thử lại ở lượt đồng bộ sau:", e));
+  }
 }
 
-/** Thân của ganKenhVaoTrang, chạy trên giao dịch có sẵn (phép thử tự hoàn tác gọi thẳng — không COMMIT riêng). */
+/**
+ * Thân của ganKenhVaoTrang, chạy trên giao dịch có sẵn (phép thử tự hoàn tác gọi thẳng — không COMMIT riêng). Trả về
+ * cửa hàng kênh vừa RỜI (null nếu không đổi / kênh chưa từng thuộc cửa hàng nào).
+ */
 export async function ganKenhVaoTrangTrong(
   k: Pick<pg.PoolClient, "query">,
   accountId: string,
   userId: number,
   trangId: number
-): Promise<void> {
+): Promise<number | null> {
   const r = await k.query(
     "UPDATE social_accounts SET trang_id = $1, updated_at = now() WHERE id = $2 AND user_id = $3",
     [trangId, accountId, userId]
   );
-  if (!r.rowCount) return;
+  if (!r.rowCount) return null;
   const doi = await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });
   // Kênh RỜI cửa hàng cũ → kịch bản bình luận của cửa hàng cũ gắn trên kênh này TẮT (cùng giao dịch); kênh quay về thì
   // chủ shop tự bật lại (chủ dự án chốt 19/10/2026 — "quay về người không").
@@ -188,6 +197,7 @@ export async function ganKenhVaoTrangTrong(
       [accountId, doi.daDong.trang_id, `Kênh đã rời cửa hàng lúc ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}`]
     );
   }
+  return doi.daDong?.trang_id ?? null;
 }
 
 /*
@@ -275,6 +285,38 @@ export async function trangChuyenDuoc(
     [userId, kenh.trang_id, kenh.platform]
   );
   return { kenh, ds: r.rows };
+}
+
+/**
+ * HẬU QUẢ chuyển kênh sang cửa hàng khác (đợt 3) — để hộp xác nhận nói trước cho chủ shop. Chỉ đọc. Kênh chưa thuộc cửa
+ * hàng nào → mọi số = 0 (không có gì của cửa hàng cũ để mất).
+ */
+export async function hauQuaChuyenKenh(
+  userId: number,
+  accountId: string,
+  db: Pick<pg.PoolClient, "query"> = { query: ((sql: string, ts?: unknown[]) => query(sql, ts)) as never }
+): Promise<{ baiHenGio: number; baiChuaDang: number; kichBanSeTat: number; hoiThoaiOLai: number }> {
+  const kq = await db.query<{ bai_hen_gio: number; bai_chua_dang: number; kich_ban_se_tat: number; hoi_thoai_o_lai: number }>(
+    `SELECT
+       (SELECT count(*) FROM posts p WHERE p.user_id = $1 AND p.trang_id = s.trang_id AND s.id = ANY(p.target_account_ids)
+           AND p.status = 'scheduled')::int AS bai_hen_gio,
+       (SELECT count(*) FROM posts p WHERE p.user_id = $1 AND p.trang_id = s.trang_id AND s.id = ANY(p.target_account_ids)
+           AND p.status IN ('draft', 'pending_approval', 'failed'))::int AS bai_chua_dang,
+       (SELECT count(*) FROM auto_scripts a WHERE a.social_account_id = s.id AND a.trang_id = s.trang_id
+           AND a.is_active)::int AS kich_ban_se_tat,
+       (SELECT count(*) FROM conversations c JOIN kenh_nhiem_ky nk ON nk.id = c.nhiem_ky_id
+         WHERE nk.account_id = s.id AND nk.den_luc IS NULL)::int AS hoi_thoai_o_lai
+       FROM social_accounts s
+      WHERE s.id = $2 AND s.user_id = $1 AND s.trang_id IS NOT NULL`,
+    [userId, accountId]
+  );
+  const r = kq.rows[0];
+  return {
+    baiHenGio: r?.bai_hen_gio ?? 0,
+    baiChuaDang: r?.bai_chua_dang ?? 0,
+    kichBanSeTat: r?.kich_ban_se_tat ?? 0,
+    hoiThoaiOLai: r?.hoi_thoai_o_lai ?? 0,
+  };
 }
 
 /**

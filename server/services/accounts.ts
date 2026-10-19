@@ -1,6 +1,7 @@
 import { query, queryOne } from "../db.js";
 import { AppError } from "../http.js";
 import * as zernio from "./zernio.js";
+import { donLichKenhDaRoi } from "./don-lich.js";
 import { baoDamTrangChoHoSo, ganKenhVaoTrang, hoSoCuaTaiKhoan } from "./trang.js";
 
 /*
@@ -185,6 +186,9 @@ export async function syncAccountsForUser(
       WHERE user_id = $1 AND NOT (id = ANY($2::text[]))`,
     [userId, ids]
   );
+
+  // Lưới an toàn: lần gỡ lịch lúc chuyển kênh bị lỗi (mạng / nhà cung cấp) thì lượt đồng bộ này làm lại.
+  await donLichKenhDaRoi(userId).catch((e) => console.error("[gỡ lịch] Lỗi, sẽ thử lại ở lượt đồng bộ sau:", e));
 
   return accounts.length;
 }

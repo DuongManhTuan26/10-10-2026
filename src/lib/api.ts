@@ -471,6 +471,8 @@ export interface Conversation {
   account_name: string | null;
   last_message: string | null;
   external_url: string | null;
+  /** Đợt 3: hội thoại CHỈ XEM — kênh đã rời cửa hàng / chưa gắn cửa hàng (máy chủ chặn gửi cùng điều kiện). */
+  chi_xem: 'chua_gan' | 'da_roi' | null;
 }
 
 export interface Message {
@@ -1081,6 +1083,11 @@ export const api = {
     doiTenTrang: (trangId: number, ten: string) =>
       put<{ message?: string }>(`/connections/trang/${trangId}/ten`, { ten }),
     /** Chuyển kênh sang trang bán hàng khác — bộ não AI của trang đó sẽ trả lời khách trên kênh. */
+    /** Hậu quả nếu chuyển kênh đi (đợt 3) — hộp xác nhận nói trước. */
+    hauQuaChuyenKenh: (accountId: string) =>
+      get<{ data: { baiHenGio: number; baiChuaDang: number; kichBanSeTat: number; hoiThoaiOLai: number } }>(
+        `/connections/accounts/${accountId}/hau-qua`
+      ),
     chuyenKenhSangTrang: (accountId: string, trangId: number) =>
       put<{ message?: string }>(`/connections/accounts/${accountId}/trang`, { trangId }),
     selectPages: (pageIds: string[]) =>
@@ -1295,7 +1302,7 @@ export const api = {
     updateOnPlatform: (id: number, content: string) =>
       put<{ data: Post }>(`/posts/${id}/platform-content`, { content }),
     /** Gỡ bài khỏi nền tảng, đưa về bản nháp để sửa rồi đăng lại. */
-    unpublish: (id: number) => post<{ data: Post }>(`/posts/${id}/unpublish`),
+    unpublish: (id: number) => post<{ data: Post; goMotPhan?: boolean; message?: string }>(`/posts/${id}/unpublish`),
     /**
      * Hỏi lại nền tảng xem bài đang treo thật sự đã lên hay chưa.
      * Chỉ đọc — không đăng lại, nên bấm bao nhiêu lần cũng không tạo bài trùng.

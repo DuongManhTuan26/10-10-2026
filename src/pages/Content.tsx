@@ -269,8 +269,21 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
     );
   };
 
+  /** Tên các kênh đích của bài (để câu hỏi / câu báo nói đúng kênh nào). */
+  const tenKenhCuaBai = (post: Post) =>
+    accounts.filter((a) => post.target_account_ids?.includes(a.id)).map((a) => a.display_name || a.username || a.platform).join(', ') ||
+    'kênh';
+
+  /** Xoá bản ghi trong app. Bài đã đăng thì bài trên kênh VẪN CÒN; bài hẹn giờ thì lịch phía nền tảng bị huỷ (máy chủ). */
   const handleDelete = async (id: number) => {
-    if (!(await hoiXacNhan({ tieuDe: 'Xoá bài này?', nutDongY: 'Xoá', nguyHiem: true }))) return;
+    const bai = dbPosts.find((p) => p.id === id);
+    const noiDung =
+      bai?.status === 'published'
+        ? `Chỉ xoá trong ứng dụng — bài trên ${tenKenhCuaBai(bai)} vẫn còn. Muốn gỡ khỏi kênh thì dùng "Gỡ để sửa ảnh".`
+        : bai?.status === 'scheduled'
+          ? 'Lịch đăng của bài này sẽ bị huỷ, bài không được đăng nữa.'
+          : undefined;
+    if (!(await hoiXacNhan({ tieuDe: 'Xoá bài này?', noiDung, nutDongY: 'Xoá', nguyHiem: true }))) return;
     return runAction(id, () => api.posts.remove(id));
   };
 
@@ -552,8 +565,8 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
       !(await hoiXacNhan({
         tieuDe: 'Gỡ bài này khỏi nền tảng để sửa lại?',
         noiDung:
-          'Bài sẽ biến mất khỏi kênh, mất hết lượt thích và bình luận đã có. ' +
-          'Nội dung và ảnh vẫn giữ lại trong ứng dụng để bạn sửa rồi đăng mới.',
+          `Bài sẽ bị gỡ hẳn khỏi ${tenKenhCuaBai(post)}, không khôi phục được — mất hết lượt thích và bình luận đã có.\n\n` +
+          'Nội dung và ảnh vẫn giữ lại trong ứng dụng để bạn sửa rồi đăng mới. Instagram, TikTok không cho gỡ qua ứng dụng.',
         nutDongY: 'Gỡ bài',
         nguyHiem: true,
       }))
@@ -563,9 +576,11 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
     setDangGoBai(true);
     setErrorMessage('');
     try {
-      const { data } = await api.posts.unpublish(post.id);
+      const kq = await api.posts.unpublish(post.id);
       await fetchPosts();
-      handleEditPost(data);
+      // Gỡ một phần (vd. Instagram không cho gỡ): bài vẫn "đã đăng" — báo đúng từng kênh, không mở hộp sửa.
+      if (kq.goMotPhan) setErrorMessage(kq.message ?? 'Mới gỡ được một phần kênh.');
+      else handleEditPost(kq.data);
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'Không gỡ được bài trên nền tảng');
     } finally {
