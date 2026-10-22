@@ -44,11 +44,11 @@ export async function cuaHangCuaYeuCau(
     const r = await queryOne<{ id: number }>("SELECT id FROM trang WHERE id = $1 AND user_id = $2", [ma, userId]);
     if (r) return r.id;
   }
-  if (p.ghi) {
-    const so = await queryOne<{ n: number }>("SELECT COUNT(*)::int AS n FROM trang WHERE user_id = $1", [userId]);
-    if ((so?.n ?? 0) >= 2) throw new AppError(LOI_CHUA_CHON_CUA_HANG, 409);
-  }
-  console.warn(`[cửa hàng] ${p.duong} không gửi mã cửa hàng hợp lệ — dùng cửa hàng mặc định`);
+  const so = (await queryOne<{ n: number }>("SELECT COUNT(*)::int AS n FROM trang WHERE user_id = $1", [userId]))?.n ?? 0;
+  if (p.ghi && so >= 2) throw new AppError(LOI_CHUA_CHON_CUA_HANG, 409);
+  // ĐỌC thiếu mã ở tài khoản ≥ 2 cửa hàng là trạng thái HỢP LỆ (đang ở khung chọn cửa hàng, thanh trên vẫn gọi số đếm) —
+  // không cảnh báo. Tài khoản 1 cửa hàng mà vẫn thiếu mã mới là chỗ chưa gửi (phiên kiểm duyệt đồng ý 22/10).
+  if (so === 1) console.warn(`[cửa hàng] ${p.duong} không gửi mã cửa hàng hợp lệ — dùng cửa hàng mặc định`);
   return layTrangMacDinh(userId);
 }
 

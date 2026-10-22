@@ -6978,15 +6978,16 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const tr7 = d7("server/services/trang.ts"), ap7 = d7("server/app.ts"), nc7 = d7("server/services/ngu-canh-trang.ts"), ai7 = d7("server/routes/ai.ts");
   kiem("A4a máy chủ", "cuaHangCuaYeuCau: mã phải thuộc người đăng nhập; GHI thiếu mã hợp lệ ở tài khoản ≥ 2 cửa hàng → 409; ĐỌC → mặc định + cảnh báo; lớp giữa truyền GHI theo phương thức",
     [/"SELECT id FROM trang WHERE id = \$1 AND user_id = \$2", \[ma, userId\]/.test(tr7),
-      /if \(p\.ghi\) \{\s*const so = await queryOne<\{ n: number \}>\("SELECT COUNT\(\*\)::int AS n FROM trang WHERE user_id = \$1", \[userId\]\);\s*if \(\(so\?\.n \?\? 0\) >= 2\) throw new AppError\(LOI_CHUA_CHON_CUA_HANG, 409\);/.test(tr7),
-      tr7.search(/console\.warn\(`\[cửa hàng\]/) > tr7.search(/if \(p\.ghi\) \{/) && /return layTrangMacDinh\(userId\);\s*\}/.test(tr7),
+      /const so = \(await queryOne<\{ n: number \}>\("SELECT COUNT\(\*\)::int AS n FROM trang WHERE user_id = \$1", \[userId\]\)\)\?\.n \?\? 0;\s*if \(p\.ghi && so >= 2\) throw new AppError\(LOI_CHUA_CHON_CUA_HANG, 409\);/.test(tr7),
+      // A4d (phiên kiểm duyệt đồng ý): ĐỌC thiếu mã ở tài khoản ≥ 2 cửa hàng là hợp lệ (khung chọn) — chỉ cảnh báo khi 1 cửa hàng.
+      /if \(so === 1\) console\.warn\(`\[cửa hàng\]/.test(tr7) && /return layTrangMacDinh\(userId\);\s*\}/.test(tr7),
       /ghi: !\["GET", "HEAD", "OPTIONS"\]\.includes\(req\.method\),/.test(ap7) && /chayVoiCachTim\(\(\) => cuaHangCuaYeuCau\(userId, p\), next\);/.test(ap7)],
     [true, true, true, true]);
-  kiem("A4a máy chủ", "409 của lớp giữa tới được route (trangHienTai ném AppError); sổ tiền AI / nhật ký dùng trangChoSo (không ném); bộ não (ai.ts) lấy cửa hàng từ lớp giữa",
+  kiem("A4a máy chủ", "409 của lớp giữa tới được route (trangHienTai ném AppError); sổ tiền AI / nhật ký / tin thử Telegram dùng trangChoSo (không ném); bộ não (ai.ts) lấy cửa hàng từ lớp giữa",
     [/if \(e instanceof AppError\) throw e;\s*return null;/.test(nc7), danhSach(/await trangChoSo\(\)/),
       danhSach(/\btrangHienTai\(\)/).filter((t) => /so-ai|so-thay-doi/.test(t)),
       /async function trangCuaReq\(req: \{ method: string \}\) \{[\s\S]{0,200}?const trang = await trangHienTai\(\);/.test(ai7)],
-    [true, ["server/services/so-ai.ts", "server/services/so-thay-doi.ts"], [], true]);
+    [true, ["server/routes/settings.ts", "server/services/so-ai.ts", "server/services/so-thay-doi.ts"], [], true]);
 
   // Giao diện.
   const moiTepSrc = (thuMuc: string): string[] => fs.readdirSync(thuMuc, { withFileTypes: true }).flatMap((e) =>
@@ -7028,6 +7029,39 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const dungActive = dsSrc(/useActivePage/);
   console.log(`  [A4a] ${dungActive.length} tệp giao diện dùng useActivePage — đã xếp loại ${dungActive.filter((t) => XEP_GD[t]).length}`);
   kiem("A4a giao diện", "mọi tệp dùng useActivePage đã xếp loại (tệp mới phải xếp trước)", dungActive, Object.keys(XEP_GD).sort());
+}
+
+// ---------------------------------------------------------------------------
+// A4d — TELEGRAM GHI TÊN CỬA HÀNG (sơ đồ §4) + nút "Mở bộ não" cho cửa hàng chưa có kênh (chủ dự án chốt 22/10/2026).
+// ---------------------------------------------------------------------------
+{
+  const d8 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const tg = d8("server/services/telegram.ts"), sa8 = d8("server/services/sales-ai.ts"), ap9 = d8("server/services/autopilot.ts");
+  const st9 = d8("server/routes/settings.ts"), wk9 = d8("server/worker.ts"), ad9 = d8("server/routes/admin.ts");
+  kiem("A4d Telegram", "sendTelegramMessage nhận trangId → dòng đầu '🏪 Cửa hàng: <tên>' (tên thoát HTML, chỉ khi cửa hàng thuộc đúng tài khoản nhận tin)",
+    [/export async function sendTelegramMessage\(\s*userId: number,\s*text: string,\s*kind = "general",\s*trangId\?: number \| null\s*\)/.test(tg),
+      /text = \(await dongCuaHang\(userId, trangId\)\.catch\(\(\) => ""\)\) \+ text;/.test(tg),
+      /"SELECT ten FROM trang WHERE id = \$1 AND user_id = \$2", \[trangId, userId\]/.test(tg),
+      /`🏪 <b>Cửa hàng:<\/b> \$\{escapeHtml\(t\.ten\)\}/.test(tg)],
+    [true, true, true, true]);
+  kiem("A4d Telegram", "tin của MỘT cửa hàng đều truyền cửa hàng: đơn mới (order.trang_id), khách cần người (2 chỗ, trangId bắt buộc), bài AI (6 chỗ, trangId bắt buộc), tin thử",
+    [/await sendTelegramMessage\(userId, lines\.join\("\\n"\), "new_order", \(order\.trang_id as number \| null \| undefined\) \?\? null\);/.test(tg),
+      /params: \{ customerName: string; reason: string; platform: string; trangId: number \| null \}/.test(tg) && /"handoff",\s*params\.trangId\s*\);/.test(tg),
+      (sa8.match(/await sendHandoffAlert\(conversation\.user_id, \{\s*trangId: conversation\.trang_id \?\? null,/g) ?? []).length,
+      /async function baoTelegram\(userId: number, trangId: number \| null, text: string\)/.test(ap9) && /await sendTelegramMessage\(userId, text, "content", trangId\);/.test(ap9),
+      (ap9.match(/await baoTelegram\(\s*(userId,\s*trangId|b\.user_id,\s*b\.trang_id),/g) ?? []).length,
+      (ap9.match(/await baoTelegram\(/g) ?? []).length,
+      /"test",\s*await trangChoSo\(\)\s*\);/.test(st9)],
+    [true, true, 2, true, 6, 6, true]);
+  kiem("A4d Telegram", "tin cấp tài khoản / hệ thống (hàng đợi kẹt, webhook hỏng, chi phí, quản trị) KHÔNG gắn cửa hàng",
+    [(wk9.match(/sendTelegramMessage\([\s\S]{0,700}?"(queue_stuck|webhook_dead|chi_phi)"\s*\)/g) ?? []).length,
+      (wk9.match(/"(queue_stuck|webhook_dead|chi_phi)"\s*,/g) ?? []).length,
+      /trang/i.test(ad9.slice(ad9.indexOf("sendTelegramMessage("), ad9.indexOf(";", ad9.indexOf("sendTelegramMessage("))))],
+    [3, 0, false]);
+  const bt9 = fs.readFileSync(path.join(GOC, "src/components/BangTrangBanHang.tsx"), "utf8");
+  kiem("A4d nút bộ não", "cửa hàng chưa có kênh cũng có 'Mở bộ não' (không còn ẩn khi 0 kênh); vẫn giữ câu nhắc nối kênh",
+    [/\{n\.kenh\.length === 0 \? null : dangMo \?/.test(bt9), /\{dangMo \? \(/.test(bt9), /Cửa hàng này chưa có kênh — bấm ⋯ → "Kết nối kênh cho cửa hàng này"/.test(bt9)],
+    [false, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

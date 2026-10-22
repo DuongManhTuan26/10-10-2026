@@ -532,6 +532,7 @@ async function lamMotO(
     ]);
     await baoTelegram(
       userId,
+      trangId,
       `🤖 <b>AI vừa đăng một bài</b>\nChủ đề: ${escapeHtml(chuDe)}\n\n${escapeHtml(noiDung.slice(0, 600))}`
     );
     return true;
@@ -544,6 +545,7 @@ async function lamMotO(
     ]);
     await baoTelegram(
       userId,
+      trangId,
       `🤖 <b>AI vừa viết một bài</b>\nChủ đề: ${escapeHtml(chuDe)}\n\n${escapeHtml(noiDung.slice(0, 600))}\n\n` +
         `⏳ Sẽ tự đăng sau ${cau.notifyMinutes} phút. Không muốn đăng thì vào app ` +
         `mục "Chờ duyệt" xoá bài này.`
@@ -557,6 +559,7 @@ async function lamMotO(
   ]);
   await baoTelegram(
     userId,
+    trangId,
     `🤖 <b>AI vừa viết một bài, đang chờ bạn duyệt</b>\nChủ đề: ${escapeHtml(chuDe)}\n\n${escapeHtml(noiDung.slice(0, 600))}` +
       (loiAnh ? `\n\n⚠️ ${escapeHtml(ghiChuAnh.trim())}` : "")
   );
@@ -564,9 +567,10 @@ async function lamMotO(
 }
 
 /** Báo Telegram là việc phụ: chưa cấu hình hoặc lỗi thì vẫn phải chạy tiếp. */
-async function baoTelegram(userId: number, text: string): Promise<void> {
+async function baoTelegram(userId: number, trangId: number | null, text: string): Promise<void> {
   try {
-    await sendTelegramMessage(userId, text, "content");
+    // Tin bài AI ghi rõ cửa hàng của lượt lịch (A4d) — trangId bắt buộc truyền để không chỗ nào quên.
+    await sendTelegramMessage(userId, text, "content", trangId);
   } catch {
     /* im lặng có chủ đích: không để tin nhắn hỏng làm hỏng việc đăng bài */
   }
@@ -805,7 +809,7 @@ export async function runDueVideoTuDong(): Promise<number> {
           if (e instanceof TaiKhoanKhoaError) continue;
           ghiChu += `; ảnh thay thế cũng hỏng (${(e instanceof Error ? e.message : String(e)).slice(0, 120)}), bài chờ bạn duyệt.`;
           await query("UPDATE posts SET media = $2::jsonb WHERE id = $1", [b.id, JSON.stringify(media)]);
-          await baoTelegram(b.user_id, `🤖 <b>Bài tự động đang chờ bạn duyệt</b>\n${escapeHtml(ghiChu)}`);
+          await baoTelegram(b.user_id, b.trang_id, `🤖 <b>Bài tự động đang chờ bạn duyệt</b>\n${escapeHtml(ghiChu)}`);
           continue;
         }
       } else {
@@ -828,6 +832,7 @@ export async function runDueVideoTuDong(): Promise<number> {
         const sau = await queryOne<{ status: string }>("SELECT status FROM posts WHERE id = $1", [b.id]);
         await baoTelegram(
           b.user_id,
+          b.trang_id,
           sau?.status === "publishing"
             ? `🤖 <b>Chưa rõ bài tự động đã lên hay chưa</b>\nĐang chờ nền tảng xác nhận — vui lòng KHÔNG đăng lại bài này để tránh đăng trùng.`
             : `🤖 <b>Bài tự động không đăng được</b>\n${escapeHtml(lyDo.slice(0, 300))}\nXem mục Cần xử lý.`
@@ -839,6 +844,7 @@ export async function runDueVideoTuDong(): Promise<number> {
     }
     await baoTelegram(
       b.user_id,
+      b.trang_id,
       `🤖 <b>${guard === "publish" ? "AI vừa đăng một bài" : guard === "notify" ? `Bài sẽ tự đăng sau ${cau.notifyMinutes} phút` : "Bài mới đang chờ bạn duyệt"}</b>\n${escapeHtml(ghiChu)}\n\n${escapeHtml(b.content.slice(0, 400))}`
     );
     dem += 1;

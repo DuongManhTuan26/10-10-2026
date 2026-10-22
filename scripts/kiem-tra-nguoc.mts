@@ -4635,7 +4635,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "A4a: GHI thiếu mã lặng lẽ vào cửa hàng mặc định",
     tep: "server/services/trang.ts",
-    tim: "    if ((so?.n ?? 0) >= 2) throw new AppError(LOI_CHUA_CHON_CUA_HANG, 409);\n",
+    tim: "  if (p.ghi && so >= 2) throw new AppError(LOI_CHUA_CHON_CUA_HANG, 409);\n",
     thay: "",
   },
   {
@@ -4721,6 +4721,54 @@ const DUC: PhepDuc[] = [
     tep: "server/services/thu-vien-anh.ts",
     tim: "\"SELECT kieu, du_lieu FROM thu_vien_anh WHERE id = $1 AND user_id = $2\"",
     thay: "\"SELECT kieu, du_lieu FROM thu_vien_anh WHERE id = $1 AND $2::bigint IS NOT NULL\"",
+  },
+  {
+    ten: "A4d: tin Telegram không ghi cửa hàng",
+    tep: "server/services/telegram.ts",
+    tim: "  text = (await dongCuaHang(userId, trangId).catch(() => \"\")) + text;\n",
+    thay: "",
+  },
+  {
+    ten: "A4d: tên cửa hàng lấy cả của tài khoản khác",
+    tep: "server/services/telegram.ts",
+    tim: "\"SELECT ten FROM trang WHERE id = $1 AND user_id = $2\", [trangId, userId]",
+    thay: "\"SELECT ten FROM trang WHERE id = $1\", [trangId]",
+  },
+  {
+    ten: "A4d: tin đơn mới không truyền cửa hàng",
+    tep: "server/services/telegram.ts",
+    tim: "\"new_order\", (order.trang_id as number | null | undefined) ?? null);",
+    thay: "\"new_order\");",
+  },
+  {
+    ten: "A4d: tin khách cần người không truyền cửa hàng",
+    tep: "server/services/telegram.ts",
+    tim: "    \"handoff\",\n    params.trangId\n  );",
+    thay: "    \"handoff\"\n  );",
+  },
+  {
+    ten: "A4d: một chỗ báo khách cần người quên cửa hàng",
+    tep: "server/services/sales-ai.ts",
+    tim: "  await sendHandoffAlert(conversation.user_id, {\n    trangId: conversation.trang_id ?? null,\n",
+    thay: "  await sendHandoffAlert(conversation.user_id, {\n    trangId: null,\n",
+  },
+  {
+    ten: "A4d: tin bài AI không ghi cửa hàng",
+    tep: "server/services/autopilot.ts",
+    tim: "await sendTelegramMessage(userId, text, \"content\", trangId);",
+    thay: "await sendTelegramMessage(userId, text, \"content\");",
+  },
+  {
+    ten: "A4d: bớt cảnh báo nhầm — tài khoản nhiều cửa hàng vẫn cảnh báo",
+    tep: "server/services/trang.ts",
+    tim: "  if (so === 1) console.warn(",
+    thay: "  if (so >= 1) console.warn(",
+  },
+  {
+    ten: "A4d: cửa hàng chưa có kênh lại mất nút Mở bộ não",
+    tep: "src/components/BangTrangBanHang.tsx",
+    tim: "                      {dangMo ? (",
+    thay: "                      {n.kenh.length === 0 ? null : dangMo ? (",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

@@ -1134,6 +1134,7 @@ async function baoChuShop(
   );
 
   await sendHandoffAlert(conversation.user_id, {
+    trangId: conversation.trang_id ?? null,
     customerName: customer?.name || "Khách chưa có tên",
     reason: aiDaDung ? reason : `${reason} — AI vẫn đang tiếp tục nói chuyện với khách`,
     platform: conversation.platform,
@@ -1172,6 +1173,7 @@ async function handoff(conversation: ConversationRow, reason: string): Promise<v
 
   // Rồi báo cho chủ shop qua Telegram.
   await sendHandoffAlert(conversation.user_id, {
+    trangId: conversation.trang_id ?? null,
     customerName: customer?.name || "Khách chưa có tên",
     reason,
     platform: conversation.platform,

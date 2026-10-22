@@ -13,7 +13,7 @@ import {
   GHI_RAO_CHAN_CUA_HANG,
 } from "../services/guardrails.js";
 import { DAU_THANG_VN } from "../moc-thoi-gian.js";
-import { trangHienTai } from "../services/ngu-canh-trang.js";
+import { trangChoSo, trangHienTai } from "../services/ngu-canh-trang.js";
 import { LOI_KENH_NGOAI_CUA_HANG_DANG_CHON } from "../services/kenh-dang.js";
 
 export const settingsRouter = Router();
@@ -177,8 +177,11 @@ settingsRouter.post(
         "",
         "Hệ thống AI bán hàng đã kết nối với Telegram của bạn.",
         "Từ giờ mọi đơn hàng mới và cảnh báo cần xử lý sẽ được báo về đây.",
+        "Tin về đơn hàng, khách cần hỗ trợ và bài AI viết ghi rõ tên cửa hàng ở dòng đầu (như tin này).",
       ].join("\n"),
-      "test"
+      "test",
+      // A4d: tin thử mang dòng cửa hàng đang chọn — đúng định dạng tin thật. Không có cửa hàng thì gửi không dòng đó.
+      await trangChoSo()
     );
 
     if (!sent) {

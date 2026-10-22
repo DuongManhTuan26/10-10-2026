@@ -304,9 +304,10 @@ export default function BangTrangBanHang({
                         <span className={clsx(CHIP, CHIP_ON)}>✓ Hoạt động</span>
                       )}
                     </span>
-                    {/* Bộ não */}
+                    {/* Bộ não — cả cửa hàng CHƯA CÓ KÊNH cũng mở được (chủ dự án chốt 22/10/2026: dạy AI trước khi nối kênh;
+                        hoàn thiện "chọn được cả cửa hàng chưa có kênh" của A4). Câu nhắc nối kênh bên dưới vẫn giữ. */}
                     <span className="ml-auto @3xl:ml-0 flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                      {n.kenh.length === 0 ? null : dangMo ? (
+                      {dangMo ? (
                         <span className="inline-flex items-center gap-2 text-xs font-bold h-8" style={{ color: MAU_THUONG_HIEU }}>
                           <span className="relative flex w-2 h-2">
                             <span className="absolute inset-0 rounded-full animate-ping motion-reduce:animate-none" style={{ background: MAU_THUONG_HIEU }} />

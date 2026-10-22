@@ -59,13 +59,26 @@ export function escapeHtml(value: unknown): string {
     .replace(/>/g, "&gt;");
 }
 
+/**
+ * Một Telegram cho cả tài khoản, MỖI TIN ghi rõ cửa hàng (sơ đồ §4, A4d 22/10/2026): tin về việc của một cửa hàng (đơn,
+ * khách cần người, bài AI) truyền trangId → thêm dòng đầu "🏪 Cửa hàng: <tên>". Tên chỉ lấy khi cửa hàng thuộc đúng tài
+ * khoản nhận tin. Tin cấp tài khoản / hệ thống (hàng đợi kẹt, webhook hỏng, quản trị) không truyền trangId.
+ */
+export async function dongCuaHang(userId: number, trangId: number | null | undefined): Promise<string> {
+  if (trangId == null) return "";
+  const t = await queryOne<{ ten: string }>("SELECT ten FROM trang WHERE id = $1 AND user_id = $2", [trangId, userId]);
+  return t ? `🏪 <b>Cửa hàng:</b> ${escapeHtml(t.ten)}\n\n` : "";
+}
+
 export async function sendTelegramMessage(
   userId: number,
   text: string,
-  kind = "general"
+  kind = "general",
+  trangId?: number | null
 ): Promise<boolean> {
   const config = await loadConfig(userId);
   if (!config) return false;
+  text = (await dongCuaHang(userId, trangId).catch(() => "")) + text;
 
   try {
     const response = await fetch(
@@ -134,7 +147,7 @@ export async function sendOrderReport(
     order.closed_by === "ai" ? "🤖 Do AI chốt" : "👤 Do nhân viên chốt",
   ];
 
-  const sent = await sendTelegramMessage(userId, lines.join("\n"), "new_order");
+  const sent = await sendTelegramMessage(userId, lines.join("\n"), "new_order", (order.trang_id as number | null | undefined) ?? null);
 
   if (sent) {
     await query("UPDATE orders SET telegram_sent_at = now() WHERE id = $1", [order.id]);
@@ -144,7 +157,7 @@ export async function sendOrderReport(
 /** Báo khi AI nhường quyền để nhân viên vào kịp trước khi khách bỏ đi. */
 export async function sendHandoffAlert(
   userId: number,
-  params: { customerName: string; reason: string; platform: string }
+  params: { customerName: string; reason: string; platform: string; trangId: number | null }
 ): Promise<void> {
   const config = await loadConfig(userId);
   if (!config) return;
@@ -161,7 +174,8 @@ export async function sendHandoffAlert(
       "",
       "Vào hộp thư để tiếp quản hội thoại.",
     ].join("\n"),
-    "handoff"
+    "handoff",
+    params.trangId
   );
 }
 
