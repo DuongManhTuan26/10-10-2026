@@ -189,7 +189,12 @@ máy chủ tắt, chống chồng lượt, báo Telegram quản trị; đã áp 
   máy chủ ≥ 5 phút).
 - LÂU DÀI (chủ dự án quyết): máy chủ thật + tên miền cố định thay cho đường hầm tạm trycloudflare trên máy cá nhân.
 
-## TD-17 — Đợt 3: gỡ bài thật / huỷ lịch thật lên nhà cung cấp CHƯA THỬ THẬT (19/10/2026) — CHỜ CHỦ DỰ ÁN
+## TD-17 — Đợt 3: huỷ lịch thật lên nhà cung cấp CHƯA THỬ THẬT (19/10/2026) — CHỜ CHỦ DỰ ÁN
+
+GỠ THẬT ĐÃ KIỂM 22/10/2026 (chủ dự án cho phép, bài thử 65 trên Tư Vấn Tài Chính): unpublish 200 → app về nháp, stats {},
+ghi chú "Đã gỡ khỏi Tư Vấn Tài Chính lúc …"; nhà cung cấp báo "cancelled"; link Facebook báo nội dung đã xoá; 12 bài cũ
+nguyên vẹn. CÒN LẠI: huỷ lịch thật (DELETE bài hẹn giờ) — chưa thử. Ghi chép gốc:
+
 
 Mã + phép kiểm + đột biến + phép thử tự hoàn tác trên Postgres (nhà cung cấp mô phỏng) đạt (e95f810, 89a3669; phiên kiểm
 duyệt cho đạt). Theo tài liệu openapi 1.295.0: gỡ = POST /v1/posts/{id}/unpublish {platform, accountId}; huỷ = DELETE
