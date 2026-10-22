@@ -188,3 +188,30 @@ máy chủ tắt, chống chồng lượt, báo Telegram quản trị; đã áp 
 - CHƯA KIỂM THẬT: webhook_events có sự kiện mới qua đường hầm mới (cần khách nhắn thật); Telegram "máy chủ tắt" (cần tắt
   máy chủ ≥ 5 phút).
 - LÂU DÀI (chủ dự án quyết): máy chủ thật + tên miền cố định thay cho đường hầm tạm trycloudflare trên máy cá nhân.
+
+## TD-17 — Đợt 3: gỡ bài thật / huỷ lịch thật lên nhà cung cấp CHƯA THỬ THẬT (19/10/2026) — CHỜ CHỦ DỰ ÁN
+
+Mã + phép kiểm + đột biến + phép thử tự hoàn tác trên Postgres (nhà cung cấp mô phỏng) đạt (e95f810, 89a3669; phiên kiểm
+duyệt cho đạt). Theo tài liệu openapi 1.295.0: gỡ = POST /v1/posts/{id}/unpublish {platform, accountId}; huỷ = DELETE
+/v1/posts/{id} (mọi trạng thái trừ published). Trước đợt 3 nút "Gỡ bài" gọi DELETE → 400, chưa ai từng gỡ thật qua app.
+Gỡ thật = xoá bài trên Fanpage, không khôi phục → chỉ làm khi chủ dự án cho phép. Cách thử: đăng 1 bài thử lên Fanpage
+thử → "Gỡ để sửa ảnh" → bài mất trên Fanpage, app về nháp kèm "Đã gỡ khỏi … lúc …". Huỷ lịch: hẹn giờ 1 bài thử xa (≥ 1
+ngày) → "Xoá bài" → bài không còn trong lịch phía nhà cung cấp.
+
+## TD-18 — Đợt 3: giao diện hội thoại "chỉ xem" chưa thấy với dữ liệu thật (19/10/2026)
+
+Cờ chi_xem đã kiểm trên Postgres bằng phép thử tự hoàn tác (đã rời / chưa gắn / bình thường) và API trả trường này. Hiện
+không có hội thoại thật nào chi_xem ≠ null (chưa kênh nào từng chuyển cửa hàng) nên chưa nhìn thấy dải báo + ô gửi khoá
+trên màn thật. Sẽ thấy ở lần chuyển kênh thật đầu tiên.
+
+## TD-19 — Liên kết sâu ?hoi-thoai= sang hội thoại của cửa hàng khác (19/10/2026) — HOÃN CÓ CHỦ Ý
+
+Mở link hội thoại (vd. từ Telegram) thuộc cửa hàng khác cửa hàng đang chọn → chưa có dải báo "Hội thoại của cửa hàng X
+— chuyển sang?". Phiên viết + phiên kiểm duyệt cùng hoãn khỏi đợt 3, làm sau.
+
+## TD-20 — LỖI: lúc tắt máy chủ, việc chạy theo giờ gọi DB sau khi pool đã đóng (19/10/2026)
+
+Hiện tượng: mỗi lần máy chủ nhận SIGTERM, nhật ký có "[worker] Lỗi khi làm việc bình luận tới hạn: Cannot use a pool after
+calling end on the pool" và "[video AI] Lỗi khi theo dõi video: (cùng câu)" — 59 lần trong ~/Library/Logs/quan-ly-fanpage.log
+tính tới 19/10. Nguyên nhân gốc: hẹn giờ của worker / video AI vẫn chạy sau pool.end(). Không mất dữ liệu (tiến trình đang
+thoát), nhưng là lỗi thật. Sửa: dừng mọi hẹn giờ + chờ lượt đang chạy xong rồi mới pool.end(). Không do đợt 3. Chưa sửa.
