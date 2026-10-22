@@ -16,7 +16,7 @@
 
 import { query } from "../db.js";
 import { env } from "../env.js";
-import { trangHienTai } from "./ngu-canh-trang.js";
+import { trangChoSo } from "./ngu-canh-trang.js";
 
 /** Nhóm hiện ở dòng chính của sao kê. */
 export const NHOM_VIEC = {
@@ -98,7 +98,7 @@ export interface LuotAi {
  * phần đối chiếu tổng với nhà cung cấp.
  */
 export async function ghiLuotAi(l: LuotAi): Promise<void> {
-  const trangId = l.trangId !== undefined ? l.trangId : await trangHienTai();
+  const trangId = l.trangId !== undefined ? l.trangId : await trangChoSo();
   await query(
     // Trang phải thuộc đúng tài khoản được tính tiền — không bao giờ ghi tiền sang trang của người khác.
     `INSERT INTO ai_usage (user_id, task, viec, model, ma_ncc, prompt_tokens, completion_tokens, cost_usd, loi, trang_id)

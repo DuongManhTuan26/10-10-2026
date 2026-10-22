@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { AppError } from "../http.js";
 import { layTrangTuKenh } from "./trang.js";
 
 /**
@@ -28,7 +29,21 @@ export function chayVoiCachTim<T>(lay: () => Promise<number | null>, viec: () =>
   return kho.run({ lay }, viec);
 }
 
+/**
+ * Cửa hàng của việc đang chạy. Lỗi 409 "chưa chọn cửa hàng" của lớp giữa (yêu cầu GHI thiếu mã cửa hàng — A4a) được NÉM
+ * ra cho route trả về; lỗi khác (vd. database) → null như trước.
+ */
 export async function trangHienTai(): Promise<number | null> {
   const ch = kho.getStore();
-  return ch ? await ch.lay().catch(() => null) : null;
+  return ch
+    ? await ch.lay().catch((e) => {
+        if (e instanceof AppError) throw e;
+        return null;
+      })
+    : null;
+}
+
+/** Cho SỔ (tiền AI, nhật ký thay đổi): không bao giờ ném — sổ không được làm hỏng việc chính. */
+export async function trangChoSo(): Promise<number | null> {
+  return trangHienTai().catch(() => null);
 }

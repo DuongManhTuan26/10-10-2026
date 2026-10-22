@@ -31,10 +31,20 @@ function windowState(expiresAt: Date | null): "open" | "closing" | "expired" {
  * MỘT điều kiện hộp thư dùng CHUNG cho danh sách và các thẻ đếm (đợt 2b — số đếm phải khớp danh sách): hội thoại của
  * CỬA HÀNG đang chọn (conversations.trang_id, chốt theo nhiệm kỳ kênh); lọc thêm một kênh nếu có.
  */
-function dieuKienHopThu(userId: number, trang: number | null, kenh: unknown): { conditions: string[]; params: unknown[] } {
+/**
+ * Kênh lọc của hộp thư: chỉ nhận kênh THUỘC cửa hàng đang chọn (A4a — kênh là bộ lọc, không bao giờ dùng để suy cửa hàng).
+ * Kênh lạ / của cửa hàng khác → bỏ qua bộ lọc (xem cả cửa hàng), không trả danh sách rỗng khó hiểu.
+ */
+async function kenhLocHopLe(userId: number, trang: number | null, kenh: unknown): Promise<string | null> {
+  if (typeof kenh !== "string" || kenh === "" || kenh === "all" || trang == null) return null;
+  const r = await queryOne("SELECT 1 FROM social_accounts WHERE id = $1 AND user_id = $2 AND trang_id = $3", [kenh, userId, trang]);
+  return r ? kenh : null;
+}
+
+function dieuKienHopThu(userId: number, trang: number | null, kenh: string | null): { conditions: string[]; params: unknown[] } {
   const conditions = ["c.user_id = $1", "c.trang_id = $2"];
   const params: unknown[] = [userId, trang];
-  if (typeof kenh === "string" && kenh !== "" && kenh !== "all") {
+  if (kenh) {
     params.push(kenh);
     conditions.push(`c.social_account_id = $${params.length}`);
   }
@@ -65,7 +75,8 @@ inboxRouter.get(
   route(async (req, res) => {
     const { accountId, status, search } = req.query;
 
-    const { conditions, params } = dieuKienHopThu(req.user!.id, await trangHienTai(), accountId);
+    const trang = await trangHienTai();
+    const { conditions, params } = dieuKienHopThu(req.user!.id, trang, await kenhLocHopLe(req.user!.id, trang, accountId));
 
     /*
      * Phân trang, thay cho LIMIT 100 cắt cụt.
@@ -143,7 +154,8 @@ inboxRouter.get(
   "/counts",
   route(async (req, res) => {
     // CÙNG điều kiện với danh sách (dieuKienHopThu) — kể cả lọc một kênh — để số đếm khớp danh sách.
-    const { conditions, params } = dieuKienHopThu(req.user!.id, await trangHienTai(), req.query.accountId);
+    const trang = await trangHienTai();
+    const { conditions, params } = dieuKienHopThu(req.user!.id, trang, await kenhLocHopLe(req.user!.id, trang, req.query.accountId));
     const row = await queryOne<Record<string, number>>(
       `SELECT
          COUNT(*) FILTER (WHERE c.status <> 'done')                      AS all_open,

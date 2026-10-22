@@ -2765,22 +2765,15 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 {
   const nguonApi = fs.readFileSync(path.join(GOC, "src/lib/api.ts"), "utf8");
 
-  kiem("đổi Trang đổi não", "mọi lệnh về bộ não tự mang mã Trang đang chọn",
-    /function duongCoTrang\(path: string\): string/.test(nguonApi) &&
-      /await fetch\(`\/api\$\{duongCoTrang\(path\)\}`/.test(nguonApi), true);
-
-  // Đính vào MỌI đường dẫn thì các màn hình khác lãnh đủ tham số thừa; đính
-  // bằng tay ở từng màn hình thì sớm muộn có chỗ quên. Chỉ /ai/ và làm một chỗ.
-  kiem("đổi Trang đổi não", "chỉ đính vào lệnh AI, không rải khắp nơi",
-    /if \(!path\.startsWith\("\/ai\/"\)\) return path;/.test(nguonApi), true);
-
-  kiem("đổi Trang đổi não", "không đè mã Trang mà lệnh đã tự ghi",
-    /if \(\/\[\?&\]accountId=\/\.test\(path\)\) return path;/.test(nguonApi), true);
-
+  // A4a (22/10/2026): MỌI yêu cầu mang MÃ CỬA HÀNG đang chọn (X-Cua-Hang) — làm ở MỘT chỗ (request), không rải màn hình.
+  kiem("đổi Trang đổi não", "mọi lệnh tự mang mã cửa hàng đang chọn (X-Cua-Hang), một chỗ duy nhất",
+    /"X-Cua-Hang": cuaHangDangChon\(\)!/.test(nguonApi) && /await fetch\(`\/api\$\{path\}`/.test(nguonApi), true);
+  kiem("đổi Trang đổi não", "không còn suy cửa hàng qua kênh: không đính accountId vào /ai/, không gửi X-Kenh",
+    [/function duongCoTrang|"X-Kenh"/.test(nguonApi)], [false]);
   // Giữ một bản sao trong bộ nhớ thì effect của màn hình con chạy trước effect
   // của provider, lần gọi đầu sau khi đổi Trang vẫn mang mã cũ. Đọc thẳng kho.
   kiem("đổi Trang đổi não", "đọc thẳng kho, không giữ bản sao cập nhật muộn",
-    /localStorage\.getItem\(KHOA_TRANG_DANG_CHON\)/.test(nguonApi), true);
+    /localStorage\.getItem\(KHOA_CUA_HANG\)/.test(nguonApi), true);
 
   const nguonTrangCtx = fs.readFileSync(path.join(GOC, "src/lib/ActivePage.tsx"), "utf8");
   /*
@@ -2790,9 +2783,11 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    */
   kiem("đổi Trang đổi não", "giao diện trông được cả trang_id, không chỉ mã kênh",
     /activeTrangId: number \| null;/.test(nguonTrangCtx) &&
-      /activeTrangId: trangDangDung,/.test(nguonTrangCtx), true);
+      /activeTrangId: trangDangChon\?\.id \?\? macDinh,/.test(nguonTrangCtx), true);
   kiem("đổi Trang đổi não", "hai bên dùng chung một khoá, không ai tự chế chuỗi",
     /export const KHOA_TRANG_DANG_CHON = "zn_active_account";/.test(nguonApi) &&
+      /export const KHOA_CUA_HANG = "zn_cua_hang";/.test(nguonApi) && /docKhoa\(KHOA_CUA_HANG\)/.test(nguonTrangCtx) &&
+      !/['"]zn_cua_hang['"]/.test(nguonTrangCtx) &&
       /const STORAGE_KEY = KHOA_TRANG_DANG_CHON;/.test(nguonTrangCtx) &&
       !/STORAGE_KEY = ['"]zn_active_account['"]/.test(nguonTrangCtx), true);
 
@@ -3340,7 +3335,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   // Cửa hàng chưa có kênh vẫn là một bộ não: Tổng quan phải có sơ đồ 4 AI y như tài khoản mẫu (18/10/2026).
   const nguonActive = fs.readFileSync(path.join(GOC, "src/lib/ActivePage.tsx"), "utf8");
   kiem("phân tầng", "tài khoản chưa nối kênh vẫn có cửa hàng mặc định làm bộ não (Tổng quan có sơ đồ 4 AI)",
-    [/if \(ds\.size === 0 && cuaHangMacDinh\) \{/.test(nguonActive),
+    // A4a: danh sách lấy MỌI cửa hàng từ máy chủ (kể cả cửa hàng chưa có kênh) — không còn dựng riêng "cửa hàng mặc định".
+    [/for \(const t of dsCuaHang\) ds\.set\(`t\$\{t\.id\}`, \{ khoa: `t\$\{t\.id\}`, id: t\.id, ten: t\.ten, kenh: \[\] \}\);/.test(nguonActive),
       /t\.kenh\[0\]\?\.id \?\? null\);/.test(nguonActive)],
     [true, true]);
   const nguonManHinhQT = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
@@ -3601,7 +3597,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonSoAiTrang = fs.readFileSync(path.join(GOC, "server/services/so-ai.ts"), "utf8");
   const nguonTqSv = fs.readFileSync(path.join(GOC, "server/services/tong-quan.ts"), "utf8");
   kiem("tiền AI", "mỗi lượt AI ghi trang; trang phải thuộc đúng tài khoản bị tính tiền; tổng quan cộng theo trang",
-    [/const trangId = l\.trangId !== undefined \? l\.trangId : await trangHienTai\(\);/.test(nguonSoAiTrang),
+    // A4a: sổ dùng trangChoSo — không bao giờ ném (409 "chưa chọn cửa hàng" là việc của route, không làm hỏng sổ).
+    [/const trangId = l\.trangId !== undefined \? l\.trangId : await trangChoSo\(\);/.test(nguonSoAiTrang),
       /\(SELECT id FROM trang WHERE id = \$10 AND user_id = \$1\)/.test(nguonSoAiTrang),
       fs.existsSync(path.join(GOC, "server/migrations/040_so_ai_theo_trang.sql")),
       /SELECT a\.user_id, a\.trang_id, a\.viec, sum\(\$\{TIEN\}\)::text AS usd/.test(nguonTqSv)],
@@ -5266,16 +5263,16 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const ap = doc("server/services/autopilot.ts");
   const vd = doc("server/services/video-ai.ts");
   const vdd = doc("server/services/video-dai.ts");
-  kiem("tiền theo trang", "mọi điểm vào đặt Trang đang làm việc: yêu cầu từ màn hình (suy từ kênh, không tin số trang từ ngoài) và mọi việc nền",
-    [/chayVoiCachTim\(\(\) => layTrangDangChon\(userId, kenh \?\? null\), next\);/.test(app),
-      /req\.get\("x-kenh"\)/.test(app),
+  kiem("tiền theo trang", "mọi điểm vào đặt Trang đang làm việc: yêu cầu từ màn hình (MÃ CỬA HÀNG X-Cua-Hang, kiểm chủ sở hữu — A4a) và mọi việc nền",
+    [/chayVoiCachTim\(\(\) => cuaHangCuaYeuCau\(userId, p\), next\);/.test(app),
+      /maCuaHang: req\.get\("x-cua-hang"\) \?\? undefined,/.test(app),
       /await chayChoKenh\(event\.account_id, \(\) => handleWebhookEvent\(\{/.test(wk),
       // Nhắc khách chạy bằng bộ não của cửa hàng CỦA HỘI THOẠI (nhiệm kỳ kênh, 19/10/2026).
       /await chayChoTrang\(hoi\.trang_id, \(\) => soanCauNhac\(hoi, hoi\.nhac_lai_count\)\)/.test(sales),
       /await chayChoTrang\(shop\.trang_id, \(\) => lamMotO\(/.test(ap),
       /await chayChoTrang\(v\.trang_id \?\? null, \(\) => xuLyMotViec\(v\)\);/.test(vd),
       /await chayChoTrang\(d\.trang_id, \(\) => tienMotDuAn\(d\)\);/.test(vdd),
-      /"X-Kenh": kenhDangChon\(\)!/.test(doc("src/lib/api.ts"))],
+      /"X-Cua-Hang": cuaHangDangChon\(\)!/.test(doc("src/lib/api.ts"))],
     [true, true, true, true, true, true, true, true]);
 
   const tq = doc("server/services/tong-quan.ts");
@@ -5718,10 +5715,10 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /path="\/analytics" element=\{<ChuyenHuong den="\/dieu-hanh" \/>\}/.test(app),
         /canChonTrang: trangs\.length > 1 && !trangDangChon,/.test(ap)],
       [4, true, true]);
-    kiem("bộ não AI", "ô chọn liệt kê theo TRANG; chọn trang lưu kênh chính của trang làm đại diện",
+    kiem("bộ não AI", "ô chọn liệt kê theo CỬA HÀNG; chọn cửa hàng lưu MÃ CỬA HÀNG (A4a) + kênh chính làm bộ lọc kênh mặc định",
       [/const khoa = k\.trang_id != null \? `t\$\{k\.trang_id\}` : `k\$\{k\.id\}`;/.test(ap),
-        // Cửa hàng chưa có kênh (18/10/2026): không có kênh đại diện → null, máy chủ dùng cửa hàng mặc định.
-        /setActiveAccountId\(kenhMacDinh\(ketNoi\)\[0\] \?\? ketNoi\[0\]\?\.id \?\? t\.kenh\[0\]\?\.id \?\? null\);/.test(ap)],
+        // Cửa hàng chưa có kênh: không có kênh lọc → null; cửa hàng vẫn chọn được bằng mã.
+        /ghiCuaHang\(t\.id\);\s*\/\/[^\n]*\n\s*ghiKenh\(kenhMacDinh\(ketNoi\)\[0\] \?\? ketNoi\[0\]\?\.id \?\? t\.kenh\[0\]\?\.id \?\? null\);/.test(ap)],
       [true, true]);
     kiem("bộ não AI", "không đăng lan sang kênh của trang khác; hộp thư theo trang đang chọn",
       // A1 (19/10/2026): Duyệt / Lên lịch không còn ghi đè kênh đích (targetAccountIds của trang đang xem đã bỏ).
@@ -6676,7 +6673,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
 
   // Đếm / hiện theo cửa hàng của hội thoại — một điều kiện chung cho danh sách + thẻ đếm của hộp thư.
   kiem("2b đếm", "hộp thư: danh sách + thẻ đếm dùng CHUNG dieuKienHopThu (cửa hàng đang chọn + kênh nếu lọc); giao diện gửi cùng kênh cho thẻ đếm",
-    [(ib.match(/= dieuKienHopThu\(req\.user!\.id, await trangHienTai\(\), /g) ?? []).length, /"c\.trang_id = \$2"/.test(ib),
+    // A4a: kênh lọc phải thuộc cửa hàng đang chọn (kenhLocHopLe) — kênh lạ / của cửa hàng khác thì bỏ qua bộ lọc.
+    [(ib.match(/const trang = await trangHienTai\(\);\s*const \{ conditions, params \} = dieuKienHopThu\(req\.user!\.id, trang, await kenhLocHopLe\(req\.user!\.id, trang, /g) ?? []).length, /"c\.trang_id = \$2"/.test(ib),
       /api\.inbox\.counts\(activeAccount\?\.id\)/.test(fs.readFileSync(path.join(GOC, "src/pages/Inbox.tsx"), "utf8"))],
     [2, true, true]);
   const jKenh = (t: string) => /JOIN social_accounts \w+ ON \w+\.id = c\.social_account_id[\s\S]{0,80}\w+\.trang_id = \$1|c\.social_account_id = ANY\(\$1::text\[\]\)/.test(d4(t));
@@ -6957,6 +6955,69 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/>An toàn cửa hàng</.test(at3), /chung cho mọi cửa hàng của tài khoản/.test(at3), !/>An toàn tài khoản</.test(at3),
       /'handoff_rules', 'guardrail_configs', 'rao_chan_cua_hang', 'auto_scripts'/.test(d6("server/routes/dieu-hanh.ts"))],
     [true, true, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// A4a — CHỌN CỬA HÀNG BẰNG MÃ CỬA HÀNG (X-Cua-Hang), không suy qua kênh (phiên kiểm duyệt duyệt 22/10 kèm điều kiện:
+// GHI thiếu mã ở tài khoản nhiều cửa hàng → 409; ĐỌC → mặc định + cảnh báo; kênh chỉ là bộ lọc; admin "Mở tài khoản").
+// ---------------------------------------------------------------------------
+{
+  const d7 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const tepMay = moiTepMayChu(path.join(GOC, "server"));
+  const danhSach = (re: RegExp) => tepMay.filter((t) => re.test(d7(path.relative(GOC, t)))).map((t) => path.relative(GOC, t)).sort();
+  // Liệt kê MỌI chỗ suy cửa hàng từ yêu cầu (đề nghị của phiên kiểm duyệt).
+  kiem("A4a máy chủ", "đọc đầu X-Cua-Hang: chỉ lớp giữa (app.ts); KHÔNG còn chỗ nào đọc X-Kenh; layTrangDangChon chỉ còn ads.ts (đến A4b); layTrangMacDinh chỉ trang.ts + analytics.ts (đường cũ, TD-12)",
+    [danhSach(/x-cua-hang/i), danhSach(/x-kenh/i), danhSach(/\blayTrangDangChon\(/).filter((t) => t !== "server/services/trang.ts"),
+      danhSach(/\blayTrangMacDinh\(/)],
+    [["server/app.ts"], [], ["server/routes/ads.ts"], ["server/routes/analytics.ts", "server/services/trang.ts"]]);
+  kiem("A4a máy chủ", "accountId từ yêu cầu chỉ còn là BỘ LỌC kênh của hộp thư, luôn qua kenhLocHopLe (kênh phải thuộc cửa hàng đang chọn)",
+    [danhSach(/req\.(query|body)\??\.accountId|const \{ accountId[^}]*\} = req\.query/),
+      (d7("server/routes/inbox.ts").match(/await kenhLocHopLe\(req\.user!\.id, trang, (accountId|req\.query\.accountId)\)/g) ?? []).length,
+      /"SELECT 1 FROM social_accounts WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3"/.test(d7("server/routes/inbox.ts"))],
+    [["server/routes/inbox.ts"], 2, true]);
+  const tr7 = d7("server/services/trang.ts"), ap7 = d7("server/app.ts"), nc7 = d7("server/services/ngu-canh-trang.ts"), ai7 = d7("server/routes/ai.ts");
+  kiem("A4a máy chủ", "cuaHangCuaYeuCau: mã phải thuộc người đăng nhập; GHI thiếu mã hợp lệ ở tài khoản ≥ 2 cửa hàng → 409; ĐỌC → mặc định + cảnh báo; lớp giữa truyền GHI theo phương thức",
+    [/"SELECT id FROM trang WHERE id = \$1 AND user_id = \$2", \[ma, userId\]/.test(tr7),
+      /if \(p\.ghi\) \{\s*const so = await queryOne<\{ n: number \}>\("SELECT COUNT\(\*\)::int AS n FROM trang WHERE user_id = \$1", \[userId\]\);\s*if \(\(so\?\.n \?\? 0\) >= 2\) throw new AppError\(LOI_CHUA_CHON_CUA_HANG, 409\);/.test(tr7),
+      tr7.search(/console\.warn\(`\[cửa hàng\]/) > tr7.search(/if \(p\.ghi\) \{/) && /return layTrangMacDinh\(userId\);\s*\}/.test(tr7),
+      /ghi: !\["GET", "HEAD", "OPTIONS"\]\.includes\(req\.method\),/.test(ap7) && /chayVoiCachTim\(\(\) => cuaHangCuaYeuCau\(userId, p\), next\);/.test(ap7)],
+    [true, true, true, true]);
+  kiem("A4a máy chủ", "409 của lớp giữa tới được route (trangHienTai ném AppError); sổ tiền AI / nhật ký dùng trangChoSo (không ném); bộ não (ai.ts) lấy cửa hàng từ lớp giữa",
+    [/if \(e instanceof AppError\) throw e;\s*return null;/.test(nc7), danhSach(/await trangChoSo\(\)/),
+      danhSach(/\btrangHienTai\(\)/).filter((t) => /so-ai|so-thay-doi/.test(t)),
+      /async function trangCuaReq\(req: \{ method: string \}\) \{[\s\S]{0,200}?const trang = await trangHienTai\(\);/.test(ai7)],
+    [true, ["server/services/so-ai.ts", "server/services/so-thay-doi.ts"], [], true]);
+
+  // Giao diện.
+  const moiTepSrc = (thuMuc: string): string[] => fs.readdirSync(thuMuc, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? moiTepSrc(path.join(thuMuc, e.name)) : /\.(ts|tsx)$/.test(e.name) ? [path.join(thuMuc, e.name)] : []);
+  const tepSrc = moiTepSrc(path.join(GOC, "src"));
+  const dsSrc = (re: RegExp) => tepSrc.filter((t) => re.test(fs.readFileSync(t, "utf8"))).map((t) => path.relative(GOC, t)).sort();
+  const ap8 = fs.readFileSync(path.join(GOC, "src/lib/ActivePage.tsx"), "utf8");
+  kiem("A4a giao diện", "MỘT đường gọi /api (mọi yêu cầu mang X-Cua-Hang); chỉ api.ts + ActivePage.tsx chạm khoá cửa hàng / kênh trong localStorage",
+    [dsSrc(/fetch\(`\/api/), dsSrc(/KHOA_CUA_HANG|KHOA_TRANG_DANG_CHON|zn_cua_hang|zn_active_account/)],
+    [["src/lib/api.ts"], ["src/lib/ActivePage.tsx", "src/lib/api.ts"]]);
+  kiem("A4a giao diện", "mã đang lưu không thuộc phiên (admin 'Mở tài khoản', cửa hàng đã xoá) → đặt lại; danh sách có cả cửa hàng 0 kênh; kênh lọc luôn thuộc cửa hàng đang chọn; chọn kênh = chuyển sang cửa hàng của kênh",
+    [/if \(maLuu == null \|\| !dsCH\.some\(\(t\) => t\.id === maLuu\)\) \{/.test(ap8),
+      /for \(const t of dsCuaHang\) ds\.set\(/.test(ap8),
+      /const dangChon = kenhLuu && trangDangChon && trangDangChon\.kenh\.some\(\(k\) => k\.id === kenhLuu\.id\) \? kenhLuu : null;/.test(ap8),
+      /if \(k\?\.trang_id != null\) ghiCuaHang\(k\.trang_id\);/.test(ap8),
+      // dsTrang hỏng (mạng) thì KHÔNG đặt lại lựa chọn.
+      /api\.connections\.dsTrang\(\)\.then\(\(r\) => r\.data\)\.catch\(\(\) => null\)/.test(ap8) && /if \(dsCH\) \{/.test(ap8)],
+    [true, true, true, true, true]);
+  // Điều kiện: liệt kê + xếp loại MỌI tệp dùng useActivePage (dùng cửa hàng / dùng kênh lọc / cả hai).
+  const XEP_GD: Record<string, string> = {
+    "src/lib/ActivePage.tsx": "nguon",
+    "src/components/AITrainingModal.tsx": "cua_hang", "src/components/AutoPilotPanel.tsx": "cua_hang", "src/components/BangTrangBanHang.tsx": "cua_hang",
+    "src/components/CanTrangNao.tsx": "cua_hang", "src/components/TheKhoiNao.tsx": "cua_hang", "src/components/TopNavBar.tsx": "cua_hang",
+    "src/components/XuongAi.tsx": "cua_hang", "src/pages/DieuHanh.tsx": "cua_hang", "src/pages/KhoiNao.tsx": "cua_hang",
+    // dùng cả kênh lọc: hộp thư lọc kênh; soạn bài chọn kênh đích; kịch bản mới gắn kênh; bảng kết nối; thẻ "đang huấn luyện"
+    "src/pages/Inbox.tsx": "ca_hai", "src/pages/Content.tsx": "ca_hai", "src/pages/AutoScripts.tsx": "ca_hai",
+    "src/pages/Connections.tsx": "ca_hai", "src/components/TrangDangHuanLuyen.tsx": "ca_hai",
+  };
+  const dungActive = dsSrc(/useActivePage/);
+  console.log(`  [A4a] ${dungActive.length} tệp giao diện dùng useActivePage — đã xếp loại ${dungActive.filter((t) => XEP_GD[t]).length}`);
+  kiem("A4a giao diện", "mọi tệp dùng useActivePage đã xếp loại (tệp mới phải xếp trước)", dungActive, Object.keys(XEP_GD).sort());
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

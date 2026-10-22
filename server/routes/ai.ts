@@ -6,25 +6,16 @@ import { AppError, requireString, route } from "../http.js";
 import { chat, chatJson, asRecord, stringArray, DEFAULT_MODELS } from "../services/ai.js";
 import { extractOrderInfo, suggestReply } from "../services/sales-ai.js";
 import { generatePostContent } from "../services/content-ai.js";
-import { layTrangDangChon } from "../services/trang.js";
 import { GHI_LUAT, luatCuaCuaHang } from "../services/luat-chuyen-nguoi.js";
+import { trangHienTai } from "../services/ngu-canh-trang.js";
 
 /**
- * Trang mà màn hình đang làm việc, suy từ kênh giao diện gửi lên.
- *
- * Bộ não — vai trò, tài liệu — gắn theo TRANG. Giao diện đã có sẵn bộ chọn
- * kênh nên chỉ cần gửi kèm accountId; không gửi thì lấy Trang đầu tiên, đúng
- * cho tài khoản một Trang.
- *
- * KHÔNG nhận trangId thẳng từ giao diện: làm vậy là để người ngoài tự khai
- * mình thuộc Trang nào. Suy từ kênh thì còn kiểm được kênh có thuộc tài khoản
- * đang đăng nhập hay không.
+ * Cửa hàng (bộ não) mà màn hình đang làm việc — lấy từ lớp giữa: mã cửa hàng màn hình gửi qua X-Cua-Hang, máy chủ kiểm
+ * thuộc đúng người đăng nhập (services/trang.ts cuaHangCuaYeuCau, A4a). Bộ não — vai trò, tài liệu — gắn theo cửa hàng.
  */
-async function trangCuaReq(req: { method: string; user?: { id: number }; query: Record<string, unknown>; body?: Record<string, unknown> }) {
-  const kenh =
-    (typeof req.query?.accountId === "string" ? req.query.accountId : undefined) ??
-    (typeof req.body?.accountId === "string" ? (req.body.accountId as string) : undefined);
-  const trang = await layTrangDangChon(req.user!.id, kenh ?? null);
+async function trangCuaReq(req: { method: string }) {
+  // A4a: cửa hàng lấy từ lớp giữa (mã cửa hàng màn hình gửi — cuaHangCuaYeuCau), không tự suy từ accountId nữa.
+  const trang = await trangHienTai();
   /*
    * Đọc khi chưa có Trang thì trả cấu hình mặc định là đủ. GHI thì không có
    * chỗ để ghi vào.
@@ -34,10 +25,7 @@ async function trangCuaReq(req: { method: string; user?: { id: number }; query: 
    * cố" vì cột trang_id không được rỗng. Người dùng không biết phải làm gì.
    */
   if (trang === null && req.method !== "GET") {
-    throw new AppError(
-      "Tài khoản này chưa gắn Fanpage nào. Vào mục Kết nối để gắn Fanpage trước.",
-      409
-    );
+    throw new AppError("Chưa có cửa hàng nào. Vui lòng tạo cửa hàng ở mục Kết nối kênh trước.", 409);
   }
   return trang;
 }

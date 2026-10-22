@@ -21,7 +21,7 @@ import { adminRouter } from "./routes/admin.js";
 import { quanLyRouter } from "./routes/quan-ly.js";
 import { dieuHanhRouter } from "./routes/dieu-hanh.js";
 import { chayVoiCachTim } from "./services/ngu-canh-trang.js";
-import { layTrangDangChon } from "./services/trang.js";
+import { cuaHangCuaYeuCau } from "./services/trang.js";
 
 export async function createApp() {
   const app = express();
@@ -84,18 +84,19 @@ export async function createApp() {
   app.use(attachUser);
 
   /*
-   * Trang đang làm việc của mỗi yêu cầu — để tiền AI ghi đúng trang (xem ngu-canh-trang.ts). Giao diện gửi kênh đang
-   * chọn qua đầu X-Kenh (hoặc accountId); máy chủ KHÔNG tin số trang từ ngoài mà suy từ kênh và kiểm kênh thuộc
-   * đúng người đăng nhập (layTrangDangChon). Không gửi thì là Trang đầu tiên của tài khoản.
+   * Cửa hàng đang làm việc của mỗi yêu cầu (xem ngu-canh-trang.ts). A4a: màn hình gửi MÃ CỬA HÀNG qua đầu X-Cua-Hang —
+   * KHÔNG suy qua kênh (X-Kenh / accountId chỉ còn là bộ lọc kênh). Kiểm chủ sở hữu + 409 khi GHI thiếu mã: xem
+   * cuaHangCuaYeuCau. Chỉ tìm khi có chỗ hỏi (trangHienTai) — phần lớn yêu cầu không cần.
    */
   app.use("/api", (req, _res, next) => {
     if (!req.user) return next();
     const userId = req.user.id;
-    const kenh =
-      req.get("x-kenh") ||
-      (typeof req.query.accountId === "string" ? req.query.accountId : undefined) ||
-      (typeof req.body?.accountId === "string" ? (req.body.accountId as string) : undefined);
-    chayVoiCachTim(() => layTrangDangChon(userId, kenh ?? null), next);
+    const p = {
+      maCuaHang: req.get("x-cua-hang") ?? undefined,
+      ghi: !["GET", "HEAD", "OPTIONS"].includes(req.method),
+      duong: `${req.method} ${req.originalUrl.split("?")[0]}`,
+    };
+    chayVoiCachTim(() => cuaHangCuaYeuCau(userId, p), next);
   });
 
   app.get("/api/health", (_req, res) => {

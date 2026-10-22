@@ -23,6 +23,35 @@ export async function layTrangTuKenh(accountId: string): Promise<number | null> 
   return r?.trang_id ?? null;
 }
 
+export const LOI_CHUA_CHON_CUA_HANG =
+  "Chưa rõ đang làm việc ở cửa hàng nào. Vui lòng tải lại trang và chọn cửa hàng rồi thử lại.";
+
+/**
+ * CỬA HÀNG CỦA MỘT YÊU CẦU — chỗ DUY NHẤT suy cửa hàng từ màn hình (A4a, 22/10/2026; phiên kiểm duyệt duyệt).
+ *
+ * Màn hình gửi MÃ CỬA HÀNG qua đầu X-Cua-Hang (không còn suy qua kênh — kênh chỉ là bộ lọc). Mã phải thuộc đúng người
+ * đăng nhập; mã lạ / của người khác (vd. admin "Mở tài khoản" còn giữ mã cửa hàng của admin) coi như không gửi.
+ *  - Có mã hợp lệ → cửa hàng đó.
+ *  - Không có: yêu cầu GHI ở tài khoản từ 2 cửa hàng → 409 (không lặng lẽ ghi vào cửa hàng mặc định — tab cũ có thể ghi
+ *    nhầm); yêu cầu ĐỌC → cửa hàng mặc định + cảnh báo trong log (để thấy chỗ nào chưa gửi).
+ */
+export async function cuaHangCuaYeuCau(
+  userId: number,
+  p: { maCuaHang: string | undefined; ghi: boolean; duong: string }
+): Promise<number | null> {
+  const ma = Number(p.maCuaHang);
+  if (p.maCuaHang && Number.isInteger(ma) && ma > 0) {
+    const r = await queryOne<{ id: number }>("SELECT id FROM trang WHERE id = $1 AND user_id = $2", [ma, userId]);
+    if (r) return r.id;
+  }
+  if (p.ghi) {
+    const so = await queryOne<{ n: number }>("SELECT COUNT(*)::int AS n FROM trang WHERE user_id = $1", [userId]);
+    if ((so?.n ?? 0) >= 2) throw new AppError(LOI_CHUA_CHON_CUA_HANG, 409);
+  }
+  console.warn(`[cửa hàng] ${p.duong} không gửi mã cửa hàng hợp lệ — dùng cửa hàng mặc định`);
+  return layTrangMacDinh(userId);
+}
+
 /**
  * Trang đầu tiên của một tài khoản.
  *

@@ -121,49 +121,27 @@ export class ApiError extends Error {
 }
 
 /**
- * Khoá localStorage giữ Trang đang chọn trên thanh menu.
- *
- * ActivePage.tsx ghi, chỗ này đọc. Để đúng một chỗ khai báo chuỗi này, vì hai
- * nơi mà lệch nhau một chữ thì bộ não lặng lẽ đọc nhầm Trang.
+ * Khoá localStorage giữ KÊNH đang chọn — chỉ còn là BỘ LỌC kênh (vd. hộp thư), không dùng để suy cửa hàng (A4a).
+ * ActivePage.tsx ghi / đọc.
  */
 export const KHOA_TRANG_DANG_CHON = "zn_active_account";
 
 /**
- * Đính Trang đang chọn vào mọi lệnh về bộ não AI.
+ * Khoá localStorage giữ MÃ CỬA HÀNG đang chọn (A4a, 22/10/2026). ActivePage.tsx ghi, chỗ này đọc — một chỗ khai báo.
  *
- * Vai trò, kịch bản và tài liệu gắn theo Trang chứ không theo tài khoản, nên
- * mỗi lệnh đọc/ghi cấu hình AI phải nói rõ đang làm việc với Trang nào. Làm ở
- * đây thay vì bắt từng màn hình tự nhớ kèm vào: chỉ cần một màn hình quên là
- * chủ shop sửa vai trò của Trang này nhưng ghi sang Trang khác — sai hoàn
- * toàn lặng lẽ, không có thông báo lỗi nào để mà biết.
- *
- * Đọc thẳng localStorage chứ không giữ một bản sao trong bộ nhớ, vì effect của
- * màn hình con chạy TRƯỚC effect của provider: một bản sao cập nhật muộn sẽ
- * khiến lần gọi đầu tiên sau khi đổi Trang vẫn mang mã Trang cũ.
- *
- * Máy chủ không tin con số này: nó suy ra Trang từ kênh rồi mới kiểm chủ sở
- * hữu. Sửa tay trong trình duyệt cũng không chạm được sang tài khoản khác.
+ * Gửi kèm MỌI yêu cầu qua đầu X-Cua-Hang: máy chủ lấy cửa hàng từ đây (kiểm thuộc đúng người đăng nhập; yêu cầu GHI
+ * thiếu mã ở tài khoản nhiều cửa hàng → 409). Đọc thẳng localStorage chứ không giữ bản sao trong bộ nhớ: effect của
+ * màn hình con chạy TRƯỚC effect của provider — bản sao cập nhật muộn làm lần gọi đầu sau khi đổi cửa hàng mang mã cũ.
  */
-/** Kênh đang chọn — gửi kèm MỌI yêu cầu (đầu X-Kenh) để tiền AI ghi đúng trang. Máy chủ tự kiểm kênh thuộc ai. */
-function kenhDangChon(): string | null {
+export const KHOA_CUA_HANG = "zn_cua_hang";
+
+function cuaHangDangChon(): string | null {
   try {
-    return localStorage.getItem(KHOA_TRANG_DANG_CHON);
+    return localStorage.getItem(KHOA_CUA_HANG);
   } catch {
+    // Trình duyệt chặn localStorage — coi như chưa chọn cửa hàng nào.
     return null;
   }
-}
-
-function duongCoTrang(path: string): string {
-  if (!path.startsWith("/ai/")) return path;
-  if (/[?&]accountId=/.test(path)) return path;
-  let kenh: string | null = null;
-  try {
-    kenh = localStorage.getItem(KHOA_TRANG_DANG_CHON);
-  } catch {
-    // Trình duyệt chặn localStorage — coi như chưa chọn Trang nào.
-  }
-  if (!kenh) return path;
-  return `${path}${path.includes("?") ? "&" : "?"}accountId=${encodeURIComponent(kenh)}`;
 }
 
 async function request<T>(
@@ -185,11 +163,11 @@ async function request<T>(
    */
   let response: Response;
   try {
-    response = await fetch(`/api${duongCoTrang(path)}`, {
+    response = await fetch(`/api${path}`, {
       method,
       headers: {
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        ...(kenhDangChon() ? { "X-Kenh": kenhDangChon()! } : {}),
+        ...(cuaHangDangChon() ? { "X-Cua-Hang": cuaHangDangChon()! } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       // Cookie phiên phải được gửi kèm, nếu không mọi request đều là 401.
@@ -1527,7 +1505,7 @@ export const api = {
   },
 
   /**
-   * AI ĐIỀU HÀNH — thành viên thứ 4 của bộ não, làm việc với TRANG ĐANG CHỌN (đầu X-Kenh), như 3 AI kia.
+   * AI ĐIỀU HÀNH — thành viên thứ 4 của bộ não, làm việc với CỬA HÀNG ĐANG CHỌN (đầu X-Cua-Hang), như 3 AI kia.
    */
   dieuHanh: {
     /** Báo cáo năng suất / hiệu suất 3 AI nhân viên: tiền, chuỗi 4 khâu, theo ngày, sức khoẻ. */

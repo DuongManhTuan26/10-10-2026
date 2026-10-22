@@ -10,7 +10,7 @@
  */
 import type pg from "pg";
 import { query } from "../db.js";
-import { trangHienTai } from "./ngu-canh-trang.js";
+import { trangChoSo } from "./ngu-canh-trang.js";
 
 /** Ai đổi. null = chưa rõ (trigger không biết chắc — không đoán). */
 export type NguonThayDoi = "nguoi_dung" | "he_thong" | "ai_dieu_hanh";
@@ -33,7 +33,7 @@ export async function ghiThayDoiNgoai(p: {
   nguon: NguonThayDoi;
 }): Promise<void> {
   try {
-    const trangId = p.trangId !== undefined ? p.trangId : await trangHienTai();
+    const trangId = p.trangId !== undefined ? p.trangId : await trangChoSo();
     await query(
       `INSERT INTO so_thay_doi (user_id, trang_id, bang, ban_ghi, hanh_dong, truoc, sau, nguon)
        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)`,

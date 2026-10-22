@@ -2450,22 +2450,22 @@ const DUC: PhepDuc[] = [
   },
   // --- Đổi Trang trên thanh menu là đổi luôn bộ não ---
   {
-    ten: "lệnh AI không mang mã Trang đang chọn",
+    ten: "mã cửa hàng gửi đi đọc nhầm khoá kênh",
     tep: "src/lib/api.ts",
-    tim: "    response = await fetch(`/api${duongCoTrang(path)}`, {",
-    thay: "    response = await fetch(`/api${path}`, {",
+    tim: "    return localStorage.getItem(KHOA_CUA_HANG);",
+    thay: "    return localStorage.getItem(KHOA_TRANG_DANG_CHON);",
   },
   {
-    ten: "đính mã Trang vào mọi đường dẫn, không riêng lệnh AI",
+    ten: "lại đính accountId vào lệnh AI để suy cửa hàng",
     tep: "src/lib/api.ts",
-    tim: '  if (!path.startsWith("/ai/")) return path;',
-    thay: "",
+    tim: "    response = await fetch(`/api${path}`, {",
+    thay: "    response = await fetch(`/api${path}${path.startsWith(\"/ai/\") ? \"?accountId=x\" : \"\"}`, {",
   },
   {
-    ten: "đè mã Trang mà lệnh đã tự ghi sẵn",
+    ten: "giao diện lại gửi X-Kenh",
     tep: "src/lib/api.ts",
-    tim: "  if (/[?&]accountId=/.test(path)) return path;",
-    thay: "",
+    tim: "        ...(cuaHangDangChon() ? { \"X-Cua-Hang\": cuaHangDangChon()! } : {}),",
+    thay: "        ...(cuaHangDangChon() ? { \"X-Cua-Hang\": cuaHangDangChon()! } : {}),\n        \"X-Kenh\": \"x\",",
   },
   {
     ten: "giao diện tự chế khoá kho riêng, lệch với lớp gọi API",
@@ -2490,8 +2490,8 @@ const DUC: PhepDuc[] = [
     // cách nào biết bộ não vừa đổi.
     ten: "đổi Fanpage mà màn hình không biết bộ não đã đổi",
     tep: "src/lib/ActivePage.tsx",
-    tim: "      activeTrangId: trangDangDung,",
-    thay: "      activeTrangId: null,"
+    tim: "      activeTrangId: trangDangChon?.id ?? macDinh,",
+    thay: "      activeTrangId: null,",
   },
   {
     ten: "chưa chọn Trang, có nhiều Trang mà vẫn cho sửa lặng lẽ",
@@ -2834,7 +2834,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "yêu cầu từ màn hình không đặt trang đang làm việc",
     tep: "server/app.ts",
-    tim: "chayVoiCachTim(() => layTrangDangChon(userId, kenh ?? null), next);",
+    tim: "chayVoiCachTim(() => cuaHangCuaYeuCau(userId, p), next);",
     thay: "next();",
   },
   {
@@ -2844,10 +2844,10 @@ const DUC: PhepDuc[] = [
     thay: "await chayChoKenh(null, () => handleWebhookEvent({",
   },
   {
-    ten: "giao diện không gửi kênh đang chọn",
+    ten: "giao diện không bao giờ gửi mã cửa hàng",
     tep: "src/lib/api.ts",
-    tim: "        ...(kenhDangChon() ? { \"X-Kenh\": kenhDangChon()! } : {}),\n",
-    thay: "",
+    tim: "    return localStorage.getItem(KHOA_CUA_HANG);",
+    thay: "    return null;",
   },
   {
     ten: "tiền kênh không lấy số nhà cung cấp chia cho từng kênh",
@@ -3248,8 +3248,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "tài khoản chưa nối kênh mất sơ đồ 4 AI ở Tổng quan (không giống tài khoản mẫu)",
     tep: "src/lib/ActivePage.tsx",
-    tim: "    if (ds.size === 0 && cuaHangMacDinh) {",
-    thay: "    if (false && cuaHangMacDinh) {",
+    tim: "    for (const t of dsCuaHang) ds.set(",
+    thay: "    for (const t of dsCuaHang.filter(() => accounts.length > 0)) ds.set(",
   },
   {
     ten: "bài rỗng kênh vẫn được đăng (rơi về mọi kênh)",
@@ -4627,6 +4627,90 @@ const DUC: PhepDuc[] = [
     thay: ";",
   },
   {
+    ten: "A4a: nhận mã cửa hàng của người khác",
+    tep: "server/services/trang.ts",
+    tim: "\"SELECT id FROM trang WHERE id = $1 AND user_id = $2\", [ma, userId]",
+    thay: "\"SELECT id FROM trang WHERE id = $1\", [ma]",
+  },
+  {
+    ten: "A4a: GHI thiếu mã lặng lẽ vào cửa hàng mặc định",
+    tep: "server/services/trang.ts",
+    tim: "    if ((so?.n ?? 0) >= 2) throw new AppError(LOI_CHUA_CHON_CUA_HANG, 409);\n",
+    thay: "",
+  },
+  {
+    ten: "A4a: lớp giữa coi mọi yêu cầu là ĐỌC",
+    tep: "server/app.ts",
+    tim: "ghi: ![\"GET\", \"HEAD\", \"OPTIONS\"].includes(req.method),",
+    thay: "ghi: false,",
+  },
+  {
+    ten: "A4a: lớp giữa vẫn suy cửa hàng từ X-Kenh",
+    tep: "server/app.ts",
+    tim: "maCuaHang: req.get(\"x-cua-hang\") ?? undefined,",
+    thay: "maCuaHang: req.get(\"x-kenh\") ?? undefined,",
+  },
+  {
+    ten: "A4a: 409 bị nuốt, route ghi vào cửa hàng null",
+    tep: "server/services/ngu-canh-trang.ts",
+    tim: "        if (e instanceof AppError) throw e;\n",
+    thay: "",
+  },
+  {
+    ten: "A4a: sổ tiền AI ném 409 làm hỏng lượt AI",
+    tep: "server/services/so-ai.ts",
+    tim: "await trangChoSo()",
+    thay: "await trangHienTai()",
+  },
+  {
+    ten: "A4a: bộ não tự suy cửa hàng riêng",
+    tep: "server/routes/ai.ts",
+    tim: "  const trang = await trangHienTai();\n  /*\n   * Đọc khi chưa có Trang",
+    thay: "  const trang = null as number | null;\n  /*\n   * Đọc khi chưa có Trang",
+  },
+  {
+    ten: "A4a: hộp thư lọc kênh của cửa hàng khác",
+    tep: "server/routes/inbox.ts",
+    tim: "\"SELECT 1 FROM social_accounts WHERE id = $1 AND user_id = $2 AND trang_id = $3\", [kenh, userId, trang]",
+    thay: "\"SELECT 1 FROM social_accounts WHERE id = $1 AND user_id = $2\", [kenh, userId]",
+  },
+  {
+    ten: "A4a: giao diện không gửi mã cửa hàng",
+    tep: "src/lib/api.ts",
+    tim: "...(cuaHangDangChon() ? { \"X-Cua-Hang\": cuaHangDangChon()! } : {}),",
+    thay: "",
+  },
+  {
+    ten: "A4a: giữ mã cửa hàng của phiên khác (admin Mở tài khoản)",
+    tep: "src/lib/ActivePage.tsx",
+    tim: "if (maLuu == null || !dsCH.some((t) => t.id === maLuu)) {",
+    thay: "if (maLuu == null) {",
+  },
+  {
+    ten: "A4a: không liệt kê cửa hàng chưa có kênh",
+    tep: "src/lib/ActivePage.tsx",
+    tim: "    for (const t of dsCuaHang) ds.set(",
+    thay: "    for (const t of [] as typeof dsCuaHang) ds.set(",
+  },
+  {
+    ten: "A4a: kênh lọc của cửa hàng khác vẫn dùng",
+    tep: "src/lib/ActivePage.tsx",
+    tim: "const dangChon = kenhLuu && trangDangChon && trangDangChon.kenh.some((k) => k.id === kenhLuu.id) ? kenhLuu : null;",
+    thay: "const dangChon = kenhLuu;",
+  },
+  {
+    ten: "A4a: chọn kênh không chuyển cửa hàng",
+    tep: "src/lib/ActivePage.tsx",
+    tim: "    if (k?.trang_id != null) ghiCuaHang(k.trang_id);\n",
+    thay: "",
+  },
+  {
+    ten: "A4a: mạng lỗi là xoá lựa chọn cửa hàng",
+    tep: "src/lib/ActivePage.tsx",
+    tim: "api.connections.dsTrang().then((r) => r.data).catch(() => null),",
+    thay: "api.connections.dsTrang().then((r) => r.data).catch(() => []),",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",
@@ -5925,8 +6009,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "bộ não AI: chọn trang lấy kênh bất kỳ, không phải kênh chính",
     tep: "src/lib/ActivePage.tsx",
-    tim: "setActiveAccountId(kenhMacDinh(ketNoi)[0] ?? ketNoi[0]?.id ?? t.kenh[0]?.id ?? null);",
-    thay: "setActiveAccountId(t.kenh[0]?.id ?? null);",
+    tim: "ghiKenh(kenhMacDinh(ketNoi)[0] ?? ketNoi[0]?.id ?? t.kenh[0]?.id ?? null);",
+    thay: "ghiKenh(t.kenh[0]?.id ?? null);",
   },
   {
     ten: "bộ não AI: duyệt / bác đề xuất của người khác",
