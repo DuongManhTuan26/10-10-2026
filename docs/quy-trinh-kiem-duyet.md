@@ -171,3 +171,15 @@ Và trả lời được ba câu:
 1. Lỗi nào đã **dựng lại được** trước khi sửa?
 2. Nguyên tắc nào bị đổi, và đã **đếm đủ** chỗ dùng chưa?
 3. Phần nào **chưa chứng thực được**, thiếu điều kiện gì?
+
+## Migration có điền / chép / đổi khoá dữ liệu (chốt 22/10/2026, hai phiên thống nhất)
+
+Phép kiểm tĩnh KHÔNG bắt được lỗi kiểu "chép dòng khi khoá cũ còn → duplicate key" (060 suýt vỡ như vậy: máy chủ áp
+migration trước khi mở cổng, vỡ là máy chủ không lên, khách mất AI). Nên MỌI migration có điền / chép / đổi khoá dữ liệu:
+
+1. Có kịch bản thử tự hoàn tác (scripts/thu-*-hoan-tac.mts) chạy NỘI DUNG migration trong MỘT giao dịch trên Neon thật:
+   kiểm hàng đợi webhook = 0, lock_timeout 3s, statement_timeout 30s, đếm TRƯỚC / SAU, kiểm dữ liệu thử qua đúng câu ghi
+   thật của mã, ROLLBACK trong finally, kiểm information_schema sau ROLLBACK.
+2. Kịch bản đó phải ĐẠT trước khi gộp. Gộp khi hàng đợi = 0, xem "[migrate] Đã áp dụng …" trong nhật ký, rồi báo cáo chỉ
+   đọc sau migration.
+3. Kiểm tra ngược và kịch bản thử KHÔNG chạy cùng lúc (kiểm tra ngược sửa tạm tệp migration mà kịch bản thử đọc).
