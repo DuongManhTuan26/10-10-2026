@@ -1,5 +1,7 @@
 import { env } from "../env.js";
 import { kiemPhamVi } from "./pham-vi-goi.js";
+import { AppError } from "../http.js";
+import { giauNhaCungCap } from "./text.js";
 
 /**
  * Cổng gọi phần quảng cáo của Zernio.
@@ -32,9 +34,11 @@ async function request<T>(
     body?: unknown;
     /** Header thêm (vd. Idempotency-Key của lệnh nhân bản). */
     headers?: Record<string, string>;
+    /** Hạn chờ riêng (ms). Đẩy bài có thể mất vài phút (tài liệu /v1/ads/boost "Retries"). */
+    timeoutMs?: number;
   } = {}
 ): Promise<T> {
-  const { method = "GET", query, body, headers } = options;
+  const { method = "GET", query, body, headers, timeoutMs = 30_000 } = options;
   kiemPhamVi(method, path, query, undefined);
   const url = new URL(env.zernio.baseUrl + path);
   for (const [key, value] of Object.entries(query ?? {})) {
@@ -43,16 +47,22 @@ async function request<T>(
     }
   }
 
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${env.zernio.apiKey}`,
-      "Content-Type": "application/json",
-      ...(headers ?? {}),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${env.zernio.apiKey}`,
+        "Content-Type": "application/json",
+        ...(headers ?? {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (error) {
+    // Hết giờ chờ / đứt mạng: KHÔNG biết nhà cung cấp đã làm hay chưa — mã CHUA_RO để chỗ gọi nói thật, không thử lại.
+    throw new AdsError(`Không nhận được trả lời cho ${method} ${path}: ${error instanceof Error ? error.message : String(error)}`, 0, "CHUA_RO");
+  }
 
   const text = await response.text();
   let data: unknown = null;
@@ -329,28 +339,6 @@ export async function listAudiences(params: {
   return data.audiences ?? [];
 }
 
-export async function createAudience(params: {
-  accountId: string;
-  adAccountId: string;
-  name: string;
-  subtype: string;
-  description?: string;
-  /** Cấu hình riêng theo loại tệp: nguồn, phần trăm tương đồng… */
-  extra?: Record<string, unknown>;
-}): Promise<unknown> {
-  return request("/ads/audiences", {
-    method: "POST",
-    body: {
-      accountId: params.accountId,
-      adAccountId: params.adAccountId,
-      name: params.name,
-      subtype: params.subtype,
-      ...(params.description ? { description: params.description } : {}),
-      ...(params.extra ?? {}),
-    },
-  });
-}
-
 /**
  * Đổi tên và mô tả một tệp đối tượng.
  *
@@ -384,48 +372,181 @@ export async function updateAudience(params: {
 // Quảng cáo cho bài đã đăng
 // ---------------------------------------------------------------------------
 
-/**
- * Đẩy tiền cho một bài đã đăng.
- * Đây là con đường ngắn nhất từ "AI viết bài" sang "AI quảng cáo": bài nào
- * tương tác tốt thì bơm ngân sách cho nó, không cần dựng chiến dịch từ đầu.
+/*
+ * ĐẨY BÀI / DỰ BÁO / TẠO TỆP — đúng OpenAPI 1.330.1 (mục 3, phiên kiểm duyệt duyệt 22/10/2026). Bản cũ lệch tài liệu cả
+ * 3 lệnh: đẩy bài thiếu name / goal (bắt buộc), gửi dailyBudget / durationDays / objective / geoLocations / genders (không
+ * có trong lược đồ) và postId của nhà cung cấp trên kênh metaads ("a Zernio postId is a 400 there"); dự báo gửi
+ * `targeting` thay vì `spec`; tạo tệp gửi `subtype`. Chưa lần đẩy bài nào thành công (sổ so_thay_doi 0 dòng) nên chưa mất
+ * tiền. Các lệnh dựng bằng HÀM THUẦN để bộ kiểm tra thử bằng dữ liệu giả.
  */
-export async function boostPost(params: {
-  accountId: string;
-  adAccountId: string;
-  postId: string;
-  dailyBudget: number;
-  durationDays: number;
-  objective?: string;
-  targeting?: Record<string, unknown>;
-}): Promise<unknown> {
-  return request("/ads/boost", {
-    method: "POST",
-    body: {
-      accountId: params.accountId,
-      adAccountId: params.adAccountId,
-      postId: params.postId,
-      dailyBudget: params.dailyBudget,
-      durationDays: params.durationDays,
-      objective: params.objective ?? "engagement",
-      ...(params.targeting ? { targeting: params.targeting } : {}),
-    },
-  });
+
+export type CheDoNham = "tu_chon" | "facebook_tu_tim";
+export type GioiTinhNham = "all" | "male" | "female";
+export type MucTieuDayBai = "nhan_tin" | "tuong_tac";
+export const TUOI_NHO_NHAT = 18;
+export const TUOI_LON_NHAT = 65;
+
+/** Nhắm chọn (TargetingSpec) — chỉ Việt Nam. Sai → lỗi kèm câu cho chủ shop. */
+export function dungNhamChon(n: { cheDo?: unknown; tuoiTu?: unknown; tuoiDen?: unknown; gioiTinh?: unknown }): Record<string, unknown> {
+  if (n.cheDo === "facebook_tu_tim") return { countries: ["VN"], advantage_audience: 1 };
+  if (n.cheDo !== "tu_chon") throw new AppError("Cách chọn người xem không hợp lệ", 400);
+  const tu = Number(n.tuoiTu), den = Number(n.tuoiDen);
+  if (!Number.isInteger(tu) || !Number.isInteger(den) || tu < TUOI_NHO_NHAT || den > TUOI_LON_NHAT || tu > den) {
+    throw new AppError(`Độ tuổi phải trong khoảng ${TUOI_NHO_NHAT}–${TUOI_LON_NHAT}, tuổi đầu không lớn hơn tuổi cuối`, 400);
+  }
+  if (n.gioiTinh !== "all" && n.gioiTinh !== "male" && n.gioiTinh !== "female") throw new AppError("Giới tính không hợp lệ", 400);
+  return { countries: ["VN"], ageMin: tu, ageMax: den, gender: n.gioiTinh };
 }
 
-/** Dự báo số người tiếp cận cho một cấu hình nhắm chọn. */
-export async function estimateReach(params: {
+/**
+ * Mục tiêu đẩy bài. NHẮN TIN (mặc định — phiên kiểm duyệt chốt 22/10/2026): tài liệu "Messaging boosts (Meta): goal
+ * engagement + callToAction MESSAGE_PAGE" → quảng cáo có nút nhắn tin, khách bấm là thành hội thoại trong hộp thư để
+ * ③ AI Bán hàng tư vấn + chốt đơn. TƯƠNG TÁC: engagement trơn (thích / bình luận).
+ */
+export const MUC_TIEU_DAY_BAI: Record<MucTieuDayBai, Record<string, string>> = {
+  nhan_tin: { goal: "engagement", callToAction: "MESSAGE_PAGE" },
+  tuong_tac: { goal: "engagement" },
+};
+
+/**
+ * Lệnh đẩy bài (POST /v1/ads/boost). accountId = kênh metaads (đăng nhập doanh nghiệp) → bài truyền bằng platformPostId
+ * (mã bài Facebook). Ngân sách theo ngày, đơn vị tiền của tài khoản quảng cáo: chỗ gọi CHỈ cho VND và gửi kèm currency.
+ * Idempotency-Key do giao diện sinh mỗi lần bấm (tài liệu: boost KHÔNG idempotent; cùng key + cùng thân → trả lại kết quả
+ * cũ, không tạo quảng cáo thứ hai).
+ */
+export function lenhDayBai(p: {
   accountId: string;
   adAccountId: string;
-  targeting: Record<string, unknown>;
-  optimizationGoal?: string;
-}): Promise<Record<string, unknown>> {
-  return request("/ads/targeting/reach-estimate", {
-    method: "POST",
+  platformPostId: string;
+  maBai: number;
+  nganSachNgay: number;
+  soNgay: number;
+  mucTieu: MucTieuDayBai;
+  nhamChon: Record<string, unknown>;
+  khoa: string;
+  bayGio: Date;
+}) {
+  const ngay = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" }).format(p.bayGio);
+  return {
+    path: "/ads/boost",
+    method: "POST" as const,
     body: {
-      accountId: params.accountId,
-      adAccountId: params.adAccountId,
-      targeting: params.targeting,
-      optimizationGoal: params.optimizationGoal ?? "REACH",
+      accountId: p.accountId,
+      adAccountId: p.adAccountId,
+      platformPostId: p.platformPostId,
+      name: `Đẩy bài ${p.maBai} ${ngay}`,
+      ...MUC_TIEU_DAY_BAI[p.mucTieu],
+      budgetAmount: p.nganSachNgay,
+      budgetType: "daily",
+      currency: "VND",
+      endDate: new Date(p.bayGio.getTime() + p.soNgay * 86_400_000).toISOString(),
+      targeting: p.nhamChon,
     },
-  });
+    headers: { "Idempotency-Key": p.khoa },
+  };
+}
+
+/**
+ * Kiểm ngân sách đẩy bài với tài khoản quảng cáo. Ngân sách nhập theo ĐỒNG; nhà cung cấp tính theo tiền của tài khoản
+ * quảng cáo ("whole currency units"). Khác VND → chặn, KHÔNG tự quy đổi (100.000 trên tài khoản USD là 100.000 USD mỗi
+ * ngày). Meta còn có ngân sách tối thiểu theo từng tài khoản.
+ */
+export function kiemNganSachDayBai(taiKhoan: { currency?: string; minDailyBudget?: number }, nganSachNgay: number): void {
+  if (taiKhoan.currency !== "VND") {
+    throw new AppError(
+      `Tài khoản quảng cáo đang dùng ${taiKhoan.currency || "loại tiền chưa rõ"}, màn này nhập ngân sách theo đồng — chưa hỗ trợ đẩy bài cho tài khoản này.`,
+      409
+    );
+  }
+  const toiThieu = Number(taiKhoan.minDailyBudget ?? 0);
+  if (toiThieu > 0 && nganSachNgay < toiThieu) {
+    throw new AppError(`Ngân sách mỗi ngày phải từ ${toiThieu.toLocaleString("vi-VN")} đ trở lên theo quy định của Meta.`);
+  }
+}
+
+/** Mã bài Facebook (pageId_postId) trong bài của nhà cung cấp (GET /v1/posts/{id}: platforms[].platformPostId). */
+export function maBaiFacebook(raw: unknown): string | null {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const bai = (o.post && typeof o.post === "object" ? o.post : o) as Record<string, unknown>;
+  const ds = Array.isArray(bai.platforms) ? (bai.platforms as Record<string, unknown>[]) : [];
+  const fb = ds.find((x) => x?.platform === "facebook" && typeof x.platformPostId === "string" && x.platformPostId !== "");
+  return fb ? (fb.platformPostId as string) : null;
+}
+
+export async function dayBai(lenh: ReturnType<typeof lenhDayBai>): Promise<unknown> {
+  // Đẩy bài có thể mất vài phút (tài liệu) — chờ tới 2 phút; hết giờ thì CHUA_RO, không thử lại.
+  return request(lenh.path, { method: lenh.method, body: lenh.body, headers: lenh.headers, timeoutMs: 120_000 });
+}
+
+/** Lệnh dự báo tiếp cận (POST /v1/ads/targeting/reach-estimate): bắt buộc accountId, adAccountId, spec. */
+export function lenhDuBao(p: { accountId: string; adAccountId: string; nhamChon: Record<string, unknown> }) {
+  return { accountId: p.accountId, adAccountId: p.adAccountId, spec: p.nhamChon, optimizationGoal: "REACH" };
+}
+
+/** Đọc dự báo theo tài liệu: { available, lower, upper }. */
+export function docDuBao(raw: unknown): { coDuBao: boolean; thap: number | null; cao: number | null } {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const so = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
+  const thap = so(o.lower), cao = so(o.upper);
+  return { coDuBao: o.available !== false && (thap !== null || cao !== null), thap, cao };
+}
+
+export async function duBaoTiepCan(than: ReturnType<typeof lenhDuBao>): Promise<unknown> {
+  return request("/ads/targeting/reach-estimate", { method: "POST", body: than });
+}
+
+export type LoaiTepTao = "tuong_tac_fanpage" | "tuong_tu";
+export const SO_NGAY_TUONG_TAC = [30, 60, 90, 180, 365] as const;
+
+/**
+ * Thân lệnh tạo tệp (POST /v1/ads/audiences) — 2 loại làm được cho shop chỉ có Fanpage (không pixel / danh sách khách):
+ *  - người đã tương tác với Fanpage: type meta_engagement, engagementSource 'page', sourceId = mã Fanpage, retentionDays ≤ 365;
+ *  - giống một tệp đã có: type lookalike, sourceAudienceId, country 'VN', ratio 0.01–0.10.
+ */
+export function thanTaoTep(p: {
+  accountId: string;
+  adAccountId: string;
+  ten: unknown;
+  loai: unknown;
+  pageId?: string | null;
+  soNgay?: unknown;
+  tepNguon?: unknown;
+  phanTram?: unknown;
+}): Record<string, unknown> {
+  const ten = typeof p.ten === "string" ? p.ten.trim() : "";
+  if (!ten) throw new AppError("Vui lòng đặt tên cho tệp đối tượng.", 400);
+  const goc = { accountId: p.accountId, adAccountId: p.adAccountId, name: ten.slice(0, 200) };
+  if (p.loai === "tuong_tac_fanpage") {
+    if (!p.pageId) throw new AppError("Cửa hàng chưa nối Fanpage nên chưa tạo được tệp người tương tác", 409);
+    const soNgay = Number(p.soNgay);
+    if (!(SO_NGAY_TUONG_TAC as readonly number[]).includes(soNgay)) throw new AppError("Khoảng thời gian không hợp lệ", 400);
+    return { ...goc, type: "meta_engagement", engagementSource: "page", sourceId: p.pageId, retentionDays: soNgay };
+  }
+  if (p.loai === "tuong_tu") {
+    if (typeof p.tepNguon !== "string" || !p.tepNguon) throw new AppError("Vui lòng chọn tệp gốc để tìm người giống", 400);
+    const pt = Number(p.phanTram);
+    if (!Number.isInteger(pt) || pt < 1 || pt > 10) throw new AppError("Độ rộng phải từ 1% đến 10%", 400);
+    return { ...goc, type: "lookalike", sourceAudienceId: p.tepNguon, country: "VN", ratio: pt / 100 };
+  }
+  throw new AppError("Loại tệp không hợp lệ", 400);
+}
+
+/**
+ * Lỗi của lệnh GHI TỐN TIỀN / RA NGOÀI (đẩy bài, tạo tệp) → câu cho chủ shop. KHÔNG bao giờ bảo "thử lại" khi chưa rõ kết
+ * quả: hết giờ chờ / đứt mạng / nhà cung cấp lỗi 5xx / lần bấm trước còn đang chạy (409) đều có thể ĐÃ tạo — bấm lại là
+ * có thể trừ tiền hai lần (tài liệu /v1/ads/boost "Retries"). Lỗi 4xx khác = chắc chắn chưa tạo.
+ */
+export function loiLenhGhi(error: unknown, viec: string): AppError | null {
+  if (!(error instanceof AdsError)) return null;
+  if (error.code === "CHUA_RO" || error.status >= 500 || error.status === 409) {
+    return new AppError(
+      `Chưa rõ kết quả ${viec} — có thể đã tạo xong. Vui lòng xem danh sách chiến dịch / tệp đối tượng trước khi bấm lại.`,
+      504
+    );
+  }
+  return new AppError(`Chưa ${viec} được: ${giauNhaCungCap(error.message)}`, error.status >= 400 && error.status < 500 ? error.status : 400);
+}
+
+export async function taoTep(than: Record<string, unknown>): Promise<unknown> {
+  return request("/ads/audiences", { method: "POST", body: than });
 }

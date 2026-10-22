@@ -4,6 +4,7 @@ import { requireAuth } from "../auth.js";
 import { kenhQuangCaoCuaCuaHang } from "../services/trang.js";
 import { AppError, requireString, route } from "../http.js";
 import * as ads from "../services/ads.js";
+import * as zernio from "../services/zernio.js";
 import { chatJson, asRecord, optionalString } from "../services/ai.js";
 import { loadKnowledge } from "../services/knowledge.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "../services/text.js";
@@ -375,12 +376,18 @@ adsRouter.post(
     const dailyBudget = Number(body.dailyBudget);
     const durationDays = Number(body.durationDays);
 
-    if (!Number.isFinite(dailyBudget) || dailyBudget <= 0) {
-      throw new AppError("Ngân sách mỗi ngày phải lớn hơn 0");
+    if (!Number.isInteger(dailyBudget) || dailyBudget <= 0) {
+      throw new AppError("Ngân sách mỗi ngày phải là số đồng lớn hơn 0");
     }
-    if (!Number.isFinite(durationDays) || durationDays < 1) {
-      throw new AppError("Số ngày chạy phải từ 1 trở lên");
+    if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 90) {
+      throw new AppError("Số ngày chạy phải từ 1 đến 90");
     }
+    const mucTieu: ads.MucTieuDayBai = body.mucTieu === "tuong_tac" ? "tuong_tac" : "nhan_tin";
+    // Nhắm chọn do MÁY CHỦ dựng từ lựa chọn đã kiểm (không chuyển thẳng thân yêu cầu của trình duyệt đi).
+    const nhamChon = ads.dungNhamChon(body.nhamChon ?? {});
+    // Mỗi lần BẤM một mã ngẫu nhiên (giao diện sinh): bấm lại = mã mới; cùng mã (mạng gửi lại) = không tạo lần hai.
+    const khoa = typeof body.khoa === "string" && /^[\w-]{8,100}$/.test(body.khoa) ? body.khoa : null;
+    if (!khoa) throw new AppError("Thiếu mã chống bấm trùng", 400);
 
     // A1: chỉ đẩy bài của CỬA HÀNG ĐANG CHỌN (kiểm TRƯỚC mọi lệnh gửi nhà cung cấp — tiêu tiền thật).
     const trangDangChon = await trangHienTai();
@@ -399,25 +406,24 @@ adsRouter.post(
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
 
-    // Meta yêu cầu ngân sách tối thiểu theo từng tài khoản và loại tiền.
-    const minBudget = Number(resolved.account.minDailyBudget ?? 0);
-    if (minBudget > 0 && dailyBudget < minBudget) {
-      throw new AppError(
-        `Ngân sách mỗi ngày phải từ ${minBudget.toLocaleString("vi-VN")} ` +
-          `${resolved.account.currency} trở lên theo quy định của Meta.`
-      );
-    }
+    ads.kiemNganSachDayBai(resolved.account, dailyBudget);
 
-    const result = await ads.boostPost({
-      accountId: resolved.accountId,
-      adAccountId: resolved.adAccountId,
-      postId: post.platform_post_ref,
-      dailyBudget,
-      durationDays,
-      objective: typeof body.objective === "string" ? body.objective : undefined,
-      targeting: body.targeting,
+    // Kênh metaads (đăng nhập doanh nghiệp) nhận bài bằng MÃ BÀI FACEBOOK, không nhận mã bài của nhà cung cấp (tài liệu).
+    // Lấy từ chính bài đã kiểm ở trên — không bao giờ từ trình duyệt.
+    const maBaiFb = ads.maBaiFacebook(await zernio.getPost(post.platform_post_ref));
+    if (!maBaiFb) throw new AppError("Chưa lấy được mã bài trên Facebook (bài chưa lên Facebook?) nên chưa đẩy được", 409);
+
+    const lenh = ads.lenhDayBai({
+      accountId: resolved.accountId, adAccountId: resolved.adAccountId, platformPostId: maBaiFb, maBai: postId,
+      nganSachNgay: dailyBudget, soNgay: durationDays, mucTieu, nhamChon, khoa, bayGio: new Date(),
     });
-    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_day_bai", banGhi: String(postId), hanhDong: "them", sau: { bai: postId, ngan_sach_ngay: dailyBudget, so_ngay: durationDays, doi_tuong: body.targeting ?? null }, nguon: "nguoi_dung" });
+    let result: unknown;
+    try {
+      result = await ads.dayBai(lenh);
+    } catch (error) {
+      throw ads.loiLenhGhi(error, "đẩy bài") ?? error;
+    }
+    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_day_bai", banGhi: String(postId), hanhDong: "them", sau: { bai: postId, ngan_sach_ngay: dailyBudget, so_ngay: durationDays, muc_tieu: mucTieu, doi_tuong: nhamChon }, nguon: "nguoi_dung" });
 
     res.status(201).json({ success: true, data: result });
   })
@@ -426,21 +432,35 @@ adsRouter.post(
 adsRouter.post(
   "/audiences",
   route(async (req, res) => {
-    const name = requireString(req.body, "name", "tên tệp đối tượng");
-    const subtype = requireString(req.body, "subtype", "loại tệp");
-
+    const body = req.body ?? {};
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
-
-    const result = await ads.createAudience({
+    // Tệp "người đã tương tác với Fanpage" lấy Fanpage của CỬA HÀNG đang chọn (A4b) — không nhận mã trang từ trình duyệt.
+    const fanpage = body.loai === "tuong_tac_fanpage"
+      ? await queryOne<{ page_id: string | null }>(
+          `SELECT page_id FROM social_accounts
+            WHERE user_id = $1 AND trang_id = $2 AND platform = 'facebook' AND connected = TRUE AND page_id IS NOT NULL
+            ORDER BY created_at LIMIT 1`,
+          [req.user!.id, resolved.trangId]
+        )
+      : null;
+    const than = ads.thanTaoTep({
       accountId: resolved.accountId,
       adAccountId: resolved.adAccountId,
-      name,
-      subtype,
-      description: typeof req.body?.description === "string" ? req.body.description : undefined,
-      extra: req.body?.extra,
+      ten: body.ten,
+      loai: body.loai,
+      pageId: fanpage?.page_id ?? null,
+      soNgay: body.soNgay,
+      tepNguon: body.tepNguon,
+      phanTram: body.phanTram,
     });
-    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_doi_tuong", banGhi: null, hanhDong: "them", sau: { ten: name, loai: subtype }, nguon: "nguoi_dung" });
+    let result: unknown;
+    try {
+      result = await ads.taoTep(than);
+    } catch (error) {
+      throw ads.loiLenhGhi(error, "tạo tệp đối tượng") ?? error;
+    }
+    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_doi_tuong", banGhi: null, hanhDong: "them", sau: { ten: than.name, loai: than.type }, nguon: "nguoi_dung" });
 
     res.status(201).json({ success: true, data: result });
   })
@@ -481,14 +501,9 @@ adsRouter.post(
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
 
-    const data = await ads.estimateReach({
-      accountId: resolved.accountId,
-      adAccountId: resolved.adAccountId,
-      targeting: req.body?.targeting ?? {},
-      optimizationGoal:
-        typeof req.body?.optimizationGoal === "string" ? req.body.optimizationGoal : undefined,
-    });
-    res.json({ success: true, data });
+    const nhamChon = ads.dungNhamChon(req.body?.nhamChon ?? {});
+    const raw = await ads.duBaoTiepCan(ads.lenhDuBao({ accountId: resolved.accountId, adAccountId: resolved.adAccountId, nhamChon }));
+    res.json({ success: true, data: ads.docDuBao(raw) });
   })
 );
 

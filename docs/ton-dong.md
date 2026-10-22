@@ -254,3 +254,11 @@ ghi rõ cho bài scheduled). Cần chủ dự án xếp thứ tự ưu tiên.
 Mục 5 (giọng điệu) làm cho AI Bán hàng: màn Kịch bản chọn giọng → dòng "GIỌNG ĐIỆU" trong lời dặn (sales-ai.ts moTaGiong).
 AI Nội dung: cột ai_configs.tone có, nhưng KHÔNG màn nào cho chọn, nên content-ai đã thôi đọc cột này (đọc mà không dùng
 dễ khiến tưởng có tác dụng). Làm khi có yêu cầu: thêm chọn giọng ở thẻ Hướng dẫn AI của ① và đưa vào lời dặn viết bài.
+
+## TD-25 — Đẩy bài: chưa nhắm theo tệp đã lưu / sở thích / tỉnh thành (22/10/2026)
+
+Mục 3 (quảng cáo khớp OpenAPI 1.330.1) bỏ khỏi màn mọi ô không gửi đi được: "Dùng tệp đã lưu" (targeting của /v1/ads/boost
+không có trường tệp đối tượng; rawTargeting chỉ ghi "forwarded unchanged" — không có căn cứ dạng dữ liệu), ô "Sở thích" tự
+gõ (cần mã từ GET /v1/ads/interests), ô "Khu vực" tự gõ (tỉnh / thành cần key từ GET /v1/ads/targeting/search?dimension=geo).
+Hiện gửi: Việt Nam + tuổi + giới tính, hoặc để Facebook tự tìm (advantage_audience). Làm khi có yêu cầu: tìm sở thích /
+tỉnh thành qua hai đường đọc trên rồi gửi interests[{id,name}] / regions[{key}] đúng tài liệu. Thử thật cần nối Meta Ads.

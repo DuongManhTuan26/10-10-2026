@@ -5546,7 +5546,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       return i > 0 && ghi > i && ghi < traLoi;
     };
     kiem("sổ thay đổi", "đủ 6 chỗ đổi quảng cáo đều ghi sổ SAU khi API thành công, trước khi trả lời",
-      ["ads.doiTrangThaiChienDich(", "ads.updateCampaignBudget(", "ads.nhanBanChienDich(", "ads.boostPost(", "ads.createAudience(", "ads.updateAudience("].map(sauGoi),
+      ["ads.doiTrangThaiChienDich(", "ads.updateCampaignBudget(", "ads.nhanBanChienDich(", "ads.dayBai(", "ads.taoTep(", "ads.updateAudience("].map(sauGoi),
       [true, true, true, true, true, true]);
     kiem("sổ thay đổi", "hệ thống tự ngắt AI ghi nguồn 'hệ thống' trong cùng giao dịch với lần ghi",
       /await transaction\(async \(c\) => \{\s+await coNguon\(c, "he_thong"\);\s+await c\.query\(\s+`UPDATE social_accounts\s+SET ai_paused_until = \$2/.test(gr), true);
@@ -6442,7 +6442,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
 
   // Mọi lời gọi gửi ra ngoài nhân danh bài / khách: đúng 7 chỗ, chỗ nào cũng có chốt ngay phía trên.
   // Đợt 3: deletePost = HUỶ bài chưa đăng (tài liệu nhà cung cấp) → nhóm "huỷ" riêng bên dưới; gỡ bài đã đăng = unpublishPost.
-  const MAU_GUI = /(zernio\.(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|unpublishPost)|ads\.boostPost)\(/g;
+  const MAU_GUI = /(zernio\.(sendMessage|privateReplyToComment|replyToComment|createPost|updatePost|unpublishPost)|ads\.dayBai)\(/g;
   const choGui: string[] = [];
   const thieuChot: string[] = [];
   for (const t of moiTepMayChu(path.join(GOC, "server"))) {
@@ -6463,7 +6463,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   console.log(`  [cửa ra] ${choGui.length} lời gọi gửi ra ngoài, ${choGui.length - thieuChot.length} có chốt`);
   kiem("cửa ra", "đúng 7 lời gọi gửi ra ngoài (tin, tin riêng, trả lời bình luận, đăng / sửa / gỡ bài, đẩy bài), chỗ nào cũng qua chốt",
     [choGui.sort(), thieuChot],
-    [["ads.ts:ads.boostPost", "comment-ai.ts:zernio.privateReplyToComment", "comment-ai.ts:zernio.replyToComment", "outbound.ts:zernio.sendMessage",
+    [["ads.ts:ads.dayBai", "comment-ai.ts:zernio.privateReplyToComment", "comment-ai.ts:zernio.replyToComment", "outbound.ts:zernio.sendMessage",
       "posts.ts:zernio.unpublishPost", "posts.ts:zernio.updatePost", "publish.ts:zernio.createPost"], []]);
   // (a) gửi bằng kênh LẤY TỪ KẾT QUẢ CHỐT, không dùng biến kênh ban đầu (lệnh nào có tham số kênh).
   const ob = doc2("server/services/outbound.ts"), ca = doc2("server/services/comment-ai.ts"), pb = doc2("server/services/publish.ts");
@@ -6491,7 +6491,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /const cuaRa = await chanCuaRa\(req\.user!\.id, post\.target_account_ids, post\.trang_id\);[\s\S]*?if \(!cuaRa\.duoc\.includes\(k\.id\)\) \{[\s\S]*?continue;[\s\S]*?zernio\.unpublishPost\(\{ postId: post\.platform_post_ref, platform: k\.platform, accountId: k\.id \}\)/.test(ps2),
       (() => {
         // Trong thân đường đẩy bài: chốt đặt TRƯỚC khi lấy tài khoản quảng cáo / gọi đẩy.
-        const than = ad2.slice(ad2.indexOf("Không tìm thấy bài viết của cửa hàng đang chọn"), ad2.indexOf("await ads.boostPost("));
+        const than = ad2.slice(ad2.indexOf("Không tìm thấy bài viết của cửa hàng đang chọn"), ad2.indexOf("await ads.dayBai("));
         return /await chanCuaRa\(req\.user!\.id, post\.target_account_ids, post\.trang_id\);/.test(than) && than.search(/await chanCuaRa\(/) < than.search(/resolveAdAccount\(/);
       })()],
     [1, true, true]);
@@ -7090,7 +7090,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /const kenh = await kenhQuangCaoCuaCuaHang\(req\.user!\.id, await trangHienTai\(\)\);/.test(ads9),
       (ads9.match(/resolved\.trangId/g) ?? []).length, /\[req\.user!\.id, await trangHienTai\(\)\]/.test(st10.slice(st10.indexOf('"/ads/analytics"'))),
       /if \(trangId == null\) return null;/.test(tr9.slice(tr9.indexOf("export async function kenhQuangCaoCuaCuaHang(")))],
-    [true, true, 2, true, true]);
+    [true, true, 3, true, true]);
   const tk9 = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
   kiem("A4c hồ sơ", "tạo tài khoản → cấp hồ sơ nền tảng NGAY (ensureProfile sau giao dịch, lỗi không chặn việc tạo); cửa hàng còn mã tạm tự cấp ở lần mở Kết nối",
     [/\}\);\s*\/\*[\s\S]*?\*\/\s*try \{\s*await ensureProfile\(\{ id, name, email, profileRef: null \}\);\s*\} catch \(error\) \{/.test(tk9),
@@ -7271,7 +7271,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     .flatMap((t) => (d12(path.relative(GOC, t)).match(/env\.zernio\.baseUrl/g) ?? []).map(() => path.relative(GOC, t))).sort();
   kiem("phạm vi gọi", "request của zernio.ts và ads.ts gọi kiemPhamVi trước khi dựng URL; đúng 5 hàm khai hỏi cả team; chỉ 3 chỗ dựng URL nhà cung cấp (2 request + /usage-stats quản trị)",
     [/caTeam,\n  \} = options;\n  kiemPhamVi\(method, path, query, caTeam\);\n\n  const url = new URL\(env\.zernio\.baseUrl \+ path\);/.test(zn12),
-      /const \{ method = "GET", query, body, headers \} = options;\n  kiemPhamVi\(method, path, query, undefined\);\n  const url = new URL\(env\.zernio\.baseUrl \+ path\);/.test(ads12),
+      /const \{ method = "GET", query, body, headers, timeoutMs = 30_000 \} = options;\n  kiemPhamVi\(method, path, query, undefined\);\n  const url = new URL\(env\.zernio\.baseUrl \+ path\);/.test(ads12),
       caTeam, fetchThang],
     [true, true, ["docTienKenhTheoKenh", "layNhatKyWebhook", "listAccountsCaTeam", "listProfiles", "noiBluesky"],
       ["server/services/ads.ts", "server/services/chi-phi.ts", "server/services/zernio.ts"]]);
@@ -7391,6 +7391,84 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/Thử với một tin đầu tiên của khách, không có lịch sử hội thoại\./.test(as14), /AI sẽ chuyển cho nhân viên: \{testReply\.chuyenNguoi\}/.test(as14),
       /Bước bán hàng AI chọn: \{testReply\.buoc\}/.test(as14)],
     [true, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// QUẢNG CÁO KHỚP TÀI LIỆU (mục 3, 22/10/2026): đẩy bài / dự báo / tạo tệp đúng OpenAPI 1.330.1; màn chỉ giữ ô gửi đi thật;
+// mặc định NHẮN TIN; chặn tiền tệ khác VND; mỗi lần bấm một Idempotency-Key, không thử lại khi chưa rõ kết quả.
+// ---------------------------------------------------------------------------
+{
+  const d15 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const q = await import("../server/services/ads.js");
+  const loi = (f: () => unknown) => { try { return f(); } catch (e) { return `${(e as { status?: number }).status}:${(e as Error).message}`; } };
+  // Lỗi so theo PHẦN ĐẦU câu (chuỗi kỳ vọng là tiền tố của câu thật).
+  const M1 = [{ countries: ["VN"], advantage_audience: 1 }, { countries: ["VN"], ageMin: 25, ageMax: 45, gender: "female" },
+    "400:Độ tuổi phải trong khoảng 18–65", "400:Độ tuổi phải trong khoảng 18–65", "400:Độ tuổi phải trong khoảng 18–65", "400:Giới tính không hợp lệ", "400:Cách chọn người xem không hợp lệ"];
+  const M2 = [{ accountId: "a", adAccountId: "act_1", name: "Khách Fanpage", type: "meta_engagement", engagementSource: "page", sourceId: "686", retentionDays: 90 },
+    { accountId: "a", adAccountId: "act_1", name: "Giống", type: "lookalike", sourceAudienceId: "aud1", country: "VN", ratio: 0.03 },
+    "409:Cửa hàng chưa nối Fanpage", "400:Khoảng thời gian không hợp lệ", "400:Độ rộng phải từ 1% đến 10%", "400:Vui lòng đặt tên cho tệp", "400:Loại tệp không hợp lệ"];
+  const M3 = ["504:Chưa rõ kết quả đẩy bài — có thể đã tạo xong", "504:Chưa rõ kết quả đẩy bài", "504:Chưa rõ kết quả đẩy bài", "422:Chưa đẩy bài được: ", null, false];
+  const M4 = ["409:Tài khoản quảng cáo đang dùng USD", "400:Ngân sách mỗi ngày phải từ 50.000 đ", "qua", "686_9", null];
+  const dau = (thuc: unknown[], mong: unknown[]) => thuc.map((x, i) => (typeof x === "string" && typeof mong[i] === "string" && x.startsWith(mong[i] as string) ? mong[i] : x));
+  kiem("quảng cáo khớp tài liệu", "dungNhamChon: tự tìm → VN + advantage_audience; tự chọn → VN + tuổi + gender (all/male/female); tuổi ngoài 18–65 / ngược / lẻ, giới tính lạ, chế độ lạ → 400",
+    dau([q.dungNhamChon({ cheDo: "facebook_tu_tim", tuoiTu: 30 }), q.dungNhamChon({ cheDo: "tu_chon", tuoiTu: 25, tuoiDen: 45, gioiTinh: "female" }),
+      loi(() => q.dungNhamChon({ cheDo: "tu_chon", tuoiTu: 17, tuoiDen: 45, gioiTinh: "all" })), loi(() => q.dungNhamChon({ cheDo: "tu_chon", tuoiTu: 40, tuoiDen: 30, gioiTinh: "all" })),
+      loi(() => q.dungNhamChon({ cheDo: "tu_chon", tuoiTu: 25.5, tuoiDen: 66, gioiTinh: "all" })), loi(() => q.dungNhamChon({ cheDo: "tu_chon", tuoiTu: 25, tuoiDen: 45, gioiTinh: "Nam" })),
+      loi(() => q.dungNhamChon({ cheDo: "saved" }))], M1),
+    M1);
+  const BG = new Date("2026-10-22T16:30:00Z");
+  const lenh = (mucTieu: "nhan_tin" | "tuong_tac") => q.lenhDayBai({ accountId: "kmeta", adAccountId: "act_1", platformPostId: "686_122", maBai: 65,
+    nganSachNgay: 100_000, soNgay: 3, mucTieu, nhamChon: { countries: ["VN"], advantage_audience: 1 }, khoa: "khoa-12345678", bayGio: BG });
+  kiem("quảng cáo khớp tài liệu", "lệnh đẩy bài: đủ 4 trường bắt buộc (accountId, adAccountId, name, goal); bài bằng platformPostId; ngân sách daily VND; endDate = +số ngày; NHẮN TIN có MESSAGE_PAGE, TƯƠNG TÁC không; Idempotency-Key; không còn trường cũ",
+    [lenh("nhan_tin"), (lenh("tuong_tac").body as Record<string, unknown>).callToAction ?? null,
+      ["postId", "dailyBudget", "durationDays", "objective", "geoLocations", "genders"].filter((k) => JSON.stringify(lenh("nhan_tin").body).includes(`"${k}"`))],
+    [{ path: "/ads/boost", method: "POST", body: { accountId: "kmeta", adAccountId: "act_1", platformPostId: "686_122", name: "Đẩy bài 65 22/10/2026" ,
+      goal: "engagement", callToAction: "MESSAGE_PAGE", budgetAmount: 100_000, budgetType: "daily", currency: "VND", endDate: "2026-10-25T16:30:00.000Z",
+      targeting: { countries: ["VN"], advantage_audience: 1 } }, headers: { "Idempotency-Key": "khoa-12345678" } }, null, []]);
+  kiem("quảng cáo khớp tài liệu", "dự báo: thân có spec (không targeting); đọc available / lower / upper; available=false hoặc thiếu số → không có dự báo",
+    [q.lenhDuBao({ accountId: "a", adAccountId: "b", nhamChon: { countries: ["VN"] } }),
+      q.docDuBao({ available: true, lower: 1000, upper: 5000 }), q.docDuBao({ available: false, lower: 1000 }), q.docDuBao({ usersLowerBound: 9 })],
+    [{ accountId: "a", adAccountId: "b", spec: { countries: ["VN"] }, optimizationGoal: "REACH" },
+      { coDuBao: true, thap: 1000, cao: 5000 }, { coDuBao: false, thap: 1000, cao: null }, { coDuBao: false, thap: null, cao: null }]);
+  const tep = (o: Record<string, unknown>) => loi(() => q.thanTaoTep({ accountId: "a", adAccountId: "act_1", ...o } as never));
+  kiem("quảng cáo khớp tài liệu", "tạo tệp: meta_engagement (Fanpage của cửa hàng, 30–365 ngày) / lookalike (tệp gốc, VN, 1–10%); thiếu Fanpage → 409; sai → 400; không còn subtype",
+    dau([tep({ ten: " Khách Fanpage ", loai: "tuong_tac_fanpage", pageId: "686", soNgay: 90 }), tep({ ten: "Giống", loai: "tuong_tu", tepNguon: "aud1", phanTram: 3 }),
+      tep({ ten: "x", loai: "tuong_tac_fanpage", pageId: null, soNgay: 90 }), tep({ ten: "x", loai: "tuong_tac_fanpage", pageId: "686", soNgay: 45 }),
+      tep({ ten: "x", loai: "tuong_tu", tepNguon: "aud1", phanTram: 11 }), tep({ ten: " ", loai: "tuong_tu" }), tep({ ten: "x", loai: "CUSTOM" })], M2),
+    M2);
+  const nl = (e: unknown) => { const r = q.loiLenhGhi(e, "đẩy bài"); return r ? `${r.status}:${r.message}` : null; };
+  kiem("quảng cáo khớp tài liệu", "lỗi lệnh tốn tiền: chưa rõ (hết giờ / đứt mạng) / 5xx / 409 → 504 'Chưa rõ kết quả', KHÔNG bảo thử lại; 4xx khác → chắc chưa tạo; lỗi lạ → để nguyên",
+    dau([nl(new q.AdsError("x", 0, "CHUA_RO")), nl(new q.AdsError("x", 502)), nl(new q.AdsError("x", 409)), nl(new q.AdsError("Zernio: bad", 422)), nl(new Error("x")),
+      /thử lại/i.test(q.loiLenhGhi(new q.AdsError("x", 0, "CHUA_RO"), "đẩy bài")!.message.replace("trước khi bấm lại", ""))], M3),
+    M3);
+  kiem("quảng cáo khớp tài liệu", "ngân sách: tài khoản khác VND → 409 (không quy đổi); dưới tối thiểu → 400; đủ → qua; mã bài Facebook đọc từ platforms[] (cả dạng {post})",
+    dau([loi(() => q.kiemNganSachDayBai({ currency: "USD" }, 100_000)), loi(() => q.kiemNganSachDayBai({ currency: "VND", minDailyBudget: 50_000 }, 20_000)),
+      loi(() => q.kiemNganSachDayBai({ currency: "VND", minDailyBudget: 50_000 }, 50_000)) ?? "qua",
+      q.maBaiFacebook({ post: { platforms: [{ platform: "tiktok", platformPostId: "t1" }, { platform: "facebook", platformPostId: "686_9" }] } }),
+      q.maBaiFacebook({ platforms: [{ platform: "facebook" }] })], M4),
+    M4);
+  const ar15 = d15("server/routes/ads.ts"), as15 = d15("server/services/ads.ts");
+  const thanBoost = ar15.slice(ar15.indexOf('"/boost",'), ar15.indexOf("\n);\n", ar15.indexOf('"/boost",')));
+  const vt = (re: RegExp) => thanBoost.search(re);
+  kiem("quảng cáo khớp tài liệu", "đường đẩy bài: nhắm chọn do máy chủ dựng; bắt buộc mã chống bấm trùng; bài đã kiểm chủ + cửa hàng → chốt cửa ra → tài khoản → ngân sách → mã bài Facebook từ CHÍNH bài đó → đẩy; lỗi qua loiLenhGhi; không chuyển body.targeting",
+    [/const nhamChon = ads\.dungNhamChon\(body\.nhamChon \?\? \{\}\);/.test(thanBoost), /if \(!khoa\) throw new AppError\("Thiếu mã chống bấm trùng", 400\);/.test(thanBoost),
+      [vt(/WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3/), vt(/await chanCuaRa\(/), vt(/resolveAdAccount\(/), vt(/ads\.kiemNganSachDayBai\(resolved\.account, dailyBudget\);/),
+        vt(/ads\.maBaiFacebook\(await zernio\.getPost\(post\.platform_post_ref\)\)/), vt(/await ads\.dayBai\(lenh\)/)].every((x, i, a) => x > 0 && (i === 0 || x > a[i - 1])),
+      /throw ads\.loiLenhGhi\(error, "đẩy bài"\) \?\? error;/.test(thanBoost), /body\.targeting|body\.postId\b(?!\))/.test(thanBoost.replace("Number(body.postId)", "")),
+      /return request\(lenh\.path, \{ method: lenh\.method, body: lenh\.body, headers: lenh\.headers, timeoutMs: 120_000 \}\);/.test(as15),
+      /throw new AdsError\(`Không nhận được trả lời cho \$\{method\} \$\{path\}: [^`]*`, 0, "CHUA_RO"\);/.test(as15)],
+    [true, true, true, true, false, true, true]);
+  kiem("quảng cáo khớp tài liệu", "dự báo + tạo tệp: máy chủ dựng từ lựa chọn đã kiểm; Fanpage lấy theo cửa hàng của kênh quảng cáo (không từ trình duyệt)",
+    [/const nhamChon = ads\.dungNhamChon\(req\.body\?\.nhamChon \?\? \{\}\);[\s\S]{0,200}res\.json\(\{ success: true, data: ads\.docDuBao\(raw\) \}\);/.test(ar15),
+      /WHERE user_id = \$1 AND trang_id = \$2 AND platform = 'facebook' AND connected = TRUE AND page_id IS NOT NULL[\s\S]{0,80}\[req\.user!\.id, resolved\.trangId\]/.test(ar15),
+      /pageId: fanpage\?\.page_id \?\? null,/.test(ar15), /throw ads\.loiLenhGhi\(error, "tạo tệp đối tượng"\) \?\? error;/.test(ar15)],
+    [true, true, true, true]);
+  const ad15 = d15("src/pages/Ads.tsx");
+  kiem("quảng cáo khớp tài liệu", "màn Quảng cáo: không còn ô không gửi đi được / số giả; mặc định NHẮN TIN; mỗi lần bấm một mã mới; dự báo và tóm tắt theo đúng nhắm chọn sẽ gửi",
+    [["Dùng tệp đã lưu", "Tệp vừa phải", "khoảng 45.000", "khoảng 850.000", "Thêm sở thích", "geoLocations", "genders", "Theo sở thích", "subtype"].filter((c) => ad15.includes(c)),
+      /useState<'nhan_tin' \| 'tuong_tac'>\('nhan_tin'\)/.test(ad15), /khoa: crypto\.randomUUID\(\),/.test(ad15), /\.reachEstimate\(nhamChon\)/.test(ad15),
+      /Khách nhắn tin cho cửa hàng/.test(ad15), /Khu vực: <span className="font-bold text-on-surface">Việt Nam<\/span>/.test(ad15)],
+    [[], true, true, true, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

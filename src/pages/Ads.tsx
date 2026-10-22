@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import HopThoai, { NHAN_O, NUT_CHINH, NUT_PHU, O_NHAP } from '../components/HopThoai';
 import { clsx } from 'clsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import AITrainingModal from '../components/AITrainingModal';
-import { api, ApiError, formatCurrency, type Post } from '../lib/api';
+import { api, ApiError, formatCurrency, type NhamChonQc, type Post } from '../lib/api';
 import BangLoi from '../components/BangLoi';
 import { hoiNhap, hoiXacNhan } from '../components/HopHoi';
 import { Link } from 'react-router-dom';
@@ -84,6 +84,16 @@ function compact(value: number): string {
  * `trongKhuon`: trang đang nằm trong khuôn khối não (KhuonAi) — đầu khuôn đã có tên AI, trang khối não và thẻ
  * "Hướng dẫn AI", nên ẩn tiêu đề và nút vai trò riêng của trang để không lặp hai lần.
  */
+/** Loại tệp đối tượng theo tài liệu GET /v1/ads/audiences (`type`) → chữ cho chủ shop. */
+const TEN_LOAI_TEP: Record<string, string> = {
+  meta_engagement: 'Người đã tương tác',
+  lookalike: 'Tệp tương tự',
+  customer_list: 'Danh sách khách',
+  website: 'Người ghé website',
+  saved_targeting: 'Nhắm chọn đã lưu',
+  engagement: 'Người đã tương tác',
+};
+
 export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {}) {
   const [filter, setFilter] = useState('Tất cả');
   const [isFlowOpen, setIsFlowOpen] = useState(false);
@@ -94,12 +104,11 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
 
   // Trạng thái biểu mẫu tạo tệp đối tượng
   const [audName, setAudName] = useState('');
-  const [audType, setAudType] = useState('custom');
-  const [audCustomSources, setAudCustomSources] = useState<string[]>([]);
-  const [audLookalikeSource, setAudLookalikeSource] = useState('Khách đã mua');
+  // Mục 3 (22/10/2026): chỉ 2 loại tệp làm được cho shop chỉ có Fanpage — đúng tài liệu POST /v1/ads/audiences.
+  const [audType, setAudType] = useState<'tuong_tac_fanpage' | 'tuong_tu'>('tuong_tac_fanpage');
+  const [audSoNgay, setAudSoNgay] = useState(90);
+  const [audTepNguon, setAudTepNguon] = useState('');
   const [audLookalikePercent, setAudLookalikePercent] = useState(3);
-  const [audInterests, setAudInterests] = useState<string[]>([]);
-  const [audNewInterest, setAudNewInterest] = useState('');
 
   // Dữ liệu thật từ Meta qua Zernio
   const [connected, setConnected] = useState(false);
@@ -193,28 +202,18 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [dailyBudget, setDailyBudget] = useState<number>(300000);
   const [duration, setDuration] = useState<number>(5);
-  const [audienceType, setAudienceType] = useState('custom');
-  const [location, setLocation] = useState('Toàn quốc');
+  // Người xem (mục 3): CHỈ những gì gửi đi thật — Việt Nam, tuổi, giới tính; hoặc để Facebook tự tìm.
+  const [audienceType, setAudienceType] = useState<'tu_chon' | 'facebook_tu_tim'>('tu_chon');
   const [ageRange, setAgeRange] = useState([25, 45]);
-  const [gender, setGender] = useState('Tất cả');
-
-  const handleToggleCustomSource = (source: string) => {
-    setAudCustomSources((prev) =>
-      prev.includes(source) ? prev.filter((s) => s !== source) : [...prev, source]
-    );
-  };
-
-  const handleAddInterest = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && audNewInterest.trim()) {
-      e.preventDefault();
-      setAudInterests([...audInterests, audNewInterest.trim()]);
-      setAudNewInterest('');
-    }
-  };
-
-  const handleRemoveInterest = (idx: number) => {
-    setAudInterests(audInterests.filter((_, i) => i !== idx));
-  };
+  const [gender, setGender] = useState<'all' | 'male' | 'female'>('all');
+  // Mục tiêu đẩy bài: mặc định NHẮN TIN — khách bấm nút nhắn tin thành hội thoại cho AI Bán hàng chốt đơn.
+  const [mucTieu, setMucTieu] = useState<'nhan_tin' | 'tuong_tac'>('nhan_tin');
+  const nhamChon = useMemo<NhamChonQc>(
+    () => (audienceType === 'facebook_tu_tim'
+      ? { cheDo: 'facebook_tu_tim' }
+      : { cheDo: 'tu_chon', tuoiTu: ageRange[0], tuoiDen: ageRange[1], gioiTinh: gender }),
+    [audienceType, ageRange, gender]
+  );
 
   const openFlow = () => {
     setIsFlowOpen(true);
@@ -242,13 +241,10 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
         postId: Number(selectedPostId),
         dailyBudget,
         durationDays: duration,
-        objective: 'engagement',
-        targeting: {
-          geoLocations: { countries: ['VN'] },
-          ageMin: ageRange[0],
-          ageMax: ageRange[1],
-          genders: gender === 'Nam' ? [1] : gender === 'Nữ' ? [2] : undefined,
-        },
+        mucTieu,
+        nhamChon,
+        // Mã MỚI mỗi lần bấm: lỡ mạng gửi lại cùng lần bấm thì không tạo quảng cáo thứ hai.
+        khoa: crypto.randomUUID(),
       });
       setIsSuccess(true);
       await load();
@@ -267,23 +263,13 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
     setBusy(true);
     setErrorMessage('');
     try {
-      await api.ads.createAudience({
-        name: audName.trim(),
-        subtype:
-          audType === 'lookalike' ? 'LOOKALIKE'
-          : audType === 'interest' ? 'SAVED_TARGETING'
-          : 'CUSTOM',
-        extra:
-          audType === 'lookalike'
-            ? { ratio: audLookalikePercent / 100, sourceName: audLookalikeSource }
-            : audType === 'interest'
-              ? { interests: audInterests }
-              : { sources: audCustomSources },
-      });
+      await api.ads.createAudience(
+        audType === 'tuong_tu'
+          ? { ten: audName.trim(), loai: 'tuong_tu', tepNguon: audTepNguon, phanTram: audLookalikePercent }
+          : { ten: audName.trim(), loai: 'tuong_tac_fanpage', soNgay: audSoNgay }
+      );
       setIsAudienceFlowOpen(false);
       setAudName('');
-      setAudInterests([]);
-      setAudCustomSources([]);
       await load();
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'Không tạo được tệp đối tượng');
@@ -328,25 +314,17 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
     setReachEstimate('Đang tính…');
 
     api.ads
-      .reachEstimate({
-        geoLocations: { countries: ['VN'] },
-        ageMin: ageRange[0],
-        ageMax: ageRange[1],
-        genders: gender === 'Nam' ? [1] : gender === 'Nữ' ? [2] : undefined,
-      })
+      .reachEstimate(nhamChon)
       .then(({ data }) => {
         if (cancelled) return;
-        const raw = data as Record<string, any>;
-        const lower = Number(raw.usersLowerBound ?? raw.users_lower_bound ?? raw.estimateMau);
-        const upper = Number(raw.usersUpperBound ?? raw.users_upper_bound ?? lower);
-        if (Number.isFinite(lower) && lower > 0) {
-          setReachEstimate(
-            Number.isFinite(upper) && upper > lower
-              ? `${lower.toLocaleString('vi-VN')} - ${upper.toLocaleString('vi-VN')} người`
-              : `${lower.toLocaleString('vi-VN')} người`
-          );
+        // Tài liệu: { available, lower, upper } — bản cũ đọc usersLowerBound nên luôn "chưa trả về".
+        const { coDuBao, thap, cao } = data;
+        if (coDuBao && thap !== null && cao !== null && cao > thap) {
+          setReachEstimate(`${thap.toLocaleString('vi-VN')} - ${cao.toLocaleString('vi-VN')} người`);
+        } else if (coDuBao && (thap ?? cao) !== null) {
+          setReachEstimate(`${(thap ?? cao)!.toLocaleString('vi-VN')} người`);
         } else {
-          setReachEstimate('Meta chưa trả về dự báo');
+          setReachEstimate('Meta chưa có dự báo cho cách nhắm này');
         }
       })
       .catch(() => {
@@ -354,7 +332,7 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
       });
 
     return () => { cancelled = true; };
-  }, [isFlowOpen, currentStep, connected, ageRange, gender]);
+  }, [isFlowOpen, currentStep, connected, nhamChon]);
 
 
   const handleViewCampaign = async (id: string) => {
@@ -591,12 +569,11 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
     return {
       id: String(a.id),
       name: String(a.name ?? 'Tệp không tên'),
-      size: a.approximateCount != null
-        ? `${Number(a.approximateCount).toLocaleString('vi-VN')} người`
+      // Tài liệu GET /v1/ads/audiences: `type` + `size` (bản cũ đọc subtype / approximateCount — luôn "Đang tính").
+      size: Number.isFinite(Number(a.size)) && a.size != null
+        ? `${Number(a.size).toLocaleString('vi-VN')} người`
         : 'Đang tính',
-      type: a.subtype === 'LOOKALIKE' ? 'Tệp tương tự'
-        : a.subtype === 'CUSTOM' ? 'Tệp tùy chỉnh'
-        : 'Theo sở thích',
+      type: TEN_LOAI_TEP[String(a.type)] ?? 'Tệp khác',
     };
   });
 
@@ -1295,99 +1272,101 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                 </div>
               ) : currentStep === 3 ? (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                  <h2 className="text-2xl font-bold text-on-surface mb-8">Ai sẽ thấy quảng cáo này?</h2>
+                  <h2 className="text-2xl font-bold text-on-surface mb-6">Mục tiêu và người xem</h2>
+
+                  {/* Mục tiêu (mục 3): mặc định NHẮN TIN — nút nhắn tin trên quảng cáo, khách bấm là thành hội thoại cho AI Bán hàng. */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+                    {([
+                      { id: 'nhan_tin', ten: 'Khách nhắn tin cho cửa hàng', mo: 'Quảng cáo có nút nhắn tin; khách bấm vào là AI Bán hàng tư vấn và chốt đơn. Khuyên dùng.' },
+                      { id: 'tuong_tac', ten: 'Tăng tương tác bài', mo: 'Thêm lượt thích, bình luận, chia sẻ cho bài.' },
+                    ] as const).map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setMucTieu(m.id)}
+                        className={clsx(
+                          'text-left p-4 rounded-2xl border transition-colors',
+                          mucTieu === m.id ? 'border-primary bg-primary/5' : 'border-outline-variant bg-surface-container hover:border-primary/50'
+                        )}
+                      >
+                        <span className="block font-bold text-on-surface">{m.ten}</span>
+                        <span className="block text-sm text-on-surface-variant mt-1">{m.mo}</span>
+                      </button>
+                    ))}
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                     <div className="md:col-span-2 space-y-4">
-                      
-                      <div 
-                        onClick={() => setAudienceType('saved')}
+                      <div
+                        onClick={() => setAudienceType('tu_chon')}
                         className={clsx(
                           "w-full text-left p-5 rounded-2xl border transition-all duration-200 bg-surface-container cursor-pointer",
-                          audienceType === 'saved' ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary/50"
+                          audienceType === 'tu_chon' ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary/50"
                         )}
                       >
                         <div className="flex items-center gap-3 mb-2">
-                          <div className={clsx("w-5 h-5 rounded-full border-2 flex items-center justify-center", audienceType === 'saved' ? "border-primary" : "border-outline-variant")}>
-                            {audienceType === 'saved' && <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>}
+                          <div className={clsx("w-5 h-5 rounded-full border-2 flex items-center justify-center", audienceType === 'tu_chon' ? "border-primary" : "border-outline-variant")}>
+                            {audienceType === 'tu_chon' && <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>}
                           </div>
-                          <span className="font-bold text-on-surface text-lg">Dùng tệp đã lưu</span>
+                          <span className="font-bold text-on-surface text-lg">Tự chọn người xem</span>
                         </div>
-                        {audienceType === 'saved' && (
-                          <div className="pl-8 mt-4 animate-in slide-in-from-top-2 duration-200">
-                            <select className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-sm font-medium text-on-surface focus:outline-none focus:border-primary">
-                              <option>Khách đã mua</option>
-                              <option>Giống khách đã mua</option>
-                              <option>Quan tâm sản phẩm</option>
-                            </select>
-                          </div>
-                        )}
-                      </div>
-
-                      <div 
-                        onClick={() => setAudienceType('custom')}
-                        className={clsx(
-                          "w-full text-left p-5 rounded-2xl border transition-all duration-200 bg-surface-container cursor-pointer",
-                          audienceType === 'custom' ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary/50"
-                        )}
-                      >
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className={clsx("w-5 h-5 rounded-full border-2 flex items-center justify-center", audienceType === 'custom' ? "border-primary" : "border-outline-variant")}>
-                            {audienceType === 'custom' && <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>}
-                          </div>
-                          <span className="font-bold text-on-surface text-lg">Tự chọn đối tượng</span>
-                        </div>
-                        {audienceType === 'custom' && (
-                          <div className="pl-8 mt-6 space-y-5 animate-in slide-in-from-top-2 duration-200 cursor-default" onClick={e => e.stopPropagation()}>
+                        {audienceType === 'tu_chon' && (
+                          <div className="sm:pl-8 mt-5 space-y-5 cursor-default" onClick={e => e.stopPropagation()}>
+                            <p className="text-sm text-on-surface-variant">Khu vực: <span className="font-bold text-on-surface">Việt Nam</span></p>
                             <div>
-                              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Khu vực</label>
-                              <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="bg-surface-container-high w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Độ tuổi: {ageRange[0]} - {ageRange[1]}</label>
-                              <div className="h-10 border border-outline-variant rounded-lg bg-surface-container-high flex items-center px-4 relative">
-                                <div className="absolute left-1/4 right-1/4 h-1.5 bg-primary rounded-full"></div>
-                                <div className="absolute left-1/4 w-4 h-4 rounded-full bg-white shadow-md border-2 border-primary -translate-x-1/2"></div>
-                                <div className="absolute right-1/4 w-4 h-4 rounded-full bg-white shadow-md border-2 border-primary translate-x-1/2"></div>
+                              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Độ tuổi</label>
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={ageRange[0]}
+                                  onChange={(e) => { const tu = Number(e.target.value); setAgeRange([tu, Math.max(tu, ageRange[1])]); }}
+                                  className="bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
+                                >
+                                  {Array.from({ length: 48 }, (_, i) => i + 18).map((t) => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                                <span className="text-on-surface-variant">đến</span>
+                                <select
+                                  value={ageRange[1]}
+                                  onChange={(e) => { const den = Number(e.target.value); setAgeRange([Math.min(ageRange[0], den), den]); }}
+                                  className="bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
+                                >
+                                  {Array.from({ length: 48 }, (_, i) => i + 18).map((t) => <option key={t} value={t}>{t === 65 ? '65 trở lên' : t}</option>)}
+                                </select>
                               </div>
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Giới tính</label>
                               <div className="flex bg-surface-container-high rounded-lg p-1 border border-outline-variant">
-                                {['Tất cả', 'Nam', 'Nữ'].map(g => (
-                                  <button 
-                                    key={g} 
+                                {([['all', 'Tất cả'], ['male', 'Nam'], ['female', 'Nữ']] as const).map(([g, ten]) => (
+                                  <button
+                                    key={g}
+                                    type="button"
                                     onClick={() => setGender(g)}
                                     className={clsx("flex-1 py-1.5 text-sm font-bold rounded-md transition-colors", gender === g ? "bg-primary/20 text-primary" : "text-on-surface-variant hover:text-on-surface")}
                                   >
-                                    {g}
+                                    {ten}
                                   </button>
                                 ))}
                               </div>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Sở thích</label>
-                              <input type="text" placeholder="Thêm sở thích..." className="bg-surface-container-high w-full border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-on-surface-variant/70" />
                             </div>
                           </div>
                         )}
                       </div>
 
-                      <div 
-                        onClick={() => setAudienceType('auto')}
+                      <div
+                        onClick={() => setAudienceType('facebook_tu_tim')}
                         className={clsx(
                           "w-full text-left p-5 rounded-2xl border transition-all duration-200 bg-surface-container cursor-pointer",
-                          audienceType === 'auto' ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary/50"
+                          audienceType === 'facebook_tu_tim' ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary/50"
                         )}
                       >
                         <div className="flex items-center gap-3 mb-2">
-                          <div className={clsx("w-5 h-5 rounded-full border-2 flex items-center justify-center", audienceType === 'auto' ? "border-primary" : "border-outline-variant")}>
-                            {audienceType === 'auto' && <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>}
+                          <div className={clsx("w-5 h-5 rounded-full border-2 flex items-center justify-center", audienceType === 'facebook_tu_tim' ? "border-primary" : "border-outline-variant")}>
+                            {audienceType === 'facebook_tu_tim' && <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>}
                           </div>
                           <span className="font-bold text-on-surface text-lg">Để Facebook tự tìm</span>
                         </div>
-                        <p className="pl-8 text-sm text-on-surface-variant">
-                          Facebook tự tìm người có khả năng quan tâm nhất dựa trên nội dung bài đăng
+                        <p className="sm:pl-8 text-sm text-on-surface-variant">
+                          Người ở Việt Nam; Facebook tự tìm người có khả năng quan tâm nhất (không giới hạn tuổi, giới tính).
                         </p>
                       </div>
                     </div>
@@ -1397,17 +1376,10 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                         <h3 className="tieu-de-muc mb-4">
                           ƯỚC TÍNH TIẾP CẬN
                         </h3>
-                        <div className="text-2xl font-black text-primary mb-6">
-                          {reachEstimate.replace(' người', '')}<br/><span className="text-base font-bold text-on-surface-variant">người</span>
+                        <div className="text-2xl font-black text-primary">
+                          {reachEstimate}
                         </div>
-                        
-                        <div className="relative w-32 h-16 mx-auto mb-2 overflow-hidden">
-                          <div className="w-32 h-32 rounded-full border-8 border-outline-variant border-t-green-400 border-r-yellow-400 border-l-primary rotate-45 box-border"></div>
-                          <div className="absolute bottom-0 left-1/2 w-1 h-14 bg-on-surface origin-bottom -translate-x-1/2 rotate-[15deg] transition-transform duration-500">
-                            <div className="absolute -top-1 -left-1 w-3 h-3 bg-on-surface rounded-full"></div>
-                          </div>
-                        </div>
-                        <p className="text-sm font-bold text-green-400">Tệp vừa phải</p>
+                        <p className="text-xs text-on-surface-variant mt-3">Số dự báo của Meta cho cách nhắm này.</p>
                       </div>
                     </div>
                   </div>
@@ -1467,8 +1439,9 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                     <div className="flex flex-col md:flex-row md:items-center justify-between p-4 border-b border-outline-variant/50 gap-2">
                       <span className="text-sm font-bold text-on-surface-variant shrink-0">Đối tượng</span>
                       <span className="text-sm font-medium text-on-surface text-right">
-                        {audienceType === 'custom' ? `${location}, ${ageRange[0]}-${ageRange[1]} tuổi, ${gender}` : 
-                         audienceType === 'auto' ? "Tự động phân phối (Khuyên dùng)" : "Tệp: Khách đã mua"}
+                        {audienceType === 'tu_chon'
+                          ? `Việt Nam, ${ageRange[0]}–${ageRange[1] === 65 ? '65+' : ageRange[1]} tuổi, ${gender === 'male' ? 'Nam' : gender === 'female' ? 'Nữ' : 'Nam và nữ'}`
+                          : 'Việt Nam — Facebook tự tìm người xem'}
                       </span>
                     </div>
 
@@ -1543,17 +1516,17 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                 />
               </div>
 
-              {/* Block 2 */}
+              {/* Block 2 — chỉ 2 loại làm được cho shop chỉ có Fanpage (mục 3, đúng tài liệu POST /v1/ads/audiences). */}
               <div>
                 <label className="block font-mono text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">LOẠI TỆP</label>
                 <div className="space-y-3">
-                  {[
-                    { id: 'custom', title: 'Tệp tùy chỉnh', desc: 'Danh sách khách hàng của bạn, ví dụ người đã nhắn tin hoặc đã mua hàng' },
-                    { id: 'lookalike', title: 'Tệp tương tự', desc: 'Facebook tìm những người có hành vi giống với một tệp bạn đã có' },
-                    { id: 'interest', title: 'Theo sở thích', desc: 'Nhắm vào người quan tâm những chủ đề bạn chọn' }
-                  ].map(type => (
-                    <button 
+                  {([
+                    { id: 'tuong_tac_fanpage', title: 'Người đã tương tác với Fanpage', desc: 'Người đã nhắn tin, bình luận, thích bài hoặc ghé Fanpage của cửa hàng trong khoảng thời gian bạn chọn' },
+                    { id: 'tuong_tu', title: 'Người giống một tệp đã có', desc: 'Facebook tìm người ở Việt Nam có hành vi giống với một tệp bạn đã tạo' },
+                  ] as const).map(type => (
+                    <button
                       key={type.id}
+                      type="button"
                       onClick={() => setAudType(type.id)}
                       className={clsx(
                         "w-full text-left p-4 rounded-xl border transition-all duration-200 flex gap-4 items-start",
@@ -1564,106 +1537,56 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                         {audType === type.id && <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>}
                       </div>
                       <div>
-                        <h4 className="font-bold text-on-surface mb-1">{type.title}</h4>
-                        <p className="text-sm text-on-surface-variant leading-relaxed">{type.desc}</p>
+                        <span className="block font-bold text-on-surface">{type.title}</span>
+                        <span className="block text-sm text-on-surface-variant mt-1">{type.desc}</span>
                       </div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Block 3 - Dynamic */}
-              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                {audType === 'custom' && (
-                  <div className="space-y-3">
-                    {[
-                      'Người đã nhắn tin cho Fanpage',
-                      'Người đã bình luận bài đăng',
-                      'Khách đã chốt đơn',
-                      'Người đã xem bài đăng'
-                    ].map(source => (
-                      <label key={source} onClick={() => handleToggleCustomSource(source)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container transition-colors cursor-pointer border border-transparent hover:border-outline-variant">
-                        <div className={clsx(
-                          "w-5 h-5 rounded border flex items-center justify-center transition-colors",
-                          audCustomSources.includes(source) ? "bg-primary border-primary" : "border-outline-variant bg-surface-container-high"
-                        )}>
-                          {audCustomSources.includes(source) && <span className="material-symbols-outlined text-[14px] text-on-primary font-bold">check</span>}
-                        </div>
-                        <span className="text-sm font-medium text-on-surface">{source}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-
-                {audType === 'lookalike' && (
-                  <div className="space-y-6">
+              {/* Block 3 */}
+              <div>
+                {audType === 'tuong_tac_fanpage' ? (
+                  <>
+                    <label className="block font-mono text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">TƯƠNG TÁC TRONG</label>
+                    <select
+                      value={audSoNgay}
+                      onChange={(e) => setAudSoNgay(Number(e.target.value))}
+                      className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary"
+                    >
+                      {[30, 60, 90, 180, 365].map((n) => <option key={n} value={n}>{n} ngày gần nhất</option>)}
+                    </select>
+                  </>
+                ) : displayAudiences.length === 0 ? (
+                  <p className="text-sm text-on-surface-variant">Chưa có tệp nào để làm gốc. Vui lòng tạo tệp "Người đã tương tác với Fanpage" trước.</p>
+                ) : (
+                  <div className="space-y-5">
                     <div>
-                      <label className="block text-sm font-bold text-on-surface mb-2">Tệp gốc</label>
-                      <select 
-                        value={audLookalikeSource}
-                        onChange={e => setAudLookalikeSource(e.target.value)}
-                        className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-sm font-medium text-on-surface focus:outline-none focus:border-primary"
+                      <label className="block font-mono text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">TỆP GỐC</label>
+                      <select
+                        value={audTepNguon}
+                        onChange={(e) => setAudTepNguon(e.target.value)}
+                        className="bg-surface-container-high w-full border border-outline-variant rounded-xl px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary"
                       >
-                        <option>Khách đã mua</option>
-                        <option>Người đã nhắn tin</option>
-                        <option>Người đã bình luận</option>
+                        <option value="">Chọn tệp gốc…</option>
+                        {displayAudiences.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <label className="text-sm font-bold text-on-surface">Độ tương đồng</label>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-on-surface-variant">Độ rộng (phần trăm dân số Việt Nam giống tệp gốc nhất)</span>
                         <span className="text-primary font-bold">{audLookalikePercent}%</span>
                       </div>
-                      <input 
-                        type="range" 
-                        min="1" max="10" 
+                      <input
+                        type="range" min={1} max={10} step={1}
                         value={audLookalikePercent}
-                        onChange={e => setAudLookalikePercent(Number(e.target.value))}
-                        className="w-full accent-primary h-2 bg-surface-variant rounded-lg appearance-none cursor-pointer"
-                      />
-                      <div className="flex justify-between text-xs font-bold text-on-surface-variant mt-2">
-                        <span>1% (Giống nhất)</span>
-                        <span>10% (Rộng nhất)</span>
-                      </div>
-                      <p className="text-xs text-on-surface-variant mt-3 bg-surface-container p-3 rounded-lg border border-outline-variant/50">
-                        Số càng nhỏ thì càng giống tệp gốc nhưng ít người hơn
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {audType === 'interest' && (
-                  <div>
-                    <label className="block text-sm font-bold text-on-surface mb-2">Chủ đề quan tâm</label>
-                    <div className="bg-surface-container-high border border-outline-variant rounded-xl p-2 min-h-[100px] flex flex-wrap gap-2 focus-within:border-primary transition-colors">
-                      {audInterests.map((interest, idx) => (
-                        <span key={idx} className="bg-primary/20 text-primary border border-primary/30 px-3 py-1 rounded-md text-sm font-medium flex items-center gap-1.5">
-                          {interest}
-                          <button onClick={() => handleRemoveInterest(idx)} className="hover:bg-primary/30 rounded-full w-4 h-4 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-[12px]">close</span>
-                          </button>
-                        </span>
-                      ))}
-                      <input 
-                        type="text"
-                        value={audNewInterest}
-                        onChange={e => setAudNewInterest(e.target.value)}
-                        onKeyDown={handleAddInterest}
-                        placeholder={audInterests.length === 0 ? "Nhập sở thích và nhấn Enter..." : ""}
-                        className="flex-1 min-w-[150px] bg-transparent outline-none text-sm text-on-surface p-1"
+                        onChange={(e) => setAudLookalikePercent(Number(e.target.value))}
+                        className="w-full accent-primary"
                       />
                     </div>
                   </div>
                 )}
-              </div>
-
-              {/* Block 4 */}
-              <div className="bg-surface-container border border-outline-variant rounded-xl p-5 text-center">
-                <h3 className="tieu-de-muc mb-2">ƯỚC TÍNH SỐ NGƯỜI</h3>
-                <div className="text-3xl font-black text-primary">
-                  {audType === 'custom' ? 'khoảng 45.000' : 
-                   audType === 'lookalike' ? 'khoảng 850.000' : 'khoảng 320.000'} <span className="text-lg text-on-surface font-bold">người</span>
-                </div>
               </div>
 
             </div>

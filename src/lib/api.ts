@@ -959,6 +959,11 @@ export interface NhatKyAi {
   viec: { luc: string; noi_dung: string; trang_thai: string }[];
 }
 
+/** Nhắm chọn người xem quảng cáo (máy chủ: services/ads.ts dungNhamChon) — chỉ Việt Nam. */
+export type NhamChonQc =
+  | { cheDo: "facebook_tu_tim" }
+  | { cheDo: "tu_chon"; tuoiTu: number; tuoiDen: number; gioiTinh: "all" | "male" | "female" };
+
 export const api = {
   /** Quản trị hệ thống. Máy chủ chặn người không phải quản trị, đây chỉ là lớp gọi. */
   admin: {
@@ -1494,21 +1499,25 @@ export const api = {
       get<{ data: Record<string, unknown> }>(
         `/ads/campaigns/${encodeURIComponent(id)}/analytics?range=${range}`
       ),
+    /** Đẩy bài (mục 3): máy chủ tự dựng lệnh đúng tài liệu; `khoa` sinh MỚI mỗi lần bấm (chống trừ tiền hai lần). */
     boost: (payload: {
       postId: number;
       dailyBudget: number;
       durationDays: number;
-      objective?: string;
-      targeting?: Record<string, unknown>;
+      mucTieu: "nhan_tin" | "tuong_tac";
+      nhamChon: NhamChonQc;
+      khoa: string;
     }) => post<{ data: unknown }>("/ads/boost", payload),
+    /** Tạo tệp: người đã tương tác với Fanpage của cửa hàng, hoặc giống một tệp đã có. */
     createAudience: (payload: {
-      name: string;
-      subtype: string;
-      description?: string;
-      extra?: Record<string, unknown>;
+      ten: string;
+      loai: "tuong_tac_fanpage" | "tuong_tu";
+      soNgay?: number;
+      tepNguon?: string;
+      phanTram?: number;
     }) => post<{ data: unknown }>("/ads/audiences", payload),
-    reachEstimate: (targeting: Record<string, unknown>) =>
-      post<{ data: Record<string, unknown> }>("/ads/reach-estimate", { targeting }),
+    reachEstimate: (nhamChon: NhamChonQc) =>
+      post<{ data: { coDuBao: boolean; thap: number | null; cao: number | null } }>("/ads/reach-estimate", { nhamChon }),
     analyze: () =>
       post<{
         data: {
