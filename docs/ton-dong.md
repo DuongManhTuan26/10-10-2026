@@ -220,6 +220,8 @@ Hiện tượng: mỗi lần máy chủ nhận SIGTERM, nhật ký có "[worker]
 calling end on the pool" và "[video AI] Lỗi khi theo dõi video: (cùng câu)" — 59 lần trong ~/Library/Logs/quan-ly-fanpage.log
 tính tới 19/10. Nguyên nhân gốc: hẹn giờ của worker / video AI vẫn chạy sau pool.end(). Không mất dữ liệu (tiến trình đang
 thoát), nhưng là lỗi thật. Sửa: dừng mọi hẹn giờ + chờ lượt đang chạy xong rồi mới pool.end(). Không do đợt 3. Chưa sửa.
+Bổ sung 22/10/2026 (lúc gộp A3, 11:34:42): "[tsx] Process didn't exit in 5s. Force killing..." — tiến trình cũ không tự
+thoát trong 5 giây, tsx phải buộc tắt (các lần trước tự thoát). Cùng gốc: tắt máy chủ chưa dừng hết hẹn giờ / kết nối.
 
 ## TD-21 — LỖI: trần tốc độ dự phòng đếm kênh của MỘT tài khoản, tài liệu nói đếm cả team (22/10/2026)
 
