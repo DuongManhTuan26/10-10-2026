@@ -52,6 +52,8 @@ const CANH = [
     taiLieu: [], buoc: "chao",
   },
   { ten: "khong_cau_hinh", cauHinh: null, taiLieu: TAI_LIEU.slice(0, 1), buoc: "tu_van" },
+  // 22/10/2026 (lỗi chuỗi giữ chỗ): tài liệu có mà không có chữ = chưa có kiến thức.
+  { ten: "tai_lieu_khong_chu", cauHinh: null, taiLieu: [{ filename: "trong.txt", extracted_text: "  \n " }], buoc: null },
 ];
 
 const ket: Record<string, unknown> = {};

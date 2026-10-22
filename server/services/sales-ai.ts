@@ -794,11 +794,16 @@ export async function dungLoiDanBanHang(
     [trangId]
   );
 
-  const knowledgeBlock = knowledge.rows.length
-    ? knowledge.rows
-        .map((doc) => `# ${doc.filename}\n${(doc.extracted_text ?? "").slice(0, 4_000)}`)
-        .join("\n\n")
-    : "(Chưa có tài liệu nào được nạp.)";
+  /*
+   * Không có tài liệu (hoặc tài liệu không có chữ) → RỖNG, để lời dặn đi nhánh CHUA_CO_TAI_LIEU bên dưới. Từ 8d325c6 tới
+   * 22/10/2026 chỗ này trả chuỗi giữ chỗ "(Chưa có tài liệu nào được nạp.)" — có chữ nên phép xét bên dưới luôn đúng:
+   * AI nhận "KIẾN THỨC ĐƯỢC PHÉP DÙNG: (Chưa có tài liệu…)" thay vì lời dặn "vẫn trò chuyện, không nói số" (bộ chụp lời
+   * dặn lộ ra; Fanpage thật của cửa hàng 47 / 370 đều chưa có tài liệu bán hàng).
+   */
+  const coChu = knowledge.rows.filter((doc) => (doc.extracted_text ?? "").trim() !== "");
+  const knowledgeBlock = coChu
+    .map((doc) => `# ${doc.filename}\n${(doc.extracted_text ?? "").slice(0, 4_000)}`)
+    .join("\n\n");
 
   const activeRules = rules
     .filter((rule) => rule.enabled && RULE_DESCRIPTIONS[rule.rule_key])

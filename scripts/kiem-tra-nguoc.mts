@@ -5179,6 +5179,18 @@ const DUC: PhepDuc[] = [
     thay: "              <p className=\"text-sm text-canh-bao mb-3\"></p>",
   },
   {
+    ten: "chưa có tài liệu lại gán chuỗi giữ chỗ (AI nhận 'kiến thức: chưa có')",
+    tep: "server/services/sales-ai.ts",
+    tim: "  const knowledgeBlock = coChu\n    .map((doc) => `# ${doc.filename}\\n${(doc.extracted_text ?? \"\").slice(0, 4_000)}`)\n    .join(\"\\n\\n\");",
+    thay: "  const knowledgeBlock = coChu.length ? coChu\n    .map((doc) => `# ${doc.filename}\\n${(doc.extracted_text ?? \"\").slice(0, 4_000)}`)\n    .join(\"\\n\\n\") : \"(Chưa có kiến thức.)\";",
+  },
+  {
+    ten: "tài liệu không chữ vẫn tính là có kiến thức",
+    tep: "server/services/sales-ai.ts",
+    tim: "  const coChu = knowledge.rows.filter((doc) => (doc.extracted_text ?? \"\").trim() !== \"\");",
+    thay: "  const coChu = knowledge.rows;",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

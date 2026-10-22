@@ -7354,11 +7354,17 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   fs.rmSync(tepRa, { force: true });
   const giongMoi = Object.fromEntries(Object.entries(moi).map(([k, v]) => [k, v[0].messages[0].content.match(/GIỌNG ĐIỆU: [^\n]*/g) ?? []]));
   for (const v of Object.values(moi)) v[0].messages[0].content = v[0].messages[0].content.replace(/GIỌNG ĐIỆU: [^\n]*\n\n/g, "");
-  kiem("thử AI = máy thật", "lời dặn + tin gửi AI + task / nhiệt độ / độ dài của decide KHỚP NGUYÊN VĂN bản mẫu chụp trước khi tách (bỏ dòng GIỌNG ĐIỆU); 3 cảnh",
+  kiem("thử AI = máy thật", "lời dặn + tin gửi AI + task / nhiệt độ / độ dài của decide KHỚP NGUYÊN VĂN bản mẫu (bỏ dòng GIỌNG ĐIỆU); mọi cảnh",
     Object.keys(mau).map((k) => [k, JSON.stringify(moi[k]) === JSON.stringify(mau[k])]),
     Object.keys(mau).map((k) => [k, true]));
   kiem("thử AI = máy thật", "dòng GIỌNG ĐIỆU: có đúng một dòng theo tone của cửa hàng; không có cấu hình → không có",
-    giongMoi, { co_tai_lieu_khong_tu_chu: ["GIỌNG ĐIỆU: thân thiện, gần gũi."], chua_tai_lieu_tu_chu_co_buoc: ["GIỌNG ĐIỆU: chuyên nghiệp, lịch sự."], khong_cau_hinh: [] });
+    giongMoi, { co_tai_lieu_khong_tu_chu: ["GIỌNG ĐIỆU: thân thiện, gần gũi."], chua_tai_lieu_tu_chu_co_buoc: ["GIỌNG ĐIỆU: chuyên nghiệp, lịch sự."], khong_cau_hinh: [], tai_lieu_khong_chu: [] });
+  // Lỗi chuỗi giữ chỗ (22/10/2026): không có kiến thức (0 tài liệu / tài liệu không chữ) PHẢI đi nhánh "SHOP CHƯA NẠP".
+  const loiDan = (k: string) => moi[k][0].messages[0].content;
+  kiem("thử AI = máy thật", "chưa có kiến thức (0 tài liệu, tài liệu không chữ) → lời dặn 'SHOP CHƯA NẠP', không 'KIẾN THỨC ĐƯỢC PHÉP DÙNG'; có tài liệu → ngược lại; không còn chuỗi giữ chỗ",
+    ["co_tai_lieu_khong_tu_chu", "chua_tai_lieu_tu_chu_co_buoc", "tai_lieu_khong_chu"].map((k) => [k, loiDan(k).includes("SHOP CHƯA NẠP TÀI LIỆU"), loiDan(k).includes("KIẾN THỨC ĐƯỢC PHÉP DÙNG")])
+      .concat([["giữ chỗ", /Chưa có tài liệu nào được nạp/.test(d14("server/services/sales-ai.ts")), false]]),
+    [["co_tai_lieu_khong_tu_chu", false, true], ["chua_tai_lieu_tu_chu_co_buoc", true, false], ["tai_lieu_khong_chu", true, false], ["giữ chỗ", false, false]]);
   const sa = await import("../server/services/sales-ai.js");
   const { AI_TONES } = await import("../src/lib/aiTraining.js");
   kiem("thử AI = máy thật", "moTaGiong: đủ 4 giọng của màn Kịch bản; giọng lạ / __proto__ / không phải chữ → không thêm dòng",
