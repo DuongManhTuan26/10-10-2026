@@ -234,3 +234,10 @@ chung cho số shop đang gửi. Nhánh DỰ PHÒNG (chưa có header) lại tí
 (policyLimitPerMinute(kênh của user)) và trả trọn bậc đó cho từng tài khoản → khi chưa có số sống, mỗi tài khoản tưởng mình
 có trọn trần. Phiên kiểm duyệt bắt ở thiết kế A3 (22/10), dặn không sửa trong A3. Sửa: nhánh dự phòng đếm kênh cả hệ thống
 rồi chia cho số shop đang gửi như nhánh số sống. Chưa sửa.
+
+## TD-22 — A4b: quảng cáo theo cửa hàng CHƯA THỬ THẬT (22/10/2026) — CHỜ CHỦ DỰ ÁN
+
+Mã + phép kiểm + đột biến đạt (25afb05, phiên kiểm duyệt cho đạt): resolveAdAccount / lưu tài khoản quảng cáo / số liệu
+quảng cáo đều lấy kênh Meta Ads của CỬA HÀNG đang chọn (kenhQuangCaoCuaCuaHang). Hiện 0 kênh metaads (chưa cửa hàng nào
+nối quảng cáo) nên /api/ads/overview của mọi cửa hàng trả "Chưa kết nối tài khoản quảng cáo". Cách thử khi chủ dự án nối
+quảng cáo cho một cửa hàng: cửa hàng đó thấy tài khoản quảng cáo + chiến dịch; cửa hàng khác vẫn "chưa kết nối".

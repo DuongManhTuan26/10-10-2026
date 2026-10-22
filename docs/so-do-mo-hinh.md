@@ -83,30 +83,36 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 │     • 2 chế độ: TỰ ĐỘNG (việc dính tiền chỉ trong trần) / ĐỀ XUẤT → DUYỆT
 │     • Mỗi AI 4 thẻ theo trình tự: Hướng dẫn AI → Đang làm → Kết quả → Nhật ký
 │     • Chỉ lời dặn + tài liệu của cửa hàng thay đổi; chức năng 4 AI cố định
-└── DỮ LIỆU RIÊNG CỦA CỬA HÀNG — ĐÍCH của B2 / nhóm A, CHƯA ĐẠT (làm 4 đợt A1→A4)
+└── DỮ LIỆU RIÊNG CỦA CỬA HÀNG — A1→A4 ĐẠT VỀ MÃ (22/10/2026, phiên kiểm duyệt cho đạt từng đợt; mã commit dán từ git)
       LUẬT CHUNG: mọi việc tự chạy (lịch đăng, nhắc khách, bật tự chủ, vớt tin bỏ sót, video tự động) CHỈ chạm dữ liệu
       của chính cửa hàng đó.
-      A1 • Bài đăng (có cửa hàng); lịch tự đăng (khung giờ tính theo cửa hàng); chế độ "Chờ tôi duyệt / Đăng luôn"
-           • Duyệt / Lên lịch KHÔNG đổi kênh đích của bài
-           • Bài chỉ đăng vào kênh của ĐÚNG cửa hàng — không bao giờ "mọi kênh của tài khoản" (chặn tràn đã có ở B1-G)
+      A1 (822b793, 6c3881c; migration 057) — ĐẠT
+           • Bài đăng có cửa hàng; lịch tự đăng theo cửa hàng; chế độ "Chờ tôi duyệt / Đăng luôn" theo cửa hàng
+           • Duyệt / Lên lịch KHÔNG đổi kênh đích của bài; bài chỉ đăng vào kênh của ĐÚNG cửa hàng
            • Bảng tự chạy chỉ hiện kênh của cửa hàng; thư viện ảnh / video AI theo cửa hàng
-           • Đẩy quảng cáo: chỉ chọn / đẩy được bài của cửa hàng đang chọn (không tiêu tiền sai cửa hàng)
-           • Xoá cửa hàng: GIỮ bài, bỏ gán cửa hàng; bài không rõ cửa hàng → cửa hàng cũ nhất (chủ dự án chốt 19/10)
-           (A1 — mã xong 19/10, migration 057 đã chạy: 12/12 bài có cửa hàng; CHỜ kiểm duyệt)
-      A2 • Hội thoại; KHÁCH HÀNG riêng theo cửa hàng (Facebook cấp mã khác nhau cho cùng một người ở mỗi Fanpage)
+           • Đẩy quảng cáo chỉ bài của cửa hàng đang chọn; xoá cửa hàng GIỮ bài
+           CHƯA THỬ THẬT: 2 cửa hàng cùng giờ lịch tự đăng (TD-15)
+      A2 (làm qua "kênh là nhân viên" đợt 2a / 2b: c015f65, eb9d969, a26be2d, 6204a1b, 4a8b5f1; migration 058, 059) — ĐẠT
+           • Hội thoại chốt cửa hàng + nhiệm kỳ kênh; KHÁCH riêng theo cửa hàng (quay về dùng lại hồ sơ cũ)
            • Số đếm hộp thư theo cửa hàng; nhắc khách cũ + nút bật tự chủ chỉ chạm hội thoại của cửa hàng đó
-      A3 • Đơn hàng (danh sách + số tổng); kịch bản + thống kê kịch bản
-           • Luật chuyển người thật + rào chắn riêng từng cửa hàng (cửa hàng mới chép bộ mặc định)
-      A4 • Tài khoản quảng cáo + phân tích quảng cáo theo cửa hàng (hiện resolveAdAccount lấy tài khoản quảng cáo
-             ĐẦU TIÊN của cả tài khoản); mọi lệnh thao tác chiến dịch dùng đúng tài khoản quảng cáo của cửa hàng đang chọn
-           • CHỌN CỬA HÀNG bằng MÃ CỬA HÀNG (không suy qua kênh — bỏ X-Kenh) → chọn được cả cửa hàng chưa có kênh
-           • Cấp hồ sơ nền tảng NGAY khi tạo cửa hàng
-           • Telegram: mỗi tin ghi tên cửa hàng
+           • Đợt 3 (e95f810, 89a3669): kênh rời → gỡ lịch bài hẹn giờ, hộp thư "chỉ xem", hộp xác nhận chuyển kênh
+           CHƯA THỬ THẬT: huỷ lịch thật (TD-17), màn "chỉ xem" với dữ liệu thật (TD-18); liên kết sâu ?hoi-thoai= (TD-19)
+      A3 (52108c7, 48063ae; migration 060) — ĐẠT
+           • Đơn hàng + số tổng theo cửa hàng; sửa đơn của cửa hàng khác báo tên cửa hàng; Tổng quan ghi cửa hàng của đơn
+           • Kịch bản + thống kê kịch bản theo cửa hàng
+           • Luật chuyển người thật theo cửa hàng (cửa hàng chưa chỉnh → bộ mặc định); rào chắn theo cửa hàng, riêng trần
+             tin / phút giữ cấp tài khoản (trần thật của nhà cung cấp — xem TD-21)
+      A4 (9deb3ec, f23b3ef, bf7edb3, 25afb05) — ĐẠT
+           • CHỌN CỬA HÀNG bằng MÃ CỬA HÀNG (X-Cua-Hang, kiểm chủ sở hữu; GHI thiếu mã → 409); chọn được cả cửa hàng chưa
+             có kênh (khung chọn ở màn AI + nút "Mở bộ não" ở Kết nối — chủ dự án chốt 22/10)
+           • Telegram: tin của một cửa hàng ghi "🏪 Cửa hàng: <tên>" (đã gửi thử thật 22/10)
+           • Tài khoản quảng cáo + phân tích quảng cáo theo cửa hàng đang chọn — CHƯA THỬ THẬT (0 kênh Meta Ads; TD-22)
+           • Cấp hồ sơ nền tảng: ĐẠT cho tài khoản mới (ngay khi tạo); tài khoản cũ còn mã tạm tự vá ở lần mở Kết nối
 ```
 
 ## 4. Dùng chung cả tài khoản
 
-- **Telegram**: MỘT Telegram cho cả tài khoản, mỗi tin ghi rõ tên cửa hàng (chốt 18/10 — phần "ghi tên cửa hàng" CHƯA ĐẠT, A4).
+- **Telegram**: MỘT Telegram cho cả tài khoản, mỗi tin về việc của một cửa hàng ghi rõ tên cửa hàng (chốt 18/10 — ĐẠT ở A4d, bf7edb3).
 
 ## 5. Luồng người dùng (chốt 17/10 — đạt phần dẫn; còn chữ cũ ở bước 3 và danh sách trống ở bước 4 — CHƯA ĐẠT hẳn)
 
@@ -120,7 +126,7 @@ mở bộ não của cửa hàng để dạy AI.
 - Kênh: nhà cung cấp tính theo từng kênh đang nối mỗi ngày; sổ theo ngày chia đúng cửa hàng.
   "Khớp 100% hoá đơn" là ĐÍCH — CHƯA ĐẠT (Telegram báo lệch 8,07 USD lặp lại từ 12/10).
 - Quảng cáo: tiền đọc qua Facebook theo Fanpage của cửa hàng. Lệnh thao tác chiến dịch đúng tài liệu nhà cung cấp và kiểm
-  chiến dịch thuộc tài khoản quảng cáo của shop trước khi đổi / đọc (đạt). Tài khoản quảng cáo THEO CỬA HÀNG — CHƯA ĐẠT (A4).
+  chiến dịch thuộc tài khoản quảng cáo của shop trước khi đổi / đọc (đạt). Tài khoản quảng cáo THEO CỬA HÀNG — ĐẠT về mã (A4b, 25afb05), chưa thử thật (TD-22).
   Không có nút "Kết thúc" (chốt 18/10 — chỉ Tạm dừng). Ngân sách tầng nhóm (ABO) chưa sửa được trong app (TD-13).
 - Số theo cửa hàng chỉ tính từ mốc 05/10/2026; mỗi số có nhãn "đã chốt" / "tạm tính".
 
