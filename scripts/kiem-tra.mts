@@ -5251,8 +5251,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const con = doc("server/routes/connections.ts");
   const ev = doc("server/services/events.ts");
   kiem("hồ sơ từng trang", "đồng bộ kênh hỏi MỌI hồ sơ của tài khoản (không thì kênh ở hồ sơ riêng bị đánh dấu mất kết nối)",
-    [/const dsHoSo = \[\.\.\.new Set\(\[profileId, \.\.\.\(await hoSoCuaTaiKhoan\(userId\)\)\]\)\];/.test(acc),
-      /\(await Promise\.all\(dsHoSo\.map\(\(ma\) => zernio\.listAccounts\(ma\)\)\)\)\.flat\(\)/.test(acc),
+    [/const dsHoSo = hoSoHopLe\(\[profileId, \.\.\.\(await hoSoCuaTaiKhoan\(userId\)\)\]\);/.test(acc),
+      /await Promise\.all\(dsHoSo\.map\(async \(ma\) => kenhTrongHoSo\(await zernio\.listAccounts\(ma\), ma\)\)\)\s*\)\.flat\(\)/.test(acc),
       // Kênh chuyển hồ sơ thì cột hồ sơ phải theo.
       /ON CONFLICT \(id\) DO UPDATE SET[\s\S]{0,200}profile_ref\s+= EXCLUDED\.profile_ref,/.test(acc),
       /SELECT profile_ref FROM trang WHERE user_id = \$1 AND profile_ref NOT LIKE 'cho-cap-%'/.test(trangTs)],
@@ -7203,6 +7203,43 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /INSERT INTO ma_telegram_da_phat \(ma, user_id, het\) VALUES \(\$1, \$2, \$3\)/.test(d10("server/routes/connections.ts")),
       /"SELECT het FROM ma_telegram_da_phat WHERE ma = \$1 AND user_id = \$2"/.test(d10("server/routes/connections.ts"))],
     [Object.keys(XEP_BO_NHO).sort(), false, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// ĐỒNG BỘ KÊNH CHỈ THEO HỒ SƠ CỦA MÌNH (22/10/2026): mã hồ sơ rỗng từng thành lệnh hỏi kênh của CẢ TEAM (mọi khách chung
+// một khoá) → kênh + cửa hàng của khách khác bị kéo về một tài khoản (user 113 trên Neon có profile_ref rỗng).
+// ---------------------------------------------------------------------------
+{
+  const d11 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const ac = await import("../server/services/accounts.js");
+  const zn = await import("../server/services/zernio.js");
+  kiem("hồ sơ đồng bộ", "hoSoHopLe: bỏ rỗng / null / undefined / mã tạm cho-cap-, bỏ trùng; toàn rỗng → []",
+    [ac.hoSoHopLe([undefined, "p1", null, "", "  ", "cho-cap-113", "p2", "p1"]), ac.hoSoHopLe([null, undefined, "cho-cap-5"])],
+    [["p1", "p2"], []]);
+  const kn = (id: string, profileId?: unknown) => ({ _id: id, platform: "facebook", ...(profileId === undefined ? {} : { profileId }) }) as never;
+  kiem("hồ sơ đồng bộ", "kenhTrongHoSo: kênh ghi hồ sơ KHÁC bị bỏ; không ghi hồ sơ → hồ sơ đã hỏi; dạng {_id} cũng đọc",
+    ac.kenhTrongHoSo([kn("a", "p1"), kn("b", "p2"), kn("c"), kn("d", { _id: "p1" }), kn("e", { _id: "p9" })], "p1")
+      .map((x) => [x.account._id, x.hoSoDaHoi]),
+    [["a", "p1"], ["c", "p1"], ["d", "p1"]]);
+  const loiRong = await Promise.all(["", "   ", undefined].map((m) =>
+    zn.listAccounts(m as never).then(() => "khong-loi", (e: Error) => e.message)));
+  kiem("hồ sơ đồng bộ", "listAccounts thiếu mã hồ sơ → ném lỗi TRƯỚC khi gọi nhà cung cấp (không bao giờ hỏi cả team)",
+    loiRong, Array(3).fill("Thiếu mã hồ sơ khi hỏi danh sách kênh"));
+  const ac11 = d11("server/services/accounts.ts"), cn11 = d11("server/routes/connections.ts");
+  const goiCaTeam = moiTepMayChu(path.join(GOC, "server")).filter((t) => !/migrations/.test(t))
+    .filter((t) => /listAccountsCaTeam\(/.test(d11(path.relative(GOC, t))) && !/export async function listAccountsCaTeam/.test(d11(path.relative(GOC, t))))
+    .map((t) => path.relative(GOC, t));
+  kiem("hồ sơ đồng bộ", "đồng bộ: lọc mã → rỗng thì dừng → hỏi từng hồ sơ qua kenhTrongHoSo; ghi hồ sơ đã hỏi; route không còn profileRef!; chỉ đường quản trị hỏi cả team",
+    [/const dsHoSo = hoSoHopLe\(\[profileId, \.\.\.\(await hoSoCuaTaiKhoan\(userId\)\)\]\);\s*if \(dsHoSo\.length === 0\) return 0;\s*const accounts = \(\s*await Promise\.all\(dsHoSo\.map\(async \(ma\) => kenhTrongHoSo\(await zernio\.listAccounts\(ma\), ma\)\)\)/.test(ac11),
+      (ac11.match(/hoSoDaHoi,\n/g) ?? []).length, /const hoSoCuaKenh = hoSoDaHoi;/.test(ac11),
+      /profileRef!/.test(cn11), goiCaTeam],
+    [true, 1, true, false, ["server/routes/connections.ts"]]);
+  kiem("hồ sơ đồng bộ", "nhận hồ sơ có sẵn (available-profiles / adopt-profile) chỉ quản trị, không lúc đang mở hộ",
+    [(cn11.match(/route\(async \(req, res\) => \{\n    chiQuanTri\(req\);/g) ?? []).length,
+      /"\/available-profiles",\n  route\(async \(req, res\) => \{\n    chiQuanTri\(req\);/.test(cn11),
+      /"\/adopt-profile",\n  route\(async \(req, res\) => \{\n    chiQuanTri\(req\);/.test(cn11),
+      /if \(req\.user\?\.role !== "admin" \|\| req\.user\.moBoi != null\) throw new AppError\("Phần này dành cho quản trị", 403\);/.test(cn11)],
+    [2, true, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

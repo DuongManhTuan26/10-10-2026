@@ -323,13 +323,24 @@ export async function xoaHoSo(profileId: string): Promise<void> {
 }
 
 /**
- * Kênh của một hồ sơ. Mặc định nhà cung cấp CHỈ trả kênh trong hạn mức gói (tài liệu GET /v1/accounts, dòng 22270) —
+ * Kênh của MỘT hồ sơ. Mặc định nhà cung cấp CHỈ trả kênh trong hạn mức gói (tài liệu GET /v1/accounts, dòng 22270) —
  * việc xoá / dọn hồ sơ phải xin cả kênh của hồ sơ vượt hạn mức (includeOverLimit), nếu không sẽ sót kênh.
+ *
+ * Mã hồ sơ BẮT BUỘC (22/10/2026): thiếu profileId thì nhà cung cấp trả kênh của CẢ TEAM — mọi khách dùng chung một
+ * khoá. Lượt đồng bộ của một tài khoản từng có thể đi đường đó (req.user.profileRef rỗng) và kéo kênh của khách khác
+ * về. Cả team chỉ được hỏi qua listAccountsCaTeam, có chủ đích.
  */
-export async function listAccounts(profileId?: string, tuyChon: { includeOverLimit?: boolean } = {}): Promise<ZernioAccount[]> {
+export async function listAccounts(profileId: string, tuyChon: { includeOverLimit?: boolean } = {}): Promise<ZernioAccount[]> {
+  if (typeof profileId !== "string" || !profileId.trim()) throw new Error("Thiếu mã hồ sơ khi hỏi danh sách kênh");
   const data = await request<{ accounts?: ZernioAccount[] }>("/accounts", {
     query: { profileId, ...(tuyChon.includeOverLimit ? { includeOverLimit: "true" } : {}) },
   });
+  return data.accounts ?? [];
+}
+
+/** Kênh của CẢ TEAM (mọi hồ sơ, mọi khách) — chỉ cho công cụ quản trị. */
+export async function listAccountsCaTeam(): Promise<ZernioAccount[]> {
+  const data = await request<{ accounts?: ZernioAccount[] }>("/accounts", {});
   return data.accounts ?? [];
 }
 

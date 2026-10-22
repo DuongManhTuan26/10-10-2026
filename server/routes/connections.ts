@@ -522,9 +522,19 @@ connectionsRouter.post(
  * Dành cho người đã dùng Zernio trước khi đăng ký hệ thống này: thay vì bắt
  * họ kết nối lại từ đầu, cho phép nhận luôn hồ sơ đang có kèm tài khoản.
  */
+/**
+ * Hai đường nhận hồ sơ có sẵn là công cụ NỘI BỘ (api.ts cố ý không gọi). Trước 22/10/2026 mọi tài khoản đã đăng nhập
+ * — kể cả khách tự đăng ký — gọi thẳng được: xem tên hồ sơ chưa ai nhận của cả team rồi nhận về mình (đọc được tin
+ * nhắn của hồ sơ đó). Chỉ quản trị, và không phải lúc quản trị đang mở hộ tài khoản khác.
+ */
+function chiQuanTri(req: { user?: { role: string; moBoi?: number | null } }): void {
+  if (req.user?.role !== "admin" || req.user.moBoi != null) throw new AppError("Phần này dành cho quản trị", 403);
+}
+
 connectionsRouter.get(
   "/available-profiles",
   route(async (req, res) => {
+    chiQuanTri(req);
     const profiles = await zernio.listProfiles();
 
     // Hồ sơ riêng của Trang người khác cũng là đã có chủ.
@@ -537,7 +547,7 @@ connectionsRouter.get(
     );
     const claimedIds = new Set(claimed.rows.map((row) => row.profile_ref));
 
-    const accounts = await zernio.listAccounts();
+    const accounts = await zernio.listAccountsCaTeam();
     const countByProfile = new Map<string, number>();
     for (const account of accounts) {
       const profileId = zernio.accountProfileId(account);
@@ -563,6 +573,7 @@ connectionsRouter.get(
 connectionsRouter.post(
   "/adopt-profile",
   route(async (req, res) => {
+    chiQuanTri(req);
     const profileId = requireString(req.body, "profileId", "hồ sơ");
 
     // Hồ sơ đã thuộc về shop khác thì tuyệt đối không cho nhận, nếu không
@@ -658,7 +669,7 @@ connectionsRouter.get(
     const status = await zernio.kiemMaTelegram(code);
     if (status === "connected") {
       await query("DELETE FROM ma_telegram_da_phat WHERE ma = $1", [code]);
-      await syncAccountsForUser(req.user!.id, req.user!.profileRef!);
+      await syncAccountsForUser(req.user!.id, req.user!.profileRef);
     }
     res.json({ success: true, data: { status } });
   })
@@ -675,7 +686,7 @@ connectionsRouter.post(
     if (!noiLai && (!Number.isInteger(trangId) || trangId <= 0)) throw new AppError("Chọn cửa hàng cho kênh này trước khi kết nối", 400);
     const dich = noiLai ? { profile_ref: noiLai, ten: "" } : await hoSoCuaCuaHang(req.user!.id, trangId, "bluesky", "Bluesky");
     await zernio.noiBluesky(identifier, appPassword, dich.profile_ref);
-    await syncAccountsForUser(req.user!.id, req.user!.profileRef!);
+    await syncAccountsForUser(req.user!.id, req.user!.profileRef);
     res.json({ success: true, message: noiLai ? `Đã nối lại Bluesky ${identifier}.` : `Đã nối Bluesky ${identifier} vào cửa hàng "${dich.ten}".` });
   })
 );
@@ -818,7 +829,7 @@ connectionsRouter.put(
     await ghiKenhTheoNgay();
     if (kenh.profile_ref !== dich.profile_ref) await zernio.chuyenKenhSangHoSo(kenh.id, dich.profile_ref);
     await query("UPDATE social_accounts SET trang_chon = NULL WHERE id = $1 AND user_id = $2", [kenh.id, req.user!.id]);
-    await syncAccountsForUser(req.user!.id, req.user!.profileRef!);
+    await syncAccountsForUser(req.user!.id, req.user!.profileRef);
     // Kiểm lại thật — không báo "đã chuyển" khi kênh chưa nằm ở cửa hàng đích.
     const sau = await queryOne<{ trang_id: number | null }>(
       "SELECT trang_id FROM social_accounts WHERE id = $1 AND user_id = $2",

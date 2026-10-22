@@ -2810,8 +2810,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "đồng bộ chỉ hỏi hồ sơ mặc định — kênh ở hồ sơ riêng của trang bị đánh dấu mất kết nối",
     tep: "server/services/accounts.ts",
-    tim: "const dsHoSo = [...new Set([profileId, ...(await hoSoCuaTaiKhoan(userId))])];",
-    thay: "const dsHoSo = [profileId];",
+    tim: "const dsHoSo = hoSoHopLe([profileId, ...(await hoSoCuaTaiKhoan(userId))]);",
+    thay: "const dsHoSo = hoSoHopLe([profileId]);",
   },
   {
     ten: "kênh chuyển hồ sơ mà cột hồ sơ không theo",
@@ -4889,6 +4889,72 @@ const DUC: PhepDuc[] = [
     tep: "server/routes/connections.ts",
     tim: "\"SELECT het FROM ma_telegram_da_phat WHERE ma = $1 AND user_id = $2\"",
     thay: "\"SELECT het FROM ma_telegram_da_phat WHERE ma = $1 AND $2::bigint IS NOT NULL\"",
+  },
+  {
+    ten: "đồng bộ để lọt mã hồ sơ rỗng (hỏi kênh của cả team)",
+    tep: "server/services/accounts.ts",
+    tim: '    (ma): ma is string => typeof ma === "string" && ma.trim() !== "" && !ma.startsWith("cho-cap-")',
+    thay: '    (ma): ma is string => typeof ma === "string" || ma === undefined',
+  },
+  {
+    ten: "đồng bộ để lọt mã hồ sơ tạm cho-cap-",
+    tep: "server/services/accounts.ts",
+    tim: ' && !ma.startsWith("cho-cap-")\n  );',
+    thay: "\n  );",
+  },
+  {
+    ten: "nhận cả kênh nhà cung cấp ghi hồ sơ khác",
+    tep: "server/services/accounts.ts",
+    tim: "return ds.filter((a) => (zernio.accountProfileId(a) ?? ma) === ma).map(",
+    thay: "return ds.map(",
+  },
+  {
+    ten: "không còn hồ sơ nào vẫn đi tiếp (đánh dấu nhầm mọi kênh mất kết nối)",
+    tep: "server/services/accounts.ts",
+    tim: "  if (dsHoSo.length === 0) return 0;\n",
+    thay: "",
+  },
+  {
+    ten: "ghi hồ sơ của kênh theo mã truyền vào thay vì hồ sơ đã hỏi",
+    tep: "server/services/accounts.ts",
+    tim: "    const hoSoCuaKenh = hoSoDaHoi;",
+    thay: "    const hoSoCuaKenh = profileId ?? hoSoDaHoi;",
+  },
+  {
+    ten: "listAccounts thiếu mã hồ sơ vẫn gọi nhà cung cấp",
+    tep: "server/services/zernio.ts",
+    tim: '  if (typeof profileId !== "string" || !profileId.trim()) throw new Error("Thiếu mã hồ sơ khi hỏi danh sách kênh");\n',
+    thay: "",
+  },
+  {
+    ten: "route lại truyền profileRef! (rỗng thành undefined)",
+    tep: "server/routes/connections.ts",
+    tim: "    await syncAccountsForUser(req.user!.id, req.user!.profileRef);\n    res.json({ success: true, message: noiLai",
+    thay: "    await syncAccountsForUser(req.user!.id, req.user!.profileRef!);\n    res.json({ success: true, message: noiLai",
+  },
+  {
+    ten: "nhận hồ sơ có sẵn mở cho mọi tài khoản",
+    tep: "server/routes/connections.ts",
+    tim: '  "/adopt-profile",\n  route(async (req, res) => {\n    chiQuanTri(req);\n',
+    thay: '  "/adopt-profile",\n  route(async (req, res) => {\n',
+  },
+  {
+    ten: "xem hồ sơ chưa ai nhận mở cho mọi tài khoản",
+    tep: "server/routes/connections.ts",
+    tim: '  "/available-profiles",\n  route(async (req, res) => {\n    chiQuanTri(req);\n',
+    thay: '  "/available-profiles",\n  route(async (req, res) => {\n',
+  },
+  {
+    ten: "quản trị đang mở hộ vẫn nhận được hồ sơ",
+    tep: "server/routes/connections.ts",
+    tim: 'if (req.user?.role !== "admin" || req.user.moBoi != null) throw',
+    thay: 'if (req.user?.role !== "admin") throw',
+  },
+  {
+    ten: "lượt đồng bộ khách gọi hỏi cả team",
+    tep: "server/services/accounts.ts",
+    tim: "kenhTrongHoSo(await zernio.listAccounts(ma), ma)",
+    thay: "kenhTrongHoSo(await zernio.listAccountsCaTeam(), ma)",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

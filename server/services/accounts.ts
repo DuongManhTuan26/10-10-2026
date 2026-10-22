@@ -92,14 +92,38 @@ export async function ensureProfile(user: {
  * có accountId, platform, username, displayName — thiếu ảnh đại diện, số người
  * theo dõi, hạn token. Hỏi Zernio thì lấy được đầy đủ và luôn đúng hiện trạng.
  */
+/**
+ * Chỉ mã hồ sơ THẬT, không trùng: mã rỗng (tài khoản chưa cấp hồ sơ) từng thành lệnh hỏi kênh của CẢ TEAM (22/10/2026);
+ * mã tạm 'cho-cap-…' không phải hồ sơ bên nhà cung cấp.
+ */
+export function hoSoHopLe(ds: ReadonlyArray<string | null | undefined>): string[] {
+  return [...new Set(ds)].filter(
+    (ma): ma is string => typeof ma === "string" && ma.trim() !== "" && !ma.startsWith("cho-cap-")
+  );
+}
+
+/**
+ * Kênh nhà cung cấp trả cho MỘT hồ sơ, kèm hồ sơ đã hỏi. Kênh ghi hồ sơ KHÁC thì bỏ — không bao giờ nhận kênh ngoài
+ * hồ sơ của mình; kênh không ghi hồ sơ thì thuộc hồ sơ đã hỏi.
+ */
+export function kenhTrongHoSo(
+  ds: zernio.ZernioAccount[],
+  ma: string
+): { account: zernio.ZernioAccount; hoSoDaHoi: string }[] {
+  return ds.filter((a) => (zernio.accountProfileId(a) ?? ma) === ma).map((account) => ({ account, hoSoDaHoi: ma }));
+}
+
 export async function syncAccountsForUser(
   userId: number,
-  profileId: string
+  profileId: string | null | undefined
 ): Promise<number> {
   // Mọi hồ sơ của tài khoản, không chỉ hồ sơ mặc định — xem hoSoCuaTaiKhoan. Một hồ sơ hỏi hỏng thì cả lượt
   // hỏng (ném lỗi), không đánh dấu nhầm kênh của hồ sơ đó là mất kết nối.
-  const dsHoSo = [...new Set([profileId, ...(await hoSoCuaTaiKhoan(userId))])];
-  const accounts = (await Promise.all(dsHoSo.map((ma) => zernio.listAccounts(ma)))).flat();
+  const dsHoSo = hoSoHopLe([profileId, ...(await hoSoCuaTaiKhoan(userId))]);
+  if (dsHoSo.length === 0) return 0;
+  const accounts = (
+    await Promise.all(dsHoSo.map(async (ma) => kenhTrongHoSo(await zernio.listAccounts(ma), ma)))
+  ).flat();
 
   /*
    * Đặt tên Trang theo Fanpage trước, nên duyệt Fanpage trước. Tài khoản
@@ -107,12 +131,12 @@ export async function syncAccountsForUser(
    * trở thành tên Trang.
    */
   const theoThuTu = [...accounts].sort((a, b) => {
-    const xa = UU_TIEN_TEN_TRANG.indexOf(a.platform);
-    const xb = UU_TIEN_TEN_TRANG.indexOf(b.platform);
+    const xa = UU_TIEN_TEN_TRANG.indexOf(a.account.platform);
+    const xb = UU_TIEN_TEN_TRANG.indexOf(b.account.platform);
     return (xa < 0 ? 99 : xa) - (xb < 0 ? 99 : xb);
   });
 
-  for (const account of theoThuTu) {
+  for (const { account, hoSoDaHoi } of theoThuTu) {
     const disconnected =
       account.needsReconnection === true ||
       account.isActive === false ||
@@ -144,7 +168,7 @@ export async function syncAccountsForUser(
       [
         account._id,
         userId,
-        zernio.accountProfileId(account) ?? profileId,
+        hoSoDaHoi,
         account.platform,
         account.username ?? "",
         account.displayName ?? account.username ?? "",
@@ -166,7 +190,7 @@ export async function syncAccountsForUser(
      * trang_id rỗng thì chỗ đọc bộ não rơi về Trang đầu tiên, và shop thêm
      * Fanpage thứ hai sẽ thấy AI đem bảng giá của Fanpage thứ nhất đi bán.
      */
-    const hoSoCuaKenh = zernio.accountProfileId(account) ?? profileId;
+    const hoSoCuaKenh = hoSoDaHoi;
     // Hộp (hồ sơ) quyết định cửa hàng — mỗi hồ sơ đúng một cửa hàng (chủ dự án chốt 17/10/2026).
     const trangId = await baoDamTrangChoHoSo(
       userId,
@@ -179,7 +203,7 @@ export async function syncAccountsForUser(
 
   // Kênh đã bị gỡ bên Zernio thì đánh dấu mất kết nối, KHÔNG xoá — hội thoại
   // và đơn hàng cũ vẫn tham chiếu tới nó.
-  const ids = accounts.map((a) => a._id);
+  const ids = accounts.map((a) => a.account._id);
   await query(
     `UPDATE social_accounts
         SET connected = FALSE, updated_at = now()
