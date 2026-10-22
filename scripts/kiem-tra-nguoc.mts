@@ -4771,6 +4771,36 @@ const DUC: PhepDuc[] = [
     thay: "                      {n.kenh.length === 0 ? null : dangMo ? (",
   },
   {
+    ten: "A4b: kênh quảng cáo lấy của cả tài khoản",
+    tep: "server/services/trang.ts",
+    tim: "      WHERE user_id = $1 AND trang_id = $2 AND platform = 'metaads' AND connected = TRUE",
+    thay: "      WHERE user_id = $1 AND $2::bigint IS NOT NULL AND platform = 'metaads' AND connected = TRUE",
+  },
+  {
+    ten: "A4b: quảng cáo không theo cửa hàng đang chọn",
+    tep: "server/routes/ads.ts",
+    tim: "  const row = await kenhQuangCaoCuaCuaHang(userId, await trangHienTai());",
+    thay: "  const row = await kenhQuangCaoCuaCuaHang(userId, (await queryOne<{ id: number }>(\"SELECT MIN(id) AS id FROM trang WHERE user_id = $1\", [userId]))?.id ?? null);",
+  },
+  {
+    ten: "A4b: lưu tài khoản quảng cáo vào kênh của cửa hàng khác",
+    tep: "server/routes/ads.ts",
+    tim: "    const kenh = await kenhQuangCaoCuaCuaHang(req.user!.id, await trangHienTai());",
+    thay: "    const kenh = await kenhQuangCaoCuaCuaHang(req.user!.id, null) ?? (await queryOne<{ id: string; ad_account_ref: string | null; profile_ref: string | null; trang_id: number }>(\"SELECT id, ad_account_ref, profile_ref, trang_id FROM social_accounts WHERE user_id = $1 AND platform = 'metaads' LIMIT 1\", [req.user!.id]));",
+  },
+  {
+    ten: "A4b: số liệu quảng cáo gộp mọi cửa hàng",
+    tep: "server/routes/settings.ts",
+    tim: "        WHERE user_id = $1 AND trang_id = $2 AND platform = 'metaads' AND connected = TRUE`,",
+    thay: "        WHERE user_id = $1 AND $2::bigint IS NOT NULL AND platform = 'metaads' AND connected = TRUE`,",
+  },
+  {
+    ten: "A4c: tạo tài khoản không cấp hồ sơ ngay",
+    tep: "server/services/tai-khoan.ts",
+    tim: "    await ensureProfile({ id, name, email, profileRef: null });",
+    thay: "    void ensureProfile;",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

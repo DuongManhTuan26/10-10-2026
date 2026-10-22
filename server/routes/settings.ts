@@ -609,10 +609,11 @@ settingsRouter.get(
 settingsRouter.get(
   "/ads/analytics",
   route(async (req, res) => {
+    // A4b: kênh quảng cáo của CỬA HÀNG đang chọn (không gộp mọi kênh quảng cáo của cả tài khoản).
     const adAccounts = await query<{ id: string; display_name: string; profile_ref: string }>(
       `SELECT id, display_name, profile_ref FROM social_accounts
-        WHERE user_id = $1 AND platform = 'metaads' AND connected = TRUE`,
-      [req.user!.id]
+        WHERE user_id = $1 AND trang_id = $2 AND platform = 'metaads' AND connected = TRUE`,
+      [req.user!.id, await trangHienTai()]
     );
 
     if (adAccounts.rows.length === 0) {

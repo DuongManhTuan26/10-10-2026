@@ -2704,9 +2704,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonTrang = fs.readFileSync(path.join(GOC, "server/services/trang.ts"), "utf8");
   kiem("bộ não theo Trang", "có đường suy Trang từ kênh",
     /export async function layTrangTuKenh/.test(nguonTrang), true);
-  kiem("bộ não theo Trang", "KHÔNG nhận trangId thẳng từ giao diện",
-    /accountId\?: string \| null/.test(nguonTrang) &&
-      /WHERE id = \$1 AND user_id = \$2/.test(nguonTrang), true);
+  // A4 (sơ đồ chủ dự án chốt): giao diện GỬI mã cửa hàng (X-Cua-Hang) — máy chủ chỉ nhận khi cửa hàng thuộc đúng người
+  // đăng nhập (người ngoài không tự khai được mình thuộc cửa hàng nào).
+  kiem("bộ não theo Trang", "mã cửa hàng từ giao diện chỉ nhận khi thuộc đúng người đăng nhập",
+    /"SELECT id FROM trang WHERE id = \$1 AND user_id = \$2", \[ma, userId\]/.test(nguonTrang), true);
 
   const nguonBan2 = fs.readFileSync(path.join(GOC, "server/services/sales-ai.ts"), "utf8");
   // Phép kiểm cũ chỉ hỏi "tệp này có câu LEFT JOIN nào không" — mà tệp có HAI
@@ -6966,10 +6967,10 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const tepMay = moiTepMayChu(path.join(GOC, "server"));
   const danhSach = (re: RegExp) => tepMay.filter((t) => re.test(d7(path.relative(GOC, t)))).map((t) => path.relative(GOC, t)).sort();
   // Liệt kê MỌI chỗ suy cửa hàng từ yêu cầu (đề nghị của phiên kiểm duyệt).
-  kiem("A4a máy chủ", "đọc đầu X-Cua-Hang: chỉ lớp giữa (app.ts); KHÔNG còn chỗ nào đọc X-Kenh; layTrangDangChon chỉ còn ads.ts (đến A4b); layTrangMacDinh chỉ trang.ts + analytics.ts (đường cũ, TD-12)",
-    [danhSach(/x-cua-hang/i), danhSach(/x-kenh/i), danhSach(/\blayTrangDangChon\(/).filter((t) => t !== "server/services/trang.ts"),
+  kiem("A4a máy chủ", "đọc đầu X-Cua-Hang: chỉ lớp giữa (app.ts); KHÔNG còn chỗ nào đọc X-Kenh; hàm cũ suy cửa hàng từ kênh (layTrangDangChon) đã xoá hẳn (A4b); layTrangMacDinh chỉ trang.ts + analytics.ts (đường cũ, TD-12)",
+    [danhSach(/x-cua-hang/i), danhSach(/x-kenh/i), danhSach(/\blayTrangDangChon\b/),
       danhSach(/\blayTrangMacDinh\(/)],
-    [["server/app.ts"], [], ["server/routes/ads.ts"], ["server/routes/analytics.ts", "server/services/trang.ts"]]);
+    [["server/app.ts"], [], [], ["server/routes/analytics.ts", "server/services/trang.ts"]]);
   kiem("A4a máy chủ", "accountId từ yêu cầu chỉ còn là BỘ LỌC kênh của hộp thư, luôn qua kenhLocHopLe (kênh phải thuộc cửa hàng đang chọn)",
     [danhSach(/req\.(query|body)\??\.accountId|const \{ accountId[^}]*\} = req\.query/),
       (d7("server/routes/inbox.ts").match(/await kenhLocHopLe\(req\.user!\.id, trang, (accountId|req\.query\.accountId)\)/g) ?? []).length,
@@ -7062,6 +7063,33 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("A4d nút bộ não", "cửa hàng chưa có kênh cũng có 'Mở bộ não' (không còn ẩn khi 0 kênh); vẫn giữ câu nhắc nối kênh",
     [/\{n\.kenh\.length === 0 \? null : dangMo \?/.test(bt9), /\{dangMo \? \(/.test(bt9), /Cửa hàng này chưa có kênh — bấm ⋯ → "Kết nối kênh cho cửa hàng này"/.test(bt9)],
     [false, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// A4b — QUẢNG CÁO THEO CỬA HÀNG: kênh quảng cáo (metaads) của CỬA HÀNG đang chọn, không phải kênh đầu tiên của tài khoản.
+// A4c — cấp hồ sơ nền tảng ngay khi tạo tài khoản (đã có từ trước: taoTaiKhoan → ensureProfile, không chặn việc tạo).
+// ---------------------------------------------------------------------------
+{
+  const d9 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const tepMay = moiTepMayChu(path.join(GOC, "server"));
+  const tr9 = d9("server/services/trang.ts"), ads9 = d9("server/routes/ads.ts"), st10 = d9("server/routes/settings.ts");
+  // Mọi câu chọn kênh quảng cáo (platform = 'metaads' AND connected) phải có điều kiện cửa hàng.
+  const cauChonQc = tepMay.flatMap((t) => [...d9(path.relative(GOC, t)).matchAll(/`[^`]*platform = 'metaads' AND connected = TRUE[^`]*`/g)]
+    .map((m) => [path.relative(GOC, t), /trang_id = \$2/.test(m[0])] as const));
+  kiem("A4b quảng cáo", "mọi câu chọn kênh quảng cáo đều lọc theo cửa hàng (trang.ts kenhQuangCaoCuaCuaHang + số liệu quảng cáo); không còn 'kênh quảng cáo đầu tiên của tài khoản'",
+    [cauChonQc.map(([t]) => t).sort(), cauChonQc.every(([, coCH]) => coCH)],
+    [["server/routes/settings.ts", "server/services/trang.ts"], true]);
+  kiem("A4b quảng cáo", "resolveAdAccount + lưu tài khoản quảng cáo dùng kênh quảng cáo của cửa hàng đang chọn; AI quảng cáo đọc bộ não của đúng cửa hàng đó",
+    [/const row = await kenhQuangCaoCuaCuaHang\(userId, await trangHienTai\(\)\);/.test(ads9),
+      /const kenh = await kenhQuangCaoCuaCuaHang\(req\.user!\.id, await trangHienTai\(\)\);/.test(ads9),
+      (ads9.match(/resolved\.trangId/g) ?? []).length, /\[req\.user!\.id, await trangHienTai\(\)\]/.test(st10.slice(st10.indexOf('"/ads/analytics"'))),
+      /if \(trangId == null\) return null;/.test(tr9.slice(tr9.indexOf("export async function kenhQuangCaoCuaCuaHang(")))],
+    [true, true, 2, true, true]);
+  const tk9 = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
+  kiem("A4c hồ sơ", "tạo tài khoản → cấp hồ sơ nền tảng NGAY (ensureProfile sau giao dịch, lỗi không chặn việc tạo); cửa hàng còn mã tạm tự cấp ở lần mở Kết nối",
+    [/\}\);\s*\/\*[\s\S]*?\*\/\s*try \{\s*await ensureProfile\(\{ id, name, email, profileRef: null \}\);\s*\} catch \(error\) \{/.test(tk9),
+      /if \(choCap\) await ensureProfile\(req\.user!\);/.test(d9("server/routes/connections.ts"))],
+    [true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

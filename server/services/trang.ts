@@ -53,6 +53,25 @@ export async function cuaHangCuaYeuCau(
 }
 
 /**
+ * KÊNH QUẢNG CÁO (Meta Ads) của MỘT cửa hàng — A4b (22/10/2026; sơ đồ: "Tài khoản quảng cáo + phân tích quảng cáo theo
+ * cửa hàng", bản cũ lấy kênh quảng cáo ĐẦU TIÊN của cả tài khoản). Kênh metaads thuộc cửa hàng của hồ sơ nó được nối vào
+ * (đồng bộ gắn trang_id như mọi kênh). Cửa hàng chưa nối quảng cáo → null ("chưa nối quảng cáo cho cửa hàng này").
+ * MỌI chỗ chọn kênh quảng cáo đi qua hàm này (bộ kiểm tra đếm).
+ */
+export async function kenhQuangCaoCuaCuaHang(
+  userId: number,
+  trangId: number | null
+): Promise<{ id: string; ad_account_ref: string | null; profile_ref: string | null; trang_id: number } | null> {
+  if (trangId == null) return null;
+  return queryOne(
+    `SELECT id, ad_account_ref, profile_ref, trang_id FROM social_accounts
+      WHERE user_id = $1 AND trang_id = $2 AND platform = 'metaads' AND connected = TRUE
+      ORDER BY created_at LIMIT 1`,
+    [userId, trangId]
+  );
+}
+
+/**
  * Trang đầu tiên của một tài khoản.
  *
  * Dùng cho các đường CHƯA biết kênh: trang cài đặt khi chủ shop chưa chọn
@@ -82,31 +101,6 @@ export async function layTrangMacDinh(userId: number): Promise<number | null> {
     [userId]
   );
   return r?.id ?? null;
-}
-
-/**
- * Trang đang được chọn trên giao diện, suy từ kênh mà giao diện gửi lên.
- *
- * Giao diện đã có sẵn bộ chọn kênh (ActivePage), nên chỉ cần gửi kèm
- * accountId. Không gửi thì dùng Trang đầu tiên — đúng cho tài khoản một Trang,
- * là phần lớn trường hợp.
- *
- * KHÔNG nhận trangId thẳng từ giao diện: làm vậy là để người ngoài tự khai
- * mình thuộc Trang nào. Suy từ kênh thì còn kiểm được kênh có thuộc tài khoản
- * đang đăng nhập hay không.
- */
-export async function layTrangDangChon(
-  userId: number,
-  accountId?: string | null
-): Promise<number | null> {
-  if (accountId) {
-    const r = await queryOne<{ trang_id: number | null }>(
-      "SELECT trang_id FROM social_accounts WHERE id = $1 AND user_id = $2",
-      [accountId, userId]
-    );
-    if (r?.trang_id) return r.trang_id;
-  }
-  return layTrangMacDinh(userId);
 }
 
 /** Mọi Trang của một tài khoản, cũ nhất trước. */

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { query, queryOne } from "../db.js";
 import { requireAuth } from "../auth.js";
-import { layTrangDangChon } from "../services/trang.js";
+import { kenhQuangCaoCuaCuaHang } from "../services/trang.js";
 import { AppError, requireString, route } from "../http.js";
 import * as ads from "../services/ads.js";
 import { chatJson, asRecord, optionalString } from "../services/ai.js";
@@ -25,6 +25,8 @@ adsRouter.use(requireAuth);
  */
 async function resolveAdAccount(userId: number): Promise<{
   accountId: string;
+  /** Cửa hàng của kênh quảng cáo (= cửa hàng đang chọn) — bộ não AI quảng cáo đọc theo cửa hàng này. */
+  trangId: number;
   adAccountId: string;
   account: ads.AdAccount;
   /** Mọi tài khoản quảng cáo kênh này vào được, để chủ shop chọn. */
@@ -32,12 +34,8 @@ async function resolveAdAccount(userId: number): Promise<{
   /** Đang dùng tài khoản chủ shop chọn, hay hệ thống tự đoán. */
   doChuShopChon: boolean;
 } | null> {
-  const row = await queryOne<{ id: string; ad_account_ref: string | null }>(
-    `SELECT id, ad_account_ref FROM social_accounts
-      WHERE user_id = $1 AND platform = 'metaads' AND connected = TRUE
-      ORDER BY created_at LIMIT 1`,
-    [userId]
-  );
+  // A4b: kênh quảng cáo của CỬA HÀNG đang chọn (không còn "kênh quảng cáo đầu tiên của cả tài khoản").
+  const row = await kenhQuangCaoCuaCuaHang(userId, await trangHienTai());
   if (!row) return null;
 
   const accounts = await ads.listAdAccounts(row.id);
@@ -61,6 +59,7 @@ async function resolveAdAccount(userId: number): Promise<{
 
   return {
     accountId: row.id,
+    trangId: row.trang_id,
     adAccountId: active.id,
     account: active,
     tatCa: accounts,
@@ -170,13 +169,9 @@ adsRouter.put(
     const ma = typeof req.body?.adAccountId === "string" ? req.body.adAccountId.trim() : "";
     if (!ma) throw new AppError("Chưa chọn tài khoản quảng cáo");
 
-    const kenh = await queryOne<{ id: string }>(
-      `SELECT id FROM social_accounts
-        WHERE user_id = $1 AND platform = 'metaads' AND connected = TRUE
-        ORDER BY created_at LIMIT 1`,
-      [req.user!.id]
-    );
-    if (!kenh) throw new AppError("Chưa kết nối tài khoản quảng cáo nào", 404);
+    // A4b: lưu lựa chọn trên kênh quảng cáo của CỬA HÀNG đang chọn.
+    const kenh = await kenhQuangCaoCuaCuaHang(req.user!.id, await trangHienTai());
+    if (!kenh) throw new AppError("Cửa hàng này chưa kết nối tài khoản quảng cáo", 404);
 
     /*
      * Chỉ nhận tài khoản mà kênh này THẬT SỰ vào được. Không kiểm thì người ta
@@ -541,14 +536,11 @@ adsRouter.post(
 
     const config = await queryOne<{ system_prompt: string }>(
       "SELECT system_prompt FROM ai_configs WHERE trang_id = $1 AND kind = 'ads'",
-      [await layTrangDangChon(req.user!.id, resolved.accountId)]
+      [resolved.trangId]
     );
 
     // Tài liệu chủ shop đã dạy riêng cho AI quảng cáo.
-    const knowledge = await loadKnowledge(
-      await layTrangDangChon(req.user!.id, resolved.accountId),
-      "ads"
-    );
+    const knowledge = await loadKnowledge(resolved.trangId, "ads");
 
     const result = await chatJson({
       task: "ads",
