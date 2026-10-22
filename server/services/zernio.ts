@@ -649,6 +649,47 @@ export async function layBaiCoBinhLuan(params: {
   return data.data ?? [];
 }
 
+/** Một bài để chủ shop chọn cho kịch bản (GET /v1/inbox/comments — có cả bài chưa có bình luận). */
+export interface BaiDeChon {
+  id: string;
+  noiDung: string;
+  anh: string | null;
+  link: string | null;
+  ngay: string | null;
+  soBinhLuan: number;
+}
+
+/**
+ * Bài tự nhiên (không phải bài quảng cáo) của MỘT kênh, mới trước, theo trang (cursor). Mã bài trả về đúng giá trị
+ * comments.platform_post_id của Facebook (đối chiếu Fanpage thật 22/10/2026) — kịch bản lọc bài bằng chính mã này.
+ */
+export async function layBaiDeChon(p: {
+  accountId: string;
+  platform: "facebook";
+  cursor?: string;
+}): Promise<{ bai: BaiDeChon[]; tiepTheo: string | null }> {
+  const d = await request<{
+    data?: Array<{
+      id?: string; content?: string; picture?: string | null; permalink?: string | null; createdTime?: string;
+      commentCount?: number; isAd?: boolean;
+    }>;
+    pagination?: { hasMore?: boolean; nextCursor?: string | null };
+  }>("/inbox/comments", {
+    query: { accountId: p.accountId, platform: p.platform, limit: 30, cursor: p.cursor },
+  });
+  const bai = (d.data ?? [])
+    .filter((x) => !x.isAd && typeof x.id === "string" && x.id !== "")
+    .map((x) => ({
+      id: x.id!,
+      noiDung: String(x.content ?? "").slice(0, 200),
+      anh: x.picture ?? null,
+      link: x.permalink ?? null,
+      ngay: x.createdTime ?? null,
+      soBinhLuan: Number(x.commentCount) || 0,
+    }));
+  return { bai, tiepTheo: d.pagination?.hasMore && d.pagination.nextCursor ? d.pagination.nextCursor : null };
+}
+
 /** Bình luận thật của một bài đăng. */
 export interface BinhLuanCuaBai {
   id: string;

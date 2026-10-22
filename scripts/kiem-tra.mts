@@ -2637,7 +2637,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 {
   const nguonCmt = fs.readFileSync(path.join(GOC, "server/services/comment-ai.ts"), "utf8");
   kiem("bình luận rỗng", "chỉ nhận khi shop đã bật bắt mọi bình luận",
-    /const coBatTatCa = scripts\.rows\.some\(\(x\) => x\.match_type === "all"\)/.test(nguonCmt) &&
+    /const coBatTatCa = kichBan\.some\(\(x\) => x\.match_type === "all"\)/.test(nguonCmt) &&
       /content\.trim\(\) === "" && !coBatTatCa/.test(nguonCmt), true);
   kiem("bình luận rỗng", "xét SAU khi đã đọc kịch bản, không loại trước",
     nguonCmt.indexOf("const scripts = await query") <
@@ -2645,7 +2645,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   kiem("bình luận rỗng", "lý do bỏ qua nói rõ cách bật",
     /chưa bật chế độ bắt mọi bình luận/.test(nguonCmt), true);
   kiem("bình luận rỗng", "kịch bản bắt tất cả vẫn xét SAU CÙNG",
-    /\.\.\.scripts\.rows\.filter\(\(x\) => x\.match_type !== "all"\),\s*\n\s*\.\.\.scripts\.rows\.filter\(\(x\) => x\.match_type === "all"\)/.test(
+    /\.\.\.kichBan\.filter\(\(x\) => x\.match_type !== "all"\),\s*\n\s*\.\.\.kichBan\.filter\(\(x\) => x\.match_type === "all"\)/.test(
       nguonCmt
     ), true);
   kiem("bình luận rỗng", "từ khoá loại trừ vẫn chặn được cả chế độ bắt tất cả",
@@ -6669,7 +6669,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("2b kịch bản", "danh sách kịch bản theo cửa hàng đang chọn; tạo kịch bản gắn cửa hàng đang chọn, kênh phải thuộc cửa hàng (kiểm TRƯỚC khi ghi)",
     [/WHERE s\.user_id = \$1 AND s\.trang_id = \$2 ORDER BY s\.created_at DESC`,\s*\[req\.user!\.id, trang\]/.test(st),
       /if \(!cuaCuaHang\) throw new AppError\(LOI_KENH_NGOAI_CUA_HANG_DANG_CHON, 400\);/.test(st) && st.search(/if \(!cuaCuaHang\)/) < st.search(/INSERT INTO auto_scripts/),
-      /public_reply_variations, apply_to, is_active, send_dm, trang_id\)/.test(st) && /sendDm,\s*trangKichBan,\s*\]/.test(st)],
+      /public_reply_variations, apply_to, is_active, send_dm, trang_id, bai_ap_dung\)/.test(st) && /sendDm,\s*trangKichBan,\s*apDung\.baiApDung,\s*\]/.test(st)],
     [true, true, true]);
   // Lỗi đã gặp khi viết 2b: "sendDm,," — mảng có ô trống làm lệch tham số SQL, kiểm kiểu không bắt được.
   kiem("2b kịch bản", "không còn mảng có ô trống (dấu phẩy liền nhau) trong mã máy chủ",
@@ -7027,7 +7027,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const XEP_GD: Record<string, string> = {
     "src/lib/ActivePage.tsx": "nguon",
     "src/components/AITrainingModal.tsx": "cua_hang", "src/components/AutoPilotPanel.tsx": "cua_hang", "src/components/BangTrangBanHang.tsx": "cua_hang",
-    "src/components/CanTrangNao.tsx": "cua_hang", "src/components/TheKhoiNao.tsx": "cua_hang", "src/components/TopNavBar.tsx": "cua_hang",
+    "src/components/CanTrangNao.tsx": "cua_hang", "src/components/ChonBaiKichBan.tsx": "cua_hang", "src/components/TheKhoiNao.tsx": "cua_hang", "src/components/TopNavBar.tsx": "cua_hang",
     "src/components/XuongAi.tsx": "cua_hang", "src/pages/DieuHanh.tsx": "cua_hang", "src/pages/KhoiNao.tsx": "cua_hang",
     // dùng cả kênh lọc: hộp thư lọc kênh; soạn bài chọn kênh đích; kịch bản mới gắn kênh; bảng kết nối; thẻ "đang huấn luyện"
     "src/pages/Inbox.tsx": "ca_hai", "src/pages/Content.tsx": "ca_hai", "src/pages/AutoScripts.tsx": "ca_hai",
@@ -7290,6 +7290,53 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /const hoSoQc = adAccounts\.rows\[0\]\.profile_ref;\s*try \{\s*if \(hoSoQc\) analytics = await zernio\.getAnalytics\(\{ profileId: hoSoQc, platform: "metaads" \}\);/.test(st12),
       /profileRef \?\? undefined/.test(st12)],
     [false, true, true, true, true, false]);
+}
+
+// ---------------------------------------------------------------------------
+// KỊCH BẢN THEO BÀI (mục 2, 062; phiên kiểm duyệt duyệt 22/10/2026): "Chỉ một số bài cụ thể" làm thật — bản cũ lưu chuỗi
+// gì cũng được, bộ máy không đọc → kịch bản chạy ở MỌI bài.
+// ---------------------------------------------------------------------------
+{
+  const d13 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const ad = await import("../server/services/kich-ban-ap-dung.js");
+  const doc = (b: Record<string, unknown>) => { try { return ad.docApDung(b); } catch (e) { return (e as Error).message; } };
+  kiem("kịch bản theo bài", "docApDung: thiếu → null (sửa không đụng); 'all' → rỗng; lạ → lỗi; 'specific' rỗng / toàn rỗng → lỗi chọn bài; bỏ trùng + cắt khoảng trắng + bỏ mã > 120 ký tự; 101 bài → lỗi",
+    [doc({}), doc({ applyTo: "all", baiApDung: ["x"] }), doc({ applyTo: "xyz" }), doc({ applyTo: "specific" }),
+      doc({ applyTo: "specific", baiApDung: [" ", 5, "x".repeat(121)] }), doc({ applyTo: "specific", baiApDung: [" a ", "a", "b"] }),
+      doc({ applyTo: "specific", baiApDung: Array.from({ length: 101 }, (_, i) => `p${i}`) })],
+    [null, { applyTo: "all", baiApDung: [] }, "Phạm vi áp dụng không hợp lệ", ad.LOI_CHUA_CHON_BAI, ad.LOI_CHUA_CHON_BAI,
+      { applyTo: "specific", baiApDung: ["a", "b"] }, ad.LOI_QUA_NHIEU_BAI]);
+  const kb = (id: number, apply_to: string, bai_ap_dung: string[] | null) => ({ id, apply_to, bai_ap_dung });
+  kiem("kịch bản theo bài", "kichBanChoBai: 'all' luôn áp; 'specific' chỉ áp đúng bài trong danh sách; giá trị lạ / danh sách null không áp",
+    ad.kichBanChoBai([kb(1, "all", []), kb(2, "specific", ["p1", "p2"]), kb(3, "specific", ["p9"]), kb(4, "xyz", ["p1"]), kb(5, "specific", null)], "p1").map((x) => x.id),
+    [1, 2]);
+  const ca13 = d13("server/services/comment-ai.ts"), st13 = d13("server/routes/settings.ts"), zn13 = d13("server/services/zernio.ts");
+  const m62 = fs.readFileSync(path.join(GOC, "server/migrations/062_kich_ban_theo_bai.sql"), "utf8");
+  kiem("kịch bản theo bài", "bộ máy đọc apply_to + bai_ap_dung, lọc bài TRƯỚC khi xét từ khoá, lý do bỏ qua riêng; mọi chỗ sau dùng danh sách đã lọc",
+    [/social_account_id, send_dm, apply_to, bai_ap_dung\n\s*FROM auto_scripts/.test(ca13),
+      /const kichBan = kichBanChoBai\(scripts\.rows, platformPostId\);\s*if \(kichBan\.length === 0\) \{\s*await markSkipped\(comment\.id, LY_DO_KHONG_AP_BAI\);/.test(ca13),
+      (ca13.match(/scripts\.rows/g) ?? []).length],
+    [true, true, 2]);
+  kiem("kịch bản theo bài", "tạo / sửa đi qua docApDung (sửa giờ nhận phạm vi); đường bai-dang chỉ kênh của cửa hàng đang chọn, chỉ Facebook chọn được, kênh lạ → 400; nhà cung cấp lọc bài quảng cáo",
+    [/const apDung = docApDung\(body\) \?\? \{ applyTo: "all", baiApDung: \[\] \};/.test(st13), /apDung\.applyTo,\n\s*body\.isActive !== false,\n\s*sendDm,\n\s*trangKichBan,\n\s*apDung\.baiApDung,/.test(st13),
+      /const apDung = docApDung\(body\);\s*if \(apDung\) \{\s*assign\("apply_to", apDung\.applyTo\);\s*assign\("bai_ap_dung", apDung\.baiApDung\);/.test(st13),
+      /typeof body\.applyTo === "string" \? body\.applyTo/.test(st13),
+      /WHERE user_id = \$1 AND trang_id = \$2 AND connected = TRUE AND platform IN \('facebook', 'instagram'\)/.test(st13),
+      /chonDuoc: k\.platform === "facebook"/.test(st13), /if \(xin && !chon\) throw new AppError\(LOI_KENH_NGOAI_CUA_HANG_DANG_CHON, 400\);/.test(st13),
+      /if \(!chon \|\| !chon\.chonDuoc\) \{/.test(st13), /\.filter\(\(x\) => !x\.isAd && typeof x\.id === "string" && x\.id !== ""\)/.test(zn13)],
+    [true, true, true, false, true, true, true, true, true]);
+  kiem("kịch bản theo bài", "062: cột mảng mặc định rỗng, chuẩn hoá giá trị lạ / 'specific' rỗng về 'all', hai CHECK (giá trị hợp lệ; 1–100 bài)",
+    [/ADD COLUMN IF NOT EXISTS bai_ap_dung TEXT\[\] NOT NULL DEFAULT '\{\}'/.test(m62), /WHERE apply_to NOT IN \('all', 'specific'\)/.test(m62),
+      /WHERE apply_to = 'specific' AND cardinality\(bai_ap_dung\) = 0/.test(m62), /CHECK \(apply_to IN \('all', 'specific'\)\)/.test(m62),
+      /CHECK \(apply_to = 'all' OR cardinality\(bai_ap_dung\) BETWEEN 1 AND 100\)/.test(m62), !/DELETE FROM|DROP TABLE|DROP COLUMN/i.test(m62)],
+    [true, true, true, true, true, true]);
+  const as13 = fs.readFileSync(path.join(GOC, "src/pages/AutoScripts.tsx"), "utf8"), cb13 = fs.readFileSync(path.join(GOC, "src/components/ChonBaiKichBan.tsx"), "utf8");
+  kiem("kịch bản theo bài", "giao diện: khung chọn bài thật thay chữ giả; lưu chặn 'specific' rỗng; gửi baiApDung; thẻ không in chuỗi thô; nói rõ Instagram sắp có + bài quảng cáo chưa chọn được",
+    [/Chọn bài đăng\.\.\./.test(as13), /<ChonBaiKichBan chon=\{baiApDung\} doiChon=\{setBaiApDung\} \/>/.test(as13),
+      /if \(applyTo === 'specific' && baiApDung\.length === 0\) \{/.test(as13), /baiApDung: applyTo === 'specific' \? baiApDung : \[\],/.test(as13),
+      /: script\.apply_to\}/.test(as13), /Bài quảng cáo chưa chọn được ở đây\./.test(cb13), /Instagram: sắp có/.test(cb13),
+      /const TOI_DA = 100;/.test(cb13) && ad.TOI_DA_BAI === 100],
+    [false, true, true, true, false, true, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

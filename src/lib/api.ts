@@ -1315,6 +1315,20 @@ export const api = {
       patch<{ data: any }>(`/settings/auto-scripts/${id}`, payload),
     removeAutoScript: (id: number) =>
       del<{ success: boolean }>(`/settings/auto-scripts/${id}`),
+    /** Bài để chọn cho kịch bản "Chỉ một số bài cụ thể" — kênh Facebook / Instagram của cửa hàng đang chọn. */
+    baiDeChon: (kenh?: string, cursor?: string) => {
+      const q = new URLSearchParams();
+      if (kenh) q.set("kenh", kenh);
+      if (cursor) q.set("cursor", cursor);
+      return get<{
+        data: {
+          kenh: { id: string; ten: string; platform: string; chonDuoc: boolean }[];
+          kenhDangXem: string | null;
+          bai: { id: string; noiDung: string; anh: string | null; link: string | null; ngay: string | null; soBinhLuan: number }[];
+          tiepTheo: string | null;
+        };
+      }>(`/settings/auto-scripts/bai-dang${q.size ? `?${q}` : ""}`);
+    },
 
     telegram: () =>
       get<{

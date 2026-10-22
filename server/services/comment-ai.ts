@@ -5,6 +5,7 @@ import { commentReplyAllowed } from "./guardrails.js";
 import { DK_TAI_KHOAN_MO } from "./tai-khoan-mo.js";
 import { chanCuaRa } from "./cua-ra.js";
 import { cacNhiemKy, chonNhiemKy, DK_NHIEM_KY_MO } from "./nhiem-ky.js";
+import { kichBanChoBai, LY_DO_KHONG_AP_BAI } from "./kich-ban-ap-dung.js";
 
 /**
  * Xử lý bình luận mới: trả lời công khai và nhắn tin riêng cho người bình luận.
@@ -312,11 +313,13 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
     public_reply_variations: string[];
     social_account_id: string | null;
     send_dm: boolean;
+    apply_to: string;
+    bai_ap_dung: string[];
   }>(
     `SELECT id, keywords, exclude_keywords, match_type, ignore_typo, message,
             public_reply_enabled, public_reply_text, delay_seconds,
             public_reply_delay_seconds, message_variations, public_reply_variations,
-            social_account_id, send_dm
+            social_account_id, send_dm, apply_to, bai_ap_dung
        FROM auto_scripts
       WHERE user_id = $1 AND is_active = TRUE
         -- Kịch bản của CỬA HÀNG của bình luận (đợt 2b): kịch bản "mọi kênh" của cửa hàng khác không áp lên kênh đã rời.
@@ -328,6 +331,12 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
 
   if (scripts.rows.length === 0) {
     await markSkipped(comment.id, "Chưa có kịch bản nào đang bật");
+    return;
+  }
+  // "Chỉ một số bài cụ thể" (062): chỉ kịch bản áp cho ĐÚNG bài này. Bản cũ không đọc → kịch bản chạy ở mọi bài.
+  const kichBan = kichBanChoBai(scripts.rows, platformPostId);
+  if (kichBan.length === 0) {
+    await markSkipped(comment.id, LY_DO_KHONG_AP_BAI);
     return;
   }
 
@@ -347,7 +356,7 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
    * không có từ nào để khớp với chuỗi rỗng, nên nhận vào cũng vô nghĩa — và
    * nhắn cho người không hỏi gì chính là hành vi khiến Trang bị gắn cờ.
    */
-  const coBatTatCa = scripts.rows.some((x) => x.match_type === "all");
+  const coBatTatCa = kichBan.some((x) => x.match_type === "all");
   if (content.trim() === "" && !coBatTatCa) {
     await markSkipped(
       comment.id,
@@ -364,8 +373,8 @@ export async function handleCommentReceived(event: CommentEvent): Promise<void> 
    * cái gì không kịch bản nào nhận thì nó nhận.
    */
   const theoThuTu = [
-    ...scripts.rows.filter((x) => x.match_type !== "all"),
-    ...scripts.rows.filter((x) => x.match_type === "all"),
+    ...kichBan.filter((x) => x.match_type !== "all"),
+    ...kichBan.filter((x) => x.match_type === "all"),
   ];
 
   const matched = theoThuTu.find((script) =>

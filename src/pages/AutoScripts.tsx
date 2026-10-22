@@ -3,6 +3,7 @@ import { clsx } from 'clsx';
 import { api, ApiError, type AiDocument, type SalesStage, type TuChuConfig } from '../lib/api';
 import { useActivePage } from '../lib/ActivePage';
 import TrangDangHuanLuyen from '../components/TrangDangHuanLuyen';
+import ChonBaiKichBan from '../components/ChonBaiKichBan';
 import HopThoai, { NUT_CHINH, NUT_PHU } from '../components/HopThoai';
 import {
   toFileArray, doiCoTep, napTepChu, napTepAnh, NHAN_VAN_BAN, NHAN_ANH,
@@ -27,6 +28,8 @@ interface ScriptRow {
   message_variations: string[];
   public_reply_variations: string[];
   apply_to: string;
+  /** Mã bài (đúng mã bình luận gửi về) khi apply_to = 'specific' — migration 062. */
+  bai_ap_dung?: string[];
   is_active: boolean;
   /** FALSE = kịch bản chỉ trả lời công khai, không mở Messenger. */
   send_dm: boolean;
@@ -145,6 +148,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
     ordersDelta: number;
   } | null>(null);
   const [applyTo, setApplyTo] = useState('all');
+  const [baiApDung, setBaiApDung] = useState<string[]>([]);
   /*
    * Loại kịch bản.
    *
@@ -250,6 +254,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
     setMessageVariations([]);
     setPublicReplyVariations([]);
     setApplyTo('all');
+    setBaiApDung([]);
     setLoaiKichBan('dm');
   };
 
@@ -282,6 +287,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
     setMessageVariations(script.message_variations ?? []);
     setPublicReplyVariations(script.public_reply_variations ?? []);
     setApplyTo(script.apply_to);
+    setBaiApDung(script.bai_ap_dung ?? []);
     setErrorMessage('');
     setIsComposerOpen(true);
   };
@@ -296,6 +302,9 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
     }
     if (loaiKichBan === 'cmt' && !publicReplyText.trim()) {
       setErrorMessage('Vui lòng nhập câu trả lời công khai dưới bình luận.'); return;
+    }
+    if (applyTo === 'specific' && baiApDung.length === 0) {
+      setErrorMessage('Vui lòng chọn ít nhất một bài cho kịch bản này.'); return;
     }
 
     setBusy(true);
@@ -318,6 +327,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
         messageVariations,
         publicReplyVariations,
         applyTo,
+        baiApDung: applyTo === 'specific' ? baiApDung : [],
         socialAccountId: activeAccountId ?? undefined,
       };
       if (editingId) await api.settings.updateAutoScript(editingId, payload);
@@ -1630,7 +1640,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
 
             {/* Footer */}
             <div className="px-5 py-3 bg-surface-container border-t border-outline-variant/50 text-xs text-on-surface-variant">
-              Áp dụng cho: <span className="font-medium text-on-surface">{script.apply_to === 'all' ? 'Tất cả bài đăng' : script.apply_to}{script.account_name ? ` · ${script.account_name}` : ''}</span>
+              Áp dụng cho: <span className="font-medium text-on-surface">{script.apply_to === 'specific' ? `${script.bai_ap_dung?.length ?? 0} bài cụ thể` : 'Tất cả bài đăng'}{script.account_name ? ` · ${script.account_name}` : ''}</span>
             </div>
           </div>
         ))}
@@ -2031,9 +2041,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
 
                   {applyTo === 'specific' && (
                     <div className="pl-8 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="p-3 border border-dashed border-outline-variant rounded-lg bg-surface-container-high text-center">
-                        <span className="text-xs text-on-surface-variant">Chọn bài đăng...</span>
-                      </div>
+                      <ChonBaiKichBan chon={baiApDung} doiChon={setBaiApDung} />
                     </div>
                   )}
                 </div>

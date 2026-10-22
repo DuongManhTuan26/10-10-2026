@@ -15,6 +15,7 @@ import {
 import { DAU_THANG_VN } from "../moc-thoi-gian.js";
 import { trangChoSo, trangHienTai } from "../services/ngu-canh-trang.js";
 import { LOI_KENH_NGOAI_CUA_HANG_DANG_CHON } from "../services/kenh-dang.js";
+import { docApDung } from "../services/kich-ban-ap-dung.js";
 
 export const settingsRouter = Router();
 
@@ -222,6 +223,34 @@ settingsRouter.get(
 );
 
 /**
+ * Bài để chọn cho kịch bản "Chỉ một số bài cụ thể" (062): bài thật trên kênh của CỬA HÀNG đang chọn, mới trước, theo
+ * trang. Chỉ Facebook chọn được (mã bài Instagram chưa đối chiếu được với bình luận thật); bài quảng cáo không có ở đây.
+ */
+settingsRouter.get(
+  "/auto-scripts/bai-dang",
+  route(async (req, res) => {
+    const trang = await trangHienTai();
+    const kenh = await query<{ id: string; ten: string; platform: string }>(
+      `SELECT id, COALESCE(NULLIF(display_name, ''), username) AS ten, platform FROM social_accounts
+        WHERE user_id = $1 AND trang_id = $2 AND connected = TRUE AND platform IN ('facebook', 'instagram')
+        ORDER BY platform, display_name`,
+      [req.user!.id, trang]
+    );
+    const dsKenh = kenh.rows.map((k) => ({ ...k, chonDuoc: k.platform === "facebook" }));
+    const xin = typeof req.query.kenh === "string" ? req.query.kenh : "";
+    const chon = xin ? dsKenh.find((k) => k.id === xin) : dsKenh.find((k) => k.chonDuoc);
+    if (xin && !chon) throw new AppError(LOI_KENH_NGOAI_CUA_HANG_DANG_CHON, 400);
+    if (!chon || !chon.chonDuoc) {
+      res.json({ success: true, data: { kenh: dsKenh, kenhDangXem: chon?.id ?? null, bai: [], tiepTheo: null } });
+      return;
+    }
+    const cursor = typeof req.query.cursor === "string" && req.query.cursor ? req.query.cursor : undefined;
+    const { bai, tiepTheo } = await zernio.layBaiDeChon({ accountId: chon.id, platform: "facebook", cursor });
+    res.json({ success: true, data: { kenh: dsKenh, kenhDangXem: chon.id, bai, tiepTheo } });
+  })
+);
+
+/**
  * Bốn con số trên đầu màn hình Comment sang tin nhắn.
  *
  * Trước đây bốn ô này là số cứng lấy từ bản thiết kế (3 / 142 / 89 / 18), nên
@@ -372,13 +401,14 @@ settingsRouter.post(
       if (!cuaCuaHang) throw new AppError(LOI_KENH_NGOAI_CUA_HANG_DANG_CHON, 400);
     }
 
+    const apDung = docApDung(body) ?? { applyTo: "all", baiApDung: [] };
     const inserted = await queryOne(
       `INSERT INTO auto_scripts
          (user_id, social_account_id, name, keywords, exclude_keywords, match_type,
           ignore_typo, message, public_reply_enabled, public_reply_text,
           delay_seconds, public_reply_delay_seconds, message_variations,
-          public_reply_variations, apply_to, is_active, send_dm, trang_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+          public_reply_variations, apply_to, is_active, send_dm, trang_id, bai_ap_dung)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        RETURNING *`,
       [
         req.user!.id,
@@ -395,10 +425,11 @@ settingsRouter.post(
         toDelaySeconds(body.publicReplyDelaySeconds, 0),
         toVariations(body.messageVariations),
         toVariations(body.publicReplyVariations),
-        typeof body.applyTo === "string" ? body.applyTo : "all",
+        apDung.applyTo,
         body.isActive !== false,
         sendDm,
         trangKichBan,
+        apDung.baiApDung,
       ]
     );
 
@@ -441,6 +472,12 @@ settingsRouter.patch(
     }
     if (body.publicReplyVariations !== undefined) {
       assign("public_reply_variations", toVariations(body.publicReplyVariations));
+    }
+    // Phạm vi bài (062): bản cũ không nhận applyTo khi sửa — sửa kịch bản thì phạm vi đứng yên.
+    const apDung = docApDung(body);
+    if (apDung) {
+      assign("apply_to", apDung.applyTo);
+      assign("bai_ap_dung", apDung.baiApDung);
     }
 
     if (fields.length === 0) throw new AppError("Không có thông tin nào để cập nhật");
