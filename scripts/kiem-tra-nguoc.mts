@@ -5017,6 +5017,18 @@ const DUC: PhepDuc[] = [
     thay: "    remote = (await zernio.listBaiCuaKenh({ accountId: \"\", tu: \"\" }))[0] ?? null;",
   },
   {
+    ten: "quên chốt đường danh sách chiến dịch quảng cáo",
+    tep: "server/services/pham-vi-goi.ts",
+    tim: '  "/ads/campaigns",\n',
+    thay: "",
+  },
+  {
+    ten: "quên chốt đường danh sách người dùng của cả team",
+    tep: "server/services/pham-vi-goi.ts",
+    tim: '  "/users",\n',
+    thay: "",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

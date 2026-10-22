@@ -8,6 +8,10 @@
  *
  * Luật: GET tới các đường này PHẢI có phạm vi; chỗ cố ý hỏi cả team phải khai lý do (caTeam) và nằm trong danh sách
  * ngoại lệ có phép kiểm (scripts/kiem-tra.mts).
+ *
+ * Danh sách KHOÁ BẰNG TÀI LIỆU: mọi đường mã gọi mà OpenAPI ghi nhận profileId / accountId (docs/zernio-duong-co-pham-vi.json,
+ * trích bằng scripts/trich-duong-pham-vi.py) phải có ở đây — thêm đường mới mà quên là phép kiểm hỏng. Thêm vào đó các
+ * đường không có tham số phạm vi nhưng trả dữ liệu cả team (/profiles, /users, /webhooks/logs).
  */
 export const DUONG_DANH_SACH = new Set([
   "/accounts",
@@ -17,11 +21,15 @@ export const DUONG_DANH_SACH = new Set([
   "/inbox/comments",
   "/ads",
   "/ads/accounts",
+  "/ads/campaigns",
   "/ads/tree",
   "/ads/insights",
   "/ads/audiences",
+  "/connect/facebook/select-page",
+  "/connect/telegram",
   "/profiles",
   "/usage",
+  "/users",
   "/webhooks/logs",
 ]);
 

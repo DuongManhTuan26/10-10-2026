@@ -7269,12 +7269,20 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const caTeam = [...zn12.matchAll(/export async function (\w+)\([\s\S]*?\n\}/g)].filter((m) => /caTeam: "/.test(m[0])).map((m) => m[1]).sort();
   const fetchThang = moiTepMayChu(path.join(GOC, "server")).filter((t) => !/migrations/.test(t))
     .flatMap((t) => (d12(path.relative(GOC, t)).match(/env\.zernio\.baseUrl/g) ?? []).map(() => path.relative(GOC, t))).sort();
-  kiem("phạm vi gọi", "request của zernio.ts và ads.ts gọi kiemPhamVi trước khi dựng URL; đúng 4 hàm khai hỏi cả team; chỉ 3 chỗ dựng URL nhà cung cấp (2 request + /usage-stats quản trị)",
+  kiem("phạm vi gọi", "request của zernio.ts và ads.ts gọi kiemPhamVi trước khi dựng URL; đúng 5 hàm khai hỏi cả team; chỉ 3 chỗ dựng URL nhà cung cấp (2 request + /usage-stats quản trị)",
     [/caTeam,\n  \} = options;\n  kiemPhamVi\(method, path, query, caTeam\);\n\n  const url = new URL\(env\.zernio\.baseUrl \+ path\);/.test(zn12),
       /const \{ method = "GET", query, body, headers \} = options;\n  kiemPhamVi\(method, path, query, undefined\);\n  const url = new URL\(env\.zernio\.baseUrl \+ path\);/.test(ads12),
       caTeam, fetchThang],
-    [true, true, ["docTienKenhTheoKenh", "layNhatKyWebhook", "listAccountsCaTeam", "listProfiles"],
+    [true, true, ["docTienKenhTheoKenh", "layNhatKyWebhook", "listAccountsCaTeam", "listProfiles", "noiBluesky"],
       ["server/services/ads.ts", "server/services/chi-phi.ts", "server/services/zernio.ts"]]);
+  // KHOÁ BẰNG TÀI LIỆU: đường mã gọi mà OpenAPI ghi nhận profileId / accountId → phải có trong DUONG_DANH_SACH.
+  const taiLieu = JSON.parse(fs.readFileSync(path.join(GOC, "docs/zernio-duong-co-pham-vi.json"), "utf8")) as { nguon: string; duong: string[] };
+  const duongMaGoi = [...new Set([zn12, ads12].flatMap((t) => [...t.matchAll(/request(?:<[^(]*?>)?\(\s*["`](\/[^"`$?]*)["`]/g)].map((m) => m[1])))].sort();
+  const thieuChot = duongMaGoi.filter((d) => taiLieu.duong.includes(d) && !pv.DUONG_DANH_SACH.has(d));
+  console.log(`  [phạm vi] ${taiLieu.nguon}: ${taiLieu.duong.length} đường có phạm vi; mã gọi ${duongMaGoi.length} đường, ${duongMaGoi.filter((d) => taiLieu.duong.includes(d)).length} đường thuộc tập đó`);
+  kiem("phạm vi gọi", "khoá bằng tài liệu: mọi đường mã gọi mà OpenAPI ghi có profileId / accountId đều nằm trong DUONG_DANH_SACH; /profiles, /users, /webhooks/logs (cả team, không tham số) cũng có",
+    [taiLieu.duong.length > 100, duongMaGoi.length > 10, thieuChot, ["/profiles", "/users", "/webhooks/logs"].filter((d) => !pv.DUONG_DANH_SACH.has(d))],
+    [true, true, [], []]);
   kiem("phạm vi gọi", "đối chiếu bài: chỉ trong bài của kênh đích từ lúc tạo (không còn 20 bài cả team); màn quảng cáo không hồ sơ thì không gọi",
     [/listRecentPosts/.test(zn12 + ps12), /remote = await timBaiTheoNoiDung\(post\);/.test(ps12),
       /for \(const accountId of post\.target_account_ids\) \{\s*const ds = await zernio\.listBaiCuaKenh\(\{ accountId, tu \}\);/.test(ps12),

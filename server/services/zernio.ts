@@ -458,7 +458,9 @@ export async function kiemMaTelegram(code: string): Promise<"pending" | "connect
  * qua, mình KHÔNG lưu.
  */
 export async function noiBluesky(identifier: string, appPassword: string, profileId: string): Promise<void> {
-  const nguoiDung = await request<{ currentUserId?: string }>("/users");
+  const nguoiDung = await request<{ currentUserId?: string }>("/users", {
+    caTeam: "chỉ lấy currentUserId (mã người gọi) dựng state Bluesky; danh sách người dùng không dùng, không lưu",
+  });
   if (!nguoiDung.currentUserId) throw new ZernioError("Zernio không trả mã người dùng", 502, "missing_user_id");
   await request("/connect/bluesky/credentials", {
     method: "POST",
