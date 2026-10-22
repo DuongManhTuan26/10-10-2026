@@ -700,43 +700,6 @@ function moTaTin(
   return content.trim() ? `${content} ${dau}` : dau;
 }
 
-export async function decide(
-  conversation: ConversationRow,
-  history: Array<{
-    sender_type: string;
-    content: string;
-    attachments?: unknown;
-    attachment_text?: string | null;
-  }>,
-  rules: HandoffRule[]
-): Promise<SalesDecision> {
-  const config = await queryOne<{ system_prompt: string; settings: Record<string, unknown> }>(
-    "SELECT system_prompt, settings FROM ai_configs WHERE trang_id = $1 AND kind = 'sales'",
-    [conversation.trang_id]
-  );
-
-  const knowledge = await query<{ filename: string; extracted_text: string | null }>(
-    `SELECT filename, extracted_text FROM ai_documents
-      WHERE trang_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL
-      ORDER BY created_at DESC LIMIT 10`,
-    [conversation.trang_id]
-  );
-
-  const knowledgeBlock = knowledge.rows.length
-    ? knowledge.rows
-        .map((doc) => `# ${doc.filename}\n${(doc.extracted_text ?? "").slice(0, 4_000)}`)
-        .join("\n\n")
-    : "(Chưa có tài liệu nào được nạp.)";
-
-  const activeRules = rules
-    .filter((rule) => rule.enabled && RULE_DESCRIPTIONS[rule.rule_key])
-    .map((rule) => `- ${RULE_DESCRIPTIONS[rule.rule_key]}`)
-    .join("\n");
-
-  const cacBuoc = docCacBuoc((config?.settings as { stages?: unknown } | undefined)?.stages);
-  const buocTruoc = conversation.sales_stage;
-  const tuChu = docTuChu((config?.settings as { tuChu?: unknown } | undefined)?.tuChu);
-
 /**
  * Lời dặn khi shop chưa nạp tài liệu sản phẩm nào.
  *
@@ -792,10 +755,66 @@ const CHUA_CO_TAI_LIEU = [
 ].join("\n");
 
 
+
+/**
+ * Giọng điệu chọn ở màn Kịch bản (src/lib/aiTraining.ts AI_TONES) → một dòng lời dặn. Mô tả trung tính, ngắn, KHÔNG
+ * thêm hành vi mới (phiên kiểm duyệt dặn 22/10/2026: mọi cửa hàng chưa chọn vẫn là 'friendly' theo mặc định cột).
+ */
+const MO_TA_GIONG: Record<string, string> = {
+  friendly: "thân thiện, gần gũi.",
+  professional: "chuyên nghiệp, lịch sự.",
+  enthusiastic: "nhiệt tình, chủ động.",
+  concise: "ngắn gọn, đi thẳng vào ý.",
+};
+
+export function moTaGiong(tone: unknown): string | null {
+  return typeof tone === "string" && Object.hasOwn(MO_TA_GIONG, tone) ? `GIỌNG ĐIỆU: ${MO_TA_GIONG[tone]}` : null;
+}
+
+/**
+ * Lời dặn AI Bán hàng của MỘT cửa hàng — dùng CHUNG cho trả lời khách thật (decide) và "Thử AI" (routes/ai.ts /test).
+ * Trước 22/10/2026 "Thử AI" tự dựng bản rút gọn (5 tài liệu × 3.000 ký tự, không luật / bước / tự chủ / luật ảnh) nên
+ * chủ shop dạy AI theo một bài thử khác máy thật. Lời dặn với khách thật giữ NGUYÊN VĂN (bản mẫu
+ * scripts/mau/loi-dan-ban-hang.json), chỉ thêm dòng giọng điệu.
+ */
+export async function dungLoiDanBanHang(
+  trangId: number | null,
+  buocTruoc: string | null,
+  rules: HandoffRule[]
+): Promise<{ systemPrompt: string; cacBuoc: ReturnType<typeof docCacBuoc> }> {
+  const config = await queryOne<{ system_prompt: string; tone: string | null; settings: Record<string, unknown> }>(
+    "SELECT system_prompt, tone, settings FROM ai_configs WHERE trang_id = $1 AND kind = 'sales'",
+    [trangId]
+  );
+
+  const knowledge = await query<{ filename: string; extracted_text: string | null }>(
+    `SELECT filename, extracted_text FROM ai_documents
+      WHERE trang_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL
+      ORDER BY created_at DESC LIMIT 10`,
+    [trangId]
+  );
+
+  const knowledgeBlock = knowledge.rows.length
+    ? knowledge.rows
+        .map((doc) => `# ${doc.filename}\n${(doc.extracted_text ?? "").slice(0, 4_000)}`)
+        .join("\n\n")
+    : "(Chưa có tài liệu nào được nạp.)";
+
+  const activeRules = rules
+    .filter((rule) => rule.enabled && RULE_DESCRIPTIONS[rule.rule_key])
+    .map((rule) => `- ${RULE_DESCRIPTIONS[rule.rule_key]}`)
+    .join("\n");
+
+  const cacBuoc = docCacBuoc((config?.settings as { stages?: unknown } | undefined)?.stages);
+  const tuChu = docTuChu((config?.settings as { tuChu?: unknown } | undefined)?.tuChu);
+  const giong = moTaGiong(config?.tone);
+
   const systemPrompt = [
     config?.system_prompt?.trim() ||
       "Bạn là nhân viên bán hàng của shop, trả lời khách bằng tiếng Việt, xưng em.",
     "",
+    // Giọng điệu chủ shop chọn ở màn Kịch bản (mục 5) — trước 22/10/2026 lưu mà không đọc.
+    ...(giong ? [giong, ""] : []),
     /*
      * Chưa có tài liệu thì vẫn phải nói chuyện, chỉ là không được nói con số.
      *
@@ -872,6 +891,13 @@ const CHUA_CO_TAI_LIEU = [
     "}",
   ].join("\n");
 
+  return { systemPrompt, cacBuoc };
+}
+
+/** Phần "lịch sử hội thoại" gửi AI Bán hàng — dùng chung cho decide và "Thử AI" (một tin của khách, không lịch sử). */
+export function tinHoiThoaiBanHang(
+  history: Array<{ sender_type: string; content: string; attachments?: unknown; attachment_text?: string | null }>
+): string {
   const transcript = history
     .map((message) => {
       const who =
@@ -883,41 +909,61 @@ const CHUA_CO_TAI_LIEU = [
       return `${who}: ${moTaTin(message.content, message.attachments, message.attachment_text)}`;
     })
     .join("\n");
+  return `Lịch sử hội thoại:\n${transcript}\n\nHãy quyết định.`;
+}
+
+/** Cách gọi AI của AI Bán hàng — decide và "Thử AI" dùng CHUNG (mục 4+5): bài thử đúng mô hình / nhiệt độ / độ dài. */
+export const GOI_AI_BAN_HANG = { task: "sales", temperature: 0.4, maxTokens: 1_200 } as const;
+
+/** Đọc quyết định AI trả về (JSON) theo các bước bán của cửa hàng — dùng chung cho decide và "Thử AI". */
+export function kiemQuyetDinh(cacBuoc: ReturnType<typeof docCacBuoc>): (value: unknown) => SalesDecision {
+  return (value) => {
+    const object = asRecord(value);
+    const extracted = asRecord(object.extracted ?? {});
+    return {
+      canAnswer: object.canAnswer === true,
+      reply: typeof object.reply === "string" ? object.reply : "",
+      handoffReason:
+        typeof object.handoffReason === "string" ? object.handoffReason : "",
+      extracted: {
+        name: optionalString(extracted.name),
+        phone: optionalString(extracted.phone),
+        address: optionalString(extracted.address),
+        product: optionalString(extracted.product),
+        quantity: optionalString(extracted.quantity),
+        unitPrice: optionalString(extracted.unitPrice),
+      },
+      needsOwner: object.needsOwner === true,
+      stage:
+        typeof object.stage === "string" && maCacBuoc(cacBuoc).includes(object.stage)
+          ? object.stage
+          : "",
+      readyToOrder: object.readyToOrder === true,
+    };
+};
+}
+
+export async function decide(
+  conversation: ConversationRow,
+  history: Array<{
+    sender_type: string;
+    content: string;
+    attachments?: unknown;
+    attachment_text?: string | null;
+  }>,
+  rules: HandoffRule[]
+): Promise<SalesDecision> {
+  const { systemPrompt, cacBuoc } = await dungLoiDanBanHang(conversation.trang_id ?? null, conversation.sales_stage, rules);
 
   const result = await chatJson<SalesDecision>({
-    task: "sales",
+    ...GOI_AI_BAN_HANG,
     viec: "tra_loi_khach",
     userId: conversation.user_id,
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user", content: `Lịch sử hội thoại:\n${transcript}\n\nHãy quyết định.` },
+      { role: "user", content: tinHoiThoaiBanHang(history) },
     ],
-    temperature: 0.4,
-    maxTokens: 1_200,
-    validate: (value) => {
-      const object = asRecord(value);
-      const extracted = asRecord(object.extracted ?? {});
-      return {
-        canAnswer: object.canAnswer === true,
-        reply: typeof object.reply === "string" ? object.reply : "",
-        handoffReason:
-          typeof object.handoffReason === "string" ? object.handoffReason : "",
-        extracted: {
-          name: optionalString(extracted.name),
-          phone: optionalString(extracted.phone),
-          address: optionalString(extracted.address),
-          product: optionalString(extracted.product),
-          quantity: optionalString(extracted.quantity),
-          unitPrice: optionalString(extracted.unitPrice),
-        },
-        needsOwner: object.needsOwner === true,
-        stage:
-          typeof object.stage === "string" && maCacBuoc(cacBuoc).includes(object.stage)
-            ? object.stage
-            : "",
-        readyToOrder: object.readyToOrder === true,
-      };
-    },
+    validate: kiemQuyetDinh(cacBuoc),
   });
 
   return result.output;

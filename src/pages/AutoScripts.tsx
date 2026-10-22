@@ -182,7 +182,9 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
 
   // Khung thử AI
   const [testInput, setTestInput] = useState('');
-  const [testReply, setTestReply] = useState<{ reply: string; model: string; cost: number } | null>(null);
+  const [testReply, setTestReply] = useState<{
+    reply: string; model: string; cost: number; chuyenNguoi: string | null; buoc: string | null;
+  } | null>(null);
   const [testing, setTesting] = useState(false);
 
   const loadScripts = useCallback(async () => {
@@ -562,7 +564,9 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
     setErrorMessage('');
     try {
       const { data } = await api.ai.test('sales', text);
-      setTestReply({ reply: data.reply, model: data.model, cost: data.usage.costUsd });
+      setTestReply({
+        reply: data.reply, model: data.model, cost: data.usage.costUsd, chuyenNguoi: data.chuyenNguoi ?? null, buoc: data.buoc ?? null,
+      });
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'AI chưa trả lời được');
     } finally {
@@ -1202,6 +1206,10 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
           Đặt câu hỏi như một khách hàng để xem AI trả lời thế nào.
           {aiModel && <span className="font-mono text-xs"> Đang dùng: {aiModel}</span>}
         </p>
+        <p className="text-xs text-on-surface-variant -mt-3 mb-5">
+          Thử với một tin đầu tiên của khách, không có lịch sử hội thoại. Khi trả lời khách thật, AI còn đọc cả lịch sử,
+          thông tin khách đã cho và hạn 24 giờ của Messenger.
+        </p>
 
         <div className="flex flex-wrap gap-2 mb-4">
           {SUGGESTED_TEST_PROMPTS.map((prompt) => (
@@ -1239,7 +1247,13 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
               <span className="material-symbols-outlined text-primary text-[18px]">smart_toy</span>
               <span className="tieu-de-muc">AI trả lời</span>
             </div>
-            <p className="text-sm text-on-surface leading-relaxed whitespace-pre-line mb-3">{testReply.reply}</p>
+            {testReply.reply && (
+              <p className="text-sm text-on-surface leading-relaxed whitespace-pre-line mb-3">{testReply.reply}</p>
+            )}
+            {testReply.chuyenNguoi && (
+              <p className="text-sm text-canh-bao mb-3">AI sẽ chuyển cho nhân viên: {testReply.chuyenNguoi}</p>
+            )}
+            {testReply.buoc && <p className="text-xs text-on-surface-variant mb-2">Bước bán hàng AI chọn: {testReply.buoc}</p>}
             <p className="font-mono text-[10px] text-on-surface-variant">
               {testReply.model} · chi phí ${testReply.cost.toFixed(6)}
             </p>

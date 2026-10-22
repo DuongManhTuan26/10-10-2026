@@ -7339,6 +7339,54 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [false, true, true, true, false, true, true, true]);
 }
 
+// ---------------------------------------------------------------------------
+// THỬ AI = MÁY THẬT + GIỌNG ĐIỆU (mục 4+5, 22/10/2026): "Thử AI" dùng CHUNG lời dặn / cách gọi với decide; lời dặn với khách
+// thật KHÔNG đổi ngoài dòng GIỌNG ĐIỆU — chạy lại decide thật qua DB / AI giả, so nguyên văn với bản mẫu chụp TRƯỚC khi tách.
+// ---------------------------------------------------------------------------
+{
+  const d14 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const { execFileSync } = await import("node:child_process");
+  const os = await import("node:os");
+  const tepRa = path.join(os.tmpdir(), `chup-loi-dan-${process.pid}.json`);
+  execFileSync("npx", ["tsx", "--import", "./scripts/loi-dan/moc-gia.mjs", "scripts/chup-loi-dan.mts", tepRa], { cwd: GOC, stdio: "ignore" });
+  const mau = JSON.parse(fs.readFileSync(path.join(GOC, "scripts/mau/loi-dan-ban-hang.json"), "utf8")) as Record<string, { messages: { content: string }[] }[]>;
+  const moi = JSON.parse(fs.readFileSync(tepRa, "utf8")) as typeof mau;
+  fs.rmSync(tepRa, { force: true });
+  const giongMoi = Object.fromEntries(Object.entries(moi).map(([k, v]) => [k, v[0].messages[0].content.match(/GIỌNG ĐIỆU: [^\n]*/g) ?? []]));
+  for (const v of Object.values(moi)) v[0].messages[0].content = v[0].messages[0].content.replace(/GIỌNG ĐIỆU: [^\n]*\n\n/g, "");
+  kiem("thử AI = máy thật", "lời dặn + tin gửi AI + task / nhiệt độ / độ dài của decide KHỚP NGUYÊN VĂN bản mẫu chụp trước khi tách (bỏ dòng GIỌNG ĐIỆU); 3 cảnh",
+    Object.keys(mau).map((k) => [k, JSON.stringify(moi[k]) === JSON.stringify(mau[k])]),
+    Object.keys(mau).map((k) => [k, true]));
+  kiem("thử AI = máy thật", "dòng GIỌNG ĐIỆU: có đúng một dòng theo tone của cửa hàng; không có cấu hình → không có",
+    giongMoi, { co_tai_lieu_khong_tu_chu: ["GIỌNG ĐIỆU: thân thiện, gần gũi."], chua_tai_lieu_tu_chu_co_buoc: ["GIỌNG ĐIỆU: chuyên nghiệp, lịch sự."], khong_cau_hinh: [] });
+  const sa = await import("../server/services/sales-ai.js");
+  const { AI_TONES } = await import("../src/lib/aiTraining.js");
+  kiem("thử AI = máy thật", "moTaGiong: đủ 4 giọng của màn Kịch bản; giọng lạ / __proto__ / không phải chữ → không thêm dòng",
+    [AI_TONES.map((t) => sa.moTaGiong(t.id) !== null), sa.moTaGiong("vui_ve"), sa.moTaGiong("__proto__"), sa.moTaGiong(undefined)],
+    [[true, true, true, true], null, null, null]);
+  const ai14 = d14("server/routes/ai.ts"), sa14 = d14("server/services/sales-ai.ts");
+  const thanTest = ai14.slice(ai14.indexOf('"/test",'), ai14.indexOf("\n);\n", ai14.indexOf('"/test",')));
+  const nhanhBan = thanTest.slice(thanTest.indexOf('if (kind === "sales") {'), thanTest.indexOf("      return;\n    }"));
+  kiem("thử AI = máy thật", "/test nhánh Bán hàng: dựng lời dặn + gọi AI đúng như decide; KHÔNG tác dụng phụ (không ghi DB, không gửi tin, không đơn, không chuyển người, không gọi nền tảng)",
+    [/const \{ systemPrompt, cacBuoc \} = await dungLoiDanBanHang\(trang, null, await luatCuaCuaHang\(trang\)\);/.test(nhanhBan),
+      /\.\.\.GOI_AI_BAN_HANG,\s*viec: "thu_ai",/.test(nhanhBan), /validate: kiemQuyetDinh\(cacBuoc\),/.test(nhanhBan),
+      /tinHoiThoaiBanHang\(\[\{ sender_type: "customer", content: message \}\]\)/.test(nhanhBan),
+      /temperature|maxTokens|task:/.test(nhanhBan),
+      /query\(|queryOne\(|transaction\(|saveExtracted|taoDon|sendMessageSafely|sendHandoffAlert|zernio\.|decide\(|INSERT |UPDATE |DELETE /.test(nhanhBan)],
+    [true, true, true, true, false, false]);
+  kiem("thử AI = máy thật", "decide dùng chung dựng lời dặn / tin / cách gọi / kiểm kết quả; nhiệt độ và độ dài chỉ khai một chỗ; content-ai không còn đọc tone thừa",
+    [/const \{ systemPrompt, cacBuoc \} = await dungLoiDanBanHang\(conversation\.trang_id \?\? null, conversation\.sales_stage, rules\);/.test(sa14),
+      /\{ role: "user", content: tinHoiThoaiBanHang\(history\) \},/.test(sa14), /validate: kiemQuyetDinh\(cacBuoc\),/.test(sa14),
+      (sa14.match(/temperature: 0\.4/g) ?? []).length, /export const GOI_AI_BAN_HANG = \{ task: "sales", temperature: 0\.4, maxTokens: 1_200 \} as const;/.test(sa14),
+      /\btone\b/.test(d14("server/services/content-ai.ts"))],
+    [true, true, true, 1, true, false]);
+  const as14 = fs.readFileSync(path.join(GOC, "src/pages/AutoScripts.tsx"), "utf8");
+  kiem("thử AI = máy thật", "màn thử: nói rõ chỉ thử một tin đầu tiên (không lịch sử); hiện 'AI sẽ chuyển cho nhân viên' + bước bán AI chọn",
+    [/Thử với một tin đầu tiên của khách, không có lịch sử hội thoại\./.test(as14), /AI sẽ chuyển cho nhân viên: \{testReply\.chuyenNguoi\}/.test(as14),
+      /Bước bán hàng AI chọn: \{testReply\.buoc\}/.test(as14)],
+    [true, true, true]);
+}
+
 console.log(`\nĐã kiểm ${tong} điểm.`);
 if (hong === 0) {
   console.log("Tất cả đều đạt.\n");

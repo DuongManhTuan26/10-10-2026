@@ -1721,7 +1721,13 @@ export const api = {
     phanTichTrend: (videoNguon: string) =>
       post<{ data: { congThuc: string; tomTat: string[] } }>('/ai/video/trend/phan-tich', { videoNguon }),
     test: (kind: string, message: string) =>
-      post<{ data: { reply: string; model: string; usage: { costUsd: number } } }>("/ai/test", {
+      post<{
+        data: {
+          reply: string; model: string; usage: { costUsd: number };
+          /** AI Bán hàng: lý do AI sẽ chuyển cho nhân viên (null = AI tự trả lời), bước bán AI chọn. */
+          chuyenNguoi?: string | null; buoc?: string | null;
+        };
+      }>("/ai/test", {
         kind,
         message,
       }),

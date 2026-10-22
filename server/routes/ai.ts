@@ -4,7 +4,9 @@ import { query, queryOne } from "../db.js";
 import { requireAuth } from "../auth.js";
 import { AppError, requireString, route } from "../http.js";
 import { chat, chatJson, asRecord, stringArray, DEFAULT_MODELS } from "../services/ai.js";
-import { extractOrderInfo, suggestReply } from "../services/sales-ai.js";
+import {
+  dungLoiDanBanHang, extractOrderInfo, GOI_AI_BAN_HANG, kiemQuyetDinh, suggestReply, tinHoiThoaiBanHang, type SalesDecision,
+} from "../services/sales-ai.js";
 import { generatePostContent } from "../services/content-ai.js";
 import { GHI_LUAT, luatCuaCuaHang } from "../services/luat-chuyen-nguoi.js";
 import { trangHienTai } from "../services/ngu-canh-trang.js";
@@ -1074,6 +1076,39 @@ aiRouter.post(
     );
     const message = requireString(req.body, "message", "câu hỏi thử");
 
+    /*
+     * AI Bán hàng: thử ĐÚNG lời dặn + cách gọi của máy thật (mục 4+5, 22/10/2026) — dungLoiDanBanHang / GOI_AI_BAN_HANG /
+     * kiemQuyetDinh dùng chung với decide. CHỈ dựng lời dặn, gọi AI, trả kết quả: không đổi bước bán, không ghi chuyển
+     * người, không tạo đơn, không gửi tin. Khác máy thật ở chỗ chỉ có MỘT tin của khách (không lịch sử, không thông tin
+     * khách, không khung 24 giờ) — màn hình ghi rõ.
+     */
+    if (kind === "sales") {
+      const trang = await trangCuaReq(req);
+      const { systemPrompt, cacBuoc } = await dungLoiDanBanHang(trang, null, await luatCuaCuaHang(trang));
+      const kq = await chatJson<SalesDecision>({
+        ...GOI_AI_BAN_HANG,
+        viec: "thu_ai",
+        userId: req.user!.id,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: tinHoiThoaiBanHang([{ sender_type: "customer", content: message }]) },
+        ],
+        validate: kiemQuyetDinh(cacBuoc),
+      });
+      const buoc = cacBuoc.find((b) => b.id === kq.output.stage);
+      res.json({
+        success: true,
+        data: {
+          reply: boMarkdown(kq.output.reply),
+          model: kq.model,
+          usage: kq.usage,
+          chuyenNguoi: kq.output.canAnswer ? null : kq.output.handoffReason || "không nêu lý do",
+          buoc: buoc ? buoc.ten : null,
+        },
+      });
+      return;
+    }
+
     const config = await queryOne<{ system_prompt: string }>(
       "SELECT system_prompt FROM ai_configs WHERE trang_id = $1 AND kind = $2",
       [await trangCuaReq(req), kind]
@@ -1093,8 +1128,9 @@ aiRouter.post(
           .join("\n\n")
       : "";
 
+    // Các AI khác (không trả lời khách): giữ cách thử cũ — hiện không màn hình nào gọi.
     const result = await chat({
-      task: kind === "sales" ? "sales" : "content",
+      task: "content",
       viec: "thu_ai",
       userId: req.user!.id,
       messages: [

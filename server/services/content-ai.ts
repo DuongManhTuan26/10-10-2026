@@ -58,8 +58,9 @@ export async function generatePostContent(params: {
   const count = Math.min(Math.max(params.count ?? 3, 1), 5);
   const goal = params.goal ?? "sales";
 
-  const config = await queryOne<{ system_prompt: string; tone: string }>(
-    "SELECT system_prompt, tone FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
+  // Không đọc tone: AI Nội dung chưa có màn chọn giọng điệu (tồn đọng TD-24) — đọc mà không dùng dễ khiến tưởng có tác dụng.
+  const config = await queryOne<{ system_prompt: string }>(
+    "SELECT system_prompt FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
     [params.trangId]
   );
 

@@ -248,3 +248,9 @@ Hiện màn Nội dung chặn hai nút này với bài hẹn giờ đã giao nh�
 giờ cũ). Đợt 3 làm: kênh rời → gỡ lịch; Xoá bài hẹn giờ → huỷ bên nhà cung cấp (DELETE /v1/posts/{id}). Chưa làm: Huỷ
 lịch giữ bài (DELETE phía nhà cung cấp rồi đưa bài về chờ duyệt) và Đổi lịch (PUT /v1/posts/{id} với scheduledFor — tài liệu
 ghi rõ cho bài scheduled). Cần chủ dự án xếp thứ tự ưu tiên.
+
+## TD-24 — AI Nội dung chưa có màn chọn giọng điệu (22/10/2026)
+
+Mục 5 (giọng điệu) làm cho AI Bán hàng: màn Kịch bản chọn giọng → dòng "GIỌNG ĐIỆU" trong lời dặn (sales-ai.ts moTaGiong).
+AI Nội dung: cột ai_configs.tone có, nhưng KHÔNG màn nào cho chọn, nên content-ai đã thôi đọc cột này (đọc mà không dùng
+dễ khiến tưởng có tác dụng). Làm khi có yêu cầu: thêm chọn giọng ở thẻ Hướng dẫn AI của ① và đưa vào lời dặn viết bài.
