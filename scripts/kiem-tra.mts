@@ -6848,8 +6848,14 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /CREATE UNIQUE INDEX IF NOT EXISTS handoff_rules_trang_key ON handoff_rules \(trang_id, rule_key\);/.test(m60) && /DROP INDEX IF EXISTS handoff_rules_user_key;/.test(m60),
       /FROM guardrail_configs g JOIN trang t ON t\.user_id = g\.user_id/.test(m60) && /CREATE TRIGGER so_thay_doi_rao_chan_cua_hang/.test(m60),
       m60.search(/FROM conversations c WHERE c\.id = s\.conversation_id/) >= 0 && m60.search(/FROM conversations c WHERE c\.id = s\.conversation_id/) < m60.search(/FROM kenh_nhiem_ky nk/),
-      !/DELETE FROM|DROP TABLE|DROP COLUMN/i.test(m60)],
-    [true, true, true, true, true, true, true, true]);
+      !/DELETE FROM|DROP TABLE|DROP COLUMN/i.test(m60),
+      // Khoá CŨ (user_id, rule_key) phải bỏ TRƯỚC khi chép luật sang cửa hàng thứ hai (bản chép trùng khoá cũ → 060 vỡ,
+      // máy chủ không lên — phiên kiểm duyệt bắt 22/10); chép dùng ON CONFLICT khớp khoá mới.
+      m60.search(/DROP INDEX IF EXISTS handoff_rules_user_key;/) >= 0 &&
+        m60.search(/DROP INDEX IF EXISTS handoff_rules_user_key;/) < m60.search(/INSERT INTO handoff_rules/) &&
+        m60.search(/CREATE UNIQUE INDEX IF NOT EXISTS handoff_rules_trang_key/) < m60.search(/INSERT INTO handoff_rules/),
+      /SELECT h\.user_id, t\.id, h\.rule_key, h\.enabled, h\.config[\s\S]*?ON CONFLICT \(trang_id, rule_key\) DO NOTHING;/.test(m60)],
+    [true, true, true, true, true, true, true, true, true, true]);
 
   // ĐIỀU KIỆN 2: chỉ một chỗ GHI (upsert PATCH, ON CONFLICT khớp chỉ mục), mọi chỗ ĐỌC đi qua luatCuaCuaHang.
   const choGhiLuat = tepMay.flatMap((t) => [...d6(path.relative(GOC, t)).matchAll(/INSERT INTO handoff_rules/g)].map(() => path.relative(GOC, t)));

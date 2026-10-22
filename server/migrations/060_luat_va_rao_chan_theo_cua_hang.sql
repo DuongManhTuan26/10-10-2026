@@ -19,13 +19,6 @@ ALTER TABLE handoff_rules ADD COLUMN IF NOT EXISTS trang_id BIGINT REFERENCES tr
 -- 1. Dòng đang có → cửa hàng CŨ NHẤT của tài khoản (giữ nguyên dòng).
 UPDATE handoff_rules h SET trang_id = (SELECT MIN(t.id) FROM trang t WHERE t.user_id = h.user_id)
  WHERE h.trang_id IS NULL;
--- 2. Chép cho các cửa hàng còn lại của tài khoản → mỗi cửa hàng giữ đúng bộ luật tài khoản đang dùng.
-INSERT INTO handoff_rules (user_id, trang_id, rule_key, enabled, config)
-SELECT h.user_id, t.id, h.rule_key, h.enabled, h.config
-  FROM handoff_rules h
-  JOIN trang t ON t.user_id = h.user_id AND t.id <> h.trang_id
- WHERE h.trang_id = (SELECT MIN(t2.id) FROM trang t2 WHERE t2.user_id = h.user_id)
-   AND NOT EXISTS (SELECT 1 FROM handoff_rules x WHERE x.trang_id = t.id AND x.rule_key = h.rule_key);
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM handoff_rules WHERE trang_id IS NULL) THEN
@@ -33,9 +26,18 @@ BEGIN
   END IF;
 END $$;
 ALTER TABLE handoff_rules ALTER COLUMN trang_id SET NOT NULL;
+-- Bỏ khoá CŨ (user_id, rule_key) TRƯỚC khi chép: bản chép cho cửa hàng thứ hai có cùng (user_id, rule_key) với dòng gốc
+-- (phiên kiểm duyệt bắt 22/10 — để sau thì 060 vỡ "duplicate key", máy chủ không khởi động).
 DROP INDEX IF EXISTS handoff_rules_user_key;
 -- Mọi ON CONFLICT của handoff_rules phải ghi đúng: (trang_id, rule_key).
 CREATE UNIQUE INDEX IF NOT EXISTS handoff_rules_trang_key ON handoff_rules (trang_id, rule_key);
+-- 2. Chép cho các cửa hàng còn lại của tài khoản → mỗi cửa hàng giữ đúng bộ luật tài khoản đang dùng.
+INSERT INTO handoff_rules (user_id, trang_id, rule_key, enabled, config)
+SELECT h.user_id, t.id, h.rule_key, h.enabled, h.config
+  FROM handoff_rules h
+  JOIN trang t ON t.user_id = h.user_id AND t.id <> h.trang_id
+ WHERE h.trang_id = (SELECT MIN(t2.id) FROM trang t2 WHERE t2.user_id = h.user_id)
+ON CONFLICT (trang_id, rule_key) DO NOTHING;
 
 -- ── RÀO CHẮN THEO CỬA HÀNG ─────────────────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS rao_chan_cua_hang (

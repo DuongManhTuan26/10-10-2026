@@ -4615,6 +4615,18 @@ const DUC: PhepDuc[] = [
     thay: "const updated = await queryOne(\"INSERT INTO handoff_rules (user_id, rule_key, enabled, config) VALUES ($1, $3, $4, $5) RETURNING *\", [",
   },
   {
+    ten: "A3: 060 chép luật TRƯỚC khi bỏ khoá cũ (trùng khoá, máy chủ không lên)",
+    tep: "server/migrations/060_luat_va_rao_chan_theo_cua_hang.sql",
+    tim: "DROP INDEX IF EXISTS handoff_rules_user_key;\n",
+    thay: "",
+  },
+  {
+    ten: "A3: 060 chép luật không ON CONFLICT khoá mới",
+    tep: "server/migrations/060_luat_va_rao_chan_theo_cua_hang.sql",
+    tim: "ON CONFLICT (trang_id, rule_key) DO NOTHING;",
+    thay: ";",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",
