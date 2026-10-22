@@ -700,7 +700,7 @@ function moTaTin(
   return content.trim() ? `${content} ${dau}` : dau;
 }
 
-async function decide(
+export async function decide(
   conversation: ConversationRow,
   history: Array<{
     sender_type: string;
