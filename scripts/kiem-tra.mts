@@ -7005,6 +7005,16 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       // dsTrang hỏng (mạng) thì KHÔNG đặt lại lựa chọn.
       /api\.connections\.dsTrang\(\)\.then\(\(r\) => r\.data\)\.catch\(\(\) => null\)/.test(ap8) && /if \(dsCH\) \{/.test(ap8)],
     [true, true, true, true, true]);
+  // Thẻ <img> / link KHÔNG gửi được X-Cua-Hang: mọi chỗ src / href trỏ thẳng "/api/…" ngoài api.ts phải là đường KHÔNG
+  // phụ thuộc cửa hàng đang chọn (phiên kiểm duyệt, sửa A4a). Hiện chỉ ảnh thư viện — route tìm theo mã ảnh + CHỦ SỞ HỮU.
+  const thangApi = tepSrc.filter((t) => !t.endsWith("src/lib/api.ts") && /["'`]\/api\//.test(fs.readFileSync(t, "utf8")))
+    .map((t) => path.relative(GOC, t)).sort();
+  const ai8 = d7("server/routes/ai.ts"), tva = d7("server/services/thu-vien-anh.ts");
+  const thanAnh = ai8.slice(ai8.indexOf('"/thu-vien/:id/anh"'), ai8.indexOf('"/thu-vien/:id/dung"'));
+  kiem("A4a giao diện", "src / href thẳng /api/ ngoài api.ts chỉ có ảnh thư viện; route ảnh tìm theo mã ảnh + chủ sở hữu, KHÔNG theo cửa hàng đang chọn",
+    [thangApi, /const anh = await docAnhThuVien\(req\.user!\.id, maThuVien\(req\.params\.id\)\);/.test(thanAnh), /trangCuaReq|trangHienTai/.test(thanAnh),
+      /"SELECT kieu, du_lieu FROM thu_vien_anh WHERE id = \$1 AND user_id = \$2"/.test(tva)],
+    [["src/components/ThuVienAnh.tsx"], true, false, true]);
   // Điều kiện: liệt kê + xếp loại MỌI tệp dùng useActivePage (dùng cửa hàng / dùng kênh lọc / cả hai).
   const XEP_GD: Record<string, string> = {
     "src/lib/ActivePage.tsx": "nguon",

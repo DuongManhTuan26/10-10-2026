@@ -4711,6 +4711,18 @@ const DUC: PhepDuc[] = [
     thay: "api.connections.dsTrang().then((r) => r.data).catch(() => []),",
   },
   {
+    ten: "A4a: ảnh thư viện (thẻ img, không có X-Cua-Hang) tìm theo cửa hàng đang chọn",
+    tep: "server/routes/ai.ts",
+    tim: "    const anh = await docAnhThuVien(req.user!.id, maThuVien(req.params.id));",
+    thay: "    const anh = await docAnhThuVien((await trangCuaReq(req))!, maThuVien(req.params.id));",
+  },
+  {
+    ten: "A4a: ảnh thư viện không kiểm chủ sở hữu",
+    tep: "server/services/thu-vien-anh.ts",
+    tim: "\"SELECT kieu, du_lieu FROM thu_vien_anh WHERE id = $1 AND user_id = $2\"",
+    thay: "\"SELECT kieu, du_lieu FROM thu_vien_anh WHERE id = $1 AND $2::bigint IS NOT NULL\"",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",
