@@ -10,6 +10,9 @@ import path from "node:path";
 import { BO_DE } from "./de.mjs";
 import { cham, docTraLoi } from "./cham.mjs";
 import { loiDanHeThong } from "./khuon.mjs";
+import { ghiChiNgoaiSo } from "../ghi-chi-ngoai-so.mjs";
+
+const BAT_DAU = new Date();
 
 const MO_HINH = (process.env.MO_HINH ?? "openai/gpt-5.6-sol,anthropic/claude-opus-5.5,anthropic/claude-sonnet-5.5").split(",");
 const DE = process.env.DE ? BO_DE.filter((d) => process.env.DE!.split(",").includes(d.ma)) : BO_DE;
@@ -75,3 +78,4 @@ outer: for (let lan = 1; lan <= LAN; lan++) {
   }
 }
 console.log(`Xong. Tổng ${tong.toFixed(4)} USD. Kết quả: ${tep}`);
+await ghiChiNgoaiSo({ ma: `bo_de_chay_${path.basename(tep)}`, usd: tong, tu: BAT_DAU, lyDo: "Nghiên cứu AI Điều hành (bộ đề)", canCu: `Tổng usage.cost — ${path.basename(tep)}` });

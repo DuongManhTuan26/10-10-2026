@@ -397,7 +397,58 @@ export interface DoiChieuTong {
     chenhUsd: number;
     /** Phần chênh KHÔNG giải thích được bằng các lượt đang chờ chốt — đây mới là số lệch thật. */
     lechUsd: number;
+    /** Chi ngoài app ĐÃ ĐỐI CHIẾU có căn cứ (nghiên cứu…) nằm sau mốc — đã trừ khỏi phần nhà cung cấp trước khi so. */
+    chiNgoaiSoUsd: number;
   };
+  /** Từng khoản chi ngoài app đã đối chiếu (hiện trên màn Chi phí hệ thống — không giấu). */
+  chiNgoaiSo: ChiNgoaiSo[];
+}
+
+/**
+ * KHOẢN CHI NGOÀI APP ĐÃ ĐỐI CHIẾU (22/10/2026): tiền khoá AI của app bị trừ bởi việc KHÔNG đi qua sổ (vd. kịch bản nghiên
+ * cứu AI Điều hành 05–09/10 gọi thẳng nhà cung cấp — gốc của khoản "lệch 8,0733096 USD"). Mỗi khoản có khoảng thời gian
+ * chạy thật [tu, den] + căn cứ. Lưu ở cai_dat_he_thong khoá 'chi_ngoai_so' (mảng).
+ */
+export interface ChiNgoaiSo {
+  ma: string;
+  usd: number;
+  tu: string;
+  den: string;
+  lyDo: string;
+  canCu: string;
+}
+
+/**
+ * Hàm thuần: tổng các khoản chi ngoài app nằm TRỌN sau mốc đối chiếu (tu >= mốc, den >= tu, usd > 0). Khoản trước mốc
+ * đã nằm trong "ngoài sổ trước mốc" — trừ nữa là trừ hai lần; khoản sai dạng thì bỏ qua (không trừ mù).
+ */
+export function chiNgoaiSoSauMoc(ds: ChiNgoaiSo[], mocLuc: string): number {
+  const moc = new Date(mocLuc).getTime();
+  return ds
+    .filter((c) => {
+      const tu = new Date(c.tu).getTime();
+      const den = new Date(c.den).getTime();
+      return Number.isFinite(tu) && Number.isFinite(den) && tu >= moc && den >= tu && Number(c.usd) > 0;
+    })
+    .reduce((s, c) => s + Number(c.usd), 0);
+}
+
+async function docChiNgoaiSo(): Promise<ChiNgoaiSo[]> {
+  const r = await queryOne<{ gia_tri: unknown }>("SELECT gia_tri FROM cai_dat_he_thong WHERE khoa = 'chi_ngoai_so'");
+  return Array.isArray(r?.gia_tri) ? (r!.gia_tri as ChiNgoaiSo[]) : [];
+}
+
+/**
+ * Ghi một khoản chi ngoài app (kịch bản nghiên cứu gọi AI bằng khoá của app PHẢI gọi hàm này cuối lượt — bộ kiểm tra
+ * đếm). Gộp vào mảng 'chi_ngoai_so' trong một câu (không đọc rồi ghi đè).
+ */
+export async function themChiNgoaiSo(c: ChiNgoaiSo): Promise<void> {
+  if (!(Number(c.usd) > 0)) return;
+  await query(
+    `INSERT INTO cai_dat_he_thong (khoa, gia_tri) VALUES ('chi_ngoai_so', jsonb_build_array($1::jsonb))
+     ON CONFLICT (khoa) DO UPDATE SET gia_tri = cai_dat_he_thong.gia_tri || jsonb_build_array($1::jsonb), updated_at = now()`,
+    [JSON.stringify(c)]
+  );
 }
 
 interface MocDoiChieu {
@@ -472,14 +523,21 @@ export async function doiChieuTong(ai: TinhHinhAI): Promise<DoiChieuTong | null>
   const nccSau = ai.khoaDaTieuUsd - moc.nccUsd;
   const chot = Number(sau?.chot ?? 0);
   const cho = Number(sau?.cho ?? 0);
-  const chenh = nccSau - chot;
+  const dsNgoai = await docChiNgoaiSo();
+  const ngoai = chiNgoaiSoSauMoc(dsNgoai, moc.luc);
+  // Phần nhà cung cấp trừ cho việc NGOÀI app đã đối chiếu có căn cứ — không phải lọt sổ.
+  const chenh = nccSau - ngoai - chot;
   return {
     trangThai: trangThaiTong(chenh, cho),
     nhaCungCapUsd: ai.khoaDaTieuUsd,
     soAppUsd: Number(tat?.usd ?? 0),
     ngoaiSoTruocMocUsd: moc.nccUsd - moc.soUsd,
     mocLuc: moc.luc,
-    sauMoc: { nhaCungCapUsd: nccSau, soDaChotUsd: chot, soChoUsd: cho, soLuotCho: sau?.lan_cho ?? 0, chenhUsd: chenh, lechUsd: phanLech(chenh, cho) },
+    sauMoc: {
+      nhaCungCapUsd: nccSau, soDaChotUsd: chot, soChoUsd: cho, soLuotCho: sau?.lan_cho ?? 0, chenhUsd: chenh,
+      lechUsd: phanLech(chenh, cho), chiNgoaiSoUsd: ngoai,
+    },
+    chiNgoaiSo: dsNgoai,
   };
 }
 
@@ -498,6 +556,11 @@ export interface CanhBao {
    */
   tomTat: string;
   link?: string;
+  /**
+   * Khoá GIÁ TRỊ để chặn gửi lặp (22/10/2026): cùng mã + cùng khoá giá trị thì không gửi lại (trừ nhắc định kỳ). Làm tròn
+   * theo nghĩa từng loại — lệch 0,0001 USD; tiền còn lại theo từng 1 USD; hoá đơn 0,01 USD; tiêu quá tay theo NGÀY.
+   */
+  giaTriBao?: string;
 }
 
 /** Số tiền viết kiểu Việt Nam (2,50 USD) — người đọc là chủ shop Việt. */
@@ -522,6 +585,7 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
         "Đăng bài, trả lời khách, kết nối Fanpage đều đang đứng.",
       tomTat: "Đang bị tạm dừng — đăng bài, trả lời khách đều đứng",
       link: kenh.linkHoaDon ?? LINK_NAP.kenh,
+      giaTriBao: "tam_dung",
     });
   } else if (kenh.ok && (kenh.canTraUsd ?? 0) > 0) {
     ds.push({
@@ -534,6 +598,7 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
         ". Trả ngay để không bị tạm dừng.",
       tomTat: `Có hoá đơn cần trả ${usdVN(kenh.canTraUsd!)}`,
       link: kenh.linkHoaDon ?? LINK_NAP.kenh,
+      giaTriBao: kenh.canTraUsd!.toFixed(2),
     });
   }
   if (!kenh.ok) {
@@ -556,6 +621,7 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
         noiDung: "Tiền AI ĐÃ HẾT. AI trả lời khách, viết bài, tạo ảnh, tạo video đều đang dừng.",
         tomTat: "Tiền AI đã hết — mọi tính năng AI đang dừng",
         link: LINK_NAP.openrouter,
+        giaTriBao: "het",
       });
     } else if (conLai < nguong.soDuToiThieuUsd || (soNgayCon !== null && soNgayCon < nguong.soNgayToiThieu)) {
       const ngay = soNgayCon !== null ? Math.max(0, Math.floor(soNgayCon)) : null;
@@ -568,6 +634,8 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
           ". Nên nạp thêm.",
         tomTat: `Còn ${usdVN(conLai)}${ngay !== null ? `, đủ ~${ngay} ngày` : ""} — nên nạp thêm`,
         link: LINK_NAP.openrouter,
+        // Theo từng 1 USD còn lại: không báo lại sau mỗi xu bị trừ.
+        giaTriBao: String(Math.floor(conLai)),
       });
     }
     if (tbNgay > 0 && (ai.homNayUsd ?? 0) > tbNgay * nguong.heSoTieuQua && (ai.homNayUsd ?? 0) >= 0.5) {
@@ -579,6 +647,8 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
           `Hôm nay đã tiêu ${usdVN(ai.homNayUsd ?? 0)} tiền AI — gấp ${gap} lần ` +
           "trung bình 7 ngày qua. Xem mục chi tiết bên dưới để biết shop nào, việc gì đang tiêu.",
         tomTat: `Hôm nay tiêu gấp ${gap} lần mức thường`,
+        // Một lần mỗi NGÀY (giờ Việt Nam).
+        giaTriBao: new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10),
       });
     }
   } else {
@@ -600,6 +670,7 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
           ? `Nhà cung cấp AI trừ nhiều hơn sổ của app ${usdVNDu(chenh)}: có lượt dùng AI không vào sổ, hoặc khoá AI đang bị dùng ngoài app.`
           : `Sổ của app ghi nhiều hơn số nhà cung cấp AI trừ ${usdVNDu(-chenh)}: có lượt bị ghi sai tiền.`,
       tomTat: `Sổ lệch ${usdVNDu(Math.abs(chenh))} so với nhà cung cấp`,
+      giaTriBao: chenh.toFixed(4),
     });
   }
   return ds;
@@ -626,7 +697,27 @@ export async function saoKe(soNgay: number) {
 // ---------------------------------------------------------------------------
 
 /** Mỗi loại cảnh báo gửi lại tối đa 12 giờ một lần, không gửi dồn dập. */
-const GUI_LAI_SAU_MS = 12 * 60 * 60_000;
+/**
+ * CHẶN GỬI LẶP theo MÃ + GIÁ TRỊ (22/10/2026 — bản cũ chặn theo mã + 12 giờ: cùng một khoản lệch 8,07 USD không đổi bị gửi
+ * 25 lần). Hàm thuần.
+ *  - Chưa từng gửi, hoặc GIÁ TRỊ đã đổi → gửi.
+ *  - Cùng giá trị → chỉ nhắc lại sau 24 giờ (nguy cấp) / 7 ngày (còn lại), câu ghi "vẫn chưa xử lý từ <ngày>".
+ * Bản ghi cũ dạng số (mốc gửi, trước 22/10) coi như đã gửi CÙNG giá trị — không bùng một loạt tin ngay sau khi đổi mã.
+ */
+export type DaGuiCanhBao = Record<string, number | { luc: number; giaTri?: string; tu: number }>;
+export const NHAC_LAI_NGUY_CAP_MS = 24 * 60 * 60_000;
+export const NHAC_LAI_MS = 7 * 24 * 60 * 60_000;
+export function quyetDinhGui(
+  c: CanhBao,
+  daGui: DaGuiCanhBao,
+  bayGio: number
+): { gui: false } | { gui: true; nhacLai: boolean; tu: number } {
+  const cu = daGui[c.ma];
+  const truoc = typeof cu === "number" ? { luc: cu, giaTri: c.giaTriBao, tu: cu } : cu;
+  if (!truoc || truoc.giaTri !== c.giaTriBao) return { gui: true, nhacLai: false, tu: bayGio };
+  const nhac = c.mucDo === "nguy_cap" ? NHAC_LAI_NGUY_CAP_MS : NHAC_LAI_MS;
+  return bayGio - truoc.luc >= nhac ? { gui: true, nhacLai: true, tu: truoc.tu } : { gui: false };
+}
 
 export async function runDueCanhBaoChiPhi(
   gui: (adminId: number, noiDung: string) => Promise<boolean>
@@ -638,9 +729,11 @@ export async function runDueCanhBaoChiPhi(
 
   const daGui = banGhi((await queryOne<{ gia_tri: unknown }>(
     "SELECT gia_tri FROM cai_dat_he_thong WHERE khoa = 'canh_bao_da_gui'"
-  ))?.gia_tri);
+  ))?.gia_tri) as DaGuiCanhBao;
   const bayGio = Date.now();
-  const moi = canBao.filter((c) => !(Number(daGui[c.ma]) > bayGio - GUI_LAI_SAU_MS));
+  const moi = canBao
+    .map((c) => ({ c, qd: quyetDinhGui(c, daGui, bayGio) }))
+    .filter((x): x is { c: CanhBao; qd: { gui: true; nhacLai: boolean; tu: number } } => x.qd.gui);
   if (!moi.length) return 0;
 
   const admins = await query<{ id: number }>("SELECT id FROM users WHERE role = 'admin' AND is_active = TRUE");
@@ -648,7 +741,10 @@ export async function runDueCanhBaoChiPhi(
     "⚠️ <b>CẢNH BÁO CHI PHÍ HỆ THỐNG</b>",
     "",
     // Lý do tạm dừng là chữ do nhà cung cấp gửi về: phải thoát ký tự trước khi nhúng HTML.
-    ...moi.map((c) => `${c.mucDo === "nguy_cap" ? "🔴" : "🟠"} ${escapeHtml(c.noiDung)}${c.link ? `\n${escapeHtml(c.link)}` : ""}`),
+    ...moi.map(({ c, qd }) =>
+      `${c.mucDo === "nguy_cap" ? "🔴" : "🟠"} ${escapeHtml(c.noiDung)}` +
+      (qd.nhacLai ? ` (nhắc lại — vẫn chưa xử lý từ ${new Date(qd.tu).toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })})` : "") +
+      (c.link ? `\n${escapeHtml(c.link)}` : "")),
     "",
     "Xem sao kê đầy đủ ở mục Quản trị → Chi phí hệ thống.",
   ].join("\n");
@@ -656,7 +752,7 @@ export async function runDueCanhBaoChiPhi(
   for (const a of admins.rows) if (await gui(a.id, noiDung).catch(() => false)) soDaGui++;
 
   if (soDaGui > 0) {
-    for (const c of moi) daGui[c.ma] = bayGio;
+    for (const { c, qd } of moi) daGui[c.ma] = { luc: bayGio, giaTri: c.giaTriBao, tu: qd.tu };
     await query(
       `INSERT INTO cai_dat_he_thong (khoa, gia_tri) VALUES ('canh_bao_da_gui', $1::jsonb)
        ON CONFLICT (khoa) DO UPDATE SET gia_tri = EXCLUDED.gia_tri, updated_at = now()`,

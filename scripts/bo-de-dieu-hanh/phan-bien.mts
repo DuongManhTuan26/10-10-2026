@@ -11,6 +11,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { BO_DE } from "./de.mjs";
 import { loiDanHeThong } from "./khuon.mjs";
+import { ghiChiNgoaiSo } from "../ghi-chi-ngoai-so.mjs";
+
+const BAT_DAU = new Date();
 
 const model = process.env.MO_HINH ?? "openai/gpt-5.6-sol";
 const goc = loiDanHeThong();
@@ -54,5 +57,6 @@ const chu = String(j.choices?.[0]?.message?.content ?? "");
 const ra = path.join(path.dirname(new URL(import.meta.url).pathname), "ket-qua", `phan-bien-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
 fs.writeFileSync(ra, chu);
 console.log(`Tiền: ${Number(j.usage?.cost ?? 0).toFixed(4)} USD · lưu ${ra}`);
+await ghiChiNgoaiSo({ ma: `bo_de_phan_bien_${path.basename(ra)}`, usd: Number(j.usage?.cost ?? 0), tu: BAT_DAU, lyDo: "Nghiên cứu AI Điều hành (phản biện bộ đề)", canCu: `usage.cost — ${path.basename(ra)}` });
 const pb = JSON.parse(chu.slice(chu.indexOf("{"), chu.lastIndexOf("}") + 1)).phan_bien as { de: string; loai: number; muc_do: string; noi_dung: string; de_xuat_sua: string }[];
 for (const x of pb) console.log(`\n[${x.de}] loại ${x.loai} · ${x.muc_do}\n  ${x.noi_dung}\n  → ${x.de_xuat_sua}`);

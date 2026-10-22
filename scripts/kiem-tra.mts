@@ -2377,11 +2377,14 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonWorker = fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8");
   kiem("webhook", "worker tự đo sức khoẻ đường webhook",
     /layNhatKyWebhook\(30\)/.test(nguonWorker), true);
-  kiem("webhook", "mọi lần giao đều hỏng thì báo chủ shop",
-    /hong\.length === nhatKy\.length/.test(nguonWorker) &&
-      /TIN NHẮN VÀ BÌNH LUẬN KHÔNG VỀ ĐƯỢC/.test(nguonWorker), true);
-  kiem("webhook", "không réo liên tục, mỗi giờ một lần",
-    /Date\.now\(\) - baoTruoc >= 60 \* 60_000/.test(nguonWorker), true);
+  // 22/10/2026: sự cố webhook là việc của ADMIN (chủ shop không làm được gì) — mỗi sự cố một tin bắt đầu / hồi phục,
+  // trạng thái DB (services/su-co.ts; phép kiểm hành vi ở khối "CẢNH BÁO TELEGRAM LẶP").
+  kiem("webhook", "mọi lần giao đều hỏng thì báo ADMIN (sự cố), không báo chủ shop",
+    /hong\.length === nhatKy\.length/.test(nguonWorker) && /hong: webhookDangChet,/.test(nguonWorker) &&
+      !/TIN NHẮN VÀ BÌNH LUẬN KHÔNG VỀ ĐƯỢC/.test(nguonWorker), true);
+  kiem("webhook", "không réo liên tục: mỗi sự cố một tin, nhắc 6 giờ / lần, trạng thái sống qua khởi động lại",
+    /export const NHAC_SU_CO_MS = 6 \* 60 \* 60_000;/.test(fs.readFileSync(path.join(GOC, "server/services/su-co.ts"), "utf8")) &&
+      /await ghiSuCoWebhook\(buoc\.moi\);/.test(nguonWorker), true);
 
   const nguonRaSoat = fs.readFileSync(path.join(GOC, "server/services/reconcile.ts"), "utf8");
   kiem("webhook", "vòng quét bù có quét CẢ bình luận",
@@ -2564,7 +2567,8 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /id: 'tg'[^\n]*connectionType: 'access_code'/.test(maNenTang) && /id: 'bs'[^\n]*connectionType: 'credentials'/.test(maNenTang), true);
   kiem("nói đúng sự thật", "không còn mã truy cập giả 'ZRN-' tự bịa trên giao diện", /'ZRN-' \+/.test(maKetNoiGoc), false);
   kiem("kết nối kênh", "chỉ chủ mã Telegram mới dò được trạng thái mã",
-    /if \(!ma \|\| ma\.userId !== req\.user!\.id\) throw new AppError/.test(maRouteKetNoi), true);
+    // 061: mã lưu DB — chỉ tìm thấy khi đúng chủ (WHERE ma = $1 AND user_id = $2).
+    /"SELECT het FROM ma_telegram_da_phat WHERE ma = \$1 AND user_id = \$2"[\s\S]{0,120}if \(!ma\) throw new AppError/.test(maRouteKetNoi), true);
   kiem("kết nối kênh", "nền tảng chưa nối được thì nói thật, không dựng biểu mẫu nối",
     /connectStep === 2 && selectedPlatform\?\.connectable && \(selectedPlatform\.connectionType === 'oauth_simple'/.test(maKetNoiGoc), true);
   // Xoá trang + đổi Fanpage phải khớp thực tế (chủ dự án bắt lỗi 17/10/2026).
@@ -4652,7 +4656,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonChiPhi = boChuThichTS(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8"));
   kiem("chi phí", "đọc dữ liệu nhà cung cấp bằng cách mềm, không ném lỗi", /asRecord\(/.test(nguonChiPhi), false);
   kiem("chi phí", "nội dung cảnh báo được thoát ký tự trước khi gửi Telegram", /escapeHtml\(c\.noiDung\)/.test(nguonChiPhi), true);
-  kiem("chi phí", "gửi hỏng thì không đánh dấu đã gửi", /if \(soDaGui > 0\) \{\s*for \(const c of moi\) daGui\[c\.ma\] = bayGio;/.test(nguonChiPhi), true);
+  kiem("chi phí", "gửi hỏng thì không đánh dấu đã gửi", /if \(soDaGui > 0\) \{\s*for \(const \{ c, qd \} of moi\) daGui\[c\.ma\] = \{ luc: bayGio, giaTri: c\.giaTriBao, tu: qd\.tu \};/.test(nguonChiPhi), true);
   kiem("chi phí", "worker soát chi phí định kỳ", /runDueCanhBaoChiPhi\(/.test(nguonWorker), true);
   const nguonQuanTriCP = boChuThichTS(fs.readFileSync(path.join(GOC, "server/routes/admin.ts"), "utf8"));
   kiem("chi phí", "sao kê nằm trong router quản trị (đã chặn người không phải quản trị)",
@@ -4731,7 +4735,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("cảnh báo", "câu đầy đủ (gửi Telegram) cũng viết số kiểu Việt", cbs.some((c) => /\d\.\d\d USD/.test(c.noiDung)), false);
   const dcThu = (trangThai: "khop" | "dang_cho" | "lech", chenhUsd: number) => ({
     trangThai, nhaCungCapUsd: 1, soAppUsd: 1, ngoaiSoTruocMocUsd: 0, mocLuc: "2026-10-01T00:00:00Z",
-    sauMoc: { nhaCungCapUsd: 0, soDaChotUsd: 0, soChoUsd: 0, soLuotCho: 0, chenhUsd, lechUsd: chenhUsd },
+    sauMoc: { nhaCungCapUsd: 0, soDaChotUsd: 0, soChoUsd: 0, soLuotCho: 0, chenhUsd, lechUsd: chenhUsd, chiNgoaiSoUsd: 0 },
+    chiNgoaiSo: [],
   });
   const aiDu = { ...aiCB, conLaiUsd: 7, tuanNayUsd: 1 };
   kiem("cảnh báo", "sổ lệch nhà cung cấp thì báo (đã thấy: lệch mà chấm vẫn xanh, Telegram im)",
@@ -6203,9 +6208,10 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     .sort();
   const CHAN = ["drainQueue", "reconcileInbox", "runDueAutoPilot", "runDueAutoPublishes", "runDueBoSot", "runDueCommentActions",
     "runDueFollowUps", "runDueVideoProjects", "runDueVideoTuDong"];
-  const GIU = ["chupSoBaiNgay", "doiChieuLuotAi", "ghiKenhTheoNgay", "layNhatKyWebhook", "runDueAccountSync", "runDueCanhBaoChiPhi",
-    "runDuePostRecheck", "runDueVideoJobs", "tuSuaWebhook"];
-  const CONG_CU = ["escapeHtml", "sendTelegramMessage"];
+  const GIU = ["chupSoBaiNgay", "docSuCoWebhook", "doiChieuLuotAi", "ghiKenhTheoNgay", "ghiSuCoWebhook", "layNhatKyWebhook",
+    "runDueAccountSync", "runDueCanhBaoChiPhi", "runDuePostRecheck", "runDueVideoJobs", "tuSuaWebhook"];
+  // 22/10: hàm thuần của sự cố webhook + chặn báo hàng đợi kẹt (mốc DB) là công cụ như gửi Telegram.
+  const CONG_CU = ["buocSuCoWebhook", "cauSuCoWebhook", "escapeHtml", "sendTelegramMessage", "xinBaoHangDoiKet"];
   console.log(`  [khoá tài khoản] worker gọi ${viecGoi.length} hàm dịch vụ: CHẶN ${CHAN.length} · GIỮ ${GIU.length} · công cụ ${CONG_CU.length}`);
   kiem("khoá tài khoản", "worker: việc mới phải được xếp CHẶN hay GIỮ trước (bảng = đúng danh sách gọi)",
     viecGoi, [...CHAN, ...GIU, ...CONG_CU].sort());
@@ -7090,6 +7096,113 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/\}\);\s*\/\*[\s\S]*?\*\/\s*try \{\s*await ensureProfile\(\{ id, name, email, profileRef: null \}\);\s*\} catch \(error\) \{/.test(tk9),
       /if \(choCap\) await ensureProfile\(req\.user!\);/.test(d9("server/routes/connections.ts"))],
     [true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// CẢNH BÁO TELEGRAM LẶP (22/10/2026; phiên kiểm duyệt duyệt thiết kế): (B) chi phí — gốc lệch 8,07 USD đã đối chiếu, chặn
+// lặp theo mã + giá trị; (A) sự cố webhook chỉ admin, trạng thái DB; (C) mọi trạng thái cấp module đã xếp loại.
+// ---------------------------------------------------------------------------
+{
+  const d10 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const cp = await import("../server/services/chi-phi.js");
+  // B1 — sổ chi ngoài app: chỉ trừ khoản nằm TRỌN sau mốc; khoản sai dạng / trước mốc không trừ.
+  const MOC = "2026-10-01T06:02:28.701Z";
+  const k = (ma: string, usd: number, tu: string, den: string) => ({ ma, usd, tu, den, lyDo: "x", canCu: "y" });
+  kiem("B1 chi ngoài app", "chiNgoaiSoSauMoc: chỉ khoản tu ≥ mốc, den ≥ tu, usd > 0",
+    [cp.chiNgoaiSoSauMoc([k("a", 7.890923, "2026-10-05T15:28:12Z", "2026-10-09T09:34:31Z"), k("b", 0.1823866, "2026-10-09T05:16:07Z", "2026-10-09T05:16:07Z")], MOC).toFixed(7),
+      cp.chiNgoaiSoSauMoc([k("truoc", 5, "2026-09-30T00:00:00Z", "2026-10-02T00:00:00Z"), k("nguoc", 5, "2026-10-05T00:00:00Z", "2026-10-04T00:00:00Z"),
+        k("am", -1, "2026-10-05T00:00:00Z", "2026-10-05T00:00:00Z"), k("sai", 5, "khong-phai-ngay", "2026-10-05T00:00:00Z")], MOC)],
+    ["8.0733096", 0]);
+  const m61 = fs.readFileSync(path.join(GOC, "server/migrations/061_chi_ngoai_so_va_ma_telegram.sql"), "utf8");
+  const soTrong061 = [...m61.matchAll(/'usd', ([0-9.]+)/g)].map((x) => Number(x[1]));
+  const cp10 = d10("server/services/chi-phi.ts"), cph = fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8");
+  kiem("B1 chi ngoài app", "061 ghi đúng 2 khoản cộng = khoản lệch 8,0733096 (có căn cứ, khoảng thời gian chạy thật); đối chiếu trừ khoản sau mốc; màn hình hiện từng khoản",
+    [soTrong061, soTrong061.reduce((a, b) => a + b, 0).toFixed(7), /'tu', '2026-10-05T15:28:12Z', 'den', '2026-10-09T09:34:31Z'/.test(m61),
+      /ON CONFLICT \(khoa\) DO NOTHING;/.test(m61), !/DELETE FROM|DROP TABLE|DROP COLUMN|UPDATE /i.test(m61),
+      /const ngoai = chiNgoaiSoSauMoc\(dsNgoai, moc\.luc\);[\s\S]{0,200}const chenh = nccSau - ngoai - chot;/.test(cp10),
+      /\.\.\.dc\.chiNgoaiSo\.map\(\(c\) => \[\s*`Đã đối chiếu: chi ngoài app — \$\{c\.lyDo\}/.test(cph)],
+    [[7.890923, 0.1823866], "8.0733096", true, true, true, true, true]);
+  // B2 — chặn lặp theo mã + giá trị.
+  const cb = (ma: string, giaTriBao: string, mucDo: "nguy_cap" | "can_lam" = "can_lam") => ({ ma, mucDo, noiDung: "n", tomTat: "t", giaTriBao });
+  const T0 = Date.UTC(2026, 9, 22), GIO = 3_600_000;
+  const qd = (c: ReturnType<typeof cb>, daGui: Record<string, unknown>, bayGio: number) => cp.quyetDinhGui(c as never, daGui as never, bayGio);
+  kiem("B2 chặn lặp", "chưa gửi → gửi; cùng giá trị < 7 ngày → KHÔNG; ≥ 7 ngày → nhắc lại (giữ ngày đầu); giá trị đổi → gửi; nguy cấp nhắc sau 24 giờ; bản ghi cũ dạng số coi như cùng giá trị",
+    [qd(cb("ai_lech_so", "8.0733"), {}, T0).gui,
+      qd(cb("ai_lech_so", "8.0733"), { ai_lech_so: { luc: T0, giaTri: "8.0733", tu: T0 - 9 * 24 * GIO } }, T0 + 6 * 24 * GIO).gui,
+      qd(cb("ai_lech_so", "8.0733"), { ai_lech_so: { luc: T0, giaTri: "8.0733", tu: T0 - 9 * 24 * GIO } }, T0 + 7 * 24 * GIO),
+      qd(cb("ai_lech_so", "8.1000"), { ai_lech_so: { luc: T0, giaTri: "8.0733", tu: T0 } }, T0 + GIO),
+      [qd(cb("ai_het_tien", "het", "nguy_cap"), { ai_het_tien: { luc: T0, giaTri: "het", tu: T0 } }, T0 + 23 * GIO).gui,
+        qd(cb("ai_het_tien", "het", "nguy_cap"), { ai_het_tien: { luc: T0, giaTri: "het", tu: T0 } }, T0 + 24 * GIO).gui],
+      qd(cb("ai_lech_so", "8.0733"), { ai_lech_so: T0 }, T0 + GIO).gui],
+    [true, false, { gui: true, nhacLai: true, tu: T0 - 9 * 24 * GIO }, { gui: true, nhacLai: false, tu: T0 + GIO }, [false, true], false]);
+  const aiB2 = { ok: true as const, conLaiUsd: 2.5, tuanNayUsd: 7, homNayUsd: 9, khoaDaTieuUsd: 1 };
+  const cbB2 = cp.danhGia(aiB2 as never, { ok: true, conHoatDong: false, lyDoTamDung: "x" } as never, cp.NGUONG_MAC_DINH);
+  kiem("B2 chặn lặp", "mọi cảnh báo gửi Telegram (không phải lưu ý) đều có khoá giá trị; tiền còn lại theo từng 1 USD",
+    [cbB2.filter((c) => c.mucDo !== "luu_y" && !c.giaTriBao).map((c) => c.ma), cbB2.find((c) => c.ma === "ai_sap_het")?.giaTriBao,
+      /\.filter\(\(x\): x is \{ c: CanhBao; qd: \{ gui: true; nhacLai: boolean; tu: number \} \} => x\.qd\.gui\);/.test(cp10),
+      /daGui\[c\.ma\] = \{ luc: bayGio, giaTri: c\.giaTriBao, tu: qd\.tu \};/.test(cp10)],
+    [[], "2", true, true]);
+  // B3 — kịch bản ngoài app gọi AI bằng khoá của app phải ghi sổ chi ngoài app.
+  const tepScripts = (thuMuc: string): string[] => fs.readdirSync(thuMuc, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? (e.name === "tam" ? [] : tepScripts(path.join(thuMuc, e.name))) : /\.(mts|mjs|ts)$/.test(e.name) ? [path.join(thuMuc, e.name)] : []);
+  const goiAi = tepScripts(path.join(GOC, "scripts")).map((t) => path.relative(GOC, t))
+    // Chỉ đường TIÊU TIỀN (chat / ảnh / video…); đường đọc miễn phí (key, credits, models, generation) không phải ghi sổ.
+    .filter((t) => !/kiem-tra(-nguoc)?\.mts$|ghi-chi-ngoai-so\.mts$/.test(t) &&
+      /openrouter\.ai\/api\/v1\/(?!key\b|credits\b|models\b|generation\b)/.test(fs.readFileSync(path.join(GOC, t), "utf8")));
+  kiem("B3 chi ngoài app", "mọi kịch bản (trừ scripts/tam — nháp cũ) gọi AI TIÊU TIỀN qua openrouter.ai đều ghi sổ chi ngoài app khi chạy xong",
+    [goiAi.sort(), goiAi.filter((t) => !/await ghiChiNgoaiSo\(\{/.test(fs.readFileSync(path.join(GOC, t), "utf8")))],
+    [["scripts/bo-de-dieu-hanh/chay.mts", "scripts/bo-de-dieu-hanh/giam-sat.mts", "scripts/bo-de-dieu-hanh/phan-bien.mts"], []]);
+
+  // A — sự cố webhook: chỉ admin, trạng thái DB, hồi phục chỉ khi có lần giao thành công thật.
+  const sc = await import("../server/services/su-co.js");
+  const L = new Date("2026-10-22T08:00:00Z");
+  const coTC = (co: boolean) => () => co;
+  const sau = (ms: number) => new Date(L.getTime() + ms);
+  const b1 = sc.buocSuCoWebhook(null, { hong: true, coThanhCongSau: coTC(false) }, L);
+  kiem("A sự cố webhook", "hỏng lần đầu → bắt đầu; còn hỏng < 6 giờ → im; ≥ 6 giờ → nhắc; hết hỏng mà KHÔNG có lần giao thành công → giữ sự cố; có giao thành công → hồi phục",
+    [b1.gui, sc.buocSuCoWebhook(b1.moi, { hong: true, coThanhCongSau: coTC(false) }, sau(5 * 3_600_000)).gui,
+      sc.buocSuCoWebhook(b1.moi, { hong: true, coThanhCongSau: coTC(false) }, sau(6 * 3_600_000)).gui,
+      sc.buocSuCoWebhook(b1.moi, { hong: false, coThanhCongSau: coTC(false) }, sau(60_000)),
+      sc.buocSuCoWebhook(b1.moi, { hong: false, coThanhCongSau: coTC(true) }, sau(60_000)),
+      sc.buocSuCoWebhook(null, { hong: false, coThanhCongSau: coTC(true) }, L).gui],
+    ["bat_dau", null, "nhac", { moi: b1.moi, gui: null }, { moi: null, gui: "hoi_phuc" }, null]);
+  const wk10 = d10("server/worker.ts");
+  kiem("A sự cố webhook", "worker: tin sự cố CHỈ gửi admin, không gửi mọi chủ shop; hồi phục dựa trên status 'success' sau lúc bắt đầu; trạng thái đọc / ghi DB; câu chữ khác tin 'máy chủ đang tắt' của người canh",
+    [/SELECT DISTINCT user_id FROM social_accounts WHERE connected = TRUE/.test(wk10),
+      /const admins = await query<\{ id: number \}>\("SELECT id FROM users WHERE role = 'admin' AND is_active = TRUE"\);[\s\S]{0,300}await sendTelegramMessage\(a\.id, cau, "webhook_dead"\)/.test(wk10),
+      /l\.status === "success" && new Date\(l\.createdAt\)\.getTime\(\) > new Date\(iso\)\.getTime\(\)/.test(wk10),
+      /const dangCo = await docSuCoWebhook\(\);[\s\S]{0,600}await ghiSuCoWebhook\(buoc\.moi\);/.test(wk10),
+      /Máy chủ VẪN CHẠY/.test(d10("server/services/su-co.ts")) && /MÁY CHỦ TRONG MÁY ĐANG TẮT/.test(fs.readFileSync(path.join(GOC, "scripts/nguoi-canh-luat.mjs"), "utf8"))],
+    [false, true, true, true, true]);
+  kiem("A hàng đợi kẹt", "báo 'tin của khách chờ quá lâu' cho CHỦ SHOP, 1 lần / giờ, mốc lưu DB bằng một câu có điều kiện (không trong bộ nhớ)",
+    [/if \(!\(await xinBaoHangDoiKet\(r\.user_id\)\)\) continue;/.test(wk10),
+      /WHERE COALESCE\(\(cai_dat_he_thong\.gia_tri ->> \$1\)::bigint, 0\) <= \$2 - \$3\s*RETURNING TRUE AS ok/.test(d10("server/services/su-co.ts"))],
+    [true, true]);
+
+  // C — mọi trạng thái cấp module (Map / Set / mốc / cờ) trong server/ đã xếp loại; chặn báo lặp không được nằm trong bộ nhớ.
+  const XEP_BO_NHO: Record<string, string> = {
+    // nhịp chạy worker — mỗi việc có chốt DB (ON CONFLICT / trạng thái DB): khởi động lại chạy ngay một lượt là an toàn
+    "worker.ts:lanRaSoatCuoi": "nhip", "worker.ts:lanTuDongCuoi": "nhip", "worker.ts:lanNhacCuoi": "nhip", "worker.ts:lanDongBoKenhCuoi": "nhip",
+    "worker.ts:lanSoatBaiCuoi": "nhip", "worker.ts:lanVideoCuoi": "nhip", "worker.ts:lanChiPhiCuoi": "nhip", "worker.ts:lanDoiChieuCuoi": "nhip",
+    "worker.ts:lanNhipTimCuoi": "nhip",
+    // cờ / khoá chống chồng lượt — việc chết cùng tiến trình
+    "worker.ts:webhookDangChet": "co", "worker.ts:dangXuLyVideo": "khoa", "worker.ts:dangDoiChieu": "khoa", "worker.ts:running": "khoa",
+    "worker.ts:stopping": "co", "dieu-hanh.ts:dangChayDieuHanh": "khoa", "telegram.ts:pollingStopped": "co",
+    // bộ nhớ đệm — mất thì đọc lại
+    "video-ai.ts:boNho": "dem", "image-ai.ts:boNhoAnh": "dem", "video-sua.ts:boNho": "dem", "so-lieu-kenh.ts:boNhoQc": "dem",
+    "tong-quan.ts:boNho": "dem", "guardrails.ts:nhoSoShop": "dem", "xac-thuc-email.ts:boGui": "dem", "auth.ts:banBamGia": "dem",
+    // chấp nhận: trần chống lạm dụng AI theo phút / giờ (không phải chặn gửi lặp ra ngoài)
+    "chong-lam-dung.ts:nhatKy": "chap_nhan",
+  };
+  const bienModule = moiTepMayChu(path.join(GOC, "server")).filter((t) => !/migrations/.test(t)).flatMap((t) =>
+    [...d10(path.relative(GOC, t)).matchAll(/^(?:export )?(?:let|const) ([A-Za-z_]+)\s*(?::[^=\n]+)?=\s*(?:new (?:Map|Set)\b(?![^;\n]*\[\s*"|\(\[)|0;|false;|null;|\{ luc:)/gm)]
+      .map((m) => `${path.basename(t)}:${m[1]}`));
+  console.log(`  [C] ${bienModule.length} biến trạng thái cấp module — đã xếp loại ${bienModule.filter((b) => XEP_BO_NHO[b]).length}`);
+  kiem("C trạng thái bộ nhớ", "mọi biến trạng thái cấp module đã xếp loại (biến mới phải xếp trước); không còn bộ chặn báo lặp / mã Telegram trong bộ nhớ",
+    [bienModule.sort(), /maTelegramDaPhat/.test(d10("server/routes/connections.ts")),
+      /INSERT INTO ma_telegram_da_phat \(ma, user_id, het\) VALUES \(\$1, \$2, \$3\)/.test(d10("server/routes/connections.ts")),
+      /"SELECT het FROM ma_telegram_da_phat WHERE ma = \$1 AND user_id = \$2"/.test(d10("server/routes/connections.ts"))],
+    [Object.keys(XEP_BO_NHO).sort(), false, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

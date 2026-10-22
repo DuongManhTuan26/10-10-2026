@@ -7,6 +7,7 @@ import { runDueFollowUps, runDueBoSot } from "./services/sales-ai.js";
 import { runDueAccountSync } from "./services/accounts.js";
 import { runDuePostRecheck } from "./services/post-status.js";
 import { sendTelegramMessage, escapeHtml } from "./services/telegram.js";
+import { buocSuCoWebhook, cauSuCoWebhook, docSuCoWebhook, ghiSuCoWebhook, xinBaoHangDoiKet } from "./services/su-co.js";
 import { dangKyDiaChiWebhook, goNgatGuiWebhook, layNhatKyWebhook, type LanGiaoWebhook } from "./services/zernio.js";
 import { damBaoNguoiCanh, laDiaChiNoiBo } from "./services/duong-ham.js";
 import { env } from "./env.js";
@@ -69,10 +70,6 @@ let dangDoiChieu = false;
 /** Video AI thường xong trong 30 giây tới vài phút, hỏi thăm mỗi 15 giây. */
 const VIDEO_INTERVAL_MS = 15_000;
 let lanNhipTimCuoi = 0;
-/** Lần cảnh báo ứ hàng đợi gần nhất của từng shop, để không nhắn dồn dập. */
-const lanBaoUngDong = new Map<number, number>();
-/** Lần gần nhất đã báo webhook chết. Báo mỗi giờ một lần, không réo liên tục. */
-let lanBaoWebhookChet = 0;
 const BATCH_SIZE = 10;
 const MAX_ATTEMPTS = 5;
 
@@ -627,24 +624,28 @@ export function startWorker(): void {
                 .catch((error) =>
                   console.error("[worker] Tự sửa webhook hỏng:", error instanceof Error ? error.message : error)
                 );
-              const baoTruoc = lanBaoWebhookChet;
-              if (Date.now() - baoTruoc >= 60 * 60_000) {
-                lanBaoWebhookChet = Date.now();
-                const shops = await query<{ user_id: number }>(
-                  `SELECT DISTINCT user_id FROM social_accounts WHERE connected = TRUE`
-                );
-                for (const s of shops.rows) {
-                  await sendTelegramMessage(
-                    s.user_id,
-                    "⚠️ <b>TIN NHẮN VÀ BÌNH LUẬN KHÔNG VỀ ĐƯỢC</b>\n\n" +
-                      "Đường nhận tin của hệ thống đang hỏng, nhà cung cấp đã tạm ngừng gửi.\n\n" +
-                      "Hệ thống đang tự sửa. Trong lúc đó tin nhắn và bình luận vẫn về nhờ quét bù mỗi phút, " +
-                      "nên AI trả lời chậm hơn bình thường. Nếu sau 15 phút vẫn nhận tin này, báo kỹ thuật kiểm tra ngay.",
-                    "webhook_dead"
-                  ).catch(() => {
-                    /* Không báo được thì thôi, không để làm dừng vòng lặp. */
-                  });
-                }
+            }
+            /*
+             * SỰ CỐ webhook (22/10/2026): CHỈ admin nhận; mỗi sự cố một tin lúc bắt đầu, nhắc 6 giờ / lần nếu kéo dài, một tin
+             * "đã giao lại" khi có lần giao THÀNH CÔNG thật; trạng thái lưu DB (services/su-co.ts) — sống qua khởi động lại.
+             */
+            const dangCo = await docSuCoWebhook();
+            const buoc = buocSuCoWebhook(
+              dangCo,
+              {
+                hong: webhookDangChet,
+                coThanhCongSau: (iso) => nhatKy.some((l) => l.status === "success" && new Date(l.createdAt).getTime() > new Date(iso).getTime()),
+              },
+              new Date()
+            );
+            if (buoc.gui) {
+              await ghiSuCoWebhook(buoc.moi);
+              const admins = await query<{ id: number }>("SELECT id FROM users WHERE role = 'admin' AND is_active = TRUE");
+              const cau = cauSuCoWebhook(buoc.gui, buoc.moi ?? dangCo!, new Date(), hong[0]?.errorMessage ? escapeHtml(hong[0].errorMessage) : "");
+              for (const a of admins.rows) {
+                await sendTelegramMessage(a.id, cau, "webhook_dead").catch(() => {
+                  /* Không báo được thì thôi, không để làm dừng vòng lặp. */
+                });
               }
             }
           } catch (error) {
@@ -657,9 +658,8 @@ export function startWorker(): void {
           for (const r of ton.rows) {
             // Quá 10 phút mà chưa xử lý xong là có gì đó đang hỏng.
             if (r.cho_lau_phut < 10) continue;
-            const baoLanTruoc = lanBaoUngDong.get(r.user_id) ?? 0;
-            if (Date.now() - baoLanTruoc < 60 * 60_000) continue;
-            lanBaoUngDong.set(r.user_id, Date.now());
+            // Tối đa 1 lần / giờ / tài khoản — mốc lưu DB, sống qua khởi động lại (services/su-co.ts).
+            if (!(await xinBaoHangDoiKet(r.user_id))) continue;
             await sendTelegramMessage(
               r.user_id,
               "⚠️ <b>AI ĐANG KHÔNG TRẢ LỜI KHÁCH</b>\n\n" +

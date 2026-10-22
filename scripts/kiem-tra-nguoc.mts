@@ -940,8 +940,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "gửi hỏng vẫn đánh dấu đã gửi (lần sau không báo nữa)",
     tep: "server/services/chi-phi.ts",
-    tim: "if (soDaGui > 0) {\n    for (const c of moi) daGui[c.ma] = bayGio;",
-    thay: "if (true) {\n    for (const c of moi) daGui[c.ma] = bayGio;",
+    tim: "if (soDaGui > 0) {\n    for (const { c, qd } of moi) daGui[c.ma] = { luc: bayGio, giaTri: c.giaTriBao, tu: qd.tu };",
+    thay: "if (true) {\n    for (const { c, qd } of moi) daGui[c.ma] = { luc: bayGio, giaTri: c.giaTriBao, tu: qd.tu };",
   },
   {
     ten: "đọc mềm lại ném lỗi",
@@ -2315,8 +2315,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "dò trạng thái mã Telegram của người khác",
     tep: "server/routes/connections.ts",
-    tim: "if (!ma || ma.userId !== req.user!.id) throw new AppError",
-    thay: "if (!ma) throw new AppError",
+    tim: "    if (!ma) throw new AppError(\"Không tìm thấy mã này — bấm lấy mã mới\", 404);\n",
+    thay: "",
   },
   {
     ten: "dựng biểu mẫu đăng nhập cho nền tảng chưa nối được",
@@ -4799,6 +4799,96 @@ const DUC: PhepDuc[] = [
     tep: "server/services/tai-khoan.ts",
     tim: "    await ensureProfile({ id, name, email, profileRef: null });",
     thay: "    void ensureProfile;",
+  },
+  {
+    ten: "B1: đối chiếu không trừ chi ngoài app (lại báo lệch 8,07)",
+    tep: "server/services/chi-phi.ts",
+    tim: "  const chenh = nccSau - ngoai - chot;",
+    thay: "  const chenh = nccSau - chot;",
+  },
+  {
+    ten: "B1: trừ cả khoản chi ngoài app trước mốc (trừ hai lần)",
+    tep: "server/services/chi-phi.ts",
+    tim: "&& tu >= moc && den >= tu",
+    thay: "&& den >= tu",
+  },
+  {
+    ten: "B1: 061 ghi sai số tiền phản biện",
+    tep: "server/migrations/061_chi_ngoai_so_va_ma_telegram.sql",
+    tim: "'usd', 0.1823866,",
+    thay: "'usd', 0.18,",
+  },
+  {
+    ten: "B1: màn Chi phí giấu khoản chi ngoài app",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "                  ...dc.chiNgoaiSo.map((c) => [",
+    thay: "                  ...([] as typeof dc.chiNgoaiSo).map((c) => [",
+  },
+  {
+    ten: "B2: giá trị đổi mà không gửi lại",
+    tep: "server/services/chi-phi.ts",
+    tim: "  if (!truoc || truoc.giaTri !== c.giaTriBao) return",
+    thay: "  if (!truoc) return",
+  },
+  {
+    ten: "B2: cùng giá trị nhắc lại quá dày",
+    tep: "server/services/chi-phi.ts",
+    tim: "export const NHAC_LAI_MS = 7 * 24 * 60 * 60_000;",
+    thay: "export const NHAC_LAI_MS = 12 * 60 * 60_000;",
+  },
+  {
+    ten: "B2: bản ghi cũ dạng số làm bùng tin sau khi đổi mã",
+    tep: "server/services/chi-phi.ts",
+    tim: "typeof cu === \"number\" ? { luc: cu, giaTri: c.giaTriBao, tu: cu }",
+    thay: "typeof cu === \"number\" ? { luc: cu, giaTri: undefined, tu: cu }",
+  },
+  {
+    ten: "B2: tiền sắp hết báo lại sau mỗi xu",
+    tep: "server/services/chi-phi.ts",
+    tim: "        giaTriBao: String(Math.floor(conLai)),",
+    thay: "        giaTriBao: conLai.toFixed(2),",
+  },
+  {
+    ten: "B3: kịch bản phản biện không ghi sổ chi ngoài app",
+    tep: "scripts/bo-de-dieu-hanh/phan-bien.mts",
+    tim: "await ghiChiNgoaiSo({ ma: `bo_de_phan_bien_",
+    thay: "void ({ ma: `bo_de_phan_bien_",
+  },
+  {
+    ten: "A: hết hỏng mà chưa có lần giao thành công vẫn báo hồi phục",
+    tep: "server/services/su-co.ts",
+    tim: "  if (dangCo && p.coThanhCongSau(dangCo.batDau)) return",
+    thay: "  if (dangCo) return",
+  },
+  {
+    ten: "A: sự cố webhook nhắc liên tục",
+    tep: "server/services/su-co.ts",
+    tim: ">= NHAC_SU_CO_MS) return",
+    thay: ">= 0) return",
+  },
+  {
+    ten: "A: sự cố hạ tầng lại gửi mọi chủ shop",
+    tep: "server/worker.ts",
+    tim: "\"SELECT id FROM users WHERE role = 'admin' AND is_active = TRUE\");\n              const cau",
+    thay: "\"SELECT DISTINCT user_id AS id FROM social_accounts WHERE connected = TRUE\");\n              const cau",
+  },
+  {
+    ten: "A: coi 'không thấy hỏng' là hồi phục",
+    tep: "server/worker.ts",
+    tim: "nhatKy.some((l) => l.status === \"success\" && new Date(l.createdAt)",
+    thay: "nhatKy.some((l) => new Date(l.createdAt)",
+  },
+  {
+    ten: "A: hàng đợi kẹt báo lặp không chặn",
+    tep: "server/services/su-co.ts",
+    tim: "       WHERE COALESCE((cai_dat_he_thong.gia_tri ->> $1)::bigint, 0) <= $2 - $3\n",
+    thay: "       WHERE $3::bigint IS NOT NULL\n",
+  },
+  {
+    ten: "C: mã Telegram dò được của người khác",
+    tep: "server/routes/connections.ts",
+    tim: "\"SELECT het FROM ma_telegram_da_phat WHERE ma = $1 AND user_id = $2\"",
+    thay: "\"SELECT het FROM ma_telegram_da_phat WHERE ma = $1 AND $2::bigint IS NOT NULL\"",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

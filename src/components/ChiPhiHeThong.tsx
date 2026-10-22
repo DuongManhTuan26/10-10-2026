@@ -277,6 +277,11 @@ export default function ChiPhiHeThong() {
                     ? [[`Ngoài sổ, trước ${ngayVN(dc.mocLuc)} (chạy thử, sổ cũ ghi thiếu)`, dc.ngoaiSoTruocMocUsd]]
                     : []),
                   [`Từ ${ngayVN(dc.mocLuc)}: nhà cung cấp trừ`, dc.sauMoc.nhaCungCapUsd],
+                  // Chi NGOÀI app đã đối chiếu có căn cứ — hiện từng khoản (đã trừ trước khi so, không giấu).
+                  ...dc.chiNgoaiSo.map((c) => [
+                    `Đã đối chiếu: chi ngoài app — ${c.lyDo} (${ngayVN(c.tu)}${ngayVN(c.den) !== ngayVN(c.tu) ? `–${ngayVN(c.den)}` : ''})`,
+                    c.usd,
+                  ]),
                   [`Từ ${ngayVN(dc.mocLuc)}: sổ ghi`, dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd],
                 ] as [string, number][]
               ).map(([k, v]) => hang(3, { khoa: `dc-${k}`, nhan: k, giaTri: chiDu(v), mauGiaTri: mauChi(v) }))}

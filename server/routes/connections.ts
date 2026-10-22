@@ -602,10 +602,9 @@ connectionsRouter.post(
  * TELEGRAM + BLUESKY — hai nền tảng KHÔNG nối bằng đăng nhập (tài liệu nhà cung cấp). Vẫn bắt chọn trang trước như
  * mọi kênh khác (kiemTrangNhanKenh), kênh nối thẳng vào hồ sơ của trang đó.
  *
- * Mã Telegram mình đã phát giữ trong bộ nhớ tiến trình (một tiến trình — chủ dự án chuộng gọn): chỉ chủ mã mới dò được
- * trạng thái, mã tự bỏ khi hết hạn 15 phút.
+ * Mã Telegram mình đã phát lưu ở bảng ma_telegram_da_phat (061 — trước nằm trong bộ nhớ: máy chủ khởi động lại giữa lúc
+ * người dùng đang nối là gãy): chỉ chủ mã mới dò được trạng thái, mã hết hạn sau 15 phút.
  */
-const maTelegramDaPhat = new Map<string, { userId: number; het: number }>();
 
 /*
  * NỐI LẠI một kênh đang có (token chết / cần cấp lại quyền): phải đi vào ĐÚNG hồ sơ đang chứa kênh đó để nhà cung cấp
@@ -631,9 +630,13 @@ connectionsRouter.post(
     if (!noiLai && (!Number.isInteger(trangId) || trangId <= 0)) throw new AppError("Chọn cửa hàng cho kênh này trước khi kết nối", 400);
     const profile_ref = noiLai ?? (await hoSoCuaCuaHang(req.user!.id, trangId, "telegram", "Telegram")).profile_ref;
     const ma = await zernio.layMaTelegram(profile_ref);
-    const bayGio = Date.now();
-    for (const [k, v] of maTelegramDaPhat) if (v.het < bayGio) maTelegramDaPhat.delete(k);
-    maTelegramDaPhat.set(ma.code, { userId: req.user!.id, het: new Date(ma.expiresAt).getTime() });
+    // Dọn mã đã hết hạn (mọi tài khoản) rồi ghi mã mới — cùng mã phát lại thì cập nhật chủ + hạn.
+    await query("DELETE FROM ma_telegram_da_phat WHERE het < now()");
+    await query(
+      `INSERT INTO ma_telegram_da_phat (ma, user_id, het) VALUES ($1, $2, $3)
+       ON CONFLICT (ma) DO UPDATE SET user_id = EXCLUDED.user_id, het = EXCLUDED.het`,
+      [ma.code, req.user!.id, new Date(ma.expiresAt)]
+    );
     res.json({ success: true, data: ma });
   })
 );
@@ -642,16 +645,19 @@ connectionsRouter.get(
   "/telegram/trang-thai",
   route(async (req, res) => {
     const code = String(req.query.code ?? "");
-    const ma = maTelegramDaPhat.get(code);
-    if (!ma || ma.userId !== req.user!.id) throw new AppError("Không tìm thấy mã này — bấm lấy mã mới", 404);
-    if (ma.het < Date.now()) {
-      maTelegramDaPhat.delete(code);
+    const ma = await queryOne<{ het: Date }>(
+      "SELECT het FROM ma_telegram_da_phat WHERE ma = $1 AND user_id = $2",
+      [code, req.user!.id]
+    );
+    if (!ma) throw new AppError("Không tìm thấy mã này — bấm lấy mã mới", 404);
+    if (ma.het.getTime() < Date.now()) {
+      await query("DELETE FROM ma_telegram_da_phat WHERE ma = $1", [code]);
       res.json({ success: true, data: { status: "expired" } });
       return;
     }
     const status = await zernio.kiemMaTelegram(code);
     if (status === "connected") {
-      maTelegramDaPhat.delete(code);
+      await query("DELETE FROM ma_telegram_da_phat WHERE ma = $1", [code]);
       await syncAccountsForUser(req.user!.id, req.user!.profileRef!);
     }
     res.json({ success: true, data: { status } });

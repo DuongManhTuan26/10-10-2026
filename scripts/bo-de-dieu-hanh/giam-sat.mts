@@ -20,6 +20,7 @@ import { BO_DE as BO_DE_10 } from "./de-v1.0.mjs";
 import { cham, docTraLoi, type TraLoi } from "./cham.mjs";
 import { loiDanHeThong } from "./khuon.mjs";
 import { chuanHoa, TRICH_TOI_THIEU } from "../../server/services/kiem-cung.js";
+import { ghiChiNgoaiSo } from "../ghi-chi-ngoai-so.mjs";
 
 export const LOAI_LOI = {
   bia_bang_chung: "Dẫn bằng chứng / số liệu không có trong dữ liệu",
@@ -215,6 +216,7 @@ if (process.argv[1]?.endsWith("giam-sat.mts") && !process.env.TONG_KET) {
     process.exit(0);
   }
   const KHOA = process.env.OPENROUTER_API_KEY;
+  const BAT_DAU = new Date();
   let ra = path.join(path.dirname(tepKq), `giam-sat-${new Date().toISOString().replace(/[:.]/g, "-")}.jsonl`);
   const heThong = loiDanGiamSat();
   /*
@@ -269,6 +271,7 @@ if (process.argv[1]?.endsWith("giam-sat.mts") && !process.env.TONG_KET) {
   }
   console.log(`Xong. ${tong.toFixed(4)} USD. ${ra}`);
   tongKet(ra);
+  await ghiChiNgoaiSo({ ma: `bo_de_giam_sat_${path.basename(ra)}`, usd: tong, tu: BAT_DAU, lyDo: "Nghiên cứu AI Điều hành (giám sát)", canCu: `Tổng usage.cost — ${path.basename(ra)}` });
 }
 
 /** Khoảng tin cậy 95% Wilson cho một tỉ lệ (mẫu nhỏ). */
