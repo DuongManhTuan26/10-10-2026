@@ -361,8 +361,8 @@ kiem("đăng bài", "worker thật sự gọi nó",
   /runDuePostRecheck\(\)/.test(nguonWorker), true);
 kiem("đăng bài", "chỉ soi bài đã gửi quá lâu, không soi bài vừa gửi",
   /updated_at < now\(\) - \(\$1/.test(nguonPostStatus), true);
-kiem("đăng bài", "không có mã bài thì đối chiếu bằng nội dung",
-  /listRecentPosts/.test(nguonPostStatus), true);
+kiem("đăng bài", "không có mã bài thì đối chiếu bằng nội dung (trong bài của kênh đích — khối PHẠM VI LỜI GỌI)",
+  /remote = await timBaiTheoNoiDung\(post\);/.test(nguonPostStatus), true);
 kiem("đăng bài", "nút bấm tay dùng CHUNG dịch vụ với lưới tự động",
   /doiChieuMotBai/.test(nguonPosts) && /ghiKetQua/.test(nguonPosts), true);
 kiem("đăng bài", "chốt ảnh 7 ngày có ở cả lúc tạo lẫn lúc sửa",
@@ -7240,6 +7240,48 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /"\/adopt-profile",\n  route\(async \(req, res\) => \{\n    chiQuanTri\(req\);/.test(cn11),
       /if \(req\.user\?\.role !== "admin" \|\| req\.user\.moBoi != null\) throw new AppError\("Phần này dành cho quản trị", 403\);/.test(cn11)],
     [2, true, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// PHẠM VI LỜI GỌI NHÀ CUNG CẤP (P0-1b, 22/10/2026): đường "danh sách" gọi thiếu profileId / accountId trả dữ liệu CẢ
+// TEAM. Chặn ở một điểm (request của zernio.ts + ads.ts); chỗ cố ý hỏi cả team khai lý do và nằm trong danh sách dưới.
+// ---------------------------------------------------------------------------
+{
+  const d12 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const pv = await import("../server/services/pham-vi-goi.js");
+  const zn = await import("../server/services/zernio.js");
+  const adsMod = await import("../server/services/ads.js");
+  const nem = (f: () => void) => { try { f(); return "ok"; } catch (e) { return (e as Error).message.slice(0, 20); } };
+  kiem("phạm vi gọi", "kiemPhamVi: GET danh sách thiếu phạm vi / profileId rỗng / 'all' → chặn; có profileId hoặc accountId → qua; khai caTeam → qua; POST hay đường không phải danh sách → qua",
+    [nem(() => pv.kiemPhamVi("GET", "/posts", { limit: 20 }, undefined)), nem(() => pv.kiemPhamVi("GET", "/posts", { profileId: "" }, undefined)),
+      nem(() => pv.kiemPhamVi("GET", "/posts", { profileId: "all" }, undefined)), nem(() => pv.kiemPhamVi("GET", "/accounts", undefined, "  ")),
+      nem(() => pv.kiemPhamVi("GET", "/posts", { profileId: "p1" }, undefined)), nem(() => pv.kiemPhamVi("GET", "/inbox/comments", { accountId: "a1" }, undefined)),
+      nem(() => pv.kiemPhamVi("GET", "/profiles", undefined, "lý do")), nem(() => pv.kiemPhamVi("POST", "/posts", {}, undefined)),
+      nem(() => pv.kiemPhamVi("GET", "/posts/abc", undefined, undefined))],
+    ["Lời gọi /posts thiếu", "Lời gọi /posts thiếu", "Lời gọi /posts thiếu", "Lời gọi /accounts th", "ok", "ok", "ok", "ok", "ok"]);
+  const loiGoi = await Promise.all([
+    zn.getAnalytics({ profileId: "", platform: "metaads" }), zn.listConversations({} as never), adsMod.listAds({ pageId: "x" }),
+  ].map((p) => p.then(() => "khong-chan", (e: Error) => e.message.slice(0, 13))));
+  const khongTim = await import("../server/services/post-status.js").then((m) => m.timBaiTheoNoiDung({ content: "x", target_account_ids: [], created_at: new Date() }));
+  kiem("phạm vi gọi", "chặn THẬT ở request (trước khi gọi mạng): getAnalytics hồ sơ rỗng, listConversations thiếu kênh, listAds thiếu kênh; đối chiếu bài không có kênh đích → không tìm",
+    [loiGoi, khongTim], [["Lời gọi /anal", "Lời gọi /inbo", "Lời gọi /ads "], null]);
+  const zn12 = d12("server/services/zernio.ts"), ads12 = d12("server/services/ads.ts"), ps12 = d12("server/services/post-status.ts"), st12 = d12("server/routes/settings.ts");
+  const caTeam = [...zn12.matchAll(/export async function (\w+)\([\s\S]*?\n\}/g)].filter((m) => /caTeam: "/.test(m[0])).map((m) => m[1]).sort();
+  const fetchThang = moiTepMayChu(path.join(GOC, "server")).filter((t) => !/migrations/.test(t))
+    .flatMap((t) => (d12(path.relative(GOC, t)).match(/env\.zernio\.baseUrl/g) ?? []).map(() => path.relative(GOC, t))).sort();
+  kiem("phạm vi gọi", "request của zernio.ts và ads.ts gọi kiemPhamVi trước khi dựng URL; đúng 4 hàm khai hỏi cả team; chỉ 3 chỗ dựng URL nhà cung cấp (2 request + /usage-stats quản trị)",
+    [/caTeam,\n  \} = options;\n  kiemPhamVi\(method, path, query, caTeam\);\n\n  const url = new URL\(env\.zernio\.baseUrl \+ path\);/.test(zn12),
+      /const \{ method = "GET", query, body, headers \} = options;\n  kiemPhamVi\(method, path, query, undefined\);\n  const url = new URL\(env\.zernio\.baseUrl \+ path\);/.test(ads12),
+      caTeam, fetchThang],
+    [true, true, ["docTienKenhTheoKenh", "layNhatKyWebhook", "listAccountsCaTeam", "listProfiles"],
+      ["server/services/ads.ts", "server/services/chi-phi.ts", "server/services/zernio.ts"]]);
+  kiem("phạm vi gọi", "đối chiếu bài: chỉ trong bài của kênh đích từ lúc tạo (không còn 20 bài cả team); màn quảng cáo không hồ sơ thì không gọi",
+    [/listRecentPosts/.test(zn12 + ps12), /remote = await timBaiTheoNoiDung\(post\);/.test(ps12),
+      /for \(const accountId of post\.target_account_ids\) \{\s*const ds = await zernio\.listBaiCuaKenh\(\{ accountId, tu \}\);/.test(ps12),
+      /query: \{ accountId: p\.accountId, fromDate: p\.tu, sortBy: "created-desc", limit: p\.limit \?\? 50 \}/.test(zn12),
+      /const hoSoQc = adAccounts\.rows\[0\]\.profile_ref;\s*try \{\s*if \(hoSoQc\) analytics = await zernio\.getAnalytics\(\{ profileId: hoSoQc, platform: "metaads" \}\);/.test(st12),
+      /profileRef \?\? undefined/.test(st12)],
+    [false, true, true, true, true, false]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

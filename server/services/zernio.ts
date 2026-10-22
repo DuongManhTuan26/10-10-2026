@@ -9,6 +9,7 @@ import { env } from "../env.js";
  */
 
 import { giauNhaCungCap } from "./text.js";
+import { kiemPhamVi } from "./pham-vi-goi.js";
 
 export class ZernioError extends Error {
   /**
@@ -45,6 +46,8 @@ interface RequestOptions {
   headers?: Record<string, string>;
   /** Số lần thử lại khi gặp lỗi tạm thời. */
   retries?: number;
+  /** Lý do CỐ Ý hỏi đường danh sách cho cả team (không phạm vi) — xem pham-vi-goi.ts. */
+  caTeam?: string;
   /**
    * Hạn chờ riêng, tính bằng mili giây.
    *
@@ -57,8 +60,9 @@ interface RequestOptions {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const {
-    method = "GET", query, body, headers = {}, retries = 2, timeoutMs = 20_000,
+    method = "GET", query, body, headers = {}, retries = 2, timeoutMs = 20_000, caTeam,
   } = options;
+  kiemPhamVi(method, path, query, caTeam);
 
   const url = new URL(env.zernio.baseUrl + path);
   for (const [key, value] of Object.entries(query ?? {})) {
@@ -293,7 +297,10 @@ export function accountProfileId(account: ZernioAccount): string | null {
 // ---------------------------------------------------------------------------
 
 export async function listProfiles(): Promise<ZernioProfile[]> {
-  const data = await request<{ profiles?: ZernioProfile[] }>("/profiles");
+  // Hồ sơ là đơn vị chia khách — danh sách hồ sơ luôn của cả team; chỉ dùng để cấp / nhận hồ sơ.
+  const data = await request<{ profiles?: ZernioProfile[] }>("/profiles", {
+    caTeam: "danh sách hồ sơ: cấp hồ sơ cho tài khoản (ensureProfile) và nhận hồ sơ (quản trị)",
+  });
   return data.profiles ?? [];
 }
 
@@ -340,7 +347,9 @@ export async function listAccounts(profileId: string, tuyChon: { includeOverLimi
 
 /** Kênh của CẢ TEAM (mọi hồ sơ, mọi khách) — chỉ cho công cụ quản trị. */
 export async function listAccountsCaTeam(): Promise<ZernioAccount[]> {
-  const data = await request<{ accounts?: ZernioAccount[] }>("/accounts", {});
+  const data = await request<{ accounts?: ZernioAccount[] }>("/accounts", {
+    caTeam: "quản trị: đếm kênh của hồ sơ chưa ai nhận (available-profiles, chiQuanTri)",
+  });
   return data.accounts ?? [];
 }
 
@@ -507,10 +516,9 @@ export async function disconnectAccount(accountId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function listConversations(params: {
-  accountId?: string;
-  profileId?: string;
+  accountId: string;
   limit?: number;
-} = {}): Promise<ZernioConversation[]> {
+}): Promise<ZernioConversation[]> {
   const data = await request<{ data?: ZernioConversation[] }>("/inbox/conversations", {
     query: params,
   });
@@ -799,9 +807,13 @@ export async function createPost(params: {
  * Các bài gần đây, dùng để đối chiếu khi mình mất dấu một bài đã gửi đi.
  * Chỉ đọc — không bao giờ dùng để đăng lại.
  */
-export async function listRecentPosts(limit = 20): Promise<Record<string, unknown>[]> {
+/**
+ * Bài đăng qua MỘT kênh (accountId) từ một mốc — tài liệu GET /v1/posts: accountId, fromDate, sortBy, limit ≤ 500.
+ * Không còn bản "20 bài mới nhất" không lọc: đó là 20 bài của CẢ TEAM.
+ */
+export async function listBaiCuaKenh(p: { accountId: string; tu: string; limit?: number }): Promise<Record<string, unknown>[]> {
   const data = await request<{ posts?: unknown[]; data?: unknown[] }>("/posts", {
-    query: { limit },
+    query: { accountId: p.accountId, fromDate: p.tu, sortBy: "created-desc", limit: p.limit ?? 50 },
   });
   const list = data.posts ?? data.data ?? [];
   return Array.isArray(list) ? (list as Record<string, unknown>[]) : [];
@@ -958,12 +970,12 @@ export async function presignMedia(params: {
 // ---------------------------------------------------------------------------
 
 export async function getAnalytics(params: {
-  profileId?: string;
+  profileId: string;
   platform?: string;
   fromDate?: string;
   toDate?: string;
   limit?: number;
-} = {}): Promise<Record<string, unknown>> {
+}): Promise<Record<string, unknown>> {
   return request("/analytics", { query: params });
 }
 
@@ -1055,6 +1067,7 @@ export async function layNhatKyWebhook(limit = 50): Promise<LanGiaoWebhook[]> {
   const data = await request<{ logs?: LanGiaoWebhook[] }>("/webhooks/logs", {
     query: { limit },
     retries: 0,
+    caTeam: "webhook là hạ tầng chung của team; chỉ bộ canh sự cố (worker, báo admin) đọc",
   });
   return data.logs ?? [];
 }
@@ -1120,7 +1133,10 @@ export async function docTienKenhTheoKenh(
     period?: { start?: string; end?: string };
     totals?: { total?: number };
     attribution?: { groups?: { key: string; totalUsd?: number }[]; unattributed?: { totalUsd?: number } };
-  }>("/usage", { query: q });
+  }>("/usage", {
+    query: q,
+    caTeam: "hoá đơn kênh của cả team, chia theo kênh; chỗ gọi tự lọc kênh của mình (tong-quan cuaMinh)",
+  });
   const theoKenh: Record<string, number> = {};
   for (const g of d.attribution?.groups ?? []) theoKenh[g.key] = Number(g.totalUsd) || 0;
   return {

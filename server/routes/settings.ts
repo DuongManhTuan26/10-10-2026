@@ -627,12 +627,11 @@ settingsRouter.get(
     }
 
     let analytics: unknown = null;
+    // Hồ sơ đang giữ tài khoản quảng cáo (hồ sơ của cửa hàng). Không có hồ sơ thì KHÔNG gọi: gọi không lọc là ra số của
+    // cả team (22/10/2026 — bản cũ rơi về hồ sơ mặc định rồi undefined).
+    const hoSoQc = adAccounts.rows[0].profile_ref;
     try {
-      analytics = await zernio.getAnalytics({
-        // Hồ sơ đang giữ tài khoản quảng cáo — có thể là hồ sơ riêng của một Trang, không phải hồ sơ mặc định.
-        profileId: adAccounts.rows[0].profile_ref ?? req.user!.profileRef ?? undefined,
-        platform: "metaads",
-      });
+      if (hoSoQc) analytics = await zernio.getAnalytics({ profileId: hoSoQc, platform: "metaads" });
     } catch (error) {
       console.error(
         "[quảng cáo] Không lấy được số liệu:",

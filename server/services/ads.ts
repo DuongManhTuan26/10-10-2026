@@ -1,4 +1,5 @@
 import { env } from "../env.js";
+import { kiemPhamVi } from "./pham-vi-goi.js";
 
 /**
  * Cổng gọi phần quảng cáo của Zernio.
@@ -34,6 +35,7 @@ async function request<T>(
   } = {}
 ): Promise<T> {
   const { method = "GET", query, body, headers } = options;
+  kiemPhamVi(method, path, query, undefined);
   const url = new URL(env.zernio.baseUrl + path);
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== undefined && value !== null && value !== "") {

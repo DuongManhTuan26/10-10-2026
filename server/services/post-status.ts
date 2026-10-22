@@ -33,11 +33,31 @@ export interface KetQuaDoiChieu {
   url: string | null;
 }
 
+/** Lùi mốc tìm một chút: đồng hồ hai phía lệch nhau, bài bên nhà cung cấp có thể ghi giờ tạo sớm hơn vài giây. */
+const LUI_MOC_TIM_MS = 10 * 60_000;
+
+/** Bài cùng nội dung trên chính các kênh đích của bài, tạo từ lúc bài được tạo. Không có kênh đích → không tìm. */
+export async function timBaiTheoNoiDung(post: {
+  content: string;
+  target_account_ids: string[];
+  created_at: Date;
+}): Promise<Record<string, unknown> | null> {
+  const tu = new Date(new Date(post.created_at).getTime() - LUI_MOC_TIM_MS).toISOString();
+  for (const accountId of post.target_account_ids) {
+    const ds = await zernio.listBaiCuaKenh({ accountId, tu });
+    const thay = ds.find((item) => typeof item.content === "string" && item.content.trim() === post.content.trim());
+    if (thay) return thay;
+  }
+  return null;
+}
+
 /** Hỏi Zernio xem bài này thật ra đang thế nào. */
 export async function doiChieuMotBai(post: {
   id: number;
   content: string;
   platform_post_ref: string | null;
+  target_account_ids: string[];
+  created_at: Date;
 }): Promise<KetQuaDoiChieu> {
   let remote: Record<string, unknown> | null = null;
 
@@ -52,12 +72,12 @@ export async function doiChieuMotBai(post: {
      * không nhận được mã, trong khi Zernio ĐÃ đăng. Không đối chiếu thì chủ
      * shop bấm đăng lại và Fanpage có hai bài giống hệt nhau.
      */
-    const recent = await zernio.listRecentPosts(20);
-    remote =
-      recent.find(
-        (item) =>
-          typeof item.content === "string" && item.content.trim() === post.content.trim()
-      ) ?? null;
+    /*
+     * CHỈ trong bài của chính kênh đích, từ lúc bài được tạo (22/10/2026). Bản cũ dò 20 bài mới nhất của CẢ TEAM:
+     * hai khách đăng cùng một câu khuyến mãi là bài của mình bị gán mã / link bài của khách khác và báo "đã đăng";
+     * team đông thì 20 bài không đủ để tìm.
+     */
+    remote = await timBaiTheoNoiDung(post);
   }
 
   if (!remote) {
@@ -117,8 +137,10 @@ export async function ghiKetQua(
  * có thể đang xếp hàng thật. Chỉ đánh 'failed' khi nền tảng KHÔNG có bài đó.
  */
 export async function runDuePostRecheck(): Promise<number> {
-  const ketQue = await query<{ id: number; content: string; platform_post_ref: string | null }>(
-    `SELECT id, content, platform_post_ref FROM posts
+  const ketQue = await query<{
+    id: number; content: string; platform_post_ref: string | null; target_account_ids: string[]; created_at: Date;
+  }>(
+    `SELECT id, content, platform_post_ref, target_account_ids, created_at FROM posts
       WHERE status = 'publishing'
         AND updated_at < now() - ($1 || ' milliseconds')::interval
       ORDER BY updated_at

@@ -445,8 +445,8 @@ postsRouter.post(
  *
  * Hai đường tra:
  *   1. Đã có id bên Zernio thì hỏi thẳng bài đó.
- *   2. Chưa có id (hết giờ chờ ngay từ lúc gửi) thì dò trong các bài gần đây của
- *      Zernio, đối chiếu bằng nội dung.
+ *   2. Chưa có id (hết giờ chờ ngay từ lúc gửi) thì dò trong bài của CHÍNH kênh đích
+ *      từ lúc tạo bài, đối chiếu bằng nội dung.
  * Không thấy ở cả hai đường thì bài thật sự chưa lên — lúc đó mới cho đăng lại.
  */
 postsRouter.post(
@@ -456,8 +456,10 @@ postsRouter.post(
       id: number;
       content: string;
       platform_post_ref: string | null;
+      target_account_ids: string[];
+      created_at: Date;
     }>(
-      "SELECT id, content, platform_post_ref FROM posts WHERE id = $1 AND user_id = $2",
+      "SELECT id, content, platform_post_ref, target_account_ids, created_at FROM posts WHERE id = $1 AND user_id = $2",
       [req.params.id, req.user!.id]
     );
     if (!post) throw new AppError("Không tìm thấy bài viết", 404);
