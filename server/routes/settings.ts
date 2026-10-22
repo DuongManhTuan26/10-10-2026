@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { query, queryOne } from "../db.js";
+import { query, queryOne, transaction } from "../db.js";
 import { requireAuth } from "../auth.js";
 import { AppError, requireString, route, chiNhanMaSo } from "../http.js";
 import { sendTelegramMessage, createLinkUrl } from "../services/telegram.js";
@@ -10,6 +10,7 @@ import {
   clampConfig,
   resumeAi,
   effectiveRateLimit,
+  GHI_RAO_CHAN_CUA_HANG,
 } from "../services/guardrails.js";
 import { DAU_THANG_VN } from "../moc-thoi-gian.js";
 import { trangHienTai } from "../services/ngu-canh-trang.js";
@@ -227,23 +228,25 @@ settingsRouter.get(
 settingsRouter.get(
   "/auto-scripts/stats",
   route(async (req, res) => {
+    // Thống kê của CỬA HÀNG đang chọn (A3): kịch bản / bình luận / hội thoại / đơn đều đã có cửa hàng chốt (2b, 041).
     const userId = req.user!.id;
+    const trang = await trangHienTai();
 
     const scripts = await queryOne<{ active: number; posts: number }>(
       `SELECT
          (SELECT COUNT(*)::int FROM auto_scripts
-           WHERE user_id = $1 AND is_active = TRUE) AS active,
+           WHERE user_id = $1 AND trang_id = $2 AND is_active = TRUE) AS active,
          (SELECT COUNT(DISTINCT platform_post_id)::int FROM comments
-           WHERE user_id = $1 AND matched_script_id IS NOT NULL
+           WHERE user_id = $1 AND trang_id = $2 AND matched_script_id IS NOT NULL
              AND created_at > now() - interval '30 days') AS posts`,
-      [userId]
+      [userId, trang]
     );
 
     // Đã nhắn tin đầu: chính là số bình luận đã được nhắn riêng trong 30 ngày.
     const sent = await queryOne<{ n: number }>(
       `SELECT COUNT(*)::int AS n FROM comments
-        WHERE user_id = $1 AND private_replied_at > now() - interval '30 days'`,
-      [userId]
+        WHERE user_id = $1 AND trang_id = $2 AND private_replied_at > now() - interval '30 days'`,
+      [userId, trang]
     );
 
     /*
@@ -254,13 +257,13 @@ settingsRouter.get(
     const replied = await queryOne<{ n: number }>(
       `SELECT COUNT(DISTINCT c.id)::int AS n
          FROM conversations c
-        WHERE c.user_id = $1 AND c.origin = 'comment'
+        WHERE c.user_id = $1 AND c.trang_id = $2 AND c.origin = 'comment'
           AND c.created_at > now() - interval '30 days'
           AND EXISTS (
             SELECT 1 FROM messages m
              WHERE m.conversation_id = c.id AND m.sender_type = 'customer'
           )`,
-      [userId]
+      [userId, trang]
     );
 
     const orders = await queryOne<{ current: number; previous: number }>(
@@ -272,8 +275,8 @@ settingsRouter.get(
              AND o.created_at <= now() - interval '30 days')::int AS previous
          FROM orders o
          JOIN conversations c ON c.id = o.conversation_id
-        WHERE o.user_id = $1 AND c.origin = 'comment'`,
-      [userId]
+        WHERE o.user_id = $1 AND o.trang_id = $2 AND c.origin = 'comment'`,
+      [userId, trang]
     );
 
     const sentCount = sent?.n ?? 0;
@@ -515,25 +518,29 @@ settingsRouter.get(
 settingsRouter.get(
   "/safety",
   route(async (req, res) => {
+    // Số liệu an toàn của CỬA HÀNG đang chọn (A3): tin / chuyển người / hội thoại theo cửa hàng chốt của hội thoại;
+    // lỗi gửi theo NHIỆM KỲ kênh của cửa hàng (lỗi thuộc cửa hàng đang giữ kênh lúc đó — "kênh là nhân viên").
     const userId = req.user!.id;
+    const trang = await trangHienTai();
 
     const row = await queryOne<Record<string, number>>(
       `SELECT
-         (SELECT COUNT(*) FROM messages
-           WHERE user_id = $1 AND sender_type IN ('ai','human')
-             AND sent_at >= now() - interval '1 hour')                     AS sent_last_hour,
-         (SELECT COUNT(*) FROM messages
-           WHERE user_id = $1 AND sender_type IN ('ai','human')
-             AND sent_at >= now() - interval '30 days')                    AS sent_30d,
-         (SELECT COUNT(*) FROM webhook_events
-           WHERE event_type = 'message.failed'
-             AND account_id IN (SELECT id FROM social_accounts WHERE user_id = $1)
-             AND received_at >= now() - interval '30 days')                AS failed_30d,
+         (SELECT COUNT(*) FROM messages m JOIN conversations c ON c.id = m.conversation_id
+           WHERE m.user_id = $1 AND c.trang_id = $2 AND m.sender_type IN ('ai','human')
+             AND m.sent_at >= now() - interval '1 hour')                   AS sent_last_hour,
+         (SELECT COUNT(*) FROM messages m JOIN conversations c ON c.id = m.conversation_id
+           WHERE m.user_id = $1 AND c.trang_id = $2 AND m.sender_type IN ('ai','human')
+             AND m.sent_at >= now() - interval '30 days')                  AS sent_30d,
+         (SELECT COUNT(*) FROM webhook_events w
+            JOIN kenh_nhiem_ky nk ON nk.account_id = w.account_id AND nk.trang_id = $2
+                                 AND w.received_at >= nk.tu_luc AND (nk.den_luc IS NULL OR w.received_at < nk.den_luc)
+           WHERE w.event_type = 'message.failed' AND nk.user_id = $1
+             AND w.received_at >= now() - interval '30 days')              AS failed_30d,
          (SELECT COUNT(*) FROM conversations
-           WHERE user_id = $1 AND handoff_at >= now() - interval '30 days') AS handoffs_30d,
+           WHERE user_id = $1 AND trang_id = $2 AND handoff_at >= now() - interval '30 days') AS handoffs_30d,
          (SELECT COUNT(*) FROM conversations
-           WHERE user_id = $1 AND created_at >= now() - interval '30 days') AS conversations_30d`,
-      [userId]
+           WHERE user_id = $1 AND trang_id = $2 AND created_at >= now() - interval '30 days') AS conversations_30d`,
+      [userId, trang]
     );
 
     // Thời gian AI trả lời trung bình: khoảng cách giữa tin của khách và tin
@@ -544,13 +551,13 @@ settingsRouter.get(
                 LEAD(m.created_at) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS next_at,
                 m.sender_type,
                 LEAD(m.sender_type) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS next_type
-           FROM messages m
-          WHERE m.user_id = $1 AND m.sent_at >= now() - interval '30 days'
+           FROM messages m JOIN conversations c ON c.id = m.conversation_id
+          WHERE m.user_id = $1 AND c.trang_id = $2 AND m.sent_at >= now() - interval '30 days'
        )
        SELECT AVG(EXTRACT(EPOCH FROM (next_at - customer_at)))::numeric AS avg_seconds
          FROM pairs
         WHERE sender_type = 'customer' AND next_type = 'ai'`,
-      [userId]
+      [userId, trang]
     );
 
     const sentLastHour = Number(row?.sent_last_hour ?? 0);
@@ -643,7 +650,8 @@ settingsRouter.get(
 settingsRouter.get(
   "/guardrails",
   route(async (req, res) => {
-    const status = await guardrailStatus(req.user!.id);
+    // Rào chắn của CỬA HÀNG đang chọn (A3); trần tin / phút vẫn là của tài khoản.
+    const status = await guardrailStatus(req.user!.id, await trangHienTai());
     res.json({ success: true, data: status });
   })
 );
@@ -668,39 +676,33 @@ settingsRouter.put(
       auto_pause_minutes: body.autoPauseMinutes,
     }, policy.perMinute);
 
-    const updated = await queryOne(
-      `INSERT INTO guardrail_configs
-         (user_id, disclosure_enabled, disclosure_text, max_sends_per_minute,
-          max_ai_sends_per_hour, auto_pause_enabled, failure_rate_threshold,
-          failure_min_samples, auto_pause_minutes)
-       VALUES ($1,$2,$3,
-               COALESCE($4, 60), COALESCE($5, 0), $6,
-               COALESCE($7, 30), COALESCE($8, 10), COALESCE($9, 60))
-       ON CONFLICT (user_id) DO UPDATE SET
-         disclosure_enabled     = EXCLUDED.disclosure_enabled,
-         disclosure_text        = EXCLUDED.disclosure_text,
-         max_sends_per_minute   = COALESCE($4, guardrail_configs.max_sends_per_minute),
-         max_ai_sends_per_hour  = COALESCE($5, guardrail_configs.max_ai_sends_per_hour),
-         auto_pause_enabled     = EXCLUDED.auto_pause_enabled,
-         failure_rate_threshold = COALESCE($7, guardrail_configs.failure_rate_threshold),
-         failure_min_samples    = COALESCE($8, guardrail_configs.failure_min_samples),
-         auto_pause_minutes     = COALESCE($9, guardrail_configs.auto_pause_minutes),
-         updated_at             = now()
-       RETURNING *`,
-      [
-        req.user!.id,
-        body.disclosureEnabled !== false,
-        typeof body.disclosureText === "string" && body.disclosureText.trim()
-          ? body.disclosureText.trim()
-          : 'Em là trợ lý tự động của shop, nếu cần gặp nhân viên anh/chị nhắn "gặp người thật" giúp em nhé.',
-        clamped.max_sends_per_minute ?? null,
-        clamped.max_ai_sends_per_hour ?? null,
-        body.autoPauseEnabled !== false,
-        clamped.failure_rate_threshold ?? null,
-        clamped.failure_min_samples ?? null,
-        clamped.auto_pause_minutes ?? null,
-      ]
-    );
+    // A3: trần tin / phút → TÀI KHOẢN (guardrail_configs, chỉ cột này); mọi thứ còn lại → CỬA HÀNG đang chọn.
+    const trangId = await trangHienTai();
+    if (trangId == null) throw new AppError("Chưa có cửa hàng nào để lưu rào chắn. Vui lòng tạo cửa hàng trước.", 409);
+    const updated = await transaction(async (k) => {
+      const tk = await k.query(
+        `INSERT INTO guardrail_configs (user_id, max_sends_per_minute) VALUES ($1, COALESCE($2, 60))
+         ON CONFLICT (user_id) DO UPDATE SET
+           max_sends_per_minute = COALESCE($2, guardrail_configs.max_sends_per_minute),
+           updated_at           = now()
+         RETURNING max_sends_per_minute`,
+        [req.user!.id, clamped.max_sends_per_minute ?? null]
+      );
+      const ch = await k.query(GHI_RAO_CHAN_CUA_HANG, [
+          trangId,
+          req.user!.id,
+          body.disclosureEnabled !== false,
+          typeof body.disclosureText === "string" && body.disclosureText.trim()
+            ? body.disclosureText.trim()
+            : 'Em là trợ lý tự động của shop, nếu cần gặp nhân viên anh/chị nhắn "gặp người thật" giúp em nhé.',
+          clamped.max_ai_sends_per_hour ?? null,
+          body.autoPauseEnabled !== false,
+          clamped.failure_rate_threshold ?? null,
+          clamped.failure_min_samples ?? null,
+          clamped.auto_pause_minutes ?? null,
+      ]);
+      return { ...ch.rows[0], max_sends_per_minute: tk.rows[0].max_sends_per_minute };
+    });
 
     res.json({ success: true, data: updated });
   })
@@ -726,9 +728,9 @@ settingsRouter.get(
          FROM send_attempts s
          LEFT JOIN conversations cv ON cv.id = s.conversation_id
          LEFT JOIN customers c ON c.id = cv.customer_id
-        WHERE s.user_id = $1 AND s.decision = 'blocked'
+        WHERE s.user_id = $1 AND s.trang_id IS NOT DISTINCT FROM $2 AND s.decision = 'blocked'
         ORDER BY s.created_at DESC LIMIT 100`,
-      [req.user!.id]
+      [req.user!.id, await trangHienTai()]
     );
     res.json({ success: true, data: rows.rows });
   })

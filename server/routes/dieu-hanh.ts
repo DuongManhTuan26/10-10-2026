@@ -175,7 +175,7 @@ dieuHanhRouter.get(
         WHERE (d.trang_id = $1 OR (d.trang_id IS NULL AND d.user_id = $3))
           AND CASE
                 WHEN d.bang IN ('ai_configs', 'ai_documents') THEN d.trang_id = $1 AND COALESCE(d.sau ->> 'kind', d.truoc ->> 'kind') = $2
-                WHEN d.bang IN ('handoff_rules', 'guardrail_configs', 'auto_scripts') THEN $2 = 'sales'
+                WHEN d.bang IN ('handoff_rules', 'guardrail_configs', 'rao_chan_cua_hang', 'auto_scripts') THEN $2 = 'sales'
                 WHEN d.bang = 'social_accounts' THEN d.trang_id = $1 AND $2 = 'analytics'
                 ELSE FALSE
               END

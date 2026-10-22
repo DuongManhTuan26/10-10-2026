@@ -220,3 +220,15 @@ Hiện tượng: mỗi lần máy chủ nhận SIGTERM, nhật ký có "[worker]
 calling end on the pool" và "[video AI] Lỗi khi theo dõi video: (cùng câu)" — 59 lần trong ~/Library/Logs/quan-ly-fanpage.log
 tính tới 19/10. Nguyên nhân gốc: hẹn giờ của worker / video AI vẫn chạy sau pool.end(). Không mất dữ liệu (tiến trình đang
 thoát), nhưng là lỗi thật. Sửa: dừng mọi hẹn giờ + chờ lượt đang chạy xong rồi mới pool.end(). Không do đợt 3. Chưa sửa.
+
+## TD-21 — LỖI: trần tốc độ dự phòng đếm kênh của MỘT tài khoản, tài liệu nói đếm cả team (22/10/2026)
+
+Tài liệu nhà cung cấp (docs/zernio-api-reference.txt, mục "# Rate Limits"): "Rate limits are based on your team's total
+connected social accounts" · "Connected accounts are counted across the whole billing team" · "One API key is enough —
+including for multi-tenant integrations serving many customers". Tức trần là của CẢ HỆ THỐNG (mọi tài khoản khách dùng
+chung một khoá), không phải của từng tài khoản khách.
+Hiện trạng (services/guardrails.ts effectiveRateLimit): nhánh "số sống" (header x-ratelimit-limit) đã đúng — chia trần
+chung cho số shop đang gửi. Nhánh DỰ PHÒNG (chưa có header) lại tính bậc theo số kênh của RIÊNG tài khoản đó
+(policyLimitPerMinute(kênh của user)) và trả trọn bậc đó cho từng tài khoản → khi chưa có số sống, mỗi tài khoản tưởng mình
+có trọn trần. Phiên kiểm duyệt bắt ở thiết kế A3 (22/10), dặn không sửa trong A3. Sửa: nhánh dự phòng đếm kênh cả hệ thống
+rồi chia cho số shop đang gửi như nhánh số sống. Chưa sửa.

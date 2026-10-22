@@ -1,3 +1,4 @@
+import type pg from "pg";
 import { query, queryOne, transaction } from "../db.js";
 import { coNguon } from "./so-thay-doi.js";
 import { getRateLimitState } from "./zernio.js";
@@ -79,6 +80,10 @@ export interface OutboundDecision {
   disclosureText?: string;
 }
 
+/**
+ * Cấu hình rào chắn = phần TÀI KHOẢN (trần tin / phút — trần thật của nhà cung cấp, guardrail_configs) + phần CỬA HÀNG
+ * (mọi thứ còn lại — rao_chan_cua_hang, A3 / 060). Các cột phần cửa hàng trên guardrail_configs không còn đọc / ghi.
+ */
 interface GuardrailConfig {
   disclosure_enabled: boolean;
   disclosure_text: string;
@@ -88,6 +93,7 @@ interface GuardrailConfig {
   failure_rate_threshold: number;
   failure_min_samples: number;
   auto_pause_minutes: number;
+  author_dm_cooldown_hours: number;
 }
 
 const DEFAULT_CONFIG: GuardrailConfig = {
@@ -102,17 +108,63 @@ const DEFAULT_CONFIG: GuardrailConfig = {
   failure_rate_threshold: 30,
   failure_min_samples: 10,
   auto_pause_minutes: 60,
+  // 0 = tắt, đúng chính sách Meta (một tin mỗi bình luận).
+  author_dm_cooldown_hours: 0,
 };
 
-export async function loadConfig(userId: number): Promise<GuardrailConfig> {
-  const row = await queryOne<GuardrailConfig>(
-    `SELECT disclosure_enabled, disclosure_text, max_sends_per_minute,
-            max_ai_sends_per_hour, auto_pause_enabled, failure_rate_threshold,
-            failure_min_samples, auto_pause_minutes
-       FROM guardrail_configs WHERE user_id = $1`,
+/** Các cột rào chắn THEO CỬA HÀNG (rao_chan_cua_hang). */
+export const COT_RAO_CHAN_CUA_HANG = [
+  "disclosure_enabled", "disclosure_text", "max_ai_sends_per_hour", "auto_pause_enabled",
+  "failure_rate_threshold", "failure_min_samples", "auto_pause_minutes", "author_dm_cooldown_hours",
+] as const;
+
+/**
+ * Câu GHI rào chắn của MỘT cửa hàng (PUT /settings/guardrails dùng; phép thử tự hoàn tác chạy đúng câu này). ON CONFLICT
+ * khớp UNIQUE (trang_id) của rao_chan_cua_hang (060). Tham số: $1 trang_id, $2 user_id, $3 disclosure_enabled,
+ * $4 disclosure_text, $5 max_ai_sends_per_hour, $6 auto_pause_enabled, $7 failure_rate_threshold, $8 failure_min_samples,
+ * $9 auto_pause_minutes (null = giữ giá trị cũ / mặc định).
+ */
+export const GHI_RAO_CHAN_CUA_HANG = `
+  INSERT INTO rao_chan_cua_hang
+    (trang_id, user_id, disclosure_enabled, disclosure_text, max_ai_sends_per_hour, auto_pause_enabled,
+     failure_rate_threshold, failure_min_samples, auto_pause_minutes)
+  VALUES ($1, $2, $3, $4, COALESCE($5, 0), $6, COALESCE($7, 30), COALESCE($8, 10), COALESCE($9, 60))
+  ON CONFLICT (trang_id) DO UPDATE SET
+    disclosure_enabled     = EXCLUDED.disclosure_enabled,
+    disclosure_text        = EXCLUDED.disclosure_text,
+    max_ai_sends_per_hour  = COALESCE($5, rao_chan_cua_hang.max_ai_sends_per_hour),
+    auto_pause_enabled     = EXCLUDED.auto_pause_enabled,
+    failure_rate_threshold = COALESCE($7, rao_chan_cua_hang.failure_rate_threshold),
+    failure_min_samples    = COALESCE($8, rao_chan_cua_hang.failure_min_samples),
+    auto_pause_minutes     = COALESCE($9, rao_chan_cua_hang.auto_pause_minutes),
+    updated_at             = now()
+  RETURNING *`;
+
+/**
+ * Rào chắn áp cho một việc: trần tin / phút của TÀI KHOẢN + phần còn lại của CỬA HÀNG của việc. Cửa hàng chưa có dòng
+ * (hoặc việc chưa có cửa hàng) → mặc định, như trước A3.
+ */
+export async function loadConfig(
+  userId: number,
+  trangId: number | null,
+  db: Pick<pg.PoolClient, "query"> = { query: ((sql: string, ts?: unknown[]) => query(sql, ts)) as never }
+): Promise<GuardrailConfig> {
+  const tk = (await db.query<{ max_sends_per_minute: number }>(
+    "SELECT max_sends_per_minute FROM guardrail_configs WHERE user_id = $1",
     [userId]
-  );
-  return row ?? DEFAULT_CONFIG;
+  )).rows[0];
+  const ch =
+    trangId == null
+      ? null
+      : (await db.query<Omit<GuardrailConfig, "max_sends_per_minute">>(
+          `SELECT ${COT_RAO_CHAN_CUA_HANG.join(", ")} FROM rao_chan_cua_hang WHERE trang_id = $1`,
+          [trangId]
+        )).rows[0] ?? null;
+  return {
+    ...DEFAULT_CONFIG,
+    ...(ch ?? {}),
+    max_sends_per_minute: tk?.max_sends_per_minute ?? DEFAULT_CONFIG.max_sends_per_minute,
+  };
 }
 
 /**
@@ -237,6 +289,7 @@ export async function checkOutbound(params: {
 }): Promise<OutboundDecision> {
   const conversation = await queryOne<{
     user_id: number;
+    trang_id: number | null;
     social_account_id: string | null;
     platform: string;
     last_customer_message_at: Date | null;
@@ -244,7 +297,7 @@ export async function checkOutbound(params: {
     ai_paused_until: Date | null;
     ai_pause_reason: string | null;
   }>(
-    `SELECT c.user_id, c.social_account_id, c.platform,
+    `SELECT c.user_id, c.trang_id, c.social_account_id, c.platform,
             c.last_customer_message_at, c.disclosure_sent_at,
             a.ai_paused_until, a.ai_pause_reason
        FROM conversations c
@@ -269,7 +322,7 @@ export async function checkOutbound(params: {
     };
   }
 
-  const config = await loadConfig(conversation.user_id);
+  const config = await loadConfig(conversation.user_id, conversation.trang_id);
 
   // Mốc tính cửa sổ: tin cuối cùng CỦA KHÁCH. Không có mốc thì coi như đã
   // quá hạn — thà chặn oan còn hơn gửi sai và mất Trang.
@@ -364,11 +417,12 @@ export async function checkOutbound(params: {
     // sách nền tảng. Đặt 0 nghĩa là không giới hạn.
     if (params.actor === "ai" && config.max_ai_sends_per_hour > 0) {
       const hourlyCap = config.max_ai_sends_per_hour;
+      // Trần AI / giờ là của CỬA HÀNG (A3): cửa hàng này lỗi vòng lặp không làm tắt AI cửa hàng khác.
       const hourly = await queryOne<{ n: number }>(
         `SELECT COUNT(*)::int AS n FROM send_attempts
-          WHERE user_id = $1 AND actor = 'ai' AND decision = 'allowed'
+          WHERE user_id = $1 AND trang_id IS NOT DISTINCT FROM $2 AND actor = 'ai' AND decision = 'allowed'
             AND created_at > now() - interval '1 hour'`,
-        [conversation.user_id]
+        [conversation.user_id, conversation.trang_id]
       );
 
       if ((hourly?.n ?? 0) >= hourlyCap) {
@@ -460,9 +514,10 @@ export async function checkOutbound(params: {
  */
 export async function xinPhepGuiBinhLuan(
   userId: number,
-  socialAccountId: string | null
+  socialAccountId: string | null,
+  trangId: number | null
 ): Promise<{ duoc: boolean; lyDo: string }> {
-  const config = await loadConfig(userId);
+  const config = await loadConfig(userId, trangId);
   const policy = await effectiveRateLimit(userId);
   const tran = Math.min(config.max_sends_per_minute, policy.perMinute);
 
@@ -489,6 +544,7 @@ export async function xinPhepGuiBinhLuan(
   // vẫn thấy bộ đếm cũ và cho qua thêm một loạt nữa.
   await recordAttempt({
     userId,
+    trangId,
     socialAccountId,
     conversationId: null,
     actor: "ai",
@@ -500,6 +556,8 @@ export async function xinPhepGuiBinhLuan(
 
 export async function recordAttempt(params: {
   userId: number;
+  /** Cửa hàng CỦA VIỆC (hội thoại / bình luận) — đếm trần AI / giờ, nhật ký bị chặn, số liệu theo cửa hàng (A3). */
+  trangId: number | null;
   socialAccountId: string | null;
   conversationId: string | null;
   actor: Actor;
@@ -512,8 +570,8 @@ export async function recordAttempt(params: {
   const row = await queryOne<{ id: number }>(
     `INSERT INTO send_attempts
        (user_id, social_account_id, conversation_id, actor, decision,
-        block_reason, message_tag, outcome, error_code)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        block_reason, message_tag, outcome, error_code, trang_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
      RETURNING id`,
     [
       params.userId,
@@ -525,6 +583,7 @@ export async function recordAttempt(params: {
       params.messageTag ?? null,
       params.outcome ?? "pending",
       params.errorCode ?? null,
+      params.trangId,
     ]
   );
   return row!.id;
@@ -562,9 +621,11 @@ export async function markDisclosureSent(conversationId: string): Promise<void> 
  */
 export async function evaluateAutoPause(params: {
   userId: number;
+  /** Cửa hàng của việc vừa gửi lỗi — ngưỡng ngắt lấy theo cửa hàng; ngắt vẫn THEO KÊNH (ai_paused_until). */
+  trangId: number | null;
   socialAccountId: string;
 }): Promise<{ paused: boolean; reason?: string; until?: Date }> {
-  const config = await loadConfig(params.userId);
+  const config = await loadConfig(params.userId, params.trangId);
   if (!config.auto_pause_enabled) return { paused: false };
 
   /*
@@ -658,8 +719,12 @@ export function commentReplyAllowed(commentCreatedAt: Date | null): {
 }
 
 /** Trạng thái hàng rào để hiện trên giao diện. */
-export async function guardrailStatus(userId: number): Promise<Record<string, unknown>> {
-  const config = await loadConfig(userId);
+/**
+ * Trạng thái rào chắn của CỬA HÀNG đang chọn (A3). "Lượt / phút vừa rồi" đếm cả TÀI KHOẢN — vì nó so với trần tin / phút
+ * dùng chung (cấp tài khoản); mọi số khác đếm theo cửa hàng.
+ */
+export async function guardrailStatus(userId: number, trangId: number | null): Promise<Record<string, unknown>> {
+  const config = await loadConfig(userId, trangId);
 
   const usage = await queryOne<{
     last_minute: number;
@@ -672,19 +737,19 @@ export async function guardrailStatus(userId: number): Promise<Record<string, un
     `SELECT
        COUNT(*) FILTER (WHERE decision = 'allowed'
                           AND created_at > now() - interval '1 minute')::int AS last_minute,
-       COUNT(*) FILTER (WHERE decision = 'allowed' AND actor = 'ai'
+       COUNT(*) FILTER (WHERE cua_hang AND decision = 'allowed' AND actor = 'ai'
                           AND created_at > now() - interval '1 hour')::int   AS ai_last_hour,
-       COUNT(*) FILTER (WHERE outcome = 'failed'
+       COUNT(*) FILTER (WHERE cua_hang AND outcome = 'failed'
                           AND created_at > now() - interval '1 hour')::int   AS failed_last_hour,
-       COUNT(*) FILTER (WHERE decision = 'allowed'
+       COUNT(*) FILTER (WHERE cua_hang AND decision = 'allowed'
                           AND created_at > now() - interval '1 hour')::int   AS total_last_hour,
        /* Chỉ những lượt đã biết kết quả — xem chú thích ở evaluateAutoPause. */
-       COUNT(*) FILTER (WHERE decision = 'allowed' AND outcome <> 'pending'
+       COUNT(*) FILTER (WHERE cua_hang AND decision = 'allowed' AND outcome <> 'pending'
                           AND created_at > now() - interval '1 hour')::int   AS decided_last_hour,
-       COUNT(*) FILTER (WHERE decision = 'blocked'
+       COUNT(*) FILTER (WHERE cua_hang AND decision = 'blocked'
                           AND created_at > now() - interval '1 day')::int    AS blocked_last_day
-     FROM send_attempts WHERE user_id = $1`,
-    [userId]
+     FROM (SELECT *, trang_id IS NOT DISTINCT FROM $2 AS cua_hang FROM send_attempts WHERE user_id = $1) s`,
+    [userId, trangId]
   );
 
   const paused = await query<{
@@ -695,16 +760,16 @@ export async function guardrailStatus(userId: number): Promise<Record<string, un
   }>(
     `SELECT id, display_name, ai_paused_until, ai_pause_reason
        FROM social_accounts
-      WHERE user_id = $1 AND ai_paused_until > now()`,
-    [userId]
+      WHERE user_id = $1 AND trang_id IS NOT DISTINCT FROM $2 AND ai_paused_until > now()`,
+    [userId, trangId]
   );
 
   const blockedBreakdown = await query<{ block_reason: string; n: number }>(
     `SELECT block_reason, COUNT(*)::int AS n FROM send_attempts
-      WHERE user_id = $1 AND decision = 'blocked'
+      WHERE user_id = $1 AND trang_id IS NOT DISTINCT FROM $2 AND decision = 'blocked'
         AND created_at > now() - interval '7 days'
       GROUP BY block_reason ORDER BY n DESC`,
-    [userId]
+    [userId, trangId]
   );
 
   const totalHour = usage?.total_last_hour ?? 0;

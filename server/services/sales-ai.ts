@@ -10,6 +10,7 @@ import { sendMessageSafely } from "./outbound.js";
 import { xinSuatTraLoiAI } from "./chong-lam-dung.js";
 import { chayChoTrang } from "./ngu-canh-trang.js";
 import { DK_NHIEM_KY_MO } from "./nhiem-ky.js";
+import { luatCuaCuaHang } from "./luat-chuyen-nguoi.js";
 import { DK_SAU_MO_KHOA, DK_TAI_KHOAN_MO, TaiKhoanKhoaError } from "./tai-khoan-mo.js";
 
 /**
@@ -245,7 +246,8 @@ export async function handleIncomingMessage(conversationId: string): Promise<boo
     return false;
   }
 
-  const rules = await loadHandoffRules(conversation.user_id);
+  // Luật của CỬA HÀNG của hội thoại (A3) — cửa hàng chưa chỉnh luật nào thì dùng bộ mặc định.
+  const rules: HandoffRule[] = await luatCuaCuaHang(conversation.trang_id ?? null);
   // Đã đọc ở trên rồi, không truy vấn lại.
   const tuChu = tuChuSom;
 
@@ -634,13 +636,6 @@ export function laySoDau(v: string | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-async function loadHandoffRules(userId: number): Promise<HandoffRule[]> {
-  const rows = await query<HandoffRule>(
-    "SELECT rule_key, enabled, config FROM handoff_rules WHERE user_id = $1",
-    [userId]
-  );
-  return rows.rows;
-}
 
 const RULE_DESCRIPTIONS: Record<string, string> = {
   complaint: "khách phàn nàn, tức giận, chê sản phẩm hoặc dịch vụ",

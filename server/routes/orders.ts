@@ -4,6 +4,7 @@ import { requireAuth } from "../auth.js";
 import { AppError, requireString, route, chiNhanMaSo } from "../http.js";
 import { gopVaoTongChi, taoDon } from "../services/orders.js";
 import { DAU_NGAY_VN, DAU_THANG_VN } from "../moc-thoi-gian.js";
+import { trangHienTai } from "../services/ngu-canh-trang.js";
 
 export const ordersRouter = Router();
 
@@ -20,8 +21,13 @@ ordersRouter.get(
   "/",
   route(async (req, res) => {
     const { status, search } = req.query;
-    const conditions = ["o.user_id = $1"];
-    const params: unknown[] = [req.user!.id];
+    /*
+     * Đơn của CỬA HÀNG đang chọn (A3). Bốn ô số tổng dùng ĐÚNG điều kiện cửa hàng này — số đếm phải khớp danh sách
+     * (bài học 2b); lọc trạng thái / tìm kiếm chỉ áp cho danh sách, như trước.
+     */
+    const trang = await trangHienTai();
+    const conditions = ["o.user_id = $1", "o.trang_id = $2"];
+    const params: unknown[] = [req.user!.id, trang];
 
     if (typeof status === "string" && status !== "" && status !== "all") {
       params.push(status);
@@ -85,8 +91,8 @@ ordersRouter.get(
                 WHERE created_at >= ${DAU_THANG_VN} - interval '1 month'
                   AND created_at <  ${DAU_THANG_VN}
                   AND status <> 'cancelled'), 0)                     AS last_month_revenue
-         FROM orders WHERE user_id = $1`,
-      [req.user!.id]
+         FROM orders o WHERE o.user_id = $1 AND o.trang_id = $2`,
+      [req.user!.id, trang]
     );
 
     res.json({ success: true, data: rows.rows, summary });
@@ -101,27 +107,13 @@ ordersRouter.post(
     // đúng một đường mã — xem phần đầu tệp đó để biết vì sao.
     const conversationId = typeof body.conversationId === "string" ? body.conversationId : null;
     /*
-     * Đơn tạo tay KHÔNG có hội thoại: phải biết thuộc trang nào. Một trang → trang đó. Từ hai trang → bắt buộc chọn
-     * (kênh đang chọn gửi qua đầu X-Kenh, máy chủ kiểm kênh thuộc đúng tài khoản). Có hội thoại thì trang lấy theo
-     * kênh hội thoại trong taoDon.
+     * Đơn tạo tay (KHÔNG có hội thoại) thuộc CỬA HÀNG đang chọn (A3). Có hội thoại thì cửa hàng lấy theo hội thoại
+     * trong taoDon (đợt 2b).
      */
     let trangId: number | null = null;
     if (!conversationId) {
-      const ds = await query<{ id: number }>("SELECT id FROM trang WHERE user_id = $1", [req.user!.id]);
-      if (ds.rows.length === 1) trangId = ds.rows[0].id;
-      else if (ds.rows.length > 1) {
-        const kenh = req.get("x-kenh");
-        const r = kenh
-          ? await queryOne<{ trang_id: number | null }>(
-              "SELECT trang_id FROM social_accounts WHERE id = $1 AND user_id = $2",
-              [kenh, req.user!.id]
-            )
-          : null;
-        if (!r?.trang_id) {
-          throw new AppError("Tài khoản có nhiều cửa hàng — chọn cửa hàng (kênh) trước khi tạo đơn.", 400);
-        }
-        trangId = r.trang_id;
-      }
+      trangId = await trangHienTai();
+      if (trangId == null) throw new AppError("Chưa có cửa hàng nào để gắn đơn. Vui lòng tạo cửa hàng trước.", 409);
     }
     const order = await taoDon({
       userId: req.user!.id,
@@ -146,6 +138,24 @@ ordersRouter.patch(
   "/:id",
   route(async (req, res) => {
     const body = req.body ?? {};
+    /*
+     * Chỉ sửa đơn của CỬA HÀNG đang chọn (A3). Đơn của cửa hàng khác (vd. thấy ở Tổng quan — bảng đơn ở đó tính cả tài
+     * khoản) → báo rõ đơn thuộc cửa hàng nào để chủ shop đổi cửa hàng, không trả 404 trống (phiên kiểm duyệt, điều kiện 3).
+     */
+    const trang = await trangHienTai();
+    const cuaDon = await queryOne<{ trang_id: number | null; ten: string | null }>(
+      "SELECT o.trang_id, t.ten FROM orders o LEFT JOIN trang t ON t.id = o.trang_id WHERE o.id = $1 AND o.user_id = $2",
+      [req.params.id, req.user!.id]
+    );
+    if (!cuaDon) throw new AppError("Không tìm thấy đơn hàng", 404);
+    if (cuaDon.trang_id == null || cuaDon.trang_id !== trang) {
+      throw new AppError(
+        cuaDon.ten
+          ? `Đơn này thuộc cửa hàng "${cuaDon.ten}" — vui lòng đổi sang cửa hàng đó để xem và sửa.`
+          : "Đơn này thuộc một cửa hàng đã xoá nên không sửa được.",
+        409
+      );
+    }
     const fields: string[] = [];
     const params: unknown[] = [req.params.id, req.user!.id];
 
@@ -217,9 +227,10 @@ ordersRouter.patch(
     );
     if (!truoc) throw new AppError("Không tìm thấy đơn hàng", 404);
 
+    params.push(trang);
     const updated = await queryOne(
       `UPDATE orders SET ${fields.join(", ")}, updated_at = now()
-        WHERE id = $1 AND user_id = $2 RETURNING *`,
+        WHERE id = $1 AND user_id = $2 AND trang_id = $${params.length} RETURNING *`,
       params
     );
 

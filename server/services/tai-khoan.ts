@@ -56,17 +56,6 @@ const DEFAULT_AI_CONFIGS: Array<{
   { kind: "analytics", prompt: "" },
 ];
 
-/** Các quy tắc chuyển hội thoại cho người thật, bật sẵn theo thực tế bán hàng. */
-const DEFAULT_HANDOFF_RULES: Array<{ key: string; enabled: boolean; config?: object }> = [
-  { key: "complaint", enabled: true },
-  { key: "ask_human", enabled: true },
-  { key: "discount", enabled: true },
-  { key: "shipping", enabled: true },
-  { key: "unsure", enabled: true },
-  { key: "media", enabled: false },
-  { key: "too_many_turns", enabled: true, config: { maxTurns: 8 } },
-];
-
 export interface TaiKhoanMoi {
   id: number;
   email: string;
@@ -141,13 +130,7 @@ export async function taoTaiKhoan(params: {
       }
     }
 
-    for (const rule of DEFAULT_HANDOFF_RULES) {
-      await client.query(
-        `INSERT INTO handoff_rules (user_id, rule_key, enabled, config)
-         VALUES ($1, $2, $3, $4)`,
-        [userId, rule.key, rule.enabled, JSON.stringify(rule.config ?? {})]
-      );
-    }
+    // Luật chuyển người thật: KHÔNG chèn sẵn — cửa hàng chưa có dòng đọc bộ mặc định (services/luat-chuyen-nguoi.ts, A3).
 
     await client.query(`INSERT INTO telegram_configs (user_id) VALUES ($1)`, [userId]);
 

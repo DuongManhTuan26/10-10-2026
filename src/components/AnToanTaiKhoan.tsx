@@ -6,7 +6,7 @@ import { PLATFORM_RULES } from '../lib/pricing';
 const LY_DO_CHAN: Record<string, string> = {
   ai_outside_24h: 'Quá 24 giờ kể từ tin cuối của khách — chỉ nhân viên được trả lời',
   window_expired_7d: 'Quá 7 ngày — nền tảng không cho gửi nữa, kể cả nhân viên',
-  ai_paused: 'AI đang bị tạm dừng để bảo vệ tài khoản',
+  ai_paused: 'AI đang bị tạm dừng trên kênh này để bảo vệ kênh',
   rate_limited: 'Chạm hạn mức tốc độ gửi của nền tảng',
   ai_hourly_limit: 'Chạm giới hạn số tin AI gửi mỗi giờ do chủ shop đặt',
   no_account: 'Hội thoại chưa gắn với kênh nào',
@@ -14,8 +14,8 @@ const LY_DO_CHAN: Record<string, string> = {
 };
 
 /**
- * AN TOÀN TÀI KHOẢN + QUY ĐỊNH BẮT BUỘC CỦA FACEBOOK — số liệu và giới hạn gửi tin. Bản này: hàng rào lưu theo TÀI KHOẢN (chung mọi trang của
- * tài khoản). Thuộc ③ AI Bán hàng › Kết quả; trước đây nằm ở trang Gói dịch vụ (rà soát lượt 2, T11). Mã chuyển
+ * AN TOÀN CỬA HÀNG + QUY ĐỊNH BẮT BUỘC CỦA FACEBOOK — số liệu và giới hạn gửi tin. A3 (22/10/2026): số liệu + rào chắn theo
+ * CỬA HÀNG đang chọn; riêng trần tin / phút là CHUNG cả tài khoản (trần thật của nền tảng). Thuộc ③ AI Bán hàng › Kết quả; trước đây nằm ở trang Gói dịch vụ (rà soát lượt 2, T11). Mã chuyển
  * nguyên từ Pricing.tsx, không đổi logic.
  */
 export default function AnToanTaiKhoan() {
@@ -97,7 +97,7 @@ export default function AnToanTaiKhoan() {
         {/* HÀNG 4 — thẻ lớn "An toàn tài khoản" */}
         <div className="khung-muc mau-lam mb-6">
           <div className="dau-muc flex flex-wrap items-center gap-3 justify-between">
-            <h3 className="tieu-de-muc">An toàn tài khoản</h3>
+            <h3 className="tieu-de-muc">An toàn cửa hàng</h3>
             <span className="text-xs text-on-surface-variant">Kiểm tra tự động hằng ngày</span>
           </div>
 
@@ -113,7 +113,7 @@ export default function AnToanTaiKhoan() {
               <div className="border border-white/20 rounded-xl p-4 flex items-start md:items-center gap-3">
                 <span className="material-symbols-outlined text-on-surface text-[24px]">check_circle</span>
                 <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 flex-1">
-                  <p className="font-bold text-on-surface">Tài khoản đang an toàn</p>
+                  <p className="font-bold text-on-surface">Cửa hàng đang an toàn</p>
                   <p className="text-sm text-on-surface-variant">Không phát hiện rủi ro nào trong 30 ngày qua</p>
                 </div>
               </div>
@@ -132,7 +132,7 @@ export default function AnToanTaiKhoan() {
               <div className="bg-loi/10 border border-loi/40 rounded-xl p-4 flex items-start md:items-center gap-3">
                 <span className="material-symbols-outlined text-loi text-[24px]">gpp_bad</span>
                 <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 flex-1">
-                  <p className="font-bold text-loi">Rủi ro cao cho tài khoản</p>
+                  <p className="font-bold text-loi">Rủi ro cao cho cửa hàng</p>
                   {lyDoAnToan && <p className="font-body-md text-on-surface-variant">{lyDoAnToan}</p>}
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function AnToanTaiKhoan() {
               <h4 className="font-body-md font-bold text-on-surface mb-1">Giới hạn đang áp dụng</h4>
               <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
                 Trần tốc độ là quy định của nền tảng, hệ thống không cho vượt. Bạn chỉ
-                có thể đặt chặt hơn nếu muốn thận trọng.
+                có thể đặt chặt hơn nếu muốn thận trọng. Các giới hạn còn lại là riêng của cửa hàng đang chọn.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -226,6 +226,7 @@ export default function AnToanTaiKhoan() {
                     {guardrails.rateLimit.source === 'live'
                       ? 'Đọc trực tiếp từ nền tảng'
                       : 'Theo bậc tài khoản hiện tại'}
+                    {' · chung cho mọi cửa hàng của tài khoản'}
                   </p>
                 </div>
 

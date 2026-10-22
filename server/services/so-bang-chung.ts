@@ -76,7 +76,7 @@ function hien(v: unknown): { chu: string; rutGon: boolean } {
 }
 
 const TEN_BANG: Record<string, string> = {
-  ai_configs: "cài đặt AI", ai_documents: "tài liệu", guardrail_configs: "hàng rào an toàn", handoff_rules: "quy tắc nhường người",
+  ai_configs: "cài đặt AI", ai_documents: "tài liệu", guardrail_configs: "hàng rào an toàn", rao_chan_cua_hang: "hàng rào an toàn của cửa hàng", handoff_rules: "quy tắc nhường người",
   auto_scripts: "kịch bản bình luận", social_accounts: "kênh", quang_cao_chien_dich: "chiến dịch quảng cáo",
   quang_cao_nhom: "nhóm quảng cáo", quang_cao_day_bai: "đẩy bài quảng cáo", quang_cao_doi_tuong: "tệp đối tượng quảng cáo",
 };

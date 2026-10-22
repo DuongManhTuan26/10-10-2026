@@ -57,8 +57,11 @@ dashboardRouter.get(
 
     const recentOrders = await query(
       `SELECT o.id, o.code, o.customer_name, o.product, o.quantity, o.total,
-              o.status, o.closed_by, o.created_at
+              o.status, o.closed_by, o.created_at,
+              -- Tổng quan tính cả tài khoản: ghi rõ đơn của cửa hàng nào (màn Đơn hàng chỉ hiện cửa hàng đang chọn — A3).
+              t.ten AS ten_cua_hang
          FROM orders o
+         LEFT JOIN trang t ON t.id = o.trang_id
         WHERE o.user_id = $1
         ORDER BY o.created_at DESC
         LIMIT 5`,

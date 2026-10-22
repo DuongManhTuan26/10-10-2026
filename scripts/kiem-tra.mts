@@ -1789,7 +1789,9 @@ kiem("quản trị", "đường tự đăng ký cũng đi qua đúng hàm đó",
     !/INSERT INTO users \(email, password_hash, name\)/.test(nguonDangKy), true);
 kiem("quản trị", "tài khoản mới nhận đủ bộ cấu hình riêng",
   /DEFAULT_AI_CONFIGS/.test(nguonTaiKhoan) &&
-    /DEFAULT_HANDOFF_RULES/.test(nguonTaiKhoan) &&
+    // A3: luật chuyển người thật không chèn lúc tạo tài khoản — cửa hàng chưa có dòng đọc bộ mặc định LUAT_MAC_DINH.
+    !/INSERT INTO handoff_rules/.test(nguonTaiKhoan) &&
+    /export const LUAT_MAC_DINH/.test(fs.readFileSync(path.join(GOC, "server/services/luat-chuyen-nguoi.ts"), "utf8")) &&
     /INSERT INTO telegram_configs/.test(nguonTaiKhoan) &&
     /ensureProfile\(/.test(nguonTaiKhoan), true);
 /*
@@ -2319,9 +2321,11 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * Chuyển người khi khách phàn nàn hay đòi gặp người thật là chốt bảo vệ, bỏ
    * đi thì tài khoản mới chạy trần trụi. Giữ nguyên, có chủ đích.
    */
+  // A3: bộ mặc định nằm ở services/luat-chuyen-nguoi.ts, áp cho MỌI cửa hàng chưa chỉnh luật (kể cả tài khoản mới).
+  const maLuat = fs.readFileSync(path.join(GOC, "server/services/luat-chuyen-nguoi.ts"), "utf8");
   kiem("bộ não trống", "luật an toàn vẫn bật sẵn cho tài khoản mới",
-    /\{ key: "ask_human", enabled: true \}/.test(maTaoTk) &&
-      /\{ key: "complaint", enabled: true \}/.test(maTaoTk), true);
+    /\{ rule_key: "ask_human", enabled: true, config: \{\} \}/.test(maLuat) &&
+      /\{ rule_key: "complaint", enabled: true, config: \{\} \}/.test(maLuat), true);
 
   const nguonKichBan = fs.readFileSync(path.join(GOC, "src/pages/AutoScripts.tsx"), "utf8");
   kiem("bộ não trống", "ô nhập vai trò có ví dụ viết mờ",
@@ -5310,10 +5314,10 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /count\(\*\) FILTER \(WHERE a\.ma_ncc IS NOT NULL AND a\.doi_chieu_at IS NULL\)::int AS chua_chot/.test(tq),
       (tqUi.match(/<NhanChot chot=\{/g) ?? []).length >= 6],
     [true, true, true, true, true]);
-  kiem("tiền theo trang", "đơn hàng ghi trang + kênh NGAY LÚC TẠO (có hội thoại → kênh hội thoại; tạo tay ≥2 trang → bắt buộc chọn), trang phải của đúng tài khoản",
+  kiem("tiền theo trang", "đơn hàng ghi trang + kênh NGAY LÚC TẠO (có hội thoại → cửa hàng hội thoại; tạo tay → cửa hàng đang chọn, A3), trang phải của đúng tài khoản",
     [/kenhId = k\.rows\[0\]\?\.social_account_id \?\? null;\s*trangId = k\.rows\[0\]\?\.trang_id \?\? null;/.test(od),
       /\(SELECT id FROM trang WHERE id = \$16 AND user_id = \$1\), \$17, \$18, \$19\)/.test(od),
-      /throw new AppError\("Tài khoản có nhiều cửa hàng — chọn cửa hàng \(kênh\) trước khi tạo đơn\.", 400\);/.test(odr),
+      /if \(!conversationId\) \{\s*trangId = await trangHienTai\(\);\s*if \(trangId == null\) throw new AppError\([^;]*409\);/.test(odr),
       fs.existsSync(path.join(GOC, "server/migrations/041_don_va_kenh_theo_trang.sql"))],
     [true, true, true, true]);
   kiem("tiền theo trang", "sổ kênh theo ngày UTC: ghi trạng thái đầu ngày, ghi ngay trước khi chuyển kênh sang cửa hàng khác; tiền kênh chia theo số ngày ở từng cửa hàng",
@@ -6690,8 +6694,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     "services/orders.ts": "mot_dong", "services/outbound.ts": "mot_dong",
     // đợt 3: hậu quả chuyển MỘT kênh (đếm kịch bản / hội thoại của nhiệm kỳ đang mở của kênh đó)
     "services/trang.ts": "mot_dong",
-    // rào chắn (thuộc tính kênh + cấu hình) → A3; màn đơn → A3
-    "services/guardrails.ts": "A3", "routes/orders.ts": "A3",
+    // A3 (22/10): rào chắn — trần phút theo tài khoản, phần còn lại + đếm theo cửa hàng; màn đơn theo cửa hàng
+    "services/guardrails.ts": "hon_hop", "routes/orders.ts": "cua_hang",
     // theo tài khoản: Tổng quan (chốt 19/10), màn quản trị, analytics cũ (TD-12); settings: kịch bản theo cửa hàng, thống kê / rào chắn → A3
     "routes/dashboard.ts": "tai_khoan", "routes/quan-ly.ts": "tai_khoan", "services/quan-ly-chung.ts": "tai_khoan", "routes/analytics.ts": "tai_khoan",
     "routes/settings.ts": "hon_hop",
@@ -6826,6 +6830,127 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("3 xếp loại", "ai_paused_until chỉ ghi ở guardrails.ts (sức khoẻ của chính kênh — giữ theo kênh khi chuyển cửa hàng)",
     moiTepMayChu(path.join(GOC, "server")).filter((t) => /ai_paused_until\s*=/.test(d5(path.relative(GOC, t)))).map((t) => path.relative(GOC, t)),
     ["server/services/guardrails.ts"]);
+}
+
+// ---------------------------------------------------------------------------
+// A3 — ĐƠN HÀNG, THỐNG KÊ KỊCH BẢN, LUẬT CHUYỂN NGƯỜI THẬT, RÀO CHẮN theo CỬA HÀNG (migration 060; phiên kiểm duyệt duyệt
+// 22/10 kèm 4 điều kiện). Trần tin / phút giữ ở tài khoản (trần thật của nền tảng — TD-21).
+// ---------------------------------------------------------------------------
+{
+  const d6 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const tepMay = moiTepMayChu(path.join(GOC, "server"));
+  const m60 = fs.readFileSync(path.join(GOC, "server/migrations/060_luat_va_rao_chan_theo_cua_hang.sql"), "utf8");
+  kiem("A3 060", "sao lưu trước; luật → cửa hàng cũ nhất + chép cho cửa hàng khác; RAISE nếu còn NULL; NOT NULL; UNIQUE (trang_id, rule_key); rào chắn cửa hàng chép từ tài khoản + trigger nhật ký; lượt gửi điền theo hội thoại rồi nhiệm kỳ",
+    [m60.search(/CREATE TABLE IF NOT EXISTS handoff_rules_truoc_060 AS/) >= 0 && m60.search(/handoff_rules_truoc_060/) < m60.search(/ALTER TABLE handoff_rules/),
+      /UPDATE handoff_rules h SET trang_id = \(SELECT MIN\(t\.id\) FROM trang t WHERE t\.user_id = h\.user_id\)/.test(m60),
+      /INSERT INTO handoff_rules \(user_id, trang_id, rule_key, enabled, config\)\s*SELECT h\.user_id, t\.id,/.test(m60),
+      m60.search(/RAISE EXCEPTION '060: còn luật/) >= 0 && m60.search(/RAISE EXCEPTION '060: còn luật/) < m60.search(/ALTER COLUMN trang_id SET NOT NULL/),
+      /CREATE UNIQUE INDEX IF NOT EXISTS handoff_rules_trang_key ON handoff_rules \(trang_id, rule_key\);/.test(m60) && /DROP INDEX IF EXISTS handoff_rules_user_key;/.test(m60),
+      /FROM guardrail_configs g JOIN trang t ON t\.user_id = g\.user_id/.test(m60) && /CREATE TRIGGER so_thay_doi_rao_chan_cua_hang/.test(m60),
+      m60.search(/FROM conversations c WHERE c\.id = s\.conversation_id/) >= 0 && m60.search(/FROM conversations c WHERE c\.id = s\.conversation_id/) < m60.search(/FROM kenh_nhiem_ky nk/),
+      !/DELETE FROM|DROP TABLE|DROP COLUMN/i.test(m60)],
+    [true, true, true, true, true, true, true, true]);
+
+  // ĐIỀU KIỆN 2: chỉ một chỗ GHI (upsert PATCH, ON CONFLICT khớp chỉ mục), mọi chỗ ĐỌC đi qua luatCuaCuaHang.
+  const choGhiLuat = tepMay.flatMap((t) => [...d6(path.relative(GOC, t)).matchAll(/INSERT INTO handoff_rules/g)].map(() => path.relative(GOC, t)));
+  const choDocLuat = tepMay.filter((t) => /FROM handoff_rules|UPDATE handoff_rules|DELETE FROM handoff_rules/.test(d6(path.relative(GOC, t)))).map((t) => path.relative(GOC, t));
+  const ai3 = d6("server/routes/ai.ts"), sa3 = d6("server/services/sales-ai.ts"), lc3 = d6("server/services/luat-chuyen-nguoi.ts");
+  const dungGhiLuat = tepMay.filter((t) => /\bGHI_LUAT\b/.test(d6(path.relative(GOC, t)))).map((t) => path.relative(GOC, t)).sort();
+  kiem("A3 luật", "đúng 1 câu ghi (GHI_LUAT) với ON CONFLICT (trang_id, rule_key), chỉ PATCH dùng; đọc / sửa / xoá trực tiếp chỉ ở luat-chuyen-nguoi.ts; bộ não bán hàng + GET đọc qua luatCuaCuaHang theo cửa hàng",
+    [choGhiLuat, /INSERT INTO handoff_rules \(user_id, trang_id, rule_key, enabled, config\)\s*VALUES \(\$1, \$2, \$3, \$4, \$5\)\s*ON CONFLICT \(trang_id, rule_key\) DO UPDATE SET/.test(lc3),
+      dungGhiLuat, /const updated = await queryOne\(GHI_LUAT, \[req\.user!\.id, trangId, req\.params\.key, enabled, JSON\.stringify\(config\)\]\);/.test(ai3),
+      choDocLuat, /const rules: HandoffRule\[\] = await luatCuaCuaHang\(conversation\.trang_id \?\? null\);/.test(sa3),
+      /data: await luatCuaCuaHang\(await trangCuaReq\(req\)\)/.test(ai3)],
+    [["server/services/luat-chuyen-nguoi.ts"], true, ["server/routes/ai.ts", "server/services/luat-chuyen-nguoi.ts"], true,
+      ["server/services/luat-chuyen-nguoi.ts"], true, true]);
+  {
+    const { luatCuaCuaHang, LUAT_MAC_DINH } = await import("../server/services/luat-chuyen-nguoi.js");
+    const dbGia = (dong: unknown[]) => ({ query: async () => ({ rows: dong }) }) as never;
+    const kq = await luatCuaCuaHang(7, dbGia([{ rule_key: "media", enabled: true, config: {} }, { rule_key: "rieng", enabled: true, config: {} }]));
+    const md = await luatCuaCuaHang(null, dbGia([{ rule_key: "media", enabled: true, config: {} }]));
+    kiem("A3 luật", "cửa hàng chưa chỉnh → đúng bộ mặc định; có dòng → dòng thắng; luật riêng ngoài bộ mặc định giữ; không cửa hàng → mặc định (không đọc dòng)",
+      [kq.length, kq.find((r) => r.rule_key === "media")?.enabled, kq.some((r) => r.rule_key === "rieng"),
+        kq.find((r) => r.rule_key === "too_many_turns")?.config, md.find((r) => r.rule_key === "media")?.enabled, LUAT_MAC_DINH.length],
+      [8, true, true, { maxTurns: 8 }, false, 7]);
+  }
+
+  // ĐIỀU KIỆN 4: KHÔNG còn chỗ nào đọc / ghi các cột đã chuyển sang rao_chan_cua_hang trên guardrail_configs.
+  const COT_CHUYEN = ["disclosure_enabled", "disclosure_text", "max_ai_sends_per_hour", "auto_pause_enabled", "failure_rate_threshold",
+    "failure_min_samples", "auto_pause_minutes", "author_dm_cooldown_hours"];
+  const cauDungGc = tepMay.flatMap((t) => {
+    const n = d6(path.relative(GOC, t));
+    return [...n.matchAll(/(`[^`]*guardrail_configs[^`]*`|"[^"\n]*guardrail_configs[^"\n]*")/g)]
+      .filter((m) => COT_CHUYEN.some((c) => m[1].includes(c))).map(() => path.relative(GOC, t));
+  });
+  const gr = d6("server/services/guardrails.ts"), st3 = d6("server/routes/settings.ts"), ca3 = d6("server/services/comment-ai.ts");
+  kiem("A3 rào chắn", "không câu SQL nào trên guardrail_configs chứa cột đã chuyển; loadConfig: trần phút từ guardrail_configs, phần còn lại từ rao_chan_cua_hang theo cửa hàng",
+    [cauDungGc, /"SELECT max_sends_per_minute FROM guardrail_configs WHERE user_id = \$1"/.test(gr),
+      /`SELECT \$\{COT_RAO_CHAN_CUA_HANG\.join\(", "\)\} FROM rao_chan_cua_hang WHERE trang_id = \$1`/.test(gr),
+      /export async function loadConfig\(\s*userId: number,\s*trangId: number \| null,/.test(gr)],
+    [[], true, true, true]);
+  kiem("A3 rào chắn", "PUT: trần phút → guardrail_configs (chỉ cột đó); phần còn lại → rao_chan_cua_hang của cửa hàng đang chọn (409 nếu chưa có), CÙNG giao dịch; GET / bị chặn theo cửa hàng",
+    [/INSERT INTO guardrail_configs \(user_id, max_sends_per_minute\) VALUES \(\$1, COALESCE\(\$2, 60\)\)/.test(st3),
+      /INSERT INTO rao_chan_cua_hang[\s\S]{0,400}ON CONFLICT \(trang_id\) DO UPDATE SET/.test(gr) && /const ch = await k\.query\(GHI_RAO_CHAN_CUA_HANG, \[\s*trangId,\s*req\.user!\.id,/.test(st3),
+      /const trangId = await trangHienTai\(\);\s*if \(trangId == null\) throw new AppError\([^;]*409\);\s*const updated = await transaction\(/.test(st3),
+      /guardrailStatus\(req\.user!\.id, await trangHienTai\(\)\)/.test(st3),
+      /s\.trang_id IS NOT DISTINCT FROM \$2 AND s\.decision = 'blocked'/.test(st3)],
+    [true, true, true, true, true]);
+  // Đếm: trần phút theo TÀI KHOẢN (trần chung), trần AI / giờ theo CỬA HÀNG.
+  const thanCo = gr.slice(gr.indexOf("export async function checkOutbound("), gr.indexOf("export async function xinPhepGuiBinhLuan("));
+  kiem("A3 rào chắn", "checkOutbound: cấu hình theo cửa hàng của hội thoại; trần phút đếm cả tài khoản; trần AI / giờ đếm theo cửa hàng",
+    [/const config = await loadConfig\(conversation\.user_id, conversation\.trang_id\);/.test(thanCo),
+      /`SELECT COUNT\(\*\)::int AS n FROM send_attempts\s*WHERE user_id = \$1 AND decision = 'allowed'\s*AND created_at > now\(\) - interval '1 minute'`/.test(thanCo),
+      /WHERE user_id = \$1 AND trang_id IS NOT DISTINCT FROM \$2 AND actor = 'ai' AND decision = 'allowed'/.test(thanCo)],
+    [true, true, true]);
+  const thanTt = gr.slice(gr.indexOf("export async function guardrailStatus("));
+  kiem("A3 rào chắn", "trạng thái: lượt / phút đếm cả tài khoản (so với trần chung), mọi số khác + kênh đang ngắt + lý do chặn theo cửa hàng",
+    [/COUNT\(\*\) FILTER \(WHERE decision = 'allowed'\s*AND created_at > now\(\) - interval '1 minute'\)::int AS last_minute/.test(thanTt),
+      (thanTt.match(/FILTER \(WHERE cua_hang AND/g) ?? []).length, /trang_id IS NOT DISTINCT FROM \$2 AS cua_hang FROM send_attempts WHERE user_id = \$1/.test(thanTt),
+      (thanTt.match(/trang_id IS NOT DISTINCT FROM \$2 AND/g) ?? []).length],
+    [true, 5, true, 2]);
+  // Lượt gửi ghi cửa hàng của việc ở MỌI chỗ.
+  const ob3 = d6("server/services/outbound.ts");
+  kiem("A3 lượt gửi", "recordAttempt ghi trang_id; mọi lời gọi truyền trangId (outbound 2 + bình luận 1); xin suất bình luận 4 chỗ truyền cửa hàng của bình luận; tự ngắt nhận cửa hàng",
+    [/error_code, trang_id\)\s*VALUES \(\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10\)/.test(gr) && /params\.errorCode \?\? null,\s*params\.trangId,/.test(gr),
+      (ob3.match(/await recordAttempt\(\{\s*userId: conversation\.user_id,\s*trangId: conversation\.trang_id,/g) ?? []).length,
+      /await recordAttempt\(\{\s*userId,\s*trangId,/.test(gr),
+      (ca3.match(/xinPhepGuiBinhLuan\((account\.user_id, accountId, trangBL|row\.user_id, row\.social_account_id, row\.trang_id)\)/g) ?? []).length,
+      /await evaluateAutoPause\(\{\s*userId: conversation\.user_id,\s*trangId: conversation\.trang_id,/.test(ob3)],
+    [true, 2, true, 4, true]);
+  kiem("A3 rào chắn", "bình luận: lời tự giới thiệu + khoảng nghỉ nhắn riêng theo cửa hàng của bình luận (khoảng nghỉ đếm tin riêng của chính cửa hàng)",
+    [/const config = await loadConfig\(params\.userId, params\.trangId\);\s*const canKhaiBao/.test(ca3),
+      /const cooldownHours = Number\(\(await loadConfig\(params\.userId, params\.trangId\)\)\.author_dm_cooldown_hours \?\? 0\);/.test(ca3),
+      /WHERE user_id = \$1 AND trang_id IS NOT DISTINCT FROM \$4 AND author_id = \$2 AND private_replied_at IS NOT NULL/.test(ca3),
+      (ca3.match(/await decidePrivateReply\(\{[^}]*trangId: (trangBL|row\.trang_id),/g) ?? []).length],
+    [true, true, true, 2]);
+
+  // Đơn hàng (A3.1) + điều kiện 3.
+  const or3 = d6("server/routes/orders.ts"), db3 = d6("server/routes/dashboard.ts"), dbx = d6("src/pages/Dashboard.tsx");
+  kiem("A3 đơn", "danh sách + bốn ô số tổng CÙNG điều kiện cửa hàng đang chọn; sửa đơn cửa hàng khác → 409 nói tên cửa hàng, câu UPDATE cũng chốt cửa hàng",
+    [/const conditions = \["o\.user_id = \$1", "o\.trang_id = \$2"\];\s*const params: unknown\[\] = \[req\.user!\.id, trang\];/.test(or3),
+      /FROM orders o WHERE o\.user_id = \$1 AND o\.trang_id = \$2`,\s*\[req\.user!\.id, trang\]/.test(or3),
+      /if \(cuaDon\.trang_id == null \|\| cuaDon\.trang_id !== trang\) \{\s*throw new AppError\(\s*cuaDon\.ten\s*\? `Đơn này thuộc cửa hàng "\$\{cuaDon\.ten\}"/.test(or3),
+      /WHERE id = \$1 AND user_id = \$2 AND trang_id = \$\$\{params\.length\} RETURNING \*/.test(or3),
+      !/x-kenh/i.test(or3)],
+    [true, true, true, true, true]);
+  kiem("A3 đơn", "Tổng quan (cả tài khoản): mỗi đơn gần đây ghi tên cửa hàng",
+    [/t\.ten AS ten_cua_hang\s*FROM orders o\s*LEFT JOIN trang t ON t\.id = o\.trang_id/.test(db3), /\{order\.ten_cua_hang \? `Cửa hàng \$\{order\.ten_cua_hang\}` : 'Cửa hàng đã xoá'\}/.test(dbx)],
+    [true, true]);
+
+  // Thống kê kịch bản (A3.2) + an toàn (A3.5).
+  const thanTk = st3.slice(st3.indexOf('"/auto-scripts/stats"'), st3.indexOf("function toVariations("));
+  const thanAt = st3.slice(st3.indexOf('"/safety"'), st3.indexOf('"/ads/analytics"'));
+  kiem("A3 số liệu", "thống kê kịch bản: 5 điều kiện cửa hàng (kịch bản, bình luận ×2, hội thoại, đơn); an toàn: tin / hội thoại theo cửa hàng của hội thoại, lỗi gửi theo nhiệm kỳ kênh của cửa hàng",
+    [(thanTk.match(/trang_id = \$2/g) ?? []).length, (thanTk.match(/\[userId, trang\]/g) ?? []).length,
+      (thanAt.match(/c\.trang_id = \$2/g) ?? []).length, (thanAt.match(/\btrang_id = \$2 AND (handoff_at|created_at)/g) ?? []).length,
+      /JOIN kenh_nhiem_ky nk ON nk\.account_id = w\.account_id AND nk\.trang_id = \$2\s*AND w\.received_at >= nk\.tu_luc AND \(nk\.den_luc IS NULL OR w\.received_at < nk\.den_luc\)/.test(thanAt),
+      /account_id IN \(SELECT id FROM social_accounts WHERE user_id/.test(thanAt), (thanAt.match(/\[userId, trang\]/g) ?? []).length],
+    [5, 4, 3, 2, true, false, 2]);
+  const at3 = d6("src/components/AnToanTaiKhoan.tsx");
+  kiem("A3 giao diện", "thẻ an toàn nói CỬA HÀNG; trần tin / phút ghi chung cho mọi cửa hàng; nhật ký điều hành có bảng rào chắn cửa hàng",
+    [/>An toàn cửa hàng</.test(at3), /chung cho mọi cửa hàng của tài khoản/.test(at3), !/>An toàn tài khoản</.test(at3),
+      /'handoff_rules', 'guardrail_configs', 'rao_chan_cua_hang', 'auto_scripts'/.test(d6("server/routes/dieu-hanh.ts"))],
+    [true, true, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

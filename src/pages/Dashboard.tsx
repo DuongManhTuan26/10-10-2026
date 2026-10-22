@@ -426,7 +426,11 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
                 <tbody>
                   {donGanDay.map((order: any) => (
                     <tr key={order.id} className="border-t border-[color-mix(in_srgb,var(--mau-the)_22%,transparent)] hover:bg-white/[0.03] transition-colors">
-                      <td className="py-3 px-5 font-medium text-on-surface whitespace-nowrap">{order.customer_name || 'Khách chưa có tên'}</td>
+                      <td className="py-3 px-5 whitespace-nowrap">
+                        <div className="font-medium text-on-surface">{order.customer_name || 'Khách chưa có tên'}</div>
+                        {/* Bảng này tính cả tài khoản — ghi cửa hàng để biết mở màn Đơn hàng ở cửa hàng nào (A3). */}
+                        <div className="text-xs text-on-surface-variant">{order.ten_cua_hang ? `Cửa hàng ${order.ten_cua_hang}` : 'Cửa hàng đã xoá'}</div>
+                      </td>
                       <td className="py-3 px-5">
                         <div className="text-on-surface whitespace-nowrap">{order.product}</div>
                         <div className="text-xs text-on-surface-variant">SL: {order.quantity}</div>

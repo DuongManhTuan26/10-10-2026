@@ -7,6 +7,7 @@ import { chat, chatJson, asRecord, stringArray, DEFAULT_MODELS } from "../servic
 import { extractOrderInfo, suggestReply } from "../services/sales-ai.js";
 import { generatePostContent } from "../services/content-ai.js";
 import { layTrangDangChon } from "../services/trang.js";
+import { GHI_LUAT, luatCuaCuaHang } from "../services/luat-chuyen-nguoi.js";
 
 /**
  * Trang mà màn hình đang làm việc, suy từ kênh giao diện gửi lên.
@@ -1050,31 +1051,23 @@ aiRouter.post(
 // Quy tắc nhường quyền
 // ---------------------------------------------------------------------------
 
+/** Luật của CỬA HÀNG đang chọn (A3) — luật cửa hàng chưa chỉnh thì trả bộ mặc định (services/luat-chuyen-nguoi.ts). */
 aiRouter.get(
   "/handoff-rules",
   route(async (req, res) => {
-    const rows = await query(
-      "SELECT rule_key, enabled, config FROM handoff_rules WHERE user_id = $1 ORDER BY rule_key",
-      [req.user!.id]
-    );
-    res.json({ success: true, data: rows.rows });
+    res.json({ success: true, data: await luatCuaCuaHang(await trangCuaReq(req)) });
   })
 );
 
+/** Chỗ GHI duy nhất của handoff_rules: GHI_LUAT — upsert theo (cửa hàng, mã luật), khớp chỉ mục handoff_rules_trang_key (060). */
 aiRouter.patch(
   "/handoff-rules/:key",
   route(async (req, res) => {
     const enabled = req.body?.enabled === true;
     const config = req.body?.config ?? {};
+    const trangId = await trangCuaReq(req);
 
-    const updated = await queryOne(
-      `INSERT INTO handoff_rules (user_id, rule_key, enabled, config)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (user_id, rule_key) DO UPDATE SET
-         enabled = EXCLUDED.enabled, config = EXCLUDED.config, updated_at = now()
-       RETURNING rule_key, enabled, config`,
-      [req.user!.id, req.params.key, enabled, JSON.stringify(config)]
-    );
+    const updated = await queryOne(GHI_LUAT, [req.user!.id, trangId, req.params.key, enabled, JSON.stringify(config)]);
 
     res.json({ success: true, data: updated });
   })

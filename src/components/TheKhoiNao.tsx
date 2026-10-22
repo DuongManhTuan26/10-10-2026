@@ -66,7 +66,7 @@ export function HuongDanAi({ ai, them }: { ai: MaAi; them?: ReactNode }) {
 }
 
 const TEN_BANG: Record<string, string> = {
-  ai_configs: 'Cài đặt AI', ai_documents: 'Tài liệu', handoff_rules: 'Luật nhường người', guardrail_configs: 'Hàng rào an toàn',
+  ai_configs: 'Cài đặt AI', ai_documents: 'Tài liệu', handoff_rules: 'Luật nhường người', guardrail_configs: 'Hàng rào an toàn', rao_chan_cua_hang: 'Hàng rào an toàn của cửa hàng',
   auto_scripts: 'Kịch bản bình luận', social_accounts: 'Kênh',
 };
 const TEN_NGUON: Record<string, string> = { nguoi_dung: 'Người dùng', he_thong: 'Hệ thống', ai_dieu_hanh: 'AI điều hành' };

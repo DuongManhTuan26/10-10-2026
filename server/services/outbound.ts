@@ -111,6 +111,7 @@ export async function sendMessageSafely(params: {
     // và số liệu này là cơ sở để điều chỉnh ngưỡng.
     await recordAttempt({
       userId: conversation.user_id,
+      trangId: conversation.trang_id,
       socialAccountId: conversation.social_account_id,
       conversationId: params.conversationId,
       actor: params.actor,
@@ -165,6 +166,7 @@ export async function sendMessageSafely(params: {
 
   const attemptId = await recordAttempt({
     userId: conversation.user_id,
+    trangId: conversation.trang_id,
     socialAccountId: conversation.social_account_id,
     conversationId: params.conversationId,
     actor: params.actor,
@@ -205,6 +207,7 @@ export async function sendMessageSafely(params: {
     if (conversation.social_account_id) {
       await evaluateAutoPause({
         userId: conversation.user_id,
+        trangId: conversation.trang_id,
         socialAccountId: conversation.social_account_id,
       }).catch(() => {});
     }
