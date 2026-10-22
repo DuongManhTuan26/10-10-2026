@@ -241,3 +241,10 @@ Mã + phép kiểm + đột biến đạt (25afb05, phiên kiểm duyệt cho đ
 quảng cáo đều lấy kênh Meta Ads của CỬA HÀNG đang chọn (kenhQuangCaoCuaCuaHang). Hiện 0 kênh metaads (chưa cửa hàng nào
 nối quảng cáo) nên /api/ads/overview của mọi cửa hàng trả "Chưa kết nối tài khoản quảng cáo". Cách thử khi chủ dự án nối
 quảng cáo cho một cửa hàng: cửa hàng đó thấy tài khoản quảng cáo + chiến dịch; cửa hàng khác vẫn "chưa kết nối".
+
+## TD-23 — CHƯA LÀM: "Đổi lịch / Huỷ lịch" bài ĐÃ giao nhà cung cấp trên màn Nội dung (22/10/2026)
+
+Hiện màn Nội dung chặn hai nút này với bài hẹn giờ đã giao nhà cung cấp (LOI_LICH_DA_GUI — nói thật: nền tảng vẫn đăng
+giờ cũ). Đợt 3 làm: kênh rời → gỡ lịch; Xoá bài hẹn giờ → huỷ bên nhà cung cấp (DELETE /v1/posts/{id}). Chưa làm: Huỷ
+lịch giữ bài (DELETE phía nhà cung cấp rồi đưa bài về chờ duyệt) và Đổi lịch (PUT /v1/posts/{id} với scheduledFor — tài liệu
+ghi rõ cho bài scheduled). Cần chủ dự án xếp thứ tự ưu tiên.

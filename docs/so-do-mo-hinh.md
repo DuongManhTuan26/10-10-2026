@@ -1,6 +1,6 @@
 # Sơ đồ mục tiêu của mô hình (chuẩn để làm và kiểm duyệt)
 
-Bản 19/10/2026. Ghi rõ từng dòng là **đã chốt + đã đạt**, **đã chốt — CHƯA ĐẠT** (mã chưa làm được), hay nằm ở mục 8
+Bản 22/10/2026 (rà lại toàn bộ trạng thái sau A1–A4). Ghi rõ từng dòng là **đã chốt + đã đạt**, **đã chốt — CHƯA ĐẠT** (mã chưa làm được), hay nằm ở mục 8
 (**chưa chốt**). Mọi thay đổi sơ đồ phải được chủ dự án duyệt. Hai phiên (viết code · kiểm duyệt) lấy tài liệu này làm chuẩn.
 
 ## 1. Tầng tài khoản
@@ -10,25 +10,25 @@ HỆ THỐNG
 ├── ADMIN TỔNG — hoangtuan3310tn (một người, hai vai)
 │     ├── Vai 1: QUẢN TRỊ toàn hệ thống — mục "Quản Lý Tài Khoản" (chỉ admin thấy)
 │     │     ├── Tạo / sửa / khoá / xoá tài khoản; mật khẩu admin BẮT BUỘC TỰ GÕ ở mọi chỗ tạo / cấp lại — để trống thì
-│     │     │     không cho lưu (chốt 19/10 — mã xong 19/10, CHỜ kiểm duyệt; một luật chung src/lib/mat-khau.ts)
-│     │     │     · Khoá = chặn đăng nhập VÀ AI dừng hẳn mọi việc tự chạy (chốt 18/10 — mã xong mục f 19/10, CHỜ kiểm
-│     │     │       duyệt + thử khoá thật). Bài hẹn giờ sẵn bên nền tảng vẫn đăng.
-│     │     │       Mở khoá: việc tới hạn trong lúc khoá KHÔNG tự bùng ra (chốt 19/10 — như trên)
+│     │     │     không cho lưu (chốt 19/10 — ĐẠT, ae35d18; một luật chung src/lib/mat-khau.ts)
+│     │     │     · Khoá = chặn đăng nhập VÀ AI dừng hẳn mọi việc tự chạy (chốt 18/10 — ĐẠT về mã, mục f 73b82d3, 29a69bc;
+│     │     │       đã thử khoá / mở khoá thật trên tài khoản thử 0 kênh; phần cần kênh thật: TD-14). Bài hẹn giờ sẵn bên nền tảng vẫn đăng.
+│     │     │       Mở khoá: việc tới hạn trong lúc khoá KHÔNG tự bùng ra (chốt 19/10 — ĐẠT về mã, như trên)
 │     │     │       Tin / bình luận khách gửi lúc khoá: LƯU vào hộp thư để chủ shop tự đọc, KHÔNG chạy AI / kịch bản /
-│     │     │       trả lời công khai (chốt 19/10 — mã xong 19/10, CHỜ kiểm duyệt; chưa thử với kênh thật)
-│     │     │     · Xoá = xem trước → ngắt mọi kênh + xoá mọi hồ sơ của tài khoản bên nhà cung cấp → xoá dữ liệu (đạt)
+│     │     │       trả lời công khai (chốt 19/10 — ĐẠT về mã, 025c692; chưa thử với kênh thật — TD-14)
+│     │     │     · Xoá = xem trước → ngắt mọi kênh + xoá mọi hồ sơ của tài khoản bên nhà cung cấp → xoá dữ liệu (đạt TRƯỚC A1–A4 — chưa kiểm lại sau khi tách dữ liệu theo cửa hàng)
 │     │     ├── "Mở tài khoản": admin đăng nhập thẳng vào tài khoản khác để hỗ trợ (cơ chế mo_boi). 04/10 chỉ bỏ chữ /
-│     │     │     màu "đang xem" — KHÔNG bỏ cơ chế. Chỉ còn nút "Quay lại quản lý". (đạt)
-│     │     ├── Tổng quan tài sản: tài khoản → cửa hàng → tiền từng loại (đạt)
-│     │     └── Chi tiết: cây Tài khoản (1) → Cửa hàng (1.1) → báo cáo / sao kê (đạt)
+│     │     │     màu "đang xem" — KHÔNG bỏ cơ chế. Chỉ còn nút "Quay lại quản lý". (đạt — thử lại thật 22/10: mở tài khoản thử 118 rồi quay lại)
+│     │     ├── Tổng quan tài sản: tài khoản → cửa hàng → tiền từng loại (đạt TRƯỚC A1–A4 — chưa kiểm lại sau khi tách cửa hàng)
+│     │     └── Chi tiết: cây Tài khoản (1) → Cửa hàng (1.1) → báo cáo / sao kê (đạt TRƯỚC A1–A4 — chưa kiểm lại sau khi tách cửa hàng)
 │     └── Vai 2: TÀI KHOẢN DÙNG THƯỜNG — BẢN MẪU cho mọi tài khoản
 │
 └── TÀI KHOẢN (1 chìa khoá đăng nhập: email + mật khẩu + mã email)
-      • Tự đăng ký hoặc admin tạo hộ → luôn là BẢN SAO 100% phần dùng thường của admin (chốt 18/10, đạt)
+      • Tự đăng ký hoặc admin tạo hộ → luôn là BẢN SAO 100% phần dùng thường của admin (chốt 18/10, đạt TRƯỚC A1–A4 — chưa kiểm lại sau khi tách cửa hàng)
       • Không còn admin con / chủ chuỗi / tài khoản con (bỏ 18/10, migration 054, đạt)
       • Số CỬA HÀNG không giới hạn (không tự đặt hạn mức — luật 19/09)
       • Tài khoản mới có sẵn "Cửa hàng đầu tiên" (chốt 19/10, đạt). Hồ sơ nền tảng của nó cấp lúc đăng ký; tài khoản chủ
-        chuỗi cũ thì cấp ở lần mở Kết nối kênh đầu tiên (vd. user 113 còn "cho-cap-113") — cấp NGAY là việc của A4.
+        chuỗi cũ thì cấp ở lần mở Kết nối kênh đầu tiên (vd. user 113 còn "cho-cap-113") — A4: đạt cho tài khoản mới; tài khoản cũ tự vá.
       • Màn Tổng quan: số liệu CẢ TÀI KHOẢN (cộng mọi cửa hàng); sơ đồ 4 AI theo cửa hàng đang chọn (chốt 19/10)
       • Gói dịch vụ: một tài khoản một gói; số đã dùng (tin AI, đơn, bài, kênh) tính theo CẢ TÀI KHOẢN (chốt 19/10)
 ```
@@ -47,20 +47,24 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 │     • Fanpage thứ 2 → cửa hàng thứ 2; 1 Fanpage chỉ ở 1 cửa hàng
 │     • Chuyển kênh sang cửa hàng khác: người dùng tự chọn, không mặc định
 │     • KÊNH LÀ NHÂN VIÊN — "RA ĐI TAY TRẮNG, QUAY VỀ NGƯỜI KHÔNG" (chủ dự án chốt 19/10, áp MỌI nền tảng:
-│       Fanpage, Instagram, TikTok, YouTube…). CHƯA ĐẠT — đang thiết kế (A2 mới, nhiệm kỳ kênh):
+│       Fanpage, Instagram, TikTok, YouTube…). ĐẠT VỀ MÃ (22/10): đợt 1 f25a825, 34e84bd · 2a c015f65, eb9d969, a26be2d (058) ·
+│       2b 6204a1b, 4a8b5f1 (059) · 3 e95f810, 89a3669. Chưa thử thật: huỷ lịch thật (TD-17), hội thoại "chỉ xem" với dữ liệu
+│       thật (TD-18); hoãn: liên kết sâu ?hoi-thoai= (TD-19).
 │         · Dữ liệu (khách, hội thoại, đơn, bài, việc dở) thuộc CỬA HÀNG, không thuộc kênh. Kênh rời đi → dữ liệu ở lại
 │           cửa hàng; kênh thay thế vào thì thấy toàn bộ (bàn giao).
 │         · Kênh vào cửa hàng mới là TRẮNG: bộ não mới, việc mới, không mang gì theo; quay về cũng không mang gì.
 │         · Chat cũ trên kênh đã đi = lịch sử của cửa hàng cũ (không nhắn tiếp được qua kênh đó — luật Facebook).
 │         · Hệ thống KHÔNG tự nhắn hàng loạt cho khách khi đổi kênh (ngoài 24 giờ = vi phạm luật Facebook); việc chào
 │           khách khi đổi kênh do người dùng tự làm.
-│         · ĐỢT 1 (mã xong 19/10, CHỜ kiểm duyệt): CHỐT CỬA RA (services/cua-ra.ts) — 7 lệnh gửi ra ngoài (tin, tin riêng,
+│         · ĐỢT 1 (ĐẠT — f25a825, 34e84bd): CHỐT CỬA RA (services/cua-ra.ts) — 7 lệnh gửi ra ngoài (tin, tin riêng,
 │           trả lời bình luận, đăng / sửa / gỡ bài, đẩy bài) chỉ đi qua kênh còn thuộc đúng cửa hàng của việc. Bài cũ
 │           không lên / sửa / gỡ / đẩy được trên kênh đã rời (giữ làm lịch sử). Số liệu bài ghi theo cửa hàng của bài.
-│           LƯU Ý: đợt 1 CHƯA chặn tin / bình luận của hội thoại nhiệm kỳ cũ (cửa hàng của tin tạm theo kênh) — đợt 2
-│           (nhiệm kỳ kênh + cột cửa hàng chốt cho hội thoại / khách / bình luận / kịch bản) mới chặn.
-│         · Đợt 3: giao diện "Kênh đã rời — chỉ xem lịch sử", hộp xác nhận chuyển kênh, gỡ / đổi lịch bài đã hẹn bên
-│           nhà cung cấp (hiện Đổi / Huỷ lịch bài đã gửi nền tảng bị chặn, nói thật).
+│           Tin / bình luận của hội thoại nhiệm kỳ cũ: chặn ở đợt 2 (nhiệm kỳ kênh + cột cửa hàng chốt cho hội thoại / khách /
+│           bình luận / kịch bản) — đạt.
+│         · ĐỢT 3 (ĐẠT — e95f810, 89a3669): hộp thư "Kênh đã rời — chỉ xem lịch sử"; hộp xác nhận chuyển kênh nói trước
+│           hậu quả; kênh rời → gỡ lịch bài hẹn giờ bên nhà cung cấp; Xoá bài hẹn giờ = huỷ bên nhà cung cấp; Gỡ bài đúng
+│           tài liệu (gỡ thật đã thử 22/10). CHƯA LÀM: nút "Đổi lịch / Huỷ lịch" của bài ĐÃ giao nhà cung cấp trên màn
+│           Nội dung vẫn bị chặn (nói thật trên màn) — muốn huỷ thì Xoá bài.
 │         · Chủ dự án chốt thêm (19/10):
 │             - bình luận MỚI trên bài cũ của cửa hàng trước (kênh đã sang cửa hàng mới): thuộc cửa hàng mới, AI / kịch bản
 │               của cửa hàng mới TỰ TRẢ LỜI như bình luận thường;
@@ -72,7 +76,7 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 │           cửa hàng + nhiệm kỳ lúc phát sinh; cùng luồng sau khi chuyển → hội thoại mới; AI theo cửa hàng của hội thoại,
 │           không đụng hội thoại nhiệm kỳ đã đóng; gửi tin chặn theo cửa hàng + nhiệm kỳ. Kênh CHƯA gắn cửa hàng (thoáng
 │           qua lúc nối) → AI im, tin vẫn lưu; gắn xong thì dòng được nhận vào nhiệm kỳ, vớt tin trả lời nếu còn khung giờ.
-│           Còn lại đợt 2b: khách, bình luận, kịch bản, đơn, các chỗ đếm theo cửa hàng của hội thoại.
+│         · ĐỢT 2b (ĐẠT — 6204a1b, 4a8b5f1; 059): khách, bình luận, kịch bản, đơn, các chỗ đếm theo cửa hàng của hội thoại.
 │     • Không có "Đổi Fanpage": ngắt cái cũ, nối cái mới
 │     • Quảng cáo Meta đi kèm Facebook, không nối riêng
 ├── BỘ NÃO AI — 4 AI cố định, liền mạch, không tách rời
