@@ -15,7 +15,6 @@ import { aiRouter } from "./routes/ai.js";
 import { postsRouter } from "./routes/posts.js";
 import { settingsRouter } from "./routes/settings.js";
 import { adsRouter } from "./routes/ads.js";
-import { analyticsRouter } from "./routes/analytics.js";
 import { hoanDiaChiKho, laDiaChiKho } from "./services/media-proxy.js";
 import { adminRouter } from "./routes/admin.js";
 import { quanLyRouter } from "./routes/quan-ly.js";
@@ -176,7 +175,6 @@ export async function createApp() {
   app.use("/api/posts", postsRouter);
   app.use("/api/settings", settingsRouter);
   app.use("/api/ads", adsRouter);
-  app.use("/api/analytics", analyticsRouter);
   // Quản trị hệ thống. Tự chặn người không phải quản trị ngay trong router.
   app.use("/api/admin", adminRouter);
   app.use("/api/quan-ly", quanLyRouter);

@@ -485,22 +485,6 @@ kiem("đơn hàng", "đọc trạng thái cũ TRƯỚC khi cập nhật để bi
     nguonDonRt.indexOf("UPDATE orders SET ${fields.join"), true);
 
 // ---------------------------------------------------------------------------
-// 14. Thống kê — ngày báo cáo phải theo giờ Việt Nam
-//
-// Đã đo: database chạy GMT. Lúc 02:25 sáng ngày 13 ở VN thì CURRENT_DATE vẫn
-// là ngày 12, nên báo cáo bấm tạo lúc rạng sáng bị ghi ngày HÔM QUA — và chỉ
-// mục duy nhất (user_id, report_date, kind) khiến nó GHI ĐÈ báo cáo hôm qua.
-// ---------------------------------------------------------------------------
-const nguonTK = fs.readFileSync(path.join(GOC, "server/routes/analytics.ts"), "utf8");
-kiem("thống kê", "ngày báo cáo lấy theo giờ Việt Nam",
-  /VALUES \(\$1, \(now\(\) AT TIME ZONE 'Asia\/Ho_Chi_Minh'\)::date/.test(nguonTK), true);
-kiem("thống kê", "không còn chỗ nào dùng CURRENT_DATE của database",
-  nguonTK.split("\n").filter((d) => d.includes("CURRENT_DATE") && !d.trim().startsWith("*")).length,
-  0);
-kiem("thống kê", "doanh thu loại đơn đã huỷ",
-  (nguonTK.match(/status <> 'cancelled'/g) ?? []).length >= 4, true);
-
-// ---------------------------------------------------------------------------
 // 15. Telegram — mọi chữ không do mình viết phải thoát ký tự HTML
 //
 // Tin gửi với parse_mode HTML nên một dấu "<" lạc là cả tin bị TỪ CHỐI, không
@@ -2062,15 +2046,6 @@ kiem("múi giờ", "chỉ có MỘT bản định nghĩa, các nơi khác đều
     )
   ), true);
 
-// --- Tỷ lệ chốt kỳ trước -----------------------------------------------------
-const nguonPhanTich = fs.readFileSync(path.join(GOC, "server/routes/analytics.ts"), "utf8");
-kiem("phân tích", "tỷ lệ chốt kỳ trước đếm thật, không gắn cứng 0",
-  /const prevConversations = Number\(previous\?\.conversations_count \?\? 0\);/.test(nguonPhanTich), true);
-kiem("phân tích", "có so sánh tỷ lệ chốt hai kỳ",
-  /closeRate: percentChange\(closeRate, prevCloseRate\)/.test(nguonPhanTich), true);
-kiem("phân tích", "không còn nhánh nào trả null ở cả hai đầu",
-  /\? null : null/.test(boChuThich(nguonPhanTich)), false);
-
 // --- Dùng được trên điện thoại -----------------------------------------------
 //
 // Tái hiện trên màn 375px: thanh menu rộng cố định 288px chiếm 77% bề ngang,
@@ -2641,7 +2616,6 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     "server/services/events.ts",
     "server/routes/ai.ts",
     "server/routes/ads.ts",
-    "server/routes/analytics.ts",
   ];
 
   const conDungTaiKhoan: string[] = [];
@@ -3555,11 +3529,6 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonQL3 = fs.readFileSync(path.join(GOC, "server/routes/quan-ly.ts"), "utf8");
   // Trang bán 2 triệu mà đốt 1 triệu tiền AI thì không phải trang tốt — nhìn
   // mỗi doanh thu là không thấy được điều đó.
-  // Khôi phục 10/10/2026 (kiểm ngược toàn bộ thấy lỗ "bảng điều hành bỏ tiền AI" lọt — phép kiểm cũ đã mất): cột tiền
-  // AI tháng của bảng điều hành phải tính đúng cách sao kê (số nhà cung cấp chốt, chưa chốt thì số lúc gọi).
-  kiem("tiền AI", "bảng điều hành: tiền AI tháng tính đúng cách sao kê, theo mốc tháng giờ Việt Nam",
-    /\(SELECT COALESCE\(SUM\(coalesce\(a\.cost_ncc, a\.cost_usd\)\), 0\)::text FROM ai_usage a\s+WHERE a\.user_id = u\.id AND a\.created_at >= \$\{DAU_THANG_VN\}\) AS tien_ai_thang/
-      .test(fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8")), true);
   // Tiền AI theo TỪNG TRANG: mỗi lượt ghi trang (ngữ cảnh), chỉ nhận trang thuộc đúng tài khoản bị tính tiền.
   const nguonSoAiTrang = fs.readFileSync(path.join(GOC, "server/services/so-ai.ts"), "utf8");
   const nguonTqSv = fs.readFileSync(path.join(GOC, "server/services/tong-quan.ts"), "utf8");
@@ -3831,7 +3800,6 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     ["server/routes/ai.ts", "/conversations/:id/extract"],
     ["server/routes/ai.ts", "/conversations/:id/suggest"],
     ["server/routes/ai.ts", "/test"],
-    ["server/routes/analytics.ts", "/analyze"],
     ["server/routes/ads.ts", "/analyze"],
     ["server/routes/ai.ts", "/video/loi-mo-ta"],
     ["server/routes/ai.ts", "/video"],
@@ -3847,7 +3815,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
       ma.includes(`.post(\n  "${duong}",\n  chanLamDungAI,\n  route(`), true);
   }
   // Không sót đường nào: mọi route gọi hàm AI trả tiền đều phải nằm trong danh sách trên.
-  const soDuongGoiAI = ["server/routes/ai.ts", "server/routes/analytics.ts", "server/routes/ads.ts", "server/routes/quan-ly.ts", "server/routes/dieu-hanh.ts"]
+  const soDuongGoiAI = ["server/routes/ai.ts", "server/routes/ads.ts", "server/routes/quan-ly.ts", "server/routes/dieu-hanh.ts"]
     .map((t) => boChuThichTS(fs.readFileSync(path.join(GOC, t), "utf8")))
     .flatMap((ma) => ma.split(/\n(?=\w+Router\.(?:get|post|put|patch|delete)\()/))
     .filter((khoi) => /\b(chat|chatJson|taoAnhChoBai|docChuTuAnh|generatePostContent|extractOrderInfo|suggestReply|vietLoiMoTaVideo|taoVideo|taoDuAn|batDauDuAn|suaVideo|phanTichTrend|dieuHanhMotLan)\s*(<[^>]*>)?\(/.test(khoi))
@@ -6717,8 +6685,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     "services/trang.ts": "mot_dong",
     // A3 (22/10): rào chắn — trần phút theo tài khoản, phần còn lại + đếm theo cửa hàng; màn đơn theo cửa hàng
     "services/guardrails.ts": "hon_hop", "routes/orders.ts": "cua_hang",
-    // theo tài khoản: Tổng quan (chốt 19/10), màn quản trị, analytics cũ (TD-12); settings: kịch bản theo cửa hàng, thống kê / rào chắn → A3
-    "routes/dashboard.ts": "tai_khoan", "routes/quan-ly.ts": "tai_khoan", "services/quan-ly-chung.ts": "tai_khoan", "routes/analytics.ts": "tai_khoan",
+    // theo tài khoản: Tổng quan (chốt 19/10), màn quản trị (analytics cũ đã gỡ — TD-12, 23/10); settings: kịch bản theo cửa hàng, thống kê / rào chắn → A3
+    "routes/dashboard.ts": "tai_khoan", "routes/quan-ly.ts": "tai_khoan", "services/quan-ly-chung.ts": "tai_khoan",
     "routes/settings.ts": "hon_hop",
   };
   const tepDoc = [...new Set(tepMay.filter((t) => /(FROM|JOIN) (conversations|customers|comments|auto_scripts)\b/.test(d4(path.relative(GOC, t))))
@@ -6999,7 +6967,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("A4a máy chủ", "đọc đầu X-Cua-Hang: chỉ lớp giữa (app.ts); KHÔNG còn chỗ nào đọc X-Kenh; hàm cũ suy cửa hàng từ kênh (layTrangDangChon) đã xoá hẳn (A4b); layTrangMacDinh chỉ trang.ts + analytics.ts (đường cũ, TD-12)",
     [danhSach(/x-cua-hang/i), danhSach(/x-kenh/i), danhSach(/\blayTrangDangChon\b/),
       danhSach(/\blayTrangMacDinh\(/)],
-    [["server/app.ts"], [], [], ["server/routes/analytics.ts", "server/services/trang.ts"]]);
+    [["server/app.ts"], [], [], ["server/services/trang.ts"]]);
   kiem("A4a máy chủ", "accountId từ yêu cầu chỉ còn là BỘ LỌC kênh của hộp thư, luôn qua kenhLocHopLe (kênh phải thuộc cửa hàng đang chọn)",
     [danhSach(/req\.(query|body)\??\.accountId|const \{ accountId[^}]*\} = req\.query/),
       (d7("server/routes/inbox.ts").match(/await kenhLocHopLe\(req\.user!\.id, trang, (accountId|req\.query\.accountId)\)/g) ?? []).length,
@@ -7867,6 +7835,27 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
       /luongThongBao\(\{ daNoi: isConnected, events, laQuanTri \}\)/.test(tga),
       /<TelegramAlerts laQuanTri=\{user\?\.role === 'admin'\} \/>/.test(app)],
     [true, 1, true, true]);
+  // Phiên kiểm duyệt 23/10: dùng bot chung mà máy chủ thiếu mã bot thì loadConfig trả null → không được vẽ "đã kết nối".
+  kiem("H2 luồng thông báo", "đã kết nối = bật + có nơi nhận + có mã bot (bot chung: máy chủ có mã — platformBotReady)",
+    [/data\.enabled && Boolean\(data\.chatId\) && \(data\.usesPlatformBot \? data\.platformBotReady : data\.hasToken\)/.test(tga),
+      /platformBotReady: Boolean\(env\.telegram\.botToken\),/.test(boChuThich(fs.readFileSync(path.join(GOC, "server/routes/settings.ts"), "utf8")))],
+    [true, true]);
+}
+
+{
+  // H3 (chủ dự án đồng ý 23/10/2026): tên tạm "Quản lý Fanpage" — tab trình duyệt không còn "BrewManager AI", thanh bên không
+  // còn chữ giữ chỗ "LOGO"; đường "AI Thống kê" cũ đã gỡ (TD-12); cột tiền AI tháng thừa đã bỏ (TD-11).
+  const html = fs.readFileSync(path.join(GOC, "index.html"), "utf8");
+  const sb3 = boChuThich(fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8"));
+  const app3 = boChuThich(fs.readFileSync(path.join(GOC, "server/app.ts"), "utf8"));
+  kiem("H3 dọn", "tab 'Quản lý Fanpage'; thanh bên không còn 'LOGO'; không còn đường /api/analytics; không còn tien_ai_thang",
+    [/<title>Quản lý Fanpage<\/title>/.test(html), />LOGO</.test(sb3), /api\/analytics|analyticsRouter/.test(app3),
+      fs.existsSync(path.join(GOC, "server/routes/analytics.ts")),
+      /tien_ai_thang/.test(fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8").replace(/\/\/.*$/gm, "")),
+      // Khối "Chi phí tháng này" (cuối màn Quản lý) cũng kiểu thẻ Tổng quan, không còn hộp viền xám cũ.
+      /<TheMuc\s+mau=\{MAU_THUONG_HIEU\}\s+bieuTuong="account_balance_wallet"\s+tieuDe="Chi phí tháng này"/.test(boChuThich(fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8"))),
+      /rounded-2xl border border-outline-variant bg-surface-container/.test(fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8"))],
+    [true, false, false, false, false, true, false]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

@@ -236,8 +236,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "thẻ trong suốt quay lại",
     tep: "src/components/ChiPhiHeThong.tsx",
-    tim: "<div className=\"rounded-2xl border border-outline-variant bg-surface-container",
-    thay: "<div className=\"rounded-2xl border border-outline-variant bg-surface-container/40",
+    tim: "<div className=\"o-trong divide-y",
+    thay: "<div className=\"o-trong bg-surface-container/40 divide-y",
   },
   {
     ten: "chữ phụ bị làm mờ quay lại",
@@ -271,9 +271,10 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "tiêu đề mục lại cùng màu xanh với nút",
-    tep: "src/components/ChiPhiHeThong.tsx",
-    tim: "<h2 className=\"tieu-de-muc\">Chi phí tháng này</h2>",
-    thay: "<h2 className=\"font-mono text-[11px] font-bold text-primary tracking-wider uppercase\">Chi phí tháng này</h2>",
+    // 23/10/2026: tiêu đề khối Chi phí nay do TheMuc vẽ — đục ở TheMuc (mọi thẻ kiểu Tổng quan dùng chung).
+    tep: "src/components/TheMuc.tsx",
+    tim: "<h2 className=\"flex items-center gap-3 text-base font-bold text-on-surface min-w-0\">",
+    thay: "<h2 className=\"font-mono text-[11px] font-bold text-primary tracking-wider uppercase\">",
   },
   {
     ten: "bỏ nền lưới chung của app (khác tông menu)",
@@ -1358,12 +1359,6 @@ const DUC: PhepDuc[] = [
     thay: "              SET updated_at = now(), total_orders = total_orders + 0 * $2,",
   },
   {
-    ten: "trả ngày báo cáo về CURRENT_DATE của database",
-    tep: "server/routes/analytics.ts",
-    tim: "VALUES ($1, (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, 'daily', $2, $3, $4)",
-    thay: "VALUES ($1, CURRENT_DATE, 'daily', $2, $3, $4)",
-  },
-  {
     ten: "bỏ thoát ký tự trong tin Telegram của lịch tự đăng bài",
     tep: "server/services/autopilot.ts",
     tim: "Chủ đề: ${escapeHtml(chuDe)}",
@@ -1447,12 +1442,6 @@ const DUC: PhepDuc[] = [
     tep: "vite.config.ts",
     tim: "outDir: 'dist/client',",
     thay: "outDir: 'dist',",
-  },
-  {
-    ten: "trả biểu đồ báo cáo về cắt ngày theo giờ database",
-    tep: "server/routes/analytics.ts",
-    tim: "date_trunc('day', o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day)::int AS orders",
-    thay: "date_trunc('day', o.created_at) = d.day)::int AS orders",
   },
   {
     ten: "bỏ che tên nhà cung cấp ngay lúc sinh lỗi",
@@ -2007,12 +1996,6 @@ const DUC: PhepDuc[] = [
     tep: "server/moc-thoi-gian.ts",
     tim: "\"(date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh')\"",
     thay: "\"date_trunc('day', now())\"",
-  },
-  {
-    ten: "tỷ lệ chốt kỳ trước quay lại gắn cứng 0",
-    tep: "server/routes/analytics.ts",
-    tim: "    const prevConversations = Number(previous?.conversations_count ?? 0);",
-    thay: "    const prevConversations = 0;",
   },
   {
     ten: "thanh menu lại chiếm chỗ cố định trên điện thoại",
@@ -2593,12 +2576,6 @@ const DUC: PhepDuc[] = [
     tep: "server/migrations/032_so_ai_du_so_le.sql",
     tim: "ALTER TABLE ai_usage ALTER COLUMN cost_usd TYPE NUMERIC;",
     thay: "ALTER TABLE ai_usage ALTER COLUMN cost_usd TYPE NUMERIC(14,8);",
-  },
-  {
-    ten: "bảng điều hành bỏ tiền AI, chỉ nhìn doanh thu",
-    tep: "server/services/quan-ly-chung.ts",
-    tim: "  (SELECT COALESCE(SUM(coalesce(a.cost_ncc, a.cost_usd)), 0)::text FROM ai_usage a",
-    thay: "  (SELECT 0::text FROM ai_usage a",
   },
 
   // --- Hộp thư cắt cụt ---
@@ -5813,6 +5790,18 @@ const DUC: PhepDuc[] = [
     tep: "src/components/Sidebar.tsx",
     tim: "  const MAU_HE_THONG = MAU_THUONG_HIEU;",
     thay: "  const MAU_HE_THONG = '#e2e8f0';",
+  },
+  {
+    ten: "thanh bên lại chữ giữ chỗ LOGO",
+    tep: "src/components/Sidebar.tsx",
+    tim: ">Quản lý Fanpage</h2>",
+    thay: ">LOGO</h2>",
+  },
+  {
+    ten: "thiếu mã bot chung mà sơ đồ vẫn vẽ đã kết nối",
+    tep: "src/pages/TelegramAlerts.tsx",
+    tim: "(data.usesPlatformBot ? data.platformBotReady : data.hasToken)",
+    thay: "(data.usesPlatformBot || data.hasToken)",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

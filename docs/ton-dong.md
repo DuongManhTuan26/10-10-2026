@@ -130,7 +130,7 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
 - **Cách xác minh (không tốn tiền):** chụp số của cùng một ngày qua nhiều ngày liền, so độ lệch → biết sau bao lâu thì
   không đổi nữa; khi đó nâng hạng cho số đã qua mốc.
 
-## TD-11 — Cột "tiền AI tháng" của bảng điều hành: API có trả, không màn hình nào hiển thị
+## TD-11 — ĐÃ XỬ LÝ (23/10/2026, bỏ cột): Cột "tiền AI tháng" của bảng điều hành: API có trả, không màn hình nào hiển thị
 
 - **Loại:** CHỜ CHỦ DỰ ÁN — chưa phải lỗi (không sai số; chỉ là trường không ai đọc).
 - **Hiện tượng (10/10/2026):** kiểm ngược toàn bộ thấy lỗ "bảng điều hành bỏ tiền AI" lọt — phép kiểm cũ đã mất, và
@@ -138,8 +138,10 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
   sang `tong-quan.ts`).
 - **Đã làm:** khôi phục phép kiểm công thức (đúng cách sao kê). KHÔNG xoá cột.
 - **Cần quyết:** giữ (để dùng sau) hay bỏ cột thừa.
+- **Đã xử lý 23/10/2026 (chủ dự án đồng ý "tự làm"):** BỎ cột — tiền AI theo tài khoản / cửa hàng đã hiện ở Quản lý ›
+  Tổng quan / Chi tiết (tong-quan.ts, cùng cách sao kê) và ④ Báo cáo 3 AI; hiện thêm một nơi chỉ là hai chỗ cho cùng một số.
 
-## TD-12 — Đường máy chủ của trang "AI Thống Kê - Phân Tích" cũ còn đó, không giao diện nào gọi
+## TD-12 — ĐÃ XỬ LÝ (23/10/2026, gỡ): Đường máy chủ của trang "AI Thống Kê - Phân Tích" cũ còn đó, không giao diện nào gọi
 
 - **Loại:** CHỜ CHỦ DỰ ÁN / dọn sau — không phải lỗi hiển thị.
 - **Bối cảnh (10/10/2026):** chủ dự án duyệt gộp trang cũ vào **AI Điều Hành** (bộ não, theo trang đang chọn), bỏ AI
@@ -148,6 +150,8 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
 - **Vì sao chưa gỡ ngay:** nhiều phép kiểm cũ canh tệp này (các lỗi đã sửa về số liệu, giờ Việt Nam) — gỡ cần sửa
   phép kiểm có chủ đích, làm riêng một đợt.
 - **Còn lại:** gỡ 3 đường + phép kiểm liên quan; hoặc giữ nếu chủ dự án muốn dùng lại.
+- **Đã xử lý 23/10/2026:** gỡ server/routes/analytics.ts + app.use; bỏ 7 phép kiểm và 3 phép đục canh tệp đó (đường gọi AI
+  /analyze bớt khỏi danh sách chống đốt tiền). Bảng ai_reports giữ nguyên (dữ liệu cũ).
 
 ## TD-13 — Sửa ngân sách chiến dịch ABO (ngân sách ở tầng nhóm quảng cáo) chưa làm được trong app (18/10/2026)
 
@@ -272,7 +276,7 @@ tỉnh thành qua hai đường đọc trên rồi gửi interests[{id,name}] / 
 'gui_lai' dựa trên "không thấy tin của trang sau mốc". Nếu nhà cung cấp chậm đồng bộ tin vừa gửi đúng lúc máy chủ khởi
 động lại, lần đối chiếu có thể không thấy và gửi lại một lần. Phiên kiểm duyệt chấp nhận (khởi động lại mất cỡ chục giây).
 
-## TD-27 — Máy chủ tắt thì không ai tự bật lại; người canh không báo được khi tắt cùng máy chủ (23/10/2026) — CHỜ CHỦ DỰ ÁN
+## TD-27 — ĐÃ CÀI LaunchAgent (23/10/2026 22:10, chủ dự án đồng ý): máy chủ tắt thì không ai tự bật lại
 
 Sự cố 23/10: máy chủ + người canh tắt 10:55–13:53 (cả nhóm tiến trình nhận SIGTERM khi phiên Claude đã bật nó bị ngắt);
 không có tin Telegram nào vì người canh tắt cùng lúc. Đã sửa gốc nhóm tiến trình: mo-app.sh tự tách phiên (setsid).
@@ -281,3 +285,6 @@ LaunchAgent (KeepAlive + RunAtLoad) — bản soạn sẵn docs/launchagent/vn.q
 (thay đổi cấu hình hệ thống). Lâu dài: máy chủ thật (TD-16).
 Hệ quả nếu cài (nói rõ khi hỏi): sau khi cài, mỗi lần gộp mã cần một lệnh khởi động lại (đã có trong quy trình); mất DB
 thì máy chủ tự thử lại mỗi 30 giây.
+ĐÃ CÀI 23/10/2026 22:10: tắt nhóm tsx watch cũ (pgid 3242, máy chủ 82201) → launchctl load → máy chủ 4802, health 200;
+kill -9 4802 → launchd bật lại 5535 sau 23 giây, health 200; người canh 1819 + cloudflared 77986 giữ nguyên. Gộp mã xong phải
+`launchctl kickstart -k gui/$(id -u)/vn.quanly.fanpage` (docs/quy-trinh-kiem-duyet.md). Còn lại: máy chủ thật lâu dài (TD-16).

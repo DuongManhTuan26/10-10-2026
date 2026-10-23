@@ -370,13 +370,6 @@ export interface TrangVanHanh extends TrangCon {
   /** null nghĩa là trang này chưa từng có tin nhắn nào. */
   hoat_dong_cuoi: string | null;
   don_thang: number;
-  /**
-   * Tiền AI trang này tiêu trong tháng, đơn vị USD.
-   *
-   * Chuỗi vì Postgres trả NUMERIC dưới dạng chuỗi — ép sang number ở tầng này
-   * là chỗ dễ mất số lẻ nhất, mà một lượt trả lời chỉ tốn vài phần nghìn đô.
-   */
-  tien_ai_thang: string;
 }
 
 /**
@@ -1347,6 +1340,7 @@ export const api = {
           linkedAccountName: string | null;
           linkedAt: string | null;
           platformBotUsername: string | null;
+          platformBotReady: boolean;
           connected: boolean;
           logs: Array<{
             id: number;

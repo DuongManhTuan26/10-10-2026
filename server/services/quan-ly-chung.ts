@@ -44,10 +44,9 @@ export const COT_QUAN_LY = `
     WHERE o.user_id = u.id AND o.created_at >= ${DAU_THANG_VN} AND o.status <> 'cancelled') AS don_thang,
   (SELECT count(*)::int FROM orders o WHERE o.user_id = u.id AND o.status <> 'cancelled') AS don,
   (SELECT COALESCE(SUM(o.total), 0)::bigint FROM orders o
-    WHERE o.user_id = u.id AND o.created_at >= ${DAU_THANG_VN} AND o.status <> 'cancelled') AS doanh_thu_thang,
-  -- Cùng cách tính với sao kê: số nhà cung cấp đã chốt, chưa chốt thì số lúc gọi.
-  (SELECT COALESCE(SUM(coalesce(a.cost_ncc, a.cost_usd)), 0)::text FROM ai_usage a
-    WHERE a.user_id = u.id AND a.created_at >= ${DAU_THANG_VN}) AS tien_ai_thang`;
+    WHERE o.user_id = u.id AND o.created_at >= ${DAU_THANG_VN} AND o.status <> 'cancelled') AS doanh_thu_thang`;
+  // Cột tiền AI tháng đã bỏ (TD-11, 23/10/2026): không màn nào đọc; tiền AI theo tài khoản / cửa hàng hiện ở Quản lý ›
+  // Tổng quan / Chi tiết (tong-quan.ts) và ④ Báo cáo 3 AI.
 
 /**
  * Danh sách tài khoản theo phạm vi. toiId: người đang xem (đánh dấu dòng của chính mình — dòng đó dùng

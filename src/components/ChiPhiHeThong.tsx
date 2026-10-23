@@ -3,6 +3,8 @@ import clsx from 'clsx';
 import { api, ApiError, type LocLuot, type NguongCanhBao, type SaoKeChiPhi } from '../lib/api';
 import { chi, chiDu, daChi, mauChi, so, vnd } from '../lib/tien-chi';
 import NhatKyChiPhi from './NhatKyChiPhi';
+import TheMuc from './TheMuc';
+import { MAU_THUONG_HIEU } from '../lib/bon-ai';
 
 /**
  * Chi phí hệ thống — BẢN MẪU cho cách trình bày chung của cả app.
@@ -221,22 +223,25 @@ export default function ChiPhiHeThong() {
         : { ky: 'error', mau: 'text-red-400', chu: `Lệch ${chiDu(Math.abs(dc.sauMoc.lechUsd)).replace('−', '')} so với nhà cung cấp` };
 
   return (
-    <section className="mb-10 max-w-2xl">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="tieu-de-muc">Chi phí tháng này</h2>
-        {(<button
+    // Kiểu thẻ Tổng quan (chủ dự án 23/10/2026: màn Quản lý tài khoản học theo Tổng quan).
+    <TheMuc
+      mau={MAU_THUONG_HIEU}
+      bieuTuong="account_balance_wallet"
+      tieuDe="Chi phí tháng này"
+      className="mb-10 max-w-2xl"
+      phai={<button
           type="button"
           onClick={() => setMoCaiDat(!moCaiDat)}
           title="Cài đặt cảnh báo"
           className={clsx('material-symbols-outlined text-[20px]', moCaiDat ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface')}
         >
           settings
-        </button>)}
-      </div>
+        </button>}
+    >
 
       {loi && <p className="mb-3 text-xs text-error">{loi}</p>}
 
-      <div className="rounded-2xl border border-outline-variant bg-surface-container divide-y divide-outline-variant/60 overflow-hidden">
+      <div className="o-trong divide-y divide-outline-variant/60 overflow-hidden">
         {dong('ai', 'AI', tienAi)}
         {/*
          * Sổ của app vẫn hiện khi nhà cung cấp tạm không trả lời. Đã thấy: điều
@@ -435,7 +440,7 @@ export default function ChiPhiHeThong() {
       </div>
 
       {moCaiDat && nguong && (
-        <div className="mt-3 rounded-2xl border border-outline-variant bg-surface-container p-5 space-y-3">
+        <div className="mt-3 o-trong p-5 space-y-3">
           <p className="text-xs text-on-surface-variant">Nhắn Telegram khi:</p>
           {(
             [
@@ -491,6 +496,6 @@ export default function ChiPhiHeThong() {
         </div>
       )}
       {nhatKy && <NhatKyChiPhi loc={nhatKy.loc} tieuDe={nhatKy.tieuDe} onDong={() => setNhatKy(null)} />}
-    </section>
+    </TheMuc>
   );
 }

@@ -451,21 +451,6 @@
  },
  {
   "method": "GET",
-  "path": "/api/analytics/overview",
-  "tep": "server/routes/analytics.ts"
- },
- {
-  "method": "POST",
-  "path": "/api/analytics/analyze",
-  "tep": "server/routes/analytics.ts"
- },
- {
-  "method": "GET",
-  "path": "/api/analytics/reports",
-  "tep": "server/routes/analytics.ts"
- },
- {
-  "method": "GET",
   "path": "/api/admin/accounts",
   "tep": "server/routes/admin.ts"
  },

@@ -197,7 +197,8 @@ export default function Sidebar({
             <span className="material-symbols-outlined text-[#00e5ff] text-[20px] relative z-10 filter drop-shadow-[0_0_5px_rgba(0,229,255,0.8)]">token</span>
           </div>
           <div>
-            <h2 className="text-[18px] font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50 uppercase">LOGO</h2>
+            {/* Tên tạm (chủ dự án 23/10/2026 đồng ý bỏ chữ "LOGO"); tên sản phẩm thật chờ chủ dự án chọn — sơ đồ 8.4. */}
+            <h2 className="text-[16px] font-black tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50">Quản lý Fanpage</h2>
           </div>
         </div>
 

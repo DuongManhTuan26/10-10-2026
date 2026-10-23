@@ -69,6 +69,9 @@ settingsRouter.get(
         linkedAccountName: config?.linked_account_name ?? null,
         linkedAt: config?.linked_at ?? null,
         platformBotUsername: env.telegram.botUsername || null,
+        // Cùng điều kiện loadConfig (services/telegram.ts): bot chung chỉ gửi được khi máy chủ có mã bot — sơ đồ luồng
+        // thông báo không vẽ "đang chạy" khi thiếu (phiên kiểm duyệt 23/10/2026).
+        platformBotReady: Boolean(env.telegram.botToken),
         connected: Boolean(config?.chat_id),
         logs: logs.rows,
       },

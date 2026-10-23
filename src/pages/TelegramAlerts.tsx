@@ -65,8 +65,9 @@ export default function TelegramAlerts({ laQuanTri = false }: { laQuanTri?: bool
       setLinkedName(data.linkedAccountName);
       // Dùng bot chung thì chỉ cần đã bấm Start. Dùng bot riêng thì phải có
       // cả token của shop.
+      // Khớp đúng loadConfig phía máy chủ: bật + có nơi nhận + có mã bot (bot chung: máy chủ có mã; bot riêng: đã lưu mã).
       setIsConnected(
-        data.enabled && Boolean(data.chatId) && (data.usesPlatformBot || data.hasToken),
+        data.enabled && Boolean(data.chatId) && (data.usesPlatformBot ? data.platformBotReady : data.hasToken),
       );
       setVerifiedAt(data.verifiedAt);
       setLogs(data.logs);

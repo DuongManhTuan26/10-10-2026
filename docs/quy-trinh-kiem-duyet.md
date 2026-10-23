@@ -186,8 +186,10 @@ migration trước khi mở cổng, vỡ là máy chủ không lên, khách mấ
 
 ## Gộp xong phải nạp lại máy chủ khi máy chủ chạy bằng LaunchAgent (23/10/2026)
 
-Hiện máy chủ chạy `tsx watch` (scripts/mo-app.sh): gộp mã là tự nạp lại. NẾU chủ dự án đồng ý cài LaunchAgent
-(docs/launchagent/vn.quanly.fanpage.plist — chạy KHÔNG watch để sập là launchd bật lại) thì gộp xong KHÔNG tự nạp: sau khi
-gộp (hàng đợi = 0) chạy `launchctl kickstart -k gui/$(id -u)/vn.quanly.fanpage`, rồi xem nhật ký "[migrate] …" / "Sẵn sàng".
+ĐÃ CÀI 23/10/2026 22:10 (chủ dự án đồng ý): máy chủ chạy bằng LaunchAgent vn.quanly.fanpage (docs/launchagent/…plist —
+`tsx server.ts` KHÔNG watch, KeepAlive + RunAtLoad). Gộp xong KHÔNG tự nạp mã máy chủ: sau khi gộp (hàng đợi = 0) BẮT BUỘC chạy
+`launchctl kickstart -k gui/$(id -u)/vn.quanly.fanpage`, rồi xem nhật ký ~/Library/Logs/quan-ly-fanpage.log có
+"[migrate] …" + "Sẵn sàng" và health 200. Đã thử: kill -9 tiến trình máy chủ → launchd bật lại sau 23 giây, người canh
+đường hầm + cloudflared không đổi (địa chỉ webhook giữ nguyên).
 Bật máy chủ từ một phiên (Terminal, phiên Claude) luôn qua scripts/mo-app.sh — script tự tách phiên (setsid), không chết
 theo phiên gọi.
