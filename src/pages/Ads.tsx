@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import { aiTheoMa } from '../lib/bon-ai';
 import { lichChay, ngayNgan, khoangTheoKy, ngayDayDu } from '../lib/ky-ngay';
 import { docChienDich, nhanTrangThaiChienDich } from '../lib/chien-dich';
-import { yDinhDayBai, type YDinhDayBai } from '../lib/day-bai';
+import { docYDinhLuu, luuYDinh, yDinhDayBai, type YDinhDayBai } from '../lib/day-bai';
 
 /** Nền tảng tài liệu cho phép nhân bản (POST /v1/ads/campaigns/{id}/duplicate — server/services/ads.ts NEN_TANG_NHAN_BAN). */
 const NEN_TANG_NHAN_BAN = ['facebook', 'instagram', 'tiktok', 'linkedin'];
@@ -242,11 +242,14 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
     const cauHinh = { postId: Number(selectedPostId), dailyBudget, durationDays: duration, mucTieu, nhamChon };
     // Mã gắn với Ý ĐỊNH (lib/day-bai.ts): bấm lại sau "Chưa rõ kết quả" với cùng cấu hình → cùng mã + cùng mốc → nhà cung
     // cấp trả lại quảng cáo cũ, KHÔNG tạo cái thứ hai.
-    const yDinh = yDinhDayBai(yDinhRef.current, cauHinh, new Date().toISOString(), () => crypto.randomUUID());
+    // Ý định đang dở: trong bộ nhớ, hoặc đọc lại từ sessionStorage (sống qua tải lại trang).
+    const yDinh = yDinhDayBai(yDinhRef.current ?? docYDinhLuu(), cauHinh, new Date().toISOString(), () => crypto.randomUUID());
     yDinhRef.current = yDinh;
+    luuYDinh(yDinh);
     try {
       await api.ads.boost({ ...cauHinh, khoa: yDinh.khoa, batDau: yDinh.batDau });
       yDinhRef.current = null;
+      luuYDinh(null);
       setIsSuccess(true);
       await load();
     } catch (error) {

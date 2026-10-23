@@ -29,3 +29,43 @@ export function yDinhDayBai(
   if (truoc && conHan && truoc.dauVet === dauVet) return truoc;
   return { khoa: taoMa(), batDau: bayGio, dauVet };
 }
+
+/*
+ * Ý định sống qua TẢI LẠI TRANG (phiên kiểm duyệt dặn 22/10/2026): bấm "chạy" → "Chưa rõ kết quả" → tải lại trang → bấm
+ * lại vẫn phải là CÙNG mã. Lưu ở sessionStorage (cùng tab). Trình duyệt chặn lưu trữ thì vẫn chạy, chỉ mất lớp này.
+ */
+const KHOA_LUU = 'zn_y_dinh_day_bai';
+
+type KhoLuu = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+function kho(k?: KhoLuu): KhoLuu | null {
+  try {
+    return k ?? globalThis.sessionStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function docYDinhLuu(k?: KhoLuu): YDinhDayBai | null {
+  try {
+    const raw = kho(k)?.getItem(KHOA_LUU);
+    if (!raw) return null;
+    const o = JSON.parse(raw) as Partial<YDinhDayBai>;
+    return typeof o.khoa === 'string' && typeof o.batDau === 'string' && typeof o.dauVet === 'string'
+      ? { khoa: o.khoa, batDau: o.batDau, dauVet: o.dauVet }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function luuYDinh(y: YDinhDayBai | null, k?: KhoLuu): void {
+  try {
+    const n = kho(k);
+    if (!n) return;
+    if (y) n.setItem(KHOA_LUU, JSON.stringify(y));
+    else n.removeItem(KHOA_LUU);
+  } catch {
+    /* Chặn lưu trữ: bỏ qua — chỉ mất lớp chống trùng qua tải lại trang. */
+  }
+}

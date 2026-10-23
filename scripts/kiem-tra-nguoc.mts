@@ -5295,7 +5295,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "bấm lại sau 'chưa rõ kết quả' tạo mã mới (quảng cáo thứ hai)",
     tep: "src/pages/Ads.tsx",
-    tim: "    const yDinh = yDinhDayBai(yDinhRef.current, cauHinh,",
+    tim: "    const yDinh = yDinhDayBai(yDinhRef.current ?? docYDinhLuu(), cauHinh,",
     thay: "    const yDinh = yDinhDayBai(null, cauHinh,",
   },
   {
@@ -5323,6 +5323,18 @@ const DUC: PhepDuc[] = [
     thay: ")",
   },
 
+  {
+    ten: "ý định đẩy không đọc lại sau tải trang",
+    tep: "src/pages/Ads.tsx",
+    tim: "yDinhDayBai(yDinhRef.current ?? docYDinhLuu(), cauHinh,",
+    thay: "yDinhDayBai(yDinhRef.current, cauHinh,",
+  },
+  {
+    ten: "ý định đẩy không được lưu",
+    tep: "src/lib/day-bai.ts",
+    tim: "    if (y) n.setItem(KHOA_LUU, JSON.stringify(y));\n",
+    thay: "",
+  },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",

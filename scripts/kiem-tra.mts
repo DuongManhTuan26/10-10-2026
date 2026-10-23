@@ -7478,6 +7478,19 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("quảng cáo khớp tài liệu", "ý định đẩy: bấm lại cùng cấu hình → giữ mã + mốc; đổi ngân sách → mã mới; quá 20 giờ → mã mới; sau thành công (null) → mã mới",
     [[y1.khoa, y1.batDau], [y2.khoa, y2.batDau], y3.khoa, y4.khoa, y5.khoa, dem],
     [["ma-1", "2026-10-22T10:00:00.000Z"], ["ma-1", "2026-10-22T10:00:00.000Z"], "ma-2", "ma-3", "ma-4", 4]);
+  // Ý định sống qua tải lại trang (sessionStorage): lưu → đọc lại đúng; xoá khi thành công; kho hỏng / dữ liệu rác → không vỡ.
+  const khoGia = new Map<string, string>();
+  const kg = { getItem: (k: string) => khoGia.get(k) ?? null, setItem: (k: string, v: string) => void khoGia.set(k, v), removeItem: (k: string) => void khoGia.delete(k) };
+  yd.luuYDinh(y1, kg);
+  const docLai = yd.docYDinhLuu(kg);
+  const sauTaiLai = yd.yDinhDayBai(docLai, CH, "2026-10-22T10:07:00.000Z", () => "ma-moi");
+  yd.luuYDinh(null, kg);
+  const conLuuSauThanhCong = khoGia.size;
+  const khoHong = { getItem: () => { throw new Error("chặn"); }, setItem: () => { throw new Error("chặn"); }, removeItem: () => { throw new Error("chặn"); } };
+  kg.setItem("zn_y_dinh_day_bai", "{rác");
+  kiem("quảng cáo khớp tài liệu", "ý định qua tải lại trang: lưu rồi đọc lại → bấm lại vẫn mã cũ; thành công thì xoá; kho bị chặn / dữ liệu rác → không vỡ, trả null",
+    [docLai?.khoa, sauTaiLai.khoa, conLuuSauThanhCong, (() => { yd.luuYDinh(y1, khoHong); return yd.docYDinhLuu(khoHong); })(), yd.docYDinhLuu(kg)],
+    ["ma-1", "ma-1", 0, null, null]);
   const BGm = new Date("2026-10-22T12:00:00Z");
   kiem("quảng cáo khớp tài liệu", "mốc ý định: trong 24 giờ qua (lệch 5 phút) mới nhận; cũ hơn / tương lai / rác → 400; cùng mốc → lệnh đẩy giống hệt",
     [String(q.docMocDayBai("2026-10-22T10:00:00.000Z", BGm).toISOString()), loi(() => q.docMocDayBai("2026-10-21T11:00:00.000Z", BGm)),
@@ -7487,7 +7500,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const ad15 = d15("src/pages/Ads.tsx");
   kiem("quảng cáo khớp tài liệu", "màn Quảng cáo: không còn ô không gửi đi được / số giả; mặc định NHẮN TIN; gửi mã + mốc của ý định đẩy; dự báo và tóm tắt theo đúng nhắm chọn sẽ gửi",
     [["Dùng tệp đã lưu", "Tệp vừa phải", "khoảng 45.000", "khoảng 850.000", "Thêm sở thích", "geoLocations", "genders", "Theo sở thích", "subtype"].filter((c) => ad15.includes(c)),
-      /useState<'nhan_tin' \| 'tuong_tac'>\('nhan_tin'\)/.test(ad15), /const yDinh = yDinhDayBai\(yDinhRef\.current, cauHinh, new Date\(\)\.toISOString\(\), \(\) => crypto\.randomUUID\(\)\);\s*yDinhRef\.current = yDinh;\s*try \{\s*await api\.ads\.boost\(\{ \.\.\.cauHinh, khoa: yDinh\.khoa, batDau: yDinh\.batDau \}\);\s*yDinhRef\.current = null;\s*setIsSuccess\(true\);/.test(ad15), /\.reachEstimate\(nhamChon\)/.test(ad15),
+      /useState<'nhan_tin' \| 'tuong_tac'>\('nhan_tin'\)/.test(ad15), /const yDinh = yDinhDayBai\(yDinhRef\.current \?\? docYDinhLuu\(\), cauHinh, new Date\(\)\.toISOString\(\), \(\) => crypto\.randomUUID\(\)\);\s*yDinhRef\.current = yDinh;\s*luuYDinh\(yDinh\);\s*try \{\s*await api\.ads\.boost\(\{ \.\.\.cauHinh, khoa: yDinh\.khoa, batDau: yDinh\.batDau \}\);\s*yDinhRef\.current = null;\s*luuYDinh\(null\);\s*setIsSuccess\(true\);/.test(ad15), /\.reachEstimate\(nhamChon\)/.test(ad15),
       /Khách nhắn tin cho cửa hàng/.test(ad15), /Khu vực: <span className="font-bold text-on-surface">Việt Nam<\/span>/.test(ad15)],
     [[], true, true, true, true, true]);
 }
