@@ -473,6 +473,19 @@ export function maBaiFacebook(raw: unknown): string | null {
   return fb ? (fb.platformPostId as string) : null;
 }
 
+/**
+ * Mốc của ý định đẩy bài (giao diện gửi kèm mã chống trùng). Phải là thời điểm thật trong 24 giờ qua (lệch đồng hồ cho
+ * phép 5 phút) — mốc cũ hơn nghĩa là màn xác nhận đã để quá lâu, ngày kết thúc sẽ lệch: bắt xác nhận lại.
+ */
+export function docMocDayBai(raw: unknown, bayGio: Date): Date {
+  const t = typeof raw === "string" ? new Date(raw) : new Date(NaN);
+  const lech = bayGio.getTime() - t.getTime();
+  if (!Number.isFinite(t.getTime()) || lech < -5 * 60_000 || lech > 24 * 3_600_000) {
+    throw new AppError("Phiên xác nhận đã cũ. Vui lòng mở lại bước xác nhận rồi bấm chạy.", 400);
+  }
+  return t;
+}
+
 export async function dayBai(lenh: ReturnType<typeof lenhDayBai>): Promise<unknown> {
   // Đẩy bài có thể mất vài phút (tài liệu) — chờ tới 2 phút; hết giờ thì CHUA_RO, không thử lại.
   return request(lenh.path, { method: lenh.method, body: lenh.body, headers: lenh.headers, timeoutMs: 120_000 });

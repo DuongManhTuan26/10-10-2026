@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import HopThoai, { NHAN_O, NUT_CHINH, NUT_PHU, O_NHAP } from '../components/HopThoai';
 import { clsx } from 'clsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { aiTheoMa } from '../lib/bon-ai';
 import { lichChay, ngayNgan, khoangTheoKy, ngayDayDu } from '../lib/ky-ngay';
 import { docChienDich, nhanTrangThaiChienDich } from '../lib/chien-dich';
+import { yDinhDayBai, type YDinhDayBai } from '../lib/day-bai';
 
 /** Nền tảng tài liệu cho phép nhân bản (POST /v1/ads/campaigns/{id}/duplicate — server/services/ads.ts NEN_TANG_NHAN_BAN). */
 const NEN_TANG_NHAN_BAN = ['facebook', 'instagram', 'tiktok', 'linkedin'];
@@ -208,6 +209,8 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
   const [gender, setGender] = useState<'all' | 'male' | 'female'>('all');
   // Mục tiêu đẩy bài: mặc định NHẮN TIN — khách bấm nút nhắn tin thành hội thoại cho AI Bán hàng chốt đơn.
   const [mucTieu, setMucTieu] = useState<'nhan_tin' | 'tuong_tac'>('nhan_tin');
+  /** Ý định đẩy bài đang dở (mã chống trùng + mốc) — giữ qua các lần bấm lại cùng cấu hình. */
+  const yDinhRef = useRef<YDinhDayBai | null>(null);
   const nhamChon = useMemo<NhamChonQc>(
     () => (audienceType === 'facebook_tu_tim'
       ? { cheDo: 'facebook_tu_tim' }
@@ -236,16 +239,14 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
     }
     setBusy(true);
     setErrorMessage('');
+    const cauHinh = { postId: Number(selectedPostId), dailyBudget, durationDays: duration, mucTieu, nhamChon };
+    // Mã gắn với Ý ĐỊNH (lib/day-bai.ts): bấm lại sau "Chưa rõ kết quả" với cùng cấu hình → cùng mã + cùng mốc → nhà cung
+    // cấp trả lại quảng cáo cũ, KHÔNG tạo cái thứ hai.
+    const yDinh = yDinhDayBai(yDinhRef.current, cauHinh, new Date().toISOString(), () => crypto.randomUUID());
+    yDinhRef.current = yDinh;
     try {
-      await api.ads.boost({
-        postId: Number(selectedPostId),
-        dailyBudget,
-        durationDays: duration,
-        mucTieu,
-        nhamChon,
-        // Mã MỚI mỗi lần bấm: lỡ mạng gửi lại cùng lần bấm thì không tạo quảng cáo thứ hai.
-        khoa: crypto.randomUUID(),
-      });
+      await api.ads.boost({ ...cauHinh, khoa: yDinh.khoa, batDau: yDinh.batDau });
+      yDinhRef.current = null;
       setIsSuccess(true);
       await load();
     } catch (error) {

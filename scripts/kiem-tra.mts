@@ -7454,7 +7454,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/const nhamChon = ads\.dungNhamChon\(body\.nhamChon \?\? \{\}\);/.test(thanBoost), /if \(!khoa\) throw new AppError\("Thiếu mã chống bấm trùng", 400\);/.test(thanBoost),
       [vt(/WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3/), vt(/await chanCuaRa\(/), vt(/resolveAdAccount\(/), vt(/ads\.kiemNganSachDayBai\(resolved\.account, dailyBudget\);/),
         vt(/ads\.maBaiFacebook\(await zernio\.getPost\(post\.platform_post_ref\)\)/), vt(/await ads\.dayBai\(lenh\)/)].every((x, i, a) => x > 0 && (i === 0 || x > a[i - 1])),
-      /throw ads\.loiLenhGhi\(error, "đẩy bài"\) \?\? error;/.test(thanBoost), /body\.targeting|body\.postId\b(?!\))/.test(thanBoost.replace("Number(body.postId)", "")),
+      /throw ads\.loiLenhGhi\(error, "đẩy bài"\) \?\? error;/.test(thanBoost) && /const batDau = ads\.docMocDayBai\(body\.batDau, new Date\(\)\);/.test(thanBoost) && /khoa, bayGio: batDau,/.test(thanBoost),
+      /body\.targeting|body\.postId\b(?!\))/.test(thanBoost.replace("Number(body.postId)", "")),
       /return request\(lenh\.path, \{ method: lenh\.method, body: lenh\.body, headers: lenh\.headers, timeoutMs: 120_000 \}\);/.test(as15),
       /throw new AdsError\(`Không nhận được trả lời cho \$\{method\} \$\{path\}: [^`]*`, 0, "CHUA_RO"\);/.test(as15)],
     [true, true, true, true, false, true, true]);
@@ -7463,10 +7464,30 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /WHERE user_id = \$1 AND trang_id = \$2 AND platform = 'facebook' AND connected = TRUE AND page_id IS NOT NULL[\s\S]{0,80}\[req\.user!\.id, resolved\.trangId\]/.test(ar15),
       /pageId: fanpage\?\.page_id \?\? null,/.test(ar15), /throw ads\.loiLenhGhi\(error, "tạo tệp đối tượng"\) \?\? error;/.test(ar15)],
     [true, true, true, true]);
+  // Ý ĐỊNH ĐẨY (phiên kiểm duyệt bắt 22/10/2026): bấm lại sau "Chưa rõ kết quả" với cùng cấu hình → CÙNG mã + CÙNG mốc (nhà
+  // cung cấp trả lại quảng cáo cũ); đổi trường / quá hạn / đã thành công → ý định mới.
+  const yd = await import("../src/lib/day-bai.js");
+  let dem = 0;
+  const ma = () => `ma-${++dem}`;
+  const CH = { postId: 65, dailyBudget: 100_000, durationDays: 3, mucTieu: "nhan_tin", nhamChon: { cheDo: "facebook_tu_tim" } };
+  const y1 = yd.yDinhDayBai(null, CH, "2026-10-22T10:00:00.000Z", ma);
+  const y2 = yd.yDinhDayBai(y1, { ...CH, nhamChon: { cheDo: "facebook_tu_tim" } }, "2026-10-22T10:05:00.000Z", ma);
+  const y3 = yd.yDinhDayBai(y2, { ...CH, dailyBudget: 120_000 }, "2026-10-22T10:06:00.000Z", ma);
+  const y4 = yd.yDinhDayBai(y3, { ...CH, dailyBudget: 120_000 }, "2026-10-23T07:00:00.000Z", ma);
+  const y5 = yd.yDinhDayBai(null, CH, "2026-10-23T07:01:00.000Z", ma);
+  kiem("quảng cáo khớp tài liệu", "ý định đẩy: bấm lại cùng cấu hình → giữ mã + mốc; đổi ngân sách → mã mới; quá 20 giờ → mã mới; sau thành công (null) → mã mới",
+    [[y1.khoa, y1.batDau], [y2.khoa, y2.batDau], y3.khoa, y4.khoa, y5.khoa, dem],
+    [["ma-1", "2026-10-22T10:00:00.000Z"], ["ma-1", "2026-10-22T10:00:00.000Z"], "ma-2", "ma-3", "ma-4", 4]);
+  const BGm = new Date("2026-10-22T12:00:00Z");
+  kiem("quảng cáo khớp tài liệu", "mốc ý định: trong 24 giờ qua (lệch 5 phút) mới nhận; cũ hơn / tương lai / rác → 400; cùng mốc → lệnh đẩy giống hệt",
+    [String(q.docMocDayBai("2026-10-22T10:00:00.000Z", BGm).toISOString()), loi(() => q.docMocDayBai("2026-10-21T11:00:00.000Z", BGm)),
+      loi(() => q.docMocDayBai("2026-10-22T12:10:00.000Z", BGm)), loi(() => q.docMocDayBai("rác", BGm)),
+      JSON.stringify(lenh("nhan_tin")) === JSON.stringify(lenh("nhan_tin"))].map((x) => (typeof x === "string" && x.startsWith("400:Phiên xác nhận đã cũ") ? "400" : x)),
+    ["2026-10-22T10:00:00.000Z", "400", "400", "400", true]);
   const ad15 = d15("src/pages/Ads.tsx");
-  kiem("quảng cáo khớp tài liệu", "màn Quảng cáo: không còn ô không gửi đi được / số giả; mặc định NHẮN TIN; mỗi lần bấm một mã mới; dự báo và tóm tắt theo đúng nhắm chọn sẽ gửi",
+  kiem("quảng cáo khớp tài liệu", "màn Quảng cáo: không còn ô không gửi đi được / số giả; mặc định NHẮN TIN; gửi mã + mốc của ý định đẩy; dự báo và tóm tắt theo đúng nhắm chọn sẽ gửi",
     [["Dùng tệp đã lưu", "Tệp vừa phải", "khoảng 45.000", "khoảng 850.000", "Thêm sở thích", "geoLocations", "genders", "Theo sở thích", "subtype"].filter((c) => ad15.includes(c)),
-      /useState<'nhan_tin' \| 'tuong_tac'>\('nhan_tin'\)/.test(ad15), /khoa: crypto\.randomUUID\(\),/.test(ad15), /\.reachEstimate\(nhamChon\)/.test(ad15),
+      /useState<'nhan_tin' \| 'tuong_tac'>\('nhan_tin'\)/.test(ad15), /const yDinh = yDinhDayBai\(yDinhRef\.current, cauHinh, new Date\(\)\.toISOString\(\), \(\) => crypto\.randomUUID\(\)\);\s*yDinhRef\.current = yDinh;\s*try \{\s*await api\.ads\.boost\(\{ \.\.\.cauHinh, khoa: yDinh\.khoa, batDau: yDinh\.batDau \}\);\s*yDinhRef\.current = null;\s*setIsSuccess\(true\);/.test(ad15), /\.reachEstimate\(nhamChon\)/.test(ad15),
       /Khách nhắn tin cho cửa hàng/.test(ad15), /Khu vực: <span className="font-bold text-on-surface">Việt Nam<\/span>/.test(ad15)],
     [[], true, true, true, true, true]);
 }

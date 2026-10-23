@@ -1507,6 +1507,8 @@ export const api = {
       mucTieu: "nhan_tin" | "tuong_tac";
       nhamChon: NhamChonQc;
       khoa: string;
+      /** Mốc của ý định đẩy (lib/day-bai.ts) — máy chủ dựng tên + ngày kết thúc từ đây để bấm lại ra thân lệnh giống hệt. */
+      batDau: string;
     }) => post<{ data: unknown }>("/ads/boost", payload),
     /** Tạo tệp: người đã tương tác với Fanpage của cửa hàng, hoặc giống một tệp đã có. */
     createAudience: (payload: {

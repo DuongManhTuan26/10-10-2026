@@ -388,6 +388,9 @@ adsRouter.post(
     // Mỗi lần BẤM một mã ngẫu nhiên (giao diện sinh): bấm lại = mã mới; cùng mã (mạng gửi lại) = không tạo lần hai.
     const khoa = typeof body.khoa === "string" && /^[\w-]{8,100}$/.test(body.khoa) ? body.khoa : null;
     if (!khoa) throw new AppError("Thiếu mã chống bấm trùng", 400);
+    // Mốc của Ý ĐỊNH đẩy (giao diện giữ cùng mã): tên + ngày kết thúc dựng từ đây, không từ "bây giờ" — bấm lại sau "Chưa rõ
+    // kết quả" phải ra thân lệnh GIỐNG HỆT thì nhà cung cấp mới trả lại quảng cáo cũ (khác thân cùng mã → 422).
+    const batDau = ads.docMocDayBai(body.batDau, new Date());
 
     // A1: chỉ đẩy bài của CỬA HÀNG ĐANG CHỌN (kiểm TRƯỚC mọi lệnh gửi nhà cung cấp — tiêu tiền thật).
     const trangDangChon = await trangHienTai();
@@ -415,7 +418,7 @@ adsRouter.post(
 
     const lenh = ads.lenhDayBai({
       accountId: resolved.accountId, adAccountId: resolved.adAccountId, platformPostId: maBaiFb, maBai: postId,
-      nganSachNgay: dailyBudget, soNgay: durationDays, mucTieu, nhamChon, khoa, bayGio: new Date(),
+      nganSachNgay: dailyBudget, soNgay: durationDays, mucTieu, nhamChon, khoa, bayGio: batDau,
     });
     let result: unknown;
     try {

@@ -5293,11 +5293,36 @@ const DUC: PhepDuc[] = [
     thay: "useState<'nhan_tin' | 'tuong_tac'>('tuong_tac')",
   },
   {
-    ten: "màn Quảng cáo dùng lại một mã cho mọi lần bấm",
+    ten: "bấm lại sau 'chưa rõ kết quả' tạo mã mới (quảng cáo thứ hai)",
     tep: "src/pages/Ads.tsx",
-    tim: "        khoa: crypto.randomUUID(),",
-    thay: "        khoa: 'khoa-co-dinh-123',",
+    tim: "    const yDinh = yDinhDayBai(yDinhRef.current, cauHinh,",
+    thay: "    const yDinh = yDinhDayBai(null, cauHinh,",
   },
+  {
+    ten: "đổi cấu hình mà vẫn giữ mã cũ",
+    tep: "src/lib/day-bai.ts",
+    tim: "  if (truoc && conHan && truoc.dauVet === dauVet) return truoc;",
+    thay: "  if (truoc && conHan) return truoc;",
+  },
+  {
+    ten: "đẩy thành công mà không bỏ ý định (lần sau bị trả lại quảng cáo cũ)",
+    tep: "src/pages/Ads.tsx",
+    tim: "      yDinhRef.current = null;\n",
+    thay: "",
+  },
+  {
+    ten: "máy chủ dựng ngày kết thúc từ 'bây giờ' (bấm lại khác thân lệnh → 422)",
+    tep: "server/routes/ads.ts",
+    tim: "khoa, bayGio: batDau,",
+    thay: "khoa, bayGio: new Date(),",
+  },
+  {
+    ten: "nhận mốc ý định cũ hơn 24 giờ",
+    tep: "server/services/ads.ts",
+    tim: " || lech > 24 * 3_600_000)",
+    thay: ")",
+  },
+
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
