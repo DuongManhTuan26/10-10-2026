@@ -1,6 +1,6 @@
 # Sơ đồ mục tiêu của mô hình (chuẩn để làm và kiểm duyệt)
 
-Bản 22/10/2026 (rà lại toàn bộ trạng thái sau A1–A4). Ghi rõ từng dòng là **đã chốt + đã đạt**, **đã chốt — CHƯA ĐẠT** (mã chưa làm được), hay nằm ở mục 8
+Bản 23/10/2026 (rà lại toàn bộ trạng thái sau A1–A4; 23/10 cập nhật sau P2, P3, gỡ kênh 064, xoá tài khoản 11a). Ghi rõ từng dòng là **đã chốt + đã đạt**, **đã chốt — CHƯA ĐẠT** (mã chưa làm được), hay nằm ở mục 8
 (**chưa chốt**). Mọi thay đổi sơ đồ phải được chủ dự án duyệt. Hai phiên (viết code · kiểm duyệt) lấy tài liệu này làm chuẩn.
 
 ## 1. Tầng tài khoản
@@ -8,7 +8,7 @@ Bản 22/10/2026 (rà lại toàn bộ trạng thái sau A1–A4). Ghi rõ từn
 ```
 HỆ THỐNG
 ├── ADMIN TỔNG — hoangtuan3310tn (một người, hai vai)
-│     ├── Vai 1: QUẢN TRỊ toàn hệ thống — mục "Quản Lý Tài Khoản" (chỉ admin thấy)
+│     ├── Vai 1: QUẢN TRỊ toàn hệ thống — mục "Quản lý tài khoản" (chỉ admin thấy)
 │     │     ├── Tạo / sửa / khoá / xoá tài khoản; mật khẩu admin BẮT BUỘC TỰ GÕ ở mọi chỗ tạo / cấp lại — để trống thì
 │     │     │     không cho lưu (chốt 19/10 — ĐẠT, ae35d18; một luật chung src/lib/mat-khau.ts)
 │     │     │     · Khoá = chặn đăng nhập VÀ AI dừng hẳn mọi việc tự chạy (chốt 18/10 — ĐẠT về mã, mục f 73b82d3, 29a69bc;
@@ -16,15 +16,19 @@ HỆ THỐNG
 │     │     │       Mở khoá: việc tới hạn trong lúc khoá KHÔNG tự bùng ra (chốt 19/10 — ĐẠT về mã, như trên)
 │     │     │       Tin / bình luận khách gửi lúc khoá: LƯU vào hộp thư để chủ shop tự đọc, KHÔNG chạy AI / kịch bản /
 │     │     │       trả lời công khai (chốt 19/10 — ĐẠT về mã, 025c692; chưa thử với kênh thật — TD-14)
-│     │     │     · Xoá = xem trước → ngắt mọi kênh + xoá mọi hồ sơ của tài khoản bên nhà cung cấp → xoá dữ liệu (đạt TRƯỚC A1–A4 — chưa kiểm lại sau khi tách dữ liệu theo cửa hàng)
+│     │     │     · Xoá = xem trước → ngắt mọi kênh + xoá mọi hồ sơ của tài khoản bên nhà cung cấp → xoá dữ liệu (ĐẠT — kiểm lại
+│     │     │       sau A1–A4 ở mục 11a, 1f4e164: mọi bảng có user_id về 0, giữ sổ tiền + nhật ký quản trị; thử tự hoàn tác trên Neon 23/10)
 │     │     ├── "Mở tài khoản": admin đăng nhập thẳng vào tài khoản khác để hỗ trợ (cơ chế mo_boi). 04/10 chỉ bỏ chữ /
 │     │     │     màu "đang xem" — KHÔNG bỏ cơ chế. Chỉ còn nút "Quay lại quản lý". (đạt — thử lại thật 22/10: mở tài khoản thử 118 rồi quay lại)
-│     │     ├── Tổng quan tài sản: tài khoản → cửa hàng → tiền từng loại (đạt TRƯỚC A1–A4 — chưa kiểm lại sau khi tách cửa hàng)
-│     │     └── Chi tiết: cây Tài khoản (1) → Cửa hàng (1.1) → báo cáo / sao kê (đạt TRƯỚC A1–A4 — chưa kiểm lại sau khi tách cửa hàng)
+│     │     ├── Tổng quan tài sản: tài khoản → cửa hàng → tiền từng loại (ĐẠT — kiểm lại 23/10 sau A1–A4, mục 11: tài khoản 1
+│     │     │     −4,58 USD = cửa hàng 1.1 −1,68 + 1.2 −2,90)
+│     │     └── Chi tiết: cây Tài khoản (1) → Cửa hàng (1.1) → báo cáo / sao kê (ĐẠT — kiểm lại 23/10 sau A1–A4, mục 11: đủ
+│     │           tiền AI / kênh / quảng cáo / đơn / sao kê)
 │     └── Vai 2: TÀI KHOẢN DÙNG THƯỜNG — BẢN MẪU cho mọi tài khoản
 │
 └── TÀI KHOẢN (1 chìa khoá đăng nhập: email + mật khẩu + mã email)
-      • Tự đăng ký hoặc admin tạo hộ → luôn là BẢN SAO 100% phần dùng thường của admin (chốt 18/10, đạt TRƯỚC A1–A4 — chưa kiểm lại sau khi tách cửa hàng)
+      • Tự đăng ký hoặc admin tạo hộ → luôn là BẢN SAO 100% phần dùng thường của admin (chốt 18/10 — ĐẠT, kiểm lại 23/10 sau
+        A1–A4, mục 11: taoTaiKhoan tạo role 'shop' + cửa hàng đầu tiên + cấu hình AI theo cửa hàng)
       • Không còn admin con / chủ chuỗi / tài khoản con (bỏ 18/10, migration 054, đạt)
       • Số CỬA HÀNG không giới hạn (không tự đặt hạn mức — luật 19/09)
       • Tài khoản mới có sẵn "Cửa hàng đầu tiên" (chốt 19/10, đạt). Hồ sơ nền tảng của nó cấp lúc đăng ký; tài khoản chủ
@@ -35,7 +39,7 @@ HỆ THỐNG
 
 ## 2. Menu — giống hệt nhau ở mọi tài khoản (đạt)
 
-Tổng quan · Kết nối kênh · Bộ não AI ①②③④ · Báo cáo Telegram · Gói Dịch Vụ (+ Quản Lý Tài Khoản: chỉ admin).
+Tổng quan · Kết nối kênh · Bộ não AI ①②③④ · Báo cáo Telegram · Gói dịch vụ (+ Quản lý tài khoản: chỉ admin).
 Menu đủ cả khi tài khoản chưa nối kênh nào (chốt 18/10).
 
 ## 3. Cửa hàng = một hồ sơ (hộp) bên nhà cung cấp = một bộ não AI
@@ -77,6 +81,10 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 │           không đụng hội thoại nhiệm kỳ đã đóng; gửi tin chặn theo cửa hàng + nhiệm kỳ. Kênh CHƯA gắn cửa hàng (thoáng
 │           qua lúc nối) → AI im, tin vẫn lưu; gắn xong thì dòng được nhận vào nhiệm kỳ, vớt tin trả lời nếu còn khung giờ.
 │         · ĐỢT 2b (ĐẠT — 6204a1b, 4a8b5f1; 059): khách, bình luận, kịch bản, đơn, các chỗ đếm theo cửa hàng của hội thoại.
+│         · GỠ KÊNH = NGHỈ VIỆC (23/10, 064 — 0328e6e; suy từ luật trên, phiên kiểm duyệt duyệt — chủ dự án xem lại): chủ
+│           shop bấm "Ngắt kết nối" → kênh rời cửa hàng như chuyển đi (đóng nhiệm kỳ, hội thoại cũ chỉ xem, kịch bản tắt, bài
+│           hẹn giờ gỡ lịch), ẩn khỏi danh sách kênh; nối lại = nhiệm kỳ mới. Nhà cung cấp tắt / mất token = NGHỈ ỐM: giữ
+│           nhiệm kỳ, hiện "Mất kết nối" + nút nối lại. Đã thử tự hoàn tác trên Neon 14/14; chưa bấm gỡ kênh thật.
 │     • Không có "Đổi Fanpage": ngắt cái cũ, nối cái mới
 │     • Quảng cáo Meta đi kèm Facebook, không nối riêng
 ├── BỘ NÃO AI — 4 AI cố định, liền mạch, không tách rời
@@ -118,7 +126,7 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 
 - **Telegram**: MỘT Telegram cho cả tài khoản, mỗi tin về việc của một cửa hàng ghi rõ tên cửa hàng (chốt 18/10 — ĐẠT ở A4d, bf7edb3).
 
-## 5. Luồng người dùng (chốt 17/10 — đạt phần dẫn; còn chữ cũ ở bước 3 và danh sách trống ở bước 4 — CHƯA ĐẠT hẳn)
+## 5. Luồng người dùng (chốt 17/10 — đạt phần dẫn; chữ bước 3 đã sửa ở P2 4f82746; danh sách trống ở bước 4 — chưa kiểm lại)
 
 Tạo cửa hàng mới → đặt tên → tự dẫn xuống bảng "Kết nối kênh cho cửa hàng" → cả bảng sáng viền + mũi tên chỉ xuống →
 chọn tự do bất kỳ mạng nào → nối xong ô đó sáng ✓ → mũi tên vẫn chỉ để nối tiếp → "Xong, không nối thêm" thì tắt →
@@ -138,9 +146,9 @@ mở bộ não của cửa hàng để dạy AI.
 
 Cửa hàng (đơn vị có bộ não) · Kênh (tài khoản mạng xã hội) · Fanpage (Facebook Page). Chữ "Zernio" không bao giờ hiện
 cho khách. Chữ cho khách dùng "Vui lòng", không "Hãy".
-Còn chữ cũ trước mặt khách (phiên kiểm duyệt thấy 19/10): Kết nối kênh bước 3 "Mỗi tài khoản một Fanpage… lập tài khoản
-riêng"; câu báo "chưa gắn Fanpage" khi lưu ở bộ não (trangCuaReq); Quản lý tài khoản "Chưa nối Fanpage nào"; tab trình
-duyệt "BrewManager AI".
+Còn chữ cũ trước mặt khách (phiên kiểm duyệt thấy 19/10): ĐÃ SỬA — bước 3 "Mỗi tài khoản một Fanpage" (P2 4f82746: "Mỗi
+cửa hàng một Fanpage…"), câu "chưa gắn Fanpage" (không còn trong mã). CÒN: Quản lý tài khoản "Chưa nối Fanpage nào"
+(TinhTrangTrang.tsx); tab trình duyệt "BrewManager AI" (mục 8.4).
 
 ## 8. Chưa chốt — chờ chủ dự án
 
