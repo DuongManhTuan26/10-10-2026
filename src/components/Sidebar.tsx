@@ -80,9 +80,9 @@ export default function Sidebar({
     ? [{ name: 'Báo cáo Telegram', icon: 'notifications_active', path: '/telegram' }]
     : [];
   const nhomQuanLy = [
-    { name: 'Gói Dịch Vụ', icon: 'workspace_premium', path: '/pricing' },
+    { name: 'Gói dịch vụ', icon: 'workspace_premium', path: '/pricing' },
     // Chỉ quản trị tổng. Đứng cuối cùng.
-    ...(laQuanTri ? [{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '/admin' }] : []),
+    ...(laQuanTri ? [{ name: 'Quản lý tài khoản', icon: 'manage_accounts', path: '/admin' }] : []),
   ];
   const nhan = (chu: string) => (
     <div className="px-3 pb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#E8EDF2]/50">{chu}</div>

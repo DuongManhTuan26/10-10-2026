@@ -1807,7 +1807,7 @@ export const ORDER_STATUS_LABELS: Record<Order["status"], string> = {
   pending: "Chờ xác nhận",
   confirmed: "Đã xác nhận",
   shipping: "Đang giao",
-  completed: "Hoàn tất",
+  completed: "Hoàn thành",
   cancelled: "Đã huỷ",
 };
 

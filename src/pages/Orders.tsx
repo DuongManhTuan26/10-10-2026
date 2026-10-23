@@ -6,7 +6,7 @@ import { api, ApiError, formatCurrency, type Order } from '../lib/api';
 import BangLoi from '../components/BangLoi';
 import { hoiXacNhan } from '../components/HopHoi';
 
-const FILTERS = ['Tất cả', 'Chờ xác nhận', 'Đã xác nhận', 'Đang giao', 'Hoàn thành', 'Đã hủy'];
+const FILTERS = ['Tất cả', 'Chờ xác nhận', 'Đã xác nhận', 'Đang giao', 'Hoàn thành', 'Đã huỷ'];
 
 /**
  * "18/10 14:05" theo giờ máy người xem. Tự ghép ngày/tháng: toLocaleDateString('vi-VN') ra "18-10" trên trình duyệt
@@ -29,14 +29,14 @@ const LABEL_TO_STATUS: Record<string, Order['status']> = {
   'Đã xác nhận': 'confirmed',
   'Đang giao': 'shipping',
   'Hoàn thành': 'completed',
-  'Đã hủy': 'cancelled',
+  'Đã huỷ': 'cancelled',
 };
 const STATUS_TO_LABEL: Record<Order['status'], string> = {
   pending: 'Chờ xác nhận',
   confirmed: 'Đã xác nhận',
   shipping: 'Đang giao',
   completed: 'Hoàn thành',
-  cancelled: 'Đã hủy',
+  cancelled: 'Đã huỷ',
 };
 
 interface DisplayOrder {
@@ -217,7 +217,7 @@ export default function Orders({ trongKhuon = false }: { trongKhuon?: boolean } 
       !(await hoiXacNhan({
         tieuDe: `Huỷ đơn ${order.id}?`,
         noiDung:
-          'Đơn chuyển sang "Đã hủy": không còn tính vào doanh thu và tổng chi của khách. ' +
+          'Đơn chuyển sang "Đã huỷ": không còn tính vào doanh thu và tổng chi của khách. ' +
           'Khách KHÔNG nhận được tin nhắn nào. Muốn khôi phục thì đổi lại trạng thái trong chi tiết đơn.',
         nutDongY: 'Huỷ đơn',
         // "Huỷ" cạnh "Huỷ đơn" rất dễ bấm nhầm (phiên kiểm duyệt góp ý 18/10/2026).
@@ -225,7 +225,7 @@ export default function Orders({ trongKhuon = false }: { trongKhuon?: boolean } 
         nguyHiem: true,
       }))
     ) return;
-    await handleChangeStatus(order, 'Đã hủy');
+    await handleChangeStatus(order, 'Đã huỷ');
   };
 
   const handleChangeStatus = async (order: DisplayOrder, label: string) => {
@@ -282,7 +282,7 @@ export default function Orders({ trongKhuon = false }: { trongKhuon?: boolean } 
       case 'Đã xác nhận': return 'bg-thong-tin';
       case 'Đang giao': return 'bg-primary';
       case 'Hoàn thành': return 'bg-on-surface';
-      case 'Đã hủy': return 'bg-loi';
+      case 'Đã huỷ': return 'bg-loi';
       default: return 'bg-on-surface-variant';
     }
   };
@@ -293,7 +293,7 @@ export default function Orders({ trongKhuon = false }: { trongKhuon?: boolean } 
       case 'Đã xác nhận': return 'bg-thong-tin/15 text-thong-tin';
       case 'Đang giao': return 'bg-primary/15 text-primary';
       case 'Hoàn thành': return 'bg-white/10 text-on-surface';
-      case 'Đã hủy': return 'bg-loi/15 text-loi';
+      case 'Đã huỷ': return 'bg-loi/15 text-loi';
       default: return 'bg-surface-variant text-on-surface-variant';
     }
   };
@@ -588,7 +588,7 @@ export default function Orders({ trongKhuon = false }: { trongKhuon?: boolean } 
                             onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); void huyDon(order); }}
                             disabled={order.raw.status === 'cancelled' || busyId === order.raw.id}
                           >
-                            <span className="material-symbols-outlined text-[18px] text-error">block</span> Hủy đơn
+                            <span className="material-symbols-outlined text-[18px] text-error">block</span> Huỷ đơn
                           </button>
                         </div>
                       )}
@@ -636,7 +636,7 @@ export default function Orders({ trongKhuon = false }: { trongKhuon?: boolean } 
                   key={label}
                   type="button"
                   // Huỷ ở đây cũng phải hỏi lại như ở menu ⋯ — một hành động, một cách xác nhận.
-                  onClick={() => (label === 'Đã hủy' ? void huyDon(selectedOrder) : handleChangeStatus(selectedOrder, label))}
+                  onClick={() => (label === 'Đã huỷ' ? void huyDon(selectedOrder) : handleChangeStatus(selectedOrder, label))}
                   disabled={busyId === selectedOrder.raw.id}
                   className="h-10 px-4 text-sm font-bold text-on-surface bg-surface-container-highest border border-outline rounded-xl hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
                 >

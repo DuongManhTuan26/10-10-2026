@@ -209,7 +209,7 @@ export const LUAT_ANH = [
 export const PHONG_CACH_MAC_DINH =
   "Ảnh sản phẩm thương mại chất lượng cao: ánh sáng dịu có hướng rõ ràng, " +
   "hậu cảnh mờ sâu tách khỏi chủ thể, bố cục có điểm nhấn, màu sắc giàu và ấm, " +
-  "chi tiết sắc nét, cảm giác sang và sạch, tỷ lệ vuông.";
+  "chi tiết sắc nét, cảm giác sang và sạch.";
 
 export interface AnhDaTao {
   /** Địa chỉ công khai để gắn vào mediaItems của bài đăng. */

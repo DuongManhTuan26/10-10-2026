@@ -68,6 +68,12 @@ export function HuongDanAi({ ai, them }: { ai: MaAi; them?: ReactNode }) {
 const TEN_BANG: Record<string, string> = {
   ai_configs: 'Cài đặt AI', ai_documents: 'Tài liệu', handoff_rules: 'Luật nhường người', guardrail_configs: 'Hàng rào an toàn', rao_chan_cua_hang: 'Hàng rào an toàn của cửa hàng',
   auto_scripts: 'Kịch bản bình luận', social_accounts: 'Kênh',
+  quang_cao_day_bai: 'Đẩy bài quảng cáo', quang_cao_chien_dich: 'Chiến dịch quảng cáo', quang_cao_doi_tuong: 'Tệp đối tượng',
+};
+/** Trạng thái việc AI đã làm (auto_pilot_runs.status / de_xuat_dieu_hanh.trang_thai) → chữ cho chủ shop, không hiện mã thô. */
+const TEN_TRANG_THAI: Record<string, string> = {
+  ok: 'Xong', failed: 'Lỗi', skipped: 'Bỏ qua', running: 'Đang chạy',
+  cho_duyet: 'Chờ duyệt', da_duyet: 'Đã duyệt', bac: 'Đã bác',
 };
 const TEN_NGUON: Record<string, string> = { nguoi_dung: 'Người dùng', he_thong: 'Hệ thống', ai_dieu_hanh: 'AI điều hành' };
 const TEN_HANH_DONG = { them: 'Thêm', sua: 'Sửa', xoa: 'Xoá' } as const;
@@ -109,9 +115,6 @@ export function NhatKyAi({ ai }: { ai: MaAi }) {
       {(ai === 'content' || ai === 'analytics') && (
         <div className="khung-muc mau-xam">
           <h3 className="tieu-de-muc dau-muc">{ai === 'content' ? 'Việc AI đã tự làm theo lịch' : 'Các lần AI điều hành chẩn đoán'}</h3>
-          {ai === 'content' && (
-            <p className="text-[12px] text-on-surface-variant mb-2">Lịch tự đăng ghi theo tài khoản — gồm mọi cửa hàng của tài khoản này.</p>
-          )}
           {du.viec.length === 0 ? (
             <p className="text-sm text-on-surface-variant">Chưa có việc nào.</p>
           ) : (
@@ -123,7 +126,7 @@ export function NhatKyAi({ ai }: { ai: MaAi }) {
                   <span className={clsx('text-[11px] font-bold rounded px-1.5 py-px',
                     /ok|duyet|thuc_hien/.test(v.trang_thai) ? 'bg-green-500/15 text-green-400'
                       : /failed|loi|bac/.test(v.trang_thai) ? 'bg-red-500/15 text-red-400'
-                        : 'bg-surface-container-highest text-on-surface-variant')}>{v.trang_thai}</span>
+                        : 'bg-surface-container-highest text-on-surface-variant')}>{TEN_TRANG_THAI[v.trang_thai] ?? v.trang_thai}</span>
                 </div>
               ))}
             </div>

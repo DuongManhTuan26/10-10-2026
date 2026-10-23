@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import HopThoai, { NUT_CHINH, NUT_PHU } from '../components/HopThoai';
+import AnhDaiDien from '../components/AnhDaiDien';
 import { clsx } from 'clsx';
 import { api, ApiError, type Platform, type SocialAccount } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
@@ -501,7 +502,7 @@ export default function Connections() {
     ? pagesToSelect.map((p) => ({
         id: p.id,
         name: p.name,
-        avatar: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.name) + '&background=random',
+        avatar: null as string | null,
         // Facebook chưa trả số người theo dõi ở bước này, nên hiện hạng mục
         // Trang — thông tin thật và đủ để khách nhận ra đúng Trang của mình.
         subtitle: p.category ?? 'Fanpage Facebook',
@@ -513,8 +514,7 @@ export default function Connections() {
       ).map((a) => ({
         id: a.id,
         name: a.display_name || a.username,
-        avatar: a.profile_picture
-          ?? 'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.display_name || a.username) + '&background=random',
+        avatar: a.profile_picture ?? null,
         subtitle: a.followers_count != null
           ? `${a.followers_count.toLocaleString('vi-VN')} người theo dõi`
           : 'Fanpage Facebook',
@@ -1566,7 +1566,7 @@ export default function Connections() {
                     {newlyConnectedPages.map(page => (
                       <label key={page.id} className={clsx("flex items-center gap-4 p-4 rounded-xl border transition-colors cursor-pointer", page.connected ? "bg-surface-variant border-outline-variant/60 opacity-70" : selectedPages.includes(page.id) ? "bg-primary/5 border-primary shadow-[0_0_20px_-8px_var(--color-primary)]" : "bg-surface-container border-outline-variant hover:border-outline")}>
                         <div className="flex-1 flex items-center gap-4">
-                          <img src={page.avatar} alt={page.name} className="w-12 h-12 rounded-full object-cover border border-outline-variant/50" />
+                          <AnhDaiDien src={page.avatar} ten={page.name} lop="w-12 h-12 border border-outline-variant/50" />
                           <div>
                             <div className="text-base font-bold text-on-surface mb-0.5">{page.name}</div>
                             <div className="text-sm text-on-surface-variant">{page.subtitle}</div>
@@ -1620,7 +1620,7 @@ export default function Connections() {
                     {selectedPages.length >= MOI_LUOT_MOT_TRANG ? (
                       <div className="text-sm font-medium text-on-surface-variant flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[16px]">info</span>
-                        Mỗi tài khoản một Fanpage — muốn chạy thêm Fanpage thì lập tài khoản riêng ở mục Quản lý tài khoản
+                        Mỗi cửa hàng một Fanpage — muốn chạy thêm Fanpage thì tạo thêm cửa hàng rồi nối Fanpage vào cửa hàng đó
                       </div>
                     ) : (
                       <div className="text-sm font-medium text-on-surface-variant">
@@ -1670,7 +1670,7 @@ export default function Connections() {
                           {newlyConnectedPages.filter(p => selectedPages.includes(p.id)).map(page => (
                             <div key={page.id} className="flex items-center gap-3">
                               <span className="material-symbols-outlined text-primary text-[18px]">check_circle</span>
-                              <img src={page.avatar} alt={page.name} className="w-6 h-6 rounded-full object-cover" />
+                              <AnhDaiDien src={page.avatar} ten={page.name} lop="w-6 h-6 text-xs" />
                               <span className="font-bold text-on-surface">{page.name}</span>
                             </div>
                           ))}

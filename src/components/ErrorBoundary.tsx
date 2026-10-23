@@ -83,7 +83,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
               onClick={() => { window.location.href = '/'; }}
               className="px-6 py-2.5 border border-outline-variant text-on-surface font-bold text-sm rounded-xl hover:bg-surface-variant transition-colors"
             >
-              Về Bảng điều khiển
+              Về Tổng quan
             </button>
           </div>
         </div>

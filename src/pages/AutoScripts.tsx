@@ -577,7 +577,9 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
     }
   };
 
-  const handleRemoveDocument = async (id: number) => {
+  const handleRemoveDocument = async (id: number, ten: string) => {
+    // Xoá tài liệu là mất kiến thức của AI, không khôi phục — hỏi lại trước (23/10/2026: bản cũ xoá ngay một chạm).
+    if (!(await hoiXacNhan({ tieuDe: `Xoá tài liệu "${ten}"?`, noiDung: 'AI sẽ không dùng tài liệu này nữa. Không khôi phục được — muốn dùng lại thì tải lên lại.', nutDongY: 'Xoá', nguyHiem: true }))) return;
     try {
       await api.ai.removeDocument('sales', id);
       await loadTraining();
@@ -784,7 +786,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
                   </p>
                 </div>
                 <button
-                  onClick={() => handleRemoveDocument(doc.id)}
+                  onClick={() => void handleRemoveDocument(doc.id, doc.filename)}
                   className="w-8 h-8 shrink-0 flex items-center justify-center bg-error/10 text-error rounded-lg hover:bg-error/20 transition-colors border border-error/20"
                 >
                   <span className="material-symbols-outlined text-[16px]">delete</span>
@@ -2057,7 +2059,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
                   </label>
 
                   {applyTo === 'specific' && (
-                    <div className="pl-8 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="sm:pl-8 animate-in fade-in slide-in-from-top-2 duration-200">
                       <ChonBaiKichBan chon={baiApDung} doiChon={setBaiApDung} />
                     </div>
                   )}

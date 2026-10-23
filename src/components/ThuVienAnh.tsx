@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { clsx } from 'clsx';
+import { useActivePage } from '../lib/ActivePage';
 import { api, ApiError, type LoaiThuVien, type MucThuVien } from '../lib/api';
 import { hoiXacNhan } from './HopHoi';
 
@@ -28,12 +29,18 @@ export function ThuVienAnh({
   const [dangTai, setDangTai] = useState(false);
   const oTep = useRef<HTMLInputElement>(null);
 
+  // Thư viện là CỦA CỬA HÀNG đang chọn — đổi cửa hàng thì tải lại (bản cũ tải một lần, đổi cửa hàng vẫn hiện ảnh cũ).
+  const { activeTrangId } = useActivePage();
   useEffect(() => {
+    let huy = false;
+    setDs([]);
+    setLoi('');
     api.ai
       .thuVien()
-      .then(({ data }) => setDs(data))
-      .catch(() => setLoi('Chưa tải được thư viện.'));
-  }, []);
+      .then(({ data }) => !huy && setDs(data))
+      .catch(() => !huy && setLoi('Chưa tải được thư viện.'));
+    return () => { huy = true; };
+  }, [activeTrangId]);
 
   const dung = async (m: MucThuVien) => {
     if (dangDung) return;

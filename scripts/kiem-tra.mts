@@ -1516,7 +1516,7 @@ kiem("xưởng AI", "ảnh: giá trên nút tạo; phong cách và giới hạn 
         /<Route path="\/quan-ly" element=\{<Navigate to="\/admin" replace \/>\} \/>/.test(nguonAppQL)],
     [false, true, true]);
   kiem("bỏ chủ chuỗi", "menu và thanh trên: đúng MỘT mục Quản lý tài khoản (/admin, chỉ quản trị); không còn cờ chủ chuỗi",
-    [(nguonMenuQL.match(/\{ name: 'Quản Lý Tài Khoản', icon: 'manage_accounts', path: '\/admin' \}/g) ?? []).length,
+    [(nguonMenuQL.match(/\{ name: 'Quản lý tài khoản', icon: 'manage_accounts', path: '\/admin' \}/g) ?? []).length,
       /laChuChuoi|quan-ly-trang/.test(nguonMenuQL + nguonThanhQL),
       /const coNao = true;/.test(nguonMenuQL)],
     [1, false, true]);
@@ -5862,14 +5862,14 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /\{ text: `Trạng thái hiện tại: \$\{STATUS_TO_LABEL\[order\.status\]\}`, time: '' \}/.test(od),
       /items: \{ name: string; qty: number; price: string; total: string \}\[\];/.test(od)],
     [true, true, true, true]);
-  kiem("đơn hàng", "menu ⋯: Mở đoạn chat / Đổi trạng thái / Hủy đơn đều làm việc thật; huỷ hỏi lại bằng hộp của app",
+  kiem("đơn hàng", "menu ⋯: Mở đoạn chat / Đổi trạng thái / Huỷ đơn đều làm việc thật; huỷ hỏi lại bằng hộp của app",
     [/setOpenDropdownId\(null\); moDoanChat\(order\); \}/.test(od), /setOpenDropdownId\(null\); setSelectedOrder\(order\); \}\}\s*>\s*<span[^>]*>change_circle/.test(od),
       /setOpenDropdownId\(null\); void huyDon\(order\); \}/.test(od),
-      /const huyDon = async[\s\S]{0,700}?await hoiXacNhan\([\s\S]{0,500}?await handleChangeStatus\(order, 'Đã hủy'\);/.test(od),
+      /const huyDon = async[\s\S]{0,700}?await hoiXacNhan\([\s\S]{0,500}?await handleChangeStatus\(order, 'Đã huỷ'\);/.test(od),
       /onClick=\{\(e\) => \{ e\.stopPropagation\(\); setOpenDropdownId\(null\); \}\}/.test(od)],
     [true, true, true, true, false]);
-  kiem("đơn hàng", "chân khung chi tiết: 'Đã hủy' cũng đi qua hộp xác nhận; ngày hiện dạng 18/10",
-    [/onClick=\{\(\) => \(label === 'Đã hủy' \? void huyDon\(selectedOrder\) : handleChangeStatus\(selectedOrder, label\)\)\}/.test(od),
+  kiem("đơn hàng", "chân khung chi tiết: 'Đã huỷ' cũng đi qua hộp xác nhận; ngày hiện dạng 18/10",
+    [/onClick=\{\(\) => \(label === 'Đã huỷ' \? void huyDon\(selectedOrder\) : handleChangeStatus\(selectedOrder, label\)\)\}/.test(od),
       /return `\$\{hai\(d\.getDate\(\)\)\}\/\$\{hai\(d\.getMonth\(\) \+ 1\)\}/.test(od)],
     [true, true]);
   kiem("đơn hàng", "ngày danh sách + dòng thời gian dùng chung một hàm dd/MM; nút chat trong khung khoá khi không có hội thoại; câu 'chưa có giá' theo người chốt; hộp huỷ có nút 'Giữ đơn'",
@@ -7027,7 +7027,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const XEP_GD: Record<string, string> = {
     "src/lib/ActivePage.tsx": "nguon",
     "src/components/AITrainingModal.tsx": "cua_hang", "src/components/AutoPilotPanel.tsx": "cua_hang", "src/components/BangTrangBanHang.tsx": "cua_hang",
-    "src/components/CanTrangNao.tsx": "cua_hang", "src/components/ChonBaiKichBan.tsx": "cua_hang", "src/components/TheKhoiNao.tsx": "cua_hang", "src/components/TopNavBar.tsx": "cua_hang",
+    "src/components/CanTrangNao.tsx": "cua_hang", "src/components/ChonBaiKichBan.tsx": "cua_hang", "src/components/ThuVienAnh.tsx": "cua_hang", "src/components/TheKhoiNao.tsx": "cua_hang", "src/components/TopNavBar.tsx": "cua_hang",
     "src/components/XuongAi.tsx": "cua_hang", "src/pages/DieuHanh.tsx": "cua_hang", "src/pages/KhoiNao.tsx": "cua_hang",
     // dùng cả kênh lọc: hộp thư lọc kênh; soạn bài chọn kênh đích; kịch bản mới gắn kênh; bảng kết nối; thẻ "đang huấn luyện"
     "src/pages/Inbox.tsx": "ca_hai", "src/pages/Content.tsx": "ca_hai", "src/pages/AutoScripts.tsx": "ca_hai",
@@ -7688,6 +7688,56 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /watch|npm run dev/.test(plMa),
       mo.search(/launchctl kickstart -k "gui\/\$\(id -u\)\/\$NHAN_LAUNCHD"/) > 0 && mo.search(/launchctl kickstart -k/) < mo.search(/nohup python3 -c/)],
     [true, true, false, true]);
+}
+
+// ---------------------------------------------------------------------------
+// P2 — GIAO DIỆN SAI / GIẢ (23/10/2026): Nhật ký theo cửa hàng + đủ việc quảng cáo + trạng thái bằng chữ; lịch tự đăng theo
+// cửa hàng; nút giả; tạo đơn ở khổ hẹp; chữ cũ; tab tô đậm; xoá tài liệu hỏi lại; thư viện ảnh theo cửa hàng; ảnh đại diện.
+// ---------------------------------------------------------------------------
+{
+  const d20 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const doc20 = (t: string) => fs.readFileSync(path.join(GOC, t), "utf8");
+  const dh20 = d20("server/routes/dieu-hanh.ts"), ap20 = d20("server/services/autopilot.ts"), tk20 = doc20("src/components/TheKhoiNao.tsx");
+  kiem("P2 nhật ký", "Nhật ký: việc quảng cáo (sổ quang_cao_*) hiện ở ②; lịch tự đăng của ① theo CỬA HÀNG; trạng thái hiện bằng chữ; bỏ câu cũ 'ghi theo tài khoản'",
+    [/WHEN d\.bang IN \('quang_cao_day_bai', 'quang_cao_chien_dich', 'quang_cao_doi_tuong'\) THEN d\.trang_id = \$1 AND \$2 = 'ads'/.test(dh20),
+      /FROM auto_pilot_runs WHERE user_id = \$1 AND trang_id = \$2 ORDER BY id DESC LIMIT 50`,\s*\[userId, trangId\]/.test(dh20),
+      /\{TEN_TRANG_THAI\[v\.trang_thai\] \?\? v\.trang_thai\}/.test(tk20), /ghi theo tài khoản/.test(tk20),
+      /quang_cao_day_bai: 'Đẩy bài quảng cáo'/.test(tk20)],
+    [true, true, true, false, true]);
+  kiem("P2 lịch tự đăng", "xoay vòng chủ đề + 'bài gần đây' (chống viết trùng) đếm theo CỬA HÀNG, không cả tài khoản",
+    [/WHERE user_id = \$1 AND trang_id = \$3 AND status IN \('ok', 'failed'\) AND id < \$2`,\s*\[userId, runId, trangId\]/.test(ap20),
+      /SELECT content FROM posts WHERE user_id = \$1 AND trang_id = \$2\s/.test(ap20)],
+    [true, true]);
+  const kt = await import("../src/lib/khoa-tab.js");
+  const ct20 = d20("src/pages/Content.tsx"), ib20 = d20("src/pages/Inbox.tsx");
+  kiem("P2 tab", "tab lưu KHOÁ (bỏ số đếm) → số đổi vẫn tô đúng tab; Nội dung + Hộp thư",
+    [kt.khoaTab("Chờ duyệt (3)"), kt.khoaTab("Đã đăng"), kt.khoaTab("Cần xử lý (12)"),
+      /const isActive = khoaTab\(filter\) === activeFilter;/.test(ct20) && /onClick=\{\(\) => setActiveFilter\(khoaTab\(filter\)\)\}/.test(ct20),
+      /onClick=\{\(\) => setActiveTab\(khoaTab\(tab\)\)\}/.test(ib20) && /activeTab === khoaTab\(tab\) \?/.test(ib20), /useState\('Chờ duyệt \(0\)'\)/.test(ct20)],
+    ["Chờ duyệt", "Đã đăng", "Cần xử lý", true, true, false]);
+  const ai20 = d20("src/components/AITrainingModal.tsx"), as20 = d20("src/pages/AutoScripts.tsx");
+  kiem("P2 xoá tài liệu", "xoá tài liệu AI hỏi lại bằng hộp của app TRƯỚC khi gọi xoá (cả khung huấn luyện lẫn màn Kịch bản)",
+    [/const removeFile = async \(id: number, ten: string\) => \{\s*if \(!\(await hoiXacNhan\(\{[\s\S]{0,300}?nguyHiem: true \}\)\)\) return;[\s\S]{0,120}await api\.ai\.removeDocument\(kind, id\);/.test(ai20),
+      /const handleRemoveDocument = async \(id: number, ten: string\) => \{\s*if \(!\(await hoiXacNhan\(\{[\s\S]{0,300}?nguyHiem: true \}\)\)\) return;\s*try \{\s*await api\.ai\.removeDocument\('sales', id\);/.test(as20)],
+    [true, true]);
+  const tv20 = d20("src/components/ThuVienAnh.tsx"), cn20 = d20("src/pages/Connections.tsx");
+  kiem("P2 thư viện + ảnh", "thư viện ảnh tải lại khi đổi cửa hàng; không còn ảnh đại diện từ ui-avatars.com (vẽ chữ cái tại chỗ)",
+    [/\.then\(\(\{ data \}\) => !huy && setDs\(data\)\)[\s\S]{0,120}\}, \[activeTrangId\]\);/.test(tv20),
+      fs.readdirSync(path.join(GOC, "src"), { recursive: true }).map(String).filter((t) => /\.tsx?$/.test(t) && /ui-avatars\.com/.test(boChuThich(fs.readFileSync(path.join(GOC, "src", t), "utf8")))),
+      (cn20.match(/<AnhDaiDien src=\{page\.avatar\} ten=\{page\.name\}/g) ?? []).length],
+    [true, [], 2]);
+  const pr20 = d20("src/pages/Pricing.tsx"), eb20 = d20("src/components/ErrorBoundary.tsx"), sb20 = d20("src/components/Sidebar.tsx"), od20 = d20("src/pages/Orders.tsx"), api20 = d20("src/lib/api.ts");
+  const hu20 = fs.readdirSync(path.join(GOC, "src"), { recursive: true }).map(String).filter((t) => /\.tsx?$/.test(t) && /Hủy|hủy/.test(boChuThich(fs.readFileSync(path.join(GOC, "src", t), "utf8"))));
+  kiem("P2 chữ + nút", "bỏ nút 'Xem hóa đơn' (không có hoá đơn); tạo đơn được ở khổ dưới xl; chữ cũ: Kết nối bước 3 theo mô hình cửa hàng, 'Về Tổng quan', một cách viết 'Huỷ', 'Hoàn thành', menu viết hoa đầu câu",
+    [/Xem hóa đơn|Xem hoá đơn/.test(pr20), /onClick=\{openOrderModal\}\s*title="Tạo đơn hàng từ hội thoại này"\s*className="xl:hidden/.test(ib20), /className="lg:hidden p-2 text-on-surface-variant hover:text-primary/.test(ib20),
+      /Mỗi cửa hàng một Fanpage/.test(cn20) && !/Mỗi tài khoản một Fanpage/.test(cn20), /Về Tổng quan/.test(eb20) && !/Bảng điều khiển/.test(eb20), hu20,
+      /completed: "Hoàn thành",/.test(api20) && /'Hoàn thành'/.test(od20), /name: 'Gói dịch vụ'/.test(sb20) && /name: 'Quản lý tài khoản'/.test(sb20)],
+    [false, true, false, true, true, [], true, true]);
+  kiem("P2 ảnh AI", "mẫu phong cách ảnh không còn 'tỷ lệ vuông' (chọi khung 9:16 / 16:9 người dùng chọn — tỷ lệ do aspect_ratio quyết)",
+    [/tỷ lệ vuông/.test(doc20("src/lib/phong-cach-anh.ts")), /tỷ lệ vuông/.test(doc20("server/services/image-ai.ts"))], [false, false]);
+  kiem("P2 khung chọn bài", "chữ bài giới hạn 2 dòng (bỏ 'block' đè line-clamp); lề trái chỉ từ sm",
+    [/<span className="text-sm text-on-surface line-clamp-2 break-words">/.test(doc20("src/components/ChonBaiKichBan.tsx")), /<div className="sm:pl-8 animate-in fade-in slide-in-from-top-2 duration-200">\s*<ChonBaiKichBan/.test(as20)],
+    [true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

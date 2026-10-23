@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import { api, ApiError, type AiDocument } from '../lib/api';
 import { useActivePage } from '../lib/ActivePage';
 import TrangDangHuanLuyen from './TrangDangHuanLuyen';
+import { hoiXacNhan } from './HopHoi';
 import {
   toFileArray, doiCoTep, napTepChu, napTepAnh,
   NHAN_VAN_BAN, NHAN_ANH,
@@ -168,7 +169,9 @@ export default function AITrainingModal({
     }
   };
 
-  const removeFile = async (id: number) => {
+  const removeFile = async (id: number, ten: string) => {
+    // Xoá tài liệu là mất kiến thức của AI, không khôi phục — hỏi lại trước (23/10/2026: bản cũ xoá ngay một chạm).
+    if (!(await hoiXacNhan({ tieuDe: `Xoá tài liệu "${ten}"?`, noiDung: 'AI sẽ không dùng tài liệu này nữa. Không khôi phục được — muốn dùng lại thì tải lên lại.', nutDongY: 'Xoá', nguyHiem: true }))) return;
     setLoi('');
     try {
       await api.ai.removeDocument(kind, id);
@@ -357,7 +360,7 @@ export default function AITrainingModal({
                       </div>
                     </div>
                     <button 
-                      onClick={() => removeFile(file.id)}
+                      onClick={() => void removeFile(file.id, file.filename)}
                       className="text-on-surface-variant hover:text-error hover:bg-error/10 w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
                     >
                       <span className="material-symbols-outlined text-[18px]">delete</span>

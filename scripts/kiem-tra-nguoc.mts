@@ -1703,7 +1703,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "rút mẫu phong cách thành cái nhãn cụt",
     tep: "src/lib/phong-cach-anh.ts",
-    tim: "      'Ảnh quảng cáo thương mại cao cấp: ánh sáng studio có hướng rõ, viền sáng tách chủ thể ' +\n      'khỏi hậu cảnh, hậu cảnh mờ sâu, màu đậm và tương phản cao, chi tiết sắc nét, ' +\n      'bố cục theo tỷ lệ vàng, cảm giác đắt tiền, tỷ lệ vuông.',",
+    tim: "      'Ảnh quảng cáo thương mại cao cấp: ánh sáng studio có hướng rõ, viền sáng tách chủ thể ' +\n      'khỏi hậu cảnh, hậu cảnh mờ sâu, màu đậm và tương phản cao, chi tiết sắc nét, ' +\n      'bố cục theo tỷ lệ vàng, cảm giác đắt tiền.',",
     thay: "      'marketing',",
   },
   {
@@ -2053,7 +2053,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "hứa lại hạn mức theo gói mà máy chủ không giữ",
     tep: "src/pages/Connections.tsx",
-    tim: "Mỗi tài khoản một Fanpage — muốn chạy thêm Fanpage thì lập tài khoản riêng ở mục Quản lý tài khoản",
+    tim: "Mỗi cửa hàng một Fanpage — muốn chạy thêm Fanpage thì tạo thêm cửa hàng rồi nối Fanpage vào cửa hàng đó",
     thay: "Gói của bạn đã hết lượt",
   },
   /*
@@ -3378,7 +3378,7 @@ const DUC: PhepDuc[] = [
     thay: "          { text: `Trạng thái hiện tại: ${STATUS_TO_LABEL[order.status]}`, time: gioNgan(new Date().toISOString()) },",
   },
   {
-    ten: "Hủy đơn trong menu không làm gì",
+    ten: "Huỷ đơn trong menu không làm gì",
     tep: "src/pages/Orders.tsx",
     tim: "setOpenDropdownId(null); void huyDon(order); }}",
     thay: "setOpenDropdownId(null); }}",
@@ -3386,7 +3386,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "huỷ đơn không hỏi lại",
     tep: "src/pages/Orders.tsx",
-    tim: "    await handleChangeStatus(order, 'Đã hủy');\n  };",
+    tim: "    await handleChangeStatus(order, 'Đã huỷ');\n  };",
     thay: "  };\n  void handleChangeStatus;",
   },
   {
@@ -5587,6 +5587,90 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
+    ten: "Nhật ký ② bỏ sót việc quảng cáo",
+    tep: "server/routes/dieu-hanh.ts",
+    tim: "                WHEN d.bang IN ('quang_cao_day_bai', 'quang_cao_chien_dich', 'quang_cao_doi_tuong') THEN d.trang_id = $1 AND $2 = 'ads'\n",
+    thay: "",
+  },
+  {
+    ten: "Nhật ký ① hiện lịch tự đăng của mọi cửa hàng",
+    tep: "server/routes/dieu-hanh.ts",
+    tim: "FROM auto_pilot_runs WHERE user_id = $1 AND trang_id = $2 ORDER BY id DESC LIMIT 50`,\n            [userId, trangId]",
+    thay: "FROM auto_pilot_runs WHERE user_id = $1 ORDER BY id DESC LIMIT 50`,\n            [userId]",
+  },
+  {
+    ten: "Nhật ký hiện mã trạng thái thô",
+    tep: "src/components/TheKhoiNao.tsx",
+    tim: "{TEN_TRANG_THAI[v.trang_thai] ?? v.trang_thai}",
+    thay: "{v.trang_thai}",
+  },
+  {
+    ten: "xoay chủ đề đếm lượt của mọi cửa hàng",
+    tep: "server/services/autopilot.ts",
+    tim: "WHERE user_id = $1 AND trang_id = $3 AND status IN ('ok', 'failed') AND id < $2",
+    thay: "WHERE user_id = $1 AND status IN ('ok', 'failed') AND id < $2 AND $3::bigint IS NOT NULL",
+  },
+  {
+    ten: "bài gần đây lấy bài của cửa hàng khác",
+    tep: "server/services/autopilot.ts",
+    tim: "SELECT content FROM posts WHERE user_id = $1 AND trang_id = $2\n",
+    thay: "SELECT content FROM posts WHERE user_id = $1 AND $2::bigint IS NOT NULL\n",
+  },
+  {
+    ten: "tab Nội dung lưu cả nhãn có số (mất tô đậm)",
+    tep: "src/pages/Content.tsx",
+    tim: "          const isActive = khoaTab(filter) === activeFilter;",
+    thay: "          const isActive = filter === activeFilter;",
+  },
+  {
+    ten: "tab Hộp thư lưu cả nhãn có số",
+    tep: "src/pages/Inbox.tsx",
+    tim: "                onClick={() => setActiveTab(khoaTab(tab))}",
+    thay: "                onClick={() => setActiveTab(tab)}",
+  },
+  {
+    ten: "xoá tài liệu không hỏi lại",
+    tep: "src/components/AITrainingModal.tsx",
+    tim: "    if (!(await hoiXacNhan({ tieuDe: `Xoá tài liệu \"${ten}\"?`",
+    thay: "    if (false && !(await hoiXacNhan({ tieuDe: `Xoá tài liệu \"${ten}\"?`",
+  },
+  {
+    ten: "thư viện ảnh không tải lại khi đổi cửa hàng",
+    tep: "src/components/ThuVienAnh.tsx",
+    tim: "  }, [activeTrangId]);",
+    thay: "  }, []);",
+  },
+  {
+    ten: "ảnh đại diện lại lấy từ ui-avatars",
+    tep: "src/pages/Connections.tsx",
+    tim: "        avatar: a.profile_picture ?? null,",
+    thay: "        avatar: a.profile_picture ?? 'https://ui-avatars.com/api/?name=x',",
+  },
+  {
+    ten: "nút Xem hóa đơn giả quay lại",
+    tep: "src/pages/Pricing.tsx",
+    tim: "onClick={() => handleUpgrade()}>Nâng cấp gói</button>",
+    thay: "onClick={() => handleUpgrade()}>Nâng cấp gói</button>\n            <button onClick={() => handleUpgrade()}>Xem hóa đơn</button>",
+  },
+  {
+    ten: "khổ 1024–1279 mất nút tạo đơn",
+    tep: "src/pages/Inbox.tsx",
+    tim: "                  title=\"Tạo đơn hàng từ hội thoại này\"\n                  className=\"xl:hidden",
+    thay: "                  title=\"Tạo đơn hàng từ hội thoại này\"\n                  className=\"lg:hidden",
+  },
+  {
+    ten: "chữ cũ 'Mỗi tài khoản một Fanpage' quay lại",
+    tep: "src/pages/Connections.tsx",
+    tim: "Mỗi cửa hàng một Fanpage",
+    thay: "Mỗi tài khoản một Fanpage",
+  },
+  {
+    ten: "mẫu phong cách ảnh lại ép tỷ lệ vuông",
+    tep: "src/lib/phong-cach-anh.ts",
+    tim: "'bố cục theo tỷ lệ vàng, cảm giác đắt tiền.'",
+    thay: "'bố cục theo tỷ lệ vàng, cảm giác đắt tiền, tỷ lệ vuông.'",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",
@@ -5658,7 +5742,7 @@ const DUC: PhepDuc[] = [
     ten: "tên menu quản lý hai tầng lại khác nhau",
     // Menu theo khối não 11/10/2026: mục quản lý viết một dòng ...(laQuanTri ? [...] : []).
     tep: "src/components/Sidebar.tsx",
-    tim: "    ...(laQuanTri ? [{ name: 'Qu\u1ea3n L\u00fd T\u00e0i Kho\u1ea3n', icon: 'manage_accounts', path: '/admin' }] : []),",
+    tim: "    ...(laQuanTri ? [{ name: 'Qu\u1ea3n l\u00fd t\u00e0i kho\u1ea3n', icon: 'manage_accounts', path: '/admin' }] : []),",
     thay: "    ...(laQuanTri ? [{ name: 'Qu\u1ea3n Tr\u1ecb H\u1ec7 Th\u1ed1ng', icon: 'admin_panel_settings', path: '/admin' }] : []),",
   },
   {

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { XuongAi, type KeHoachDang } from '../components/XuongAi';
+import { khoaTab } from '../lib/khoa-tab';
 import { vndAnh } from '../components/ChonMoHinhAnh';
 import { hoiNhap, hoiXacNhan } from '../components/HopHoi';
 
@@ -43,7 +44,8 @@ const CAN_XU_LY: PostStatus[] = ['publishing', 'failed'];
 export default function Content({ trongKhuon = false }: { trongKhuon?: boolean } = {}) {
   const { accounts, activeAccountId, activeTrangId, trangDangChon } = useActivePage();
 
-  const [activeFilter, setActiveFilter] = useState('Chờ duyệt (0)');
+  // Lưu KHOÁ của tab (nhãn bỏ số đếm): bản cũ lưu cả "Chờ duyệt (0)" nên số đổi là không tab nào còn được tô (23/10/2026).
+  const [activeFilter, setActiveFilter] = useState('Chờ duyệt');
   const [postMode, setPostMode] = useState<'manual' | 'auto'>('manual');
   const [showAutoConfirm, setShowAutoConfirm] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -822,11 +824,11 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
       {/* Row 3: Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 mb-6">
         {FILTERS.map(filter => {
-          const isActive = activeFilter === filter;
+          const isActive = khoaTab(filter) === activeFilter;
           return (
             <button 
               key={filter}
-              onClick={() => setActiveFilter(filter)}
+              onClick={() => setActiveFilter(khoaTab(filter))}
               className={clsx(
                 "px-4 py-2 rounded-full text-sm font-medium transition-colors border",
                 isActive 
@@ -922,7 +924,7 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
               {post.status === 'scheduled' && (
                 <>
                   <button onClick={() => handleSchedule(post.id, post.scheduled_for)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Đổi lịch</button>
-                  <button onClick={() => handleCancelSchedule(post.id)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Hủy lịch</button>
+                  <button onClick={() => handleCancelSchedule(post.id)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Huỷ lịch</button>
                   <button onClick={() => handleEditPost(post)} className="flex-1 py-2 bg-surface-variant text-on-surface font-bold text-xs rounded-lg hover:bg-outline-variant transition-colors border border-outline-variant/50">Sửa</button>
                   <button onClick={() => handleDelete(post.id)} title="Xoá bài" className="w-9 shrink-0 flex items-center justify-center bg-error/10 text-error rounded-lg hover:bg-error/20 transition-colors border border-error/20">
                     <span className="material-symbols-outlined text-[16px]">delete</span>

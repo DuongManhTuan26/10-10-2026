@@ -121,12 +121,9 @@ export default function App() {
         onRegister={(registered) => {
           setUser(registered);
           /*
-           * Người mới đăng ký là CHỦ CHUỖI, chưa có trang nào.
-           *
-           * Màn hình hướng dẫn ban đầu là dành cho một trang bán hàng: nối
-           * Fanpage, huấn luyện AI, chạy thử kịch bản. Chủ chuỗi chưa có trang
-           * thì không làm được bước nào trong đó. Việc đầu tiên của họ là lập
-           * trang, nên đưa thẳng tới đó.
+           * Người mới đăng ký vào thẳng màn chính: tài khoản mới đã có "Cửa hàng đầu tiên" (services/tai-khoan.ts), và
+           * luồng dẫn "nối kênh → mở bộ não" nằm ở màn Kết nối (sơ đồ mục 5). Màn Onboarding / SetupComplete cũ không còn
+           * đường vào (đề xuất gỡ — báo cáo P2, 23/10/2026).
            */
           setAppState('main');
         }}

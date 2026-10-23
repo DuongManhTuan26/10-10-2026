@@ -9,6 +9,7 @@ import { useSearchParams } from 'react-router-dom';
 import BangLoi from '../components/BangLoi';
 import HopThoai, { NHAN_O, NUT_CHINH, NUT_PHU, O_NHAP } from '../components/HopThoai';
 import { nhanNguon } from '../lib/nguon-hoi-thoai';
+import { khoaTab } from '../lib/khoa-tab';
 
 /** Trạng thái hiển thị mà giao diện đang dùng cho chấm màu và nhãn. */
 type DisplayStatus = 'waiting' | 'ai' | 'expiring' | 'expired' | 'done';
@@ -106,7 +107,6 @@ export default function Inbox() {
     'Đã xong',
   ];
 
-  const tabKey = (label: string) => label.replace(/\s*\(\d+\)$/, '');
 
   /*
    * Hộp thư nạp theo từng mẻ, có nút xem tiếp.
@@ -120,7 +120,7 @@ export default function Inbox() {
   const loadList = useCallback(async () => {
     setLoadingList(true);
     try {
-      const status = TAB_STATUS[tabKey(activeTab)] ?? 'all';
+      const status = TAB_STATUS[khoaTab(activeTab)] ?? 'all';
       const [list, countData] = await Promise.all([
         api.inbox.conversations({
           accountId: activeAccount?.id,
@@ -327,7 +327,7 @@ export default function Inbox() {
     if (dangNapThem) return;
     setDangNapThem(true);
     try {
-      const status = TAB_STATUS[tabKey(activeTab)] ?? 'all';
+      const status = TAB_STATUS[khoaTab(activeTab)] ?? 'all';
       const them = await api.inbox.conversations({
         accountId: activeAccount?.id,
         status,
@@ -577,14 +577,14 @@ export default function Inbox() {
             {TABS.map(tab => (
               <button 
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => setActiveTab(khoaTab(tab))}
                 className={clsx(
                   "whitespace-nowrap px-4 py-2.5 text-xs font-bold transition-colors relative",
-                  activeTab === tab ? "text-primary" : "text-on-surface-variant hover:text-on-surface"
+                  activeTab === khoaTab(tab) ? "text-primary" : "text-on-surface-variant hover:text-on-surface"
                 )}
               >
                 {tab}
-                {activeTab === tab && (
+                {activeTab === khoaTab(tab) && (
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary"></div>
                 )}
               </button>
@@ -818,13 +818,24 @@ export default function Inbox() {
               )}
               
               <div className="bg-surface-container-high rounded-xl border border-outline-variant focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all flex items-end p-1.5 shadow-sm">
+                {/*
+                  Cột thông tin khách (có nút Tạo đơn hàng) chỉ hiện từ xl (hidden xl:flex) — dưới xl, kể cả 1024–1279, hai nút
+                  này thay nó. Bản cũ để lg:hidden nên ở 1024–1279 không còn đường nào tạo đơn (23/10/2026).
+                */}
                 <button
                   onClick={handleExtractInfo}
                   disabled={isExtracting}
-                  title="Nhờ AI bóc tách thông tin lên đơn từ hội thoại (trùng nút Quét lại của cột thông tin — chỉ hiện dưới lg, nơi cột đó ẩn)"
-                  className="lg:hidden p-2 text-on-surface-variant hover:text-primary transition-colors shrink-0 disabled:opacity-50"
+                  title="Nhờ AI bóc tách thông tin lên đơn từ hội thoại (trùng nút Quét lại của cột thông tin)"
+                  className="xl:hidden p-2 text-on-surface-variant hover:text-primary transition-colors shrink-0 disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-[20px]">{isExtracting ? 'sync' : 'add_circle'}</span>
+                </button>
+                <button
+                  onClick={openOrderModal}
+                  title="Tạo đơn hàng từ hội thoại này"
+                  className="xl:hidden p-2 text-on-surface-variant hover:text-primary transition-colors shrink-0"
+                >
+                  <span className="material-symbols-outlined text-[20px]">receipt_long</span>
                 </button>
                 <button
                   onClick={handleSuggest}

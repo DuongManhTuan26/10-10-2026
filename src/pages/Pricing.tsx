@@ -118,7 +118,6 @@ export default function Pricing() {
           {/* Right */}
           <div className="flex flex-col gap-sm md:col-span-3 w-full">
             <button className="w-full py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg hover:brightness-110 transition-all font-bold" onClick={() => handleUpgrade()}>Nâng cấp gói</button>
-            <button className="w-full py-3 bg-surface-container text-on-surface font-label-sm rounded-lg border border-outline hover:border-primary transition-colors font-bold" onClick={() => handleUpgrade()}>Xem hóa đơn</button>
           </div>
         </div>
 

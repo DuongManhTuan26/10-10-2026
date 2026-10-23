@@ -177,20 +177,24 @@ dieuHanhRouter.get(
                 WHEN d.bang IN ('ai_configs', 'ai_documents') THEN d.trang_id = $1 AND COALESCE(d.sau ->> 'kind', d.truoc ->> 'kind') = $2
                 WHEN d.bang IN ('handoff_rules', 'guardrail_configs', 'rao_chan_cua_hang', 'auto_scripts') THEN $2 = 'sales'
                 WHEN d.bang = 'social_accounts' THEN d.trang_id = $1 AND $2 = 'analytics'
+                -- Việc quảng cáo (đẩy bài, đổi chiến dịch, tệp đối tượng) ghi qua ghiThayDoiNgoai theo cửa hàng — trước đây
+                -- rơi vào ELSE nên Nhật ký ② không bao giờ thấy (23/10/2026).
+                WHEN d.bang IN ('quang_cao_day_bai', 'quang_cao_chien_dich', 'quang_cao_doi_tuong') THEN d.trang_id = $1 AND $2 = 'ads'
                 ELSE FALSE
               END
         ORDER BY d.luc DESC LIMIT 100`,
       [trangId, ai, userId]
     );
 
-    // Việc AI đã tự làm: lịch tự đăng (ghi theo tài khoản) · các lần AI điều hành chẩn đoán (theo trang).
+    // Việc AI đã tự làm: lịch tự đăng · các lần AI điều hành chẩn đoán — đều THEO CỬA HÀNG đang chọn (auto_pilot_runs có
+    // trang_id từ A1 / 057; trước đây đọc theo tài khoản nên thấy cả việc của cửa hàng khác).
     const viec =
       ai === "content"
         ? (await query(
             `SELECT created_at AS luc, COALESCE(topic, '') || CASE WHEN note IS NOT NULL THEN ' — ' || note ELSE '' END AS noi_dung,
                     status AS trang_thai
-               FROM auto_pilot_runs WHERE user_id = $1 ORDER BY id DESC LIMIT 50`,
-            [userId]
+               FROM auto_pilot_runs WHERE user_id = $1 AND trang_id = $2 ORDER BY id DESC LIMIT 50`,
+            [userId, trangId]
           )).rows
         : ai === "analytics"
           ? (await query(

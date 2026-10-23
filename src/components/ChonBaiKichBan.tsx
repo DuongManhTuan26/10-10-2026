@@ -91,7 +91,7 @@ export default function ChonBaiKichBan({ chon, doiChon }: { chon: string[]; doiC
                 <span className="material-symbols-outlined w-10 h-10 shrink-0 rounded bg-surface-variant text-on-surface-variant flex items-center justify-center text-[20px]">article</span>
               )}
               <span className="min-w-0 flex-1">
-                <span className="block text-sm text-on-surface line-clamp-2">{b.noiDung || '(Bài không có chữ)'}</span>
+                <span className="text-sm text-on-surface line-clamp-2 break-words">{b.noiDung || '(Bài không có chữ)'}</span>
                 <span className="block text-[11px] text-on-surface-variant">
                   {b.ngay ? new Date(b.ngay).toLocaleDateString('vi-VN') : ''} · {b.soBinhLuan} bình luận
                 </span>

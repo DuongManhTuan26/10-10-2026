@@ -17,30 +17,30 @@ export const MAU_PHONG_CACH: MauPhongCach[] = [
     mota:
       'Ảnh quảng cáo thương mại cao cấp: ánh sáng studio có hướng rõ, viền sáng tách chủ thể ' +
       'khỏi hậu cảnh, hậu cảnh mờ sâu, màu đậm và tương phản cao, chi tiết sắc nét, ' +
-      'bố cục theo tỷ lệ vàng, cảm giác đắt tiền, tỷ lệ vuông.',
+      'bố cục theo tỷ lệ vàng, cảm giác đắt tiền.',
   },
   {
     ten: 'Giản dị đời thường',
     mota:
       'Ảnh đời thường chụp bằng điện thoại: ánh sáng tự nhiên ban ngày, bối cảnh nhà ở Việt Nam ' +
-      'gọn gàng, không dàn dựng cầu kỳ, màu trung thực, cảm giác gần gũi thân quen, tỷ lệ vuông.',
+      'gọn gàng, không dàn dựng cầu kỳ, màu trung thực, cảm giác gần gũi thân quen.',
   },
   {
     ten: 'Sang trọng tối giản',
     mota:
       'Ảnh tối giản sang trọng: nền trơn một màu nhạt, một nguồn sáng mềm từ bên, bóng đổ dài ' +
-      'và sạch, nhiều khoảng trống, chỉ một chủ thể duy nhất, tông màu trung tính, tỷ lệ vuông.',
+      'và sạch, nhiều khoảng trống, chỉ một chủ thể duy nhất, tông màu trung tính.',
   },
   {
     ten: 'Ấm cúng gia đình',
     mota:
       'Ảnh ấm cúng buổi sáng trong bếp gia đình: nắng xiên qua cửa sổ, hơi nước nhẹ, gỗ và vải ' +
-      'tự nhiên, tông màu ấm vàng, chiều sâu rõ, cảm giác dễ chịu và an toàn, tỷ lệ vuông.',
+      'tự nhiên, tông màu ấm vàng, chiều sâu rõ, cảm giác dễ chịu và an toàn.',
   },
   {
     ten: 'Nổi bật bắt mắt',
     mota:
       'Ảnh bắt mắt cho mạng xã hội: nền màu khối tươi và tương phản mạnh, chủ thể đặt chính giữa ' +
-      'và chiếm phần lớn khung, ánh sáng nét, màu rực, cảm giác trẻ trung sôi động, tỷ lệ vuông.',
+      'và chiếm phần lớn khung, ánh sáng nét, màu rực, cảm giác trẻ trung sôi động.',
   },
 ];

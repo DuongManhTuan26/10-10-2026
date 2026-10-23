@@ -355,19 +355,21 @@ async function lamMotO(
     return false;
   }
 
-  // Xoay vòng chủ đề theo số lượt đã chạy, để không lặp lại chủ đề đầu mãi.
+  // Xoay vòng chủ đề theo số lượt đã chạy CỦA CỬA HÀNG NÀY (danh sách chủ đề là của cửa hàng; đếm cả tài khoản thì
+  // lượt của cửa hàng khác làm nhảy cóc chủ đề — sửa 23/10/2026).
   const daChay = await queryOne<{ n: string }>(
     `SELECT count(*)::text AS n FROM auto_pilot_runs
-      WHERE user_id = $1 AND status IN ('ok', 'failed') AND id < $2`,
-    [userId, runId]
+      WHERE user_id = $1 AND trang_id = $3 AND status IN ('ok', 'failed') AND id < $2`,
+    [userId, runId, trangId]
   );
   const chuDe = cau.topics[Number(daChay?.n ?? 0) % cau.topics.length];
 
+  // Bài gần đây CỦA CỬA HÀNG NÀY (để không viết trùng) — không lấy bài của cửa hàng khác (A1).
   const ganDay = await query<{ content: string }>(
-    `SELECT content FROM posts WHERE user_id = $1
+    `SELECT content FROM posts WHERE user_id = $1 AND trang_id = $2
        AND status IN ('published', 'scheduled', 'publishing', 'pending_approval')
      ORDER BY created_at DESC LIMIT 3`,
-    [userId]
+    [userId, trangId]
   );
 
   /*
