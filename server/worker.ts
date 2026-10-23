@@ -14,6 +14,7 @@ import { env } from "./env.js";
 import { runDueVideoJobs } from "./services/video-ai.js";
 import { runDueVideoProjects } from "./services/video-dai.js";
 import { runDueCanhBaoChiPhi } from "./services/chi-phi.js";
+import { runDueDieuHanhNgay } from "./services/dieu-hanh-ngay.js";
 import { doiChieuLuotAi } from "./services/so-ai.js";
 import { chayChoKenh } from "./services/ngu-canh-trang.js";
 import { ghiKenhTheoNgay } from "./services/trang.js";
@@ -55,6 +56,11 @@ let webhookDangChet = false;
  */
 const AUTOPILOT_INTERVAL_MS = 60_000;
 let lanTuDongCuoi = 0;
+/**
+ * Lượt ④ chấm hằng ngày (services/dieu-hanh-ngay.ts) chạy NỀN, không chặn vòng lặp: một lượt gọi AI có thể mất cả phút —
+ * đợi thì tin khách nằm chờ. Chỉ một lượt quét cùng lúc; tắt máy chủ thì chờ lượt đang dở một chút (stopWorker).
+ */
+let luotDieuHanhNgay: Promise<void> | null = null;
 let lanNhacCuoi = 0;
 let lanDongBoKenhCuoi = 0;
 let lanSoatBaiCuoi = 0;
@@ -410,6 +416,17 @@ export function startWorker(): void {
           );
         }
 
+        if (!luotDieuHanhNgay) {
+          luotDieuHanhNgay = runDueDieuHanhNgay()
+            .then((n) => {
+              if (n > 0) console.log(`[④ hằng ngày] Đã chấm ${n} cửa hàng, có đề xuất chờ duyệt.`);
+            })
+            .catch((error) => console.error("[④ hằng ngày] Lỗi:", error instanceof Error ? error.message : error))
+            .finally(() => {
+              luotDieuHanhNgay = null;
+            });
+        }
+
         // Bài lịch tự đăng đang chờ video: video xong thì gắn và đăng, lỗi / quá lâu thì đăng kèm ảnh thay thế.
         try {
           const daXuLy = await coHanGio("bài chờ video", runDueVideoTuDong(), HAN_MOI_VIEC_MS);
@@ -701,7 +718,9 @@ export function startWorker(): void {
 export function stopWorker(): Promise<void> {
   stopping = true;
   wakeUp?.();
-  return vongLap ?? Promise.resolve();
+  // Chờ cả lượt ④ đang chạy nền (tối đa 3 giây — tắt êm có hạn chung); dòng của lượt dở được ghi 'loi' ở lần chạy sau.
+  const luot = luotDieuHanhNgay ? Promise.race([luotDieuHanhNgay, new Promise<void>((r) => setTimeout(r, 3_000))]) : Promise.resolve();
+  return Promise.all([vongLap ?? Promise.resolve(), luot]).then(() => undefined);
 }
 
 /**

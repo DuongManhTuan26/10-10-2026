@@ -1543,6 +1543,11 @@ export const api = {
     deXuat: () => get<{ data: DeXuatDieuHanh[] }>("/dieu-hanh/de-xuat"),
     /** Sức khoẻ từng khâu của trang đang chọn — thẻ Kết quả của khuôn 4 thẻ. */
     sucKhoe: () => get<{ data: SucKhoeTrang }>("/dieu-hanh/suc-khoe"),
+    /** Lượt chấm TỰ ĐỘNG hôm nay của cửa hàng đang chọn (null = hôm nay chưa chấm). */
+    hangNgay: () =>
+      get<{ data: { trang_thai: string; van_de: string | null; tien_usd: string; ghi_chu: string | null; created_at: string; xong_luc: string | null } | null }>(
+        "/dieu-hanh/hang-ngay"
+      ),
     /** Nhật ký một AI của trang đang chọn — thẻ Nhật ký của khuôn 4 thẻ. */
     nhatKy: (ai: MaAi) => get<{ data: NhatKyAi }>(`/dieu-hanh/nhat-ky/${ai}`),
     quyet: (id: number, duyet: boolean, lyDo?: string) => post<{ success: true }>(`/dieu-hanh/de-xuat/${id}/quyet`, { duyet, lyDo }),

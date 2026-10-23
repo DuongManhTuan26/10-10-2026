@@ -2037,8 +2037,9 @@ kiem("bảng đếm đơn", "doanh thu KHÔNG tính đơn đã huỷ",
 
 // --- Mốc ngày và mốc tháng theo giờ Việt Nam ---------------------------------
 const nguonMoc = fs.readFileSync(path.join(GOC, "server/moc-thoi-gian.ts"), "utf8");
+// 5 = mốc ngày (2) + mốc tháng (2) + NGAY_VN (H7, 24/10/2026: ngày hôm nay giờ VN dùng chung cho ④ chấm hằng ngày).
 kiem("múi giờ", "mốc ngày và mốc tháng đều quy về giờ Việt Nam",
-  (nguonMoc.match(/AT TIME ZONE 'Asia\/Ho_Chi_Minh'/g) ?? []).length, 4);
+  (nguonMoc.match(/AT TIME ZONE 'Asia\/Ho_Chi_Minh'/g) ?? []).length, 5);
 kiem("múi giờ", "chỉ có MỘT bản định nghĩa, các nơi khác đều nhập về",
   ["server/routes/settings.ts", "server/routes/orders.ts"].every((t) =>
     /import \{[^}]*DAU_(NGAY|THANG)_VN[^}]*\} from "\.\.\/moc-thoi-gian\.js"/.test(
@@ -6136,7 +6137,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const viecGoi = [...new Set([...thanStart.matchAll(/\b([A-Za-z_]\w*)\(/g)].map((m) => m[1]))]
     .filter((t) => tenNhap.has(t) || t === "drainQueue" || t === "tuSuaWebhook")
     .sort();
-  const CHAN = ["drainQueue", "reconcileInbox", "runDueAutoPilot", "runDueAutoPublishes", "runDueBoSot", "runDueCommentActions",
+  const CHAN = ["drainQueue", "reconcileInbox", "runDueAutoPilot", "runDueAutoPublishes", "runDueBoSot", "runDueCommentActions", "runDueDieuHanhNgay",
     "runDueFollowUps", "runDueVideoProjects", "runDueVideoTuDong"];
   const GIU = ["chupSoBaiNgay", "docSuCoWebhook", "doiChieuLuotAi", "ghiKenhTheoNgay", "ghiSuCoWebhook", "layNhatKyWebhook",
     "runDueAccountSync", "runDueCanhBaoChiPhi", "runDuePostRecheck", "runDueVideoJobs", "tuSuaWebhook"];
@@ -6324,7 +6325,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   // Điều kiện 1 của phiên kiểm duyệt: MỌI tệp đọc bảng posts được xếp loại — tệp mới đọc posts phải được xếp trước.
   // đợt 3: trang.ts — hậu quả chuyển kênh đếm bài của CỬA HÀNG CŨ của kênh; don-lich.ts — bài có kênh đích đã rời cửa
   // hàng CỦA BÀI (so từng bài với cửa hàng của chính nó, việc chạy nền).
-  const DOC_THEO_CUA_HANG = ["ads.ts", "bao-cao-chuoi.ts", "so-lieu-kenh.ts", "suc-khoe.ts", "trang.ts"];
+  const DOC_THEO_CUA_HANG = ["ads.ts", "bao-cao-chuoi.ts", "dieu-hanh-ngay.ts", "so-lieu-kenh.ts", "suc-khoe.ts", "trang.ts"];
   const DOC_THEO_BAI = ["autopilot.ts", "don-lich.ts", "post-status.ts", "posts.ts", "publish.ts"]; // theo mã bài + chủ bài / việc chạy nền
   const DOC_THEO_TAI_KHOAN = ["quan-ly-chung.ts", "settings.ts"]; // Gói dịch vụ + màn quản trị: theo cả tài khoản (sơ đồ §1)
   const tepDocPosts = [...new Set(tepMC.filter((t) => /FROM posts\b/.test(doc1(path.relative(GOC, t)))).map((t) => path.basename(t)))].sort();
@@ -6723,6 +6724,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     // A3 (22/10): rào chắn — trần phút theo tài khoản, phần còn lại + đếm theo cửa hàng; màn đơn theo cửa hàng
     "services/guardrails.ts": "hon_hop", "routes/orders.ts": "cua_hang",
     // theo tài khoản: Tổng quan (chốt 19/10), màn quản trị (analytics cũ đã gỡ — TD-12, 23/10); settings: kịch bản theo cửa hàng, thống kê / rào chắn → A3
+    // H7 (24/10/2026): ④ chấm hằng ngày đọc hội thoại / bình luận THEO CỬA HÀNG (truy vấn hoạt động 24 giờ).
+    "services/dieu-hanh-ngay.ts": "cua_hang",
     "routes/dashboard.ts": "tai_khoan", "routes/quan-ly.ts": "tai_khoan", "services/quan-ly-chung.ts": "tai_khoan",
     "routes/settings.ts": "hon_hop",
   };
@@ -7215,7 +7218,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     "worker.ts:lanNhipTimCuoi": "nhip",
     // cờ / khoá chống chồng lượt — việc chết cùng tiến trình
     "worker.ts:webhookDangChet": "co", "worker.ts:dangXuLyVideo": "khoa", "worker.ts:dangDoiChieu": "khoa", "worker.ts:running": "khoa", "worker.ts:vongLap": "khoa",
-    "worker.ts:stopping": "co", "dieu-hanh.ts:dangChayDieuHanh": "khoa", "telegram.ts:pollingStopped": "co", "telegram.ts:vongPolling": "khoa",
+    "worker.ts:stopping": "co", "dieu-hanh-ngay.ts:dangChayDieuHanh": "khoa", "worker.ts:luotDieuHanhNgay": "khoa", "telegram.ts:pollingStopped": "co", "telegram.ts:vongPolling": "khoa",
     // bộ nhớ đệm — mất thì đọc lại
     "video-ai.ts:boNho": "dem", "image-ai.ts:boNhoAnh": "dem", "video-sua.ts:boNho": "dem", "so-lieu-kenh.ts:boNhoQc": "dem",
     "tong-quan.ts:boNho": "dem", "guardrails.ts:nhoSoShop": "dem", "xac-thuc-email.ts:boGui": "dem", "auth.ts:banBamGia": "dem",
@@ -7563,7 +7566,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("tắt êm", "server.ts: một lần tắt; dừng worker / Telegram / máy chủ qua tatEm; cắt kết nối giữ sống; không còn đóng pool ngay sau server.close; worker và Telegram trả Promise khi thoát; long-poll huỷ được",
     [/if \(dangTat\) return;\s*dangTat = true;/.test(sv16), /void tatEm\(\{\s*dungWorker: stopWorker,\s*dungTelegram: stopTelegramPolling,/.test(sv16),
       /server\.closeAllConnections\(\);/.test(sv16), /server\.close\(\(\) => \{\s*closePool\(\)/.test(sv16),
-      /export function stopWorker\(\): Promise<void> \{\s*stopping = true;\s*wakeUp\?\.\(\);\s*return vongLap \?\? Promise\.resolve\(\);/.test(wk16),
+      /export function stopWorker\(\): Promise<void> \{\s*stopping = true;\s*wakeUp\?\.\(\);[\s\S]{0,400}?return Promise\.all\(\[vongLap \?\? Promise\.resolve\(\), luot\]\)/.test(wk16),
       /vongLap = \(async \(\) => \{/.test(wk16),
       /signal: AbortSignal\.any\(\[AbortSignal\.timeout\(\(timeoutSeconds \+ 15\) \* 1_000\), dungPolling\.signal\]\),/.test(tl16),
       /\} catch \(error\) \{\s*if \(pollingStopped\) break;/.test(tl16), /setTimeout\(resolve, (60_000|backoffMs)\)/.test(tl16)],
@@ -7859,11 +7862,12 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   const chay = (x: { ma: string; chay: boolean }[]) => Object.fromEntries(x.map((d) => [d.ma, d.chay]));
   kiem("H2 luồng thông báo", "(i) người dùng thường KHÔNG thấy cảnh báo chi phí / mất nhận tin (chỉ gửi quản trị); quản trị thấy",
     [ma(luongThongBao({ daNoi: true, events: {}, laQuanTri: false })), ma(luongThongBao({ daNoi: true, events: {}, laQuanTri: true }))],
-    [["content", "new_order", "handoff", "queue_stuck"], ["content", "new_order", "handoff", "queue_stuck", "chi_phi", "webhook_dead"]]);
+    // H7: thêm ④ "đề xuất mới chờ duyệt" (dieu_hanh) — mọi tài khoản đều nhận.
+    [["content", "new_order", "handoff", "dieu_hanh", "queue_stuck"], ["content", "new_order", "handoff", "dieu_hanh", "queue_stuck", "chi_phi", "webhook_dead"]]);
   kiem("H2 luồng thông báo", "(ii) tắt loại tin trong events → đường đó KHÔNG chạy dù đã kết nối; (iii) chưa kết nối → không đường nào chạy",
     [chay(luongThongBao({ daNoi: true, events: { new_order: false, handoff: false }, laQuanTri: false })),
       Object.values(chay(luongThongBao({ daNoi: false, events: {}, laQuanTri: true }))).filter(Boolean).length],
-    [{ content: true, new_order: false, handoff: false, queue_stuck: true }, 0]);
+    [{ content: true, new_order: false, handoff: false, dieu_hanh: true, queue_stuck: true }, 0]);
   const ltb = boChuThich(fs.readFileSync(path.join(GOC, "src/components/LuongThongBao.tsx"), "utf8"));
   const tga = boChuThich(fs.readFileSync(path.join(GOC, "src/pages/TelegramAlerts.tsx"), "utf8"));
   const app = boChuThich(fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8"));
@@ -7902,6 +7906,46 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     .flatMap((x) => [...x.matchAll(/FROM auto_pilot_runs WHERE ([^`]*?)ORDER BY/g)].map((m) => m[1].trim()));
   kiem("H5 lượt tự đăng", "mọi danh sách lượt tự đăng lọc user_id VÀ trang_id",
     [docLuot.length, docLuot.every((w) => /user_id = \$1 AND trang_id = \$2/.test(w))], [2, true]);
+}
+
+{
+  // H7 (24/10/2026): ④ AI Điều hành chấm MỖI NGÀY — chỉ cửa hàng có hoạt động, giành chỗ trước, trần tiền, không chặn worker.
+  const dn = boChuThich(fs.readFileSync(path.join(GOC, "server/services/dieu-hanh-ngay.ts"), "utf8"));
+  const wk7 = boChuThich(fs.readFileSync(path.join(GOC, "server/worker.ts"), "utf8"));
+  const rt7 = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/dieu-hanh.ts"), "utf8"));
+  const than = dn.slice(dn.indexOf("export async function runDueDieuHanhNgay"), dn.indexOf("export async function luotHomNay"));
+  kiem("H7 ④ hằng ngày", "chọn cửa hàng: tài khoản mở, chưa có dòng hôm nay, hoạt động 24 giờ (tin / bình luận / bài / đơn); thứ tự: hôm qua chạm trần, chưa chấm lâu nhất",
+    [/\$\{DK_TAI_KHOAN_MO\("t\.user_id"\)\}/.test(dn), /NOT EXISTS \(SELECT 1 FROM dieu_hanh_hang_ngay d WHERE d\.trang_id = t\.id AND d\.ngay = \$\{NGAY_VN\}\)/.test(dn),
+      ["FROM messages m JOIN conversations c", "FROM comments cm", "FROM posts p", "FROM orders o"].every((x) => dn.includes(x)) &&
+        // Khối hoạt động khép đúng sau điều kiện đơn — không có nhánh "luôn đúng" chen vào.
+        /o\.created_at > now\(\) - interval '24 hours'\)\)\s*ORDER BY/.test(dn),
+      /ORDER BY \(SELECT d\.trang_thai = 'cham_tran'[\s\S]{0,120}d\.ngay = \$\{NGAY_VN\} - 1\) DESC NULLS LAST,\s*\(SELECT max\(d\.ngay\)[\s\S]{0,140}\) ASC NULLS FIRST/.test(dn)],
+    [true, true, true, true]);
+  kiem("H7 ④ hằng ngày", "trình tự một cửa hàng: từ 7 giờ VN → giành chỗ TRƯỚC → không vấn đề thì KHÔNG gọi AI → trần ngày → gọi AI trong chayChoTrang (trần lượt) → tiền THẬT từ ai_usage → Telegram 'dieu_hanh'",
+    [/if \(gioVN\(bayGio\) < GIO_BAT_DAU\) return 0;/.test(than),
+      than.indexOf("GIANH_CHO") < than.indexOf("vanDeTuDong(sk)") && than.indexOf("vanDeTuDong(sk)") < than.indexOf("TIEN_HOM_NAY") &&
+        than.indexOf("TIEN_HOM_NAY") < than.indexOf("dieuHanhMotLan(") && than.indexOf("dieuHanhMotLan(") < than.indexOf("TIEN_THAT_CUA_LUOT"),
+      /if \(!vanDe\) \{\s*await xong\(cho\.id, \{ trangThai: "khong_van_de" \}\);\s*continue;/.test(than),
+      /await chayChoTrang\(trangId, async \(\) => \{[\s\S]{0,200}?tranTien: TRAN_LUOT_USD/.test(than),
+      /"dieu_hanh",\s*trangId\s*\)/.test(than),
+      // Giành chỗ thật (không có dòng thì bỏ qua) + chặn khi vượt trần ngày.
+      /const cho = await queryOne<\{ id: number; created_at: Date \}>\(GIANH_CHO, \[userId, trangId\]\);\s*if \(!cho\) continue;/.test(than),
+      /if \(daTieu > TRAN_NGAY_USD\) \{\s*await xong\(cho\.id, \{ trangThai: "cham_tran"/.test(than)],
+    [true, true, true, true, true, true, true]);
+  kiem("H7 ④ hằng ngày", "trần: lượt đang chạy tính tạm bằng trần lượt; ngày dùng NGAY_VN chung (không viết AT TIME ZONE mới); lượt kẹt → 'loi' không chạy lại; trần 0,30 / 1,00 USD",
+    [/CASE WHEN trang_thai = 'dang_chay' THEN \$\{TRAN_LUOT_USD\} ELSE tien_usd END/.test(dn), /AT TIME ZONE/.test(dn),
+      /SET trang_thai = 'loi'[\s\S]{0,900}?WHERE trang_thai = 'dang_chay' AND created_at < now\(\) - interval/.test(than),
+      /export const TRAN_LUOT_USD = 0\.3;/.test(dn) && /export const TRAN_NGAY_USD = 1\.0;/.test(dn)],
+    [true, false, true, true]);
+  kiem("H7 ④ hằng ngày", "worker gọi NỀN (không await, không chặn trả lời khách), một lượt cùng lúc; tắt máy chủ chờ lượt dở tối đa 3 giây; nút bấm tay dùng chung khoá + vanDeTuDong",
+    [/if \(!luotDieuHanhNgay\) \{\s*luotDieuHanhNgay = runDueDieuHanhNgay\(\)/.test(wk7), /await[^;\n]*runDueDieuHanhNgay/.test(wk7),
+      /import \{ dangChayDieuHanh, luotHomNay, vanDeTuDong \} from "\.\.\/services\/dieu-hanh-ngay\.js";/.test(rt7), /function vanDeTuDong|new Set<number>\(\)/.test(rt7)],
+    [true, false, true, false]);
+  const mg = fs.readFileSync(path.join(GOC, "server/migrations/065_dieu_hanh_hang_ngay.sql"), "utf8");
+  kiem("H7 ④ hằng ngày", "065: một dòng mỗi (cửa hàng, ngày); xoá tài khoản / cửa hàng kéo theo (CASCADE); chỉ tạo bảng",
+    [/UNIQUE \(trang_id, ngay\)/.test(mg), /user_id\s+BIGINT\s+NOT NULL REFERENCES users\(id\) ON DELETE CASCADE/.test(mg),
+      /trang_id\s+BIGINT\s+NOT NULL REFERENCES trang\(id\) ON DELETE CASCADE/.test(mg), /^\s*(UPDATE|DELETE|INSERT)\b/m.test(mg.replace(/--.*$/gm, ""))],
+    [true, true, true, false]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

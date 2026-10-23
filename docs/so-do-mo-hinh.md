@@ -91,7 +91,9 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 ├── BỘ NÃO AI — 4 AI cố định, liền mạch, không tách rời
 │     ① AI Nội dung (xanh lá)  ② AI Quảng cáo (đỏ)  ③ AI Bán hàng (tím)  → NHÂN VIÊN
 │     ④ AI Điều hành (vàng) → QUẢN LÝ: chấm 3 AI, giữ cái tốt, chỉ sửa cái tụt
-│        · "chấm MỖI NGÀY" là ĐÍCH — CHƯA ĐẠT (worker chưa có bộ chạy hằng ngày của ④; hiện chạy khi bấm)
+│        · "chấm MỖI NGÀY" — ĐẠT về mã (H7, 24/10, migration 065): từ 7 giờ sáng, mỗi cửa hàng CÓ HOẠT ĐỘNG 24 giờ (kể cả bài
+│          lịch tự đăng) một lượt; chỉ gọi AI khi có sự cố / chỉ số tụt; trần 0,30 USD / lượt, 1,00 USD / ngày cả hệ thống;
+│          đề xuất chờ duyệt + Telegram. Chưa chạy thật lượt nào (lượt đầu: sáng hôm sau khi gộp).
 │     • CÀI ĐẶT BAN ĐẦU ở thẻ "Hướng dẫn AI" của TỪNG AI; trao đổi và điều phối HẰNG NGÀY chỉ qua ④
 │     • 2 chế độ: TỰ ĐỘNG (việc dính tiền chỉ trong trần) / ĐỀ XUẤT → DUYỆT
 │     • Mỗi AI 4 thẻ theo trình tự: Hướng dẫn AI → Đang làm → Kết quả → Nhật ký

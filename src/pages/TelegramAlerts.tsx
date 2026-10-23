@@ -205,6 +205,7 @@ export default function TelegramAlerts({ laQuanTri = false }: { laQuanTri?: bool
     chi_phi: 'Cảnh báo',
     bao_cao_ngay: 'Báo cáo ngày',
     content: 'Nội dung',
+    dieu_hanh: 'Điều hành',
     test: 'Kiểm tra',
     general: 'Thông báo',
   };

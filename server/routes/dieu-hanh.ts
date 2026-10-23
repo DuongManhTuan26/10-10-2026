@@ -20,6 +20,7 @@ import { soBangChungTrang } from "../services/so-bang-chung.js";
 import { hangBangChung } from "../services/kiem-cung.js";
 import { dieuHanhMotLan, goiAiThat, khoBangChung } from "../services/dieu-hanh.js";
 import { chuShopQuyet, deXuatGanDay, luuDeXuat, soDoDieuHanh, trangCuaDeXuat } from "../services/so-loi.js";
+import { dangChayDieuHanh, luotHomNay, vanDeTuDong } from "../services/dieu-hanh-ngay.js";
 
 export const dieuHanhRouter = Router();
 dieuHanhRouter.use(requireAuth);
@@ -34,12 +35,7 @@ async function trangCuaToi(userId: number): Promise<number> {
 
 const docKy = (v: unknown): KyTongQuan => (v === "thang_truoc" ? "thang_truoc" : "thang_nay");
 
-/** Vấn đề do CODE chọn từ bảng sức khoẻ: sự cố trước, rồi chỉ số tụt ảnh hưởng tiền nhiều nhất. Không có → null. */
-function vanDeTuDong(sk: Awaited<ReturnType<typeof sucKhoeTrang>>): string | null {
-  if (sk.suCo.length) return `Sự cố: ${sk.suCo.map((s) => `${s.ten} (${s.chiTiet})`).join("; ")}`;
-  const tut = sk.uuTien.map((ma) => sk.chiSo.find((c) => c.ma === ma)).find((c) => c?.muc === "tut");
-  return tut ? `Chỉ số TỤT: ${tut.ten}` : null;
-}
+// Vấn đề do CODE chọn từ bảng sức khoẻ: vanDeTuDong (services/dieu-hanh-ngay.ts — dùng chung với lượt chấm hằng ngày).
 
 /** Báo cáo năng suất / hiệu suất của 3 AI nhân viên cho trang đang chọn: tiền, chuỗi 4 khâu, theo ngày, sức khoẻ. */
 dieuHanhRouter.get(
@@ -94,8 +90,7 @@ dieuHanhRouter.get(
   })
 );
 
-/** Đang chạy theo trang — bấm hai lần không trả tiền hai lần. */
-const dangChayDieuHanh = new Set<number>();
+/** Đang chạy theo trang — dùng chung với lượt chấm hằng ngày (services/dieu-hanh-ngay.ts): không chạy chồng, không trả tiền hai lần. */
 
 /** Chạy thử MỘT lần quy trình AI điều hành (tốn tiền AI — có chốt chống đốt tiền). Kết quả lưu, chờ chủ shop duyệt. */
 dieuHanhRouter.post(
@@ -118,6 +113,15 @@ dieuHanhRouter.post(
     } finally {
       dangChayDieuHanh.delete(trangId);
     }
+  })
+);
+
+/** Lượt chấm TỰ ĐỘNG hôm nay của cửa hàng đang chọn (④ › Đang làm) — chỉ đọc. */
+dieuHanhRouter.get(
+  "/hang-ngay",
+  route(async (req, res) => {
+    const trangId = await trangCuaToi(req.user!.id);
+    res.json({ success: true, data: await luotHomNay(trangId) });
   })
 );
 

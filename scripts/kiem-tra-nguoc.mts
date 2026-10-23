@@ -5332,8 +5332,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "stopWorker không chờ vòng lặp thoát",
     tep: "server/worker.ts",
-    tim: "  return vongLap ?? Promise.resolve();",
-    thay: "  return Promise.resolve();",
+    tim: "  return Promise.all([vongLap ?? Promise.resolve(), luot]).then(() => undefined);",
+    thay: "  return Promise.all([Promise.resolve(), luot]).then(() => undefined);",
   },
   {
     ten: "tắt máy không cắt kết nối giữ sống",
@@ -5862,6 +5862,42 @@ const DUC: PhepDuc[] = [
     tep: "server/routes/posts.ts",
     tim: "            WHERE id = $1 AND status = 'scheduled' AND platform_post_ref = $3 RETURNING *`,\n          [bai.id, LOI_KHONG_CON_BEN_NCC, bai.platform_post_ref]",
     thay: "            WHERE id = $1 RETURNING *`,\n          [bai.id, LOI_KHONG_CON_BEN_NCC, bai.platform_post_ref]",
+  },
+  {
+    ten: "④ hằng ngày gọi AI cả khi không có vấn đề",
+    tep: "server/services/dieu-hanh-ngay.ts",
+    tim: "      if (!vanDe) {\n        await xong(cho.id, { trangThai: \"khong_van_de\" });\n        continue;\n      }\n",
+    thay: "",
+  },
+  {
+    ten: "④ hằng ngày không giành chỗ trước (khởi động lại chạy hai lần)",
+    tep: "server/services/dieu-hanh-ngay.ts",
+    tim: "    const cho = await queryOne<{ id: number; created_at: Date }>(GIANH_CHO, [userId, trangId]);\n    if (!cho) continue;\n",
+    thay: "    const cho = { id: 0, created_at: new Date() };\n",
+  },
+  {
+    ten: "④ hằng ngày bỏ trần ngày",
+    tep: "server/services/dieu-hanh-ngay.ts",
+    tim: "      if (daTieu > TRAN_NGAY_USD) {",
+    thay: "      if (false) {",
+  },
+  {
+    ten: "trần không tính lượt đang chạy (chạy chồng vượt trần)",
+    tep: "server/services/dieu-hanh-ngay.ts",
+    tim: "CASE WHEN trang_thai = 'dang_chay' THEN ${TRAN_LUOT_USD} ELSE tien_usd END",
+    thay: "tien_usd",
+  },
+  {
+    ten: "④ hằng ngày chấm cả cửa hàng không hoạt động",
+    tep: "server/services/dieu-hanh-ngay.ts",
+    tim: "       OR EXISTS (SELECT 1 FROM orders o WHERE o.trang_id = t.id AND o.created_at > now() - interval '24 hours'))",
+    thay: "       OR EXISTS (SELECT 1 FROM orders o WHERE o.trang_id = t.id AND o.created_at > now() - interval '24 hours') OR TRUE)",
+  },
+  {
+    ten: "worker đợi lượt ④ (chặn trả lời khách)",
+    tep: "server/worker.ts",
+    tim: "          luotDieuHanhNgay = runDueDieuHanhNgay()",
+    thay: "          await runDueDieuHanhNgay(); luotDieuHanhNgay = Promise.resolve()",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

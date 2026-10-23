@@ -12,6 +12,14 @@
 export const DAU_NGAY_VN =
   "(date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh')";
 
+/** NGÀY hôm nay theo giờ Việt Nam (kiểu date) — dùng chung, không viết lại AT TIME ZONE ở chỗ mới. */
+export const NGAY_VN = "((now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)";
+
+/** Giờ hiện tại theo giờ Việt Nam (0–23), phía máy chủ Node. */
+export function gioVN(bayGio: Date = new Date()): number {
+  return new Date(bayGio.getTime() + 7 * 3_600_000).getUTCHours();
+}
+
 export const DAU_THANG_VN =
   "(date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh')";
 

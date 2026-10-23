@@ -29,11 +29,45 @@ function Khung({ tieuDe, phu, mau, children }: { tieuDe: string; phu?: string; m
   );
 }
 
+/** Chữ cho từng kết quả của lượt chấm tự động hằng ngày (services/dieu-hanh-ngay.ts). */
+const KET_QUA_NGAY: Record<string, string> = {
+  dang_chay: 'đang chấm…',
+  khong_hoat_dong: 'cửa hàng không có hoạt động trong 24 giờ qua, không chấm',
+  khong_van_de: 'không có sự cố hay chỉ số tụt — không cần gọi AI',
+  de_xuat: 'đã tạo đề xuất mới, chờ bạn duyệt bên dưới',
+  cham_tran: 'hôm nay đã chạm trần tiền chấm tự động của hệ thống — chưa gọi AI',
+  loi: 'lỗi, chưa chấm được',
+};
+
+/** Một dòng: lượt chấm tự động hôm nay (④ chấm mỗi ngày từ 7 giờ sáng — chỉ cửa hàng có hoạt động). */
+function ChamHomNay({ trangId }: { trangId: number | null }) {
+  const [luot, setLuot] = useState<Awaited<ReturnType<typeof api.dieuHanh.hangNgay>>['data'] | undefined>(undefined);
+  useEffect(() => {
+    let huy = false;
+    setLuot(undefined);
+    api.dieuHanh.hangNgay().then(({ data }) => !huy && setLuot(data)).catch(() => !huy && setLuot(null));
+    return () => { huy = true; };
+  }, [trangId]);
+  if (luot === undefined) return null;
+  const gio = (t: string) => new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
+  return (
+    <p className="text-sm text-on-surface-variant mb-4">
+      <span className="material-symbols-outlined text-[16px] align-[-3px] mr-1 text-primary">event_repeat</span>
+      Chấm tự động hôm nay:{' '}
+      {luot
+        ? <b className={luot.trang_thai === 'loi' ? 'text-loi' : 'text-on-surface'}>{gio(luot.created_at)} — {KET_QUA_NGAY[luot.trang_thai] ?? luot.trang_thai}</b>
+        : <b className="text-on-surface">chưa tới lượt (mỗi ngày từ 7 giờ sáng, chỉ khi cửa hàng có hoạt động)</b>}
+      {luot?.trang_thai === 'loi' && luot.ghi_chu ? <span className="block text-xs mt-0.5">{luot.ghi_chu}</span> : null}
+    </p>
+  );
+}
+
 /** ④ AI Điều hành › Đang làm: rà soát, tìm nguyên nhân, đề xuất (chế độ đề xuất — chờ duyệt). */
 export function DangLamDieuHanh() {
   const { activeTrangId } = useActivePage();
   return (
     <Khung tieuDe="Rà soát và đề xuất" phu="Chế độ đề xuất — không thực thi gì, mọi đề xuất chờ duyệt" mau="mau-vang">
+      <ChamHomNay trangId={activeTrangId} />
       <DieuHanhThu trangId={activeTrangId} />
     </Khung>
   );
