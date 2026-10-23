@@ -90,6 +90,8 @@ export async function tuSuaWebhook(): Promise<string> {
 }
 let stopping = false;
 let wakeUp: (() => void) | null = null;
+/** Vòng lặp đang chạy — stopWorker chờ nó thoát hẳn (TD-20: không đóng pool khi lượt dở còn gọi DB). */
+let vongLap: Promise<void> | null = null;
 
 /** Đánh thức worker ngay khi có sự kiện mới, không đợi hết nhịp quét. */
 export function notifyNewEvents(): void {
@@ -322,7 +324,7 @@ export function startWorker(): void {
   running = true;
   stopping = false;
 
-  void (async () => {
+  vongLap = (async () => {
     console.log("[worker] Đã khởi động, đang theo dõi hàng đợi sự kiện.");
 
     while (!stopping) {
@@ -695,9 +697,11 @@ export function startWorker(): void {
   })();
 }
 
-export function stopWorker(): void {
+/** Dừng worker; Promise xong khi vòng lặp đã THOÁT (sau lượt đang dở). */
+export function stopWorker(): Promise<void> {
   stopping = true;
   wakeUp?.();
+  return vongLap ?? Promise.resolve();
 }
 
 /**

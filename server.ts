@@ -6,6 +6,7 @@ import { dangKyDiaChiWebhook } from "./server/services/zernio.js";
 import { damBaoNguoiCanh, laDiaChiNoiBo, NHAT_KY_DUONG_HAM } from "./server/services/duong-ham.js";
 import { donDuLieuHetHan } from "./server/auth.js";
 import { startWorker, stopWorker, recoverStuckEvents } from "./server/worker.js";
+import { tatEm, HAN_TAT_MS } from "./server/tat-may.js";
 import {
   startTelegramPolling,
   stopTelegramPolling,
@@ -127,19 +128,33 @@ async function main() {
   );
   sessionCleanup.unref();
 
-  // Tắt êm: ngừng nhận request mới, đóng kết nối database, rồi thoát.
+  // Tắt êm (server/tat-may.ts — TD-20): dừng worker / Telegram / máy chủ cùng lúc, chờ tối đa HAN_TAT_MS; pool chỉ
+  // đóng khi worker đã thoát hẳn (không ai còn dùng).
+  let dangTat = false;
   for (const signal of ["SIGTERM", "SIGINT"] as const) {
     process.on(signal, () => {
+      if (dangTat) return;
+      dangTat = true;
       console.log(`\n[tắt] Nhận ${signal}, đang đóng…`);
-      stopWorker();
-      stopTelegramPolling();
-      server.close(() => {
-        closePool()
-          .catch(() => {})
-          .finally(() => process.exit(0));
+      clearInterval(sessionCleanup);
+      void tatEm({
+        dungWorker: stopWorker,
+        dungTelegram: stopTelegramPolling,
+        dongMayChu: () =>
+          new Promise<void>((xong) => {
+            server.close(() => xong());
+            // Kết nối giữ sống (WebSocket HMR, keep-alive) làm server.close chờ mãi — cắt luôn.
+            server.closeAllConnections();
+          }),
+        dongPool: closePool,
+      }).then((kq) => {
+        if (kq === "qua_han") {
+          console.log("[tắt] Worker còn việc dở — thoát không đóng pool; sự kiện kẹt được nhận lại lúc khởi động.");
+        }
+        process.exit(0);
       });
-      // Không đóng xong trong 10 giây thì thoát cưỡng bức.
-      setTimeout(() => process.exit(1), 10_000).unref();
+      // Lưới cuối: tatEm luôn xong trong HAN_TAT_MS, nhưng không để tiến trình treo vì bất cứ lý do gì.
+      setTimeout(() => process.exit(1), HAN_TAT_MS + 500).unref();
     });
   }
 }

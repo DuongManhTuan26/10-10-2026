@@ -707,7 +707,7 @@ settingsRouter.put(
   route(async (req, res) => {
     const body = req.body ?? {};
     // Trần theo hạn mức THẬT của Zernio, không phải con số tự đặt.
-    const policy = await effectiveRateLimit(req.user!.id);
+    const policy = await effectiveRateLimit();
     const clamped = clampConfig({
       max_sends_per_minute: body.maxSendsPerMinute,
       max_ai_sends_per_hour: body.maxAiSendsPerHour,

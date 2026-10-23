@@ -1811,8 +1811,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "trả nguyên hạn mức chung cho từng shop, để các shop đâm vào nhau",
     tep: "server/services/guardrails.ts",
-    tim: "    const chia = Math.max(1, Math.floor(live.limit / Math.max(1, soShop)));",
-    thay: "    const chia = live.limit;",
+    tim: "      perMinute: chiaTran(live.limit, await soShopDangGui()),",
+    thay: "      perMinute: live.limit,",
   },
   {
     ten: "thêm một bảng dữ liệu không gắn với shop nào",
@@ -5322,7 +5322,6 @@ const DUC: PhepDuc[] = [
     tim: " || lech > 24 * 3_600_000)",
     thay: ")",
   },
-
   {
     ten: "ý định đẩy không đọc lại sau tải trang",
     tep: "src/pages/Ads.tsx",
@@ -5333,6 +5332,60 @@ const DUC: PhepDuc[] = [
     ten: "ý định đẩy không được lưu",
     tep: "src/lib/day-bai.ts",
     tim: "    if (y) n.setItem(KHOA_LUU, JSON.stringify(y));\n",
+    thay: "",
+  },
+  {
+    ten: "trần dự phòng đếm kênh của một tài khoản",
+    tep: "server/services/guardrails.ts",
+    tim: "    \"SELECT COUNT(*)::int AS n FROM social_accounts WHERE connected = TRUE\"",
+    thay: "    \"SELECT COUNT(*)::int AS n FROM social_accounts WHERE connected = TRUE AND user_id IS NOT NULL\"",
+  },
+  {
+    ten: "trần dự phòng trả trọn bậc (không chia shop)",
+    tep: "server/services/guardrails.ts",
+    tim: "    perMinute: chiaTran(policyLimitPerMinute(row?.n ?? 0), await soShopDangGui()),",
+    thay: "    perMinute: policyLimitPerMinute(row?.n ?? 0),",
+  },
+  {
+    ten: "chia trần làm tròn lên (vượt trần thật)",
+    tep: "server/services/guardrails.ts",
+    tim: "  return Math.max(1, Math.floor(tran / Math.max(1, soShop)));",
+    thay: "  return Math.max(1, Math.ceil(tran / Math.max(1, soShop)));",
+  },
+  {
+    ten: "tắt máy đóng pool khi worker còn việc dở",
+    tep: "server/tat-may.ts",
+    tim: "  if (!workerXong) return \"qua_han\";\n",
+    thay: "",
+  },
+  {
+    ten: "hạn tắt dài hơn hạn của tsx",
+    tep: "server/tat-may.ts",
+    tim: "export const HAN_TAT_MS = 4_000;",
+    thay: "export const HAN_TAT_MS = 10_000;",
+  },
+  {
+    ten: "stopWorker không chờ vòng lặp thoát",
+    tep: "server/worker.ts",
+    tim: "  return vongLap ?? Promise.resolve();",
+    thay: "  return Promise.resolve();",
+  },
+  {
+    ten: "tắt máy không cắt kết nối giữ sống",
+    tep: "server.ts",
+    tim: "            server.closeAllConnections();\n",
+    thay: "",
+  },
+  {
+    ten: "long-poll Telegram không huỷ được khi tắt",
+    tep: "server/services/telegram.ts",
+    tim: "    signal: AbortSignal.any([AbortSignal.timeout((timeoutSeconds + 15) * 1_000), dungPolling.signal]),",
+    thay: "    signal: AbortSignal.timeout((timeoutSeconds + 15) * 1_000),",
+  },
+  {
+    ten: "Telegram đang tắt vẫn ngủ chờ thử lại",
+    tep: "server/services/telegram.ts",
+    tim: "      if (pollingStopped) break;\n",
     thay: "",
   },
   {

@@ -1645,10 +1645,8 @@ kiem("chưa có tài liệu", "lời dặn đó chỉ bật khi tự chủ bật
 // shop dùng chung một khoá. Trả nguyên con số đó cho từng shop là mười shop
 // cùng tưởng mình được gửi 600 tin mỗi phút rồi cùng đâm vào trần thật.
 // ---------------------------------------------------------------------------
-kiem("nhiều shop", "hạn mức sống được chia cho số shop đang gửi",
-  /const chia = Math\.max\(1, Math\.floor\(live\.limit \/ Math\.max\(1, soShop\)\)\)/.test(
-    nguonHangRao
-  ), true);
+kiem("nhiều shop", "hạn mức sống được chia cho số shop đang gửi (chiaTran — khối TRẦN TỐC ĐỘ)",
+  /perMinute: chiaTran\(live\.limit, await soShopDangGui\(\)\),/.test(nguonHangRao), true);
 kiem("nhiều shop", "đếm shop đang gửi theo dữ liệu thật, không đoán",
   /COUNT\(DISTINCT user_id\)::int AS n FROM send_attempts/.test(nguonHangRao), true);
 kiem("nhiều shop", "nhớ tạm để không thêm truy vấn vào mỗi tin gửi",
@@ -7186,8 +7184,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     "worker.ts:lanSoatBaiCuoi": "nhip", "worker.ts:lanVideoCuoi": "nhip", "worker.ts:lanChiPhiCuoi": "nhip", "worker.ts:lanDoiChieuCuoi": "nhip",
     "worker.ts:lanNhipTimCuoi": "nhip",
     // cờ / khoá chống chồng lượt — việc chết cùng tiến trình
-    "worker.ts:webhookDangChet": "co", "worker.ts:dangXuLyVideo": "khoa", "worker.ts:dangDoiChieu": "khoa", "worker.ts:running": "khoa",
-    "worker.ts:stopping": "co", "dieu-hanh.ts:dangChayDieuHanh": "khoa", "telegram.ts:pollingStopped": "co",
+    "worker.ts:webhookDangChet": "co", "worker.ts:dangXuLyVideo": "khoa", "worker.ts:dangDoiChieu": "khoa", "worker.ts:running": "khoa", "worker.ts:vongLap": "khoa",
+    "worker.ts:stopping": "co", "dieu-hanh.ts:dangChayDieuHanh": "khoa", "telegram.ts:pollingStopped": "co", "telegram.ts:vongPolling": "khoa",
     // bộ nhớ đệm — mất thì đọc lại
     "video-ai.ts:boNho": "dem", "image-ai.ts:boNhoAnh": "dem", "video-sua.ts:boNho": "dem", "so-lieu-kenh.ts:boNhoQc": "dem",
     "tong-quan.ts:boNho": "dem", "guardrails.ts:nhoSoShop": "dem", "xac-thuc-email.ts:boGui": "dem", "auth.ts:banBamGia": "dem",
@@ -7503,6 +7501,43 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /useState<'nhan_tin' \| 'tuong_tac'>\('nhan_tin'\)/.test(ad15), /const yDinh = yDinhDayBai\(yDinhRef\.current \?\? docYDinhLuu\(\), cauHinh, new Date\(\)\.toISOString\(\), \(\) => crypto\.randomUUID\(\)\);\s*yDinhRef\.current = yDinh;\s*luuYDinh\(yDinh\);\s*try \{\s*await api\.ads\.boost\(\{ \.\.\.cauHinh, khoa: yDinh\.khoa, batDau: yDinh\.batDau \}\);\s*yDinhRef\.current = null;\s*luuYDinh\(null\);\s*setIsSuccess\(true\);/.test(ad15), /\.reachEstimate\(nhamChon\)/.test(ad15),
       /Khách nhắn tin cho cửa hàng/.test(ad15), /Khu vực: <span className="font-bold text-on-surface">Việt Nam<\/span>/.test(ad15)],
     [[], true, true, true, true, true]);
+}
+
+// ---------------------------------------------------------------------------
+// TRẦN TỐC ĐỘ THEO CẢ TEAM (mục 6 / TD-21) + TẮT ÊM (mục 7 / TD-20), 22/10/2026 — phiên kiểm duyệt duyệt thiết kế.
+// ---------------------------------------------------------------------------
+{
+  const d16 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const gr = await import("../server/services/guardrails.js");
+  kiem("trần tốc độ", "chiaTran: chia đều, làm tròn xuống, tối thiểu 1; bậc theo số kênh cả team đúng bảng tài liệu",
+    [gr.chiaTran(600, 3), gr.chiaTran(100, 3), gr.chiaTran(600, 0), gr.chiaTran(60, 100), [0, 2, 3, 2000, 2001].map(gr.policyLimitPerMinute)],
+    [200, 33, 600, 1, [60, 60, 600, 600, 1200]]);
+  const gr16 = d16("server/services/guardrails.ts");
+  kiem("trần tốc độ", "nhánh dự phòng: đếm kênh đang nối CẢ HỆ THỐNG (không lọc tài khoản) rồi chia như nhánh số sống; hàm không còn nhận tài khoản",
+    [/"SELECT COUNT\(\*\)::int AS n FROM social_accounts WHERE connected = TRUE"/.test(gr16),
+      /perMinute: chiaTran\(policyLimitPerMinute\(row\?\.n \?\? 0\), await soShopDangGui\(\)\),/.test(gr16),
+      /export async function effectiveRateLimit\(\): Promise</.test(gr16), /social_accounts WHERE user_id = \$1 AND connected = TRUE"/.test(gr16)],
+    [true, true, true, false]);
+  const tm = await import("../server/tat-may.js");
+  const ghi: string[] = [];
+  const xongSau = (ms: number, ten: string) => () => new Promise<void>((r) => setTimeout(() => { ghi.push(ten); r(); }, ms));
+  const kq1 = await tm.tatEm({ dungWorker: xongSau(5, "worker"), dungTelegram: xongSau(1, "tg"), dongMayChu: xongSau(1, "may"), dongPool: async () => { ghi.push("pool"); }, han: 200 });
+  const ghi1 = [...ghi]; ghi.length = 0;
+  const bd = Date.now();
+  const kq2 = await tm.tatEm({ dungWorker: () => new Promise<void>(() => {}), dungTelegram: xongSau(1, "tg"), dongMayChu: xongSau(1, "may"), dongPool: async () => { ghi.push("pool"); }, han: 60 });
+  const tg2 = Date.now() - bd;
+  kiem("tắt êm", "worker dừng kịp → đóng pool SAU khi worker thoát; worker còn việc dở → hết hạn thì trả 'qua_han', KHÔNG đóng pool; hạn < 5 giây của tsx",
+    [kq1, ghi1.indexOf("pool") > ghi1.indexOf("worker") && ghi1.includes("pool"), kq2, ghi.includes("pool"), tg2 < 1000, tm.HAN_TAT_MS < 5_000],
+    ["sach", true, "qua_han", false, true, true]);
+  const sv16 = d16("server.ts"), wk16 = d16("server/worker.ts"), tl16 = d16("server/services/telegram.ts");
+  kiem("tắt êm", "server.ts: một lần tắt; dừng worker / Telegram / máy chủ qua tatEm; cắt kết nối giữ sống; không còn đóng pool ngay sau server.close; worker và Telegram trả Promise khi thoát; long-poll huỷ được",
+    [/if \(dangTat\) return;\s*dangTat = true;/.test(sv16), /void tatEm\(\{\s*dungWorker: stopWorker,\s*dungTelegram: stopTelegramPolling,/.test(sv16),
+      /server\.closeAllConnections\(\);/.test(sv16), /server\.close\(\(\) => \{\s*closePool\(\)/.test(sv16),
+      /export function stopWorker\(\): Promise<void> \{\s*stopping = true;\s*wakeUp\?\.\(\);\s*return vongLap \?\? Promise\.resolve\(\);/.test(wk16),
+      /vongLap = \(async \(\) => \{/.test(wk16),
+      /signal: AbortSignal\.any\(\[AbortSignal\.timeout\(\(timeoutSeconds \+ 15\) \* 1_000\), dungPolling\.signal\]\),/.test(tl16),
+      /\} catch \(error\) \{\s*if \(pollingStopped\) break;/.test(tl16), /setTimeout\(resolve, (60_000|backoffMs)\)/.test(tl16)],
+    [true, true, true, false, true, true, true, true, false]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

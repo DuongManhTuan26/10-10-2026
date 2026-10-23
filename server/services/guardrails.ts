@@ -49,7 +49,11 @@ export const COMMENT_REPLY_WINDOW_MS = 7 * 24 * 60 * 60 * 1_000;
  * x-ratelimit-limit; bảng này chỉ là phương án dự phòng khi chưa có header
  * nào được đọc (ví dụ ngay sau khi khởi động).
  */
-function policyLimitPerMinute(connectedAccounts: number): number {
+/**
+ * Bậc trần tốc độ theo tài liệu nhà cung cấp ("# Rate Limits"): tính theo số kênh đang nối của CẢ TEAM (mọi khách dùng
+ * chung một khoá) — 0–2 → 60, 3–2.000 → 600, 2.001+ → 1.200 lượt / phút, cho MỌI lời gọi API.
+ */
+export function policyLimitPerMinute(connectedAccounts: number): number {
   if (connectedAccounts <= 2) return 60;
   if (connectedAccounts <= 2_000) return 600;
   return 1_200;
@@ -234,7 +238,12 @@ async function soShopDangGui(): Promise<number> {
   return nhoSoShop.so;
 }
 
-export async function effectiveRateLimit(userId: number): Promise<{
+/** Phần trần của mỗi shop: chia đều trần chung cho số shop đang gửi, tối thiểu 1. Dùng cho cả hai nhánh. */
+export function chiaTran(tran: number, soShop: number): number {
+  return Math.max(1, Math.floor(tran / Math.max(1, soShop)));
+}
+
+export async function effectiveRateLimit(): Promise<{
   perMinute: number;
   source: "live" | "policy";
   remaining: number | null;
@@ -253,22 +262,23 @@ export async function effectiveRateLimit(userId: number): Promise<{
      * Nên chia đều cho số shop ĐANG thật sự gửi tin. Một mình dùng thì vẫn được
      * trọn hạn mức; đông lên thì tự co lại.
      */
-    const soShop = await soShopDangGui();
-    const chia = Math.max(1, Math.floor(live.limit / Math.max(1, soShop)));
     return {
-      perMinute: chia,
+      perMinute: chiaTran(live.limit, await soShopDangGui()),
       source: "live",
       remaining: live.remaining,
       resetAt: live.resetAt,
     };
   }
 
+  /*
+   * Chưa có số sống (vừa khởi động): bậc theo số kênh đang nối của CẢ HỆ THỐNG (một khoá API = một team), rồi chia như
+   * nhánh số sống. Bản cũ (TD-21, sửa 22/10/2026) đếm kênh của riêng tài khoản này và trả TRỌN bậc cho từng tài khoản.
+   */
   const row = await queryOne<{ n: number }>(
-    "SELECT COUNT(*)::int AS n FROM social_accounts WHERE user_id = $1 AND connected = TRUE",
-    [userId]
+    "SELECT COUNT(*)::int AS n FROM social_accounts WHERE connected = TRUE"
   );
   return {
-    perMinute: policyLimitPerMinute(row?.n ?? 0),
+    perMinute: chiaTran(policyLimitPerMinute(row?.n ?? 0), await soShopDangGui()),
     source: "policy",
     remaining: null,
     resetAt: null,
@@ -377,7 +387,7 @@ export async function checkOutbound(params: {
      * Ưu tiên con số SỐNG từ header x-ratelimit-limit; chưa có header thì dùng
      * bậc chính sách theo số tài khoản kết nối.
      */
-    const policy = await effectiveRateLimit(conversation.user_id);
+    const policy = await effectiveRateLimit();
     const perMinuteCap = Math.min(config.max_sends_per_minute, policy.perMinute);
 
     // Zernio còn báo chính xác còn lại bao nhiêu. Hết hạn mức thật thì chặn
@@ -518,7 +528,7 @@ export async function xinPhepGuiBinhLuan(
   trangId: number | null
 ): Promise<{ duoc: boolean; lyDo: string }> {
   const config = await loadConfig(userId, trangId);
-  const policy = await effectiveRateLimit(userId);
+  const policy = await effectiveRateLimit();
   const tran = Math.min(config.max_sends_per_minute, policy.perMinute);
 
   // Zernio báo chính xác còn lại bao nhiêu thì tin con số đó trước.
@@ -774,7 +784,7 @@ export async function guardrailStatus(userId: number, trangId: number | null): P
 
   const totalHour = usage?.total_last_hour ?? 0;
 
-  const policy = await effectiveRateLimit(userId);
+  const policy = await effectiveRateLimit();
 
   return {
     config,

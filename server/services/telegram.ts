@@ -324,9 +324,31 @@ interface TelegramUpdate {
 
 /** Đặt true khi dừng tiến trình để vòng lặp thoát gọn thay vì bị cắt ngang. */
 let pollingStopped = false;
+/** Huỷ long-poll getUpdates đang treo (tới 50 giây) và các lần ngủ chờ khi tắt (TD-20). */
+const dungPolling = new AbortController();
+/** Vòng nhận tin đang chạy — stopTelegramPolling chờ nó thoát. */
+let vongPolling: Promise<void> | null = null;
 
-export function stopTelegramPolling(): void {
+/** Ngủ, nhưng tỉnh ngay khi đang tắt. */
+function ngu(ms: number): Promise<void> {
+  return new Promise((xong) => {
+    const thucDay = () => {
+      clearTimeout(hen);
+      xong();
+    };
+    const hen = setTimeout(() => {
+      dungPolling.signal.removeEventListener("abort", thucDay);
+      xong();
+    }, ms);
+    dungPolling.signal.addEventListener("abort", thucDay, { once: true });
+  });
+}
+
+/** Dừng vòng nhận tin; Promise xong khi vòng đã thoát. */
+export function stopTelegramPolling(): Promise<void> {
   pollingStopped = true;
+  dungPolling.abort();
+  return vongPolling ?? Promise.resolve();
 }
 
 async function getUpdates(
@@ -342,8 +364,8 @@ async function getUpdates(
       timeout: timeoutSeconds,
       allowed_updates: ["message"],
     }),
-    // Chờ dài hơn timeout của Telegram để không tự cắt ngay trước khi có tin.
-    signal: AbortSignal.timeout((timeoutSeconds + 15) * 1_000),
+    // Chờ dài hơn timeout của Telegram để không tự cắt ngay trước khi có tin; tắt máy thì huỷ ngay.
+    signal: AbortSignal.any([AbortSignal.timeout((timeoutSeconds + 15) * 1_000), dungPolling.signal]),
   });
 
   const body = (await response.json()) as {
@@ -419,7 +441,12 @@ async function handleUpdate(update: TelegramUpdate): Promise<void> {
  *
  * Gọi một lần lúc khởi động worker. Không trả về; tự hồi phục sau lỗi mạng.
  */
-export async function startTelegramPolling(): Promise<void> {
+export function startTelegramPolling(): Promise<void> {
+  vongPolling = chayVongPolling();
+  return vongPolling;
+}
+
+async function chayVongPolling(): Promise<void> {
   const token = env.telegram.botToken;
   if (!token) {
     console.warn(
@@ -476,6 +503,7 @@ export async function startTelegramPolling(): Promise<void> {
         }
       }
     } catch (error) {
+      if (pollingStopped) break;
       const message = error instanceof Error ? error.message : String(error);
 
       /*
@@ -487,12 +515,12 @@ export async function startTelegramPolling(): Promise<void> {
           "[telegram] Có tiến trình khác đang nhận tin của cùng bot này. " +
             "Chỉ được BẬT MỘT bản: đặt TELEGRAM_POLLING=false ở các bản còn lại."
         );
-        await new Promise((resolve) => setTimeout(resolve, 60_000));
+        await ngu(60_000);
         continue;
       }
 
       console.error(`[telegram] Lỗi khi nhận tin: ${message}`);
-      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      await ngu(backoffMs);
       backoffMs = Math.min(backoffMs * 2, 60_000);
     }
   }
