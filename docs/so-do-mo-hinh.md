@@ -136,7 +136,12 @@ mở bộ não của cửa hàng để dạy AI.
 
 - AI: tính theo từng lượt, gắn cửa hàng.
 - Kênh: nhà cung cấp tính theo từng kênh đang nối mỗi ngày; sổ theo ngày chia đúng cửa hàng.
-  "Khớp 100% hoá đơn" là ĐÍCH — CHƯA ĐẠT (Telegram báo lệch 8,07 USD lặp lại từ 12/10).
+  "Khớp 100% hoá đơn": AI — ĐẠT (đối soát chỉ đọc 23/10: nhà cung cấp AI 18,992324 USD = sổ đã chốt 10,844980 + đang chờ
+  chốt 0,074035 + chi ngoài sổ đã đối chiếu 8,073310 → phần lệch 0). Khoản "lệch 8,07 USD" Telegram báo 17–22/10 là TIỀN AI
+  (không phải tiền kênh): nghiên cứu AI Điều hành 05–09/10 chạy thẳng bằng khoá của app = 7,890923 + 0,1823866 =
+  8,0733096, ghi vào chi ngoài sổ 22/10 (061) — từ đó không còn cảnh báo. Kênh: sổ app tính GỘP theo kênh-ngày (vd. 5,80 USD
+  05–23/10); hoá đơn nhà cung cấp kỳ này 0 USD vì tín dụng miễn phí 12 USD/tháng (tài liệu "Free-tier credit") — hai số
+  khác nhau là đúng nghĩa, không phải lệch.
 - Quảng cáo: tiền đọc qua Facebook theo Fanpage của cửa hàng. Lệnh thao tác chiến dịch đúng tài liệu nhà cung cấp và kiểm
   chiến dịch thuộc tài khoản quảng cáo của shop trước khi đổi / đọc (đạt). Tài khoản quảng cáo THEO CỬA HÀNG — ĐẠT về mã (A4b, 25afb05), chưa thử thật (TD-22).
   Không có nút "Kết thúc" (chốt 18/10 — chỉ Tạm dừng). Ngân sách tầng nhóm (ABO) chưa sửa được trong app (TD-13).
