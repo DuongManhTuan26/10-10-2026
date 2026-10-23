@@ -509,7 +509,7 @@ async function docBaiHenGioDaGiao(userId: number, id: string): Promise<BaiHenGio
   }
   return bai as BaiHenGio & { platform_post_ref: string };
 }
-export const LOI_DA_KIP_DANG = "Bài đã kịp lên kênh nên không đổi được lịch. Vui lòng bấm \"Kiểm tra kết quả thật\" để cập nhật.";
+export const LOI_DA_KIP_DANG = "Bài đã kịp lên kênh hoặc nền tảng không chấp nhận giờ mới, lịch cũ giữ nguyên. Vui lòng bấm \"Kiểm tra kết quả thật\" để cập nhật";
 export const LOI_KHONG_CON_BEN_NCC = "Lịch của bài này không còn trên nền tảng — bài chưa đăng. Vui lòng hẹn lại.";
 /** Nhà cung cấp có thể đã cầm bài đi đăng khi sát giờ — đổi lịch phải cách giờ hiện tại ít nhất chừng này (cả giao diện). */
 export const GAN_NHAT_PHUT = 5;
@@ -535,14 +535,21 @@ postsRouter.post(
     } catch (error) {
       const status = error instanceof zernio.ZernioError ? error.status : 0;
       if (status === 404) {
+        // Có điều kiện như mọi lần ghi sau khi gọi nhà cung cấp (không ghi đè trạng thái vừa đổi).
         const hong = await queryOne(
-          "UPDATE posts SET status = 'failed', platform_post_ref = NULL, last_error = $2, updated_at = now() WHERE id = $1 RETURNING *",
-          [bai.id, LOI_KHONG_CON_BEN_NCC]
+          `UPDATE posts SET status = 'failed', platform_post_ref = NULL, last_error = $2, updated_at = now()
+            WHERE id = $1 AND status = 'scheduled' AND platform_post_ref = $3 RETURNING *`,
+          [bai.id, LOI_KHONG_CON_BEN_NCC, bai.platform_post_ref]
         );
+        if (!hong) throw new AppError(LOI_VUA_DOI, 409);
         res.status(409).json({ success: false, error: LOI_KHONG_CON_BEN_NCC, data: anMediaTrongBai(hong) });
         return;
       }
-      if (status === 400) throw new AppError(LOI_DA_KIP_DANG, 409);
+      // 400: tài liệu — bài không phải nháp chạy lại kiểm tra như lúc tạo; đã đăng HOẶC nền tảng không nhận giờ mới.
+      if (status === 400) {
+        const lyDo = error instanceof Error && error.message ? ` (nền tảng báo: ${error.message.slice(0, 200)})` : "";
+        throw new AppError(`${LOI_DA_KIP_DANG}${lyDo}`, 409);
+      }
       throw new AppError("Chưa đổi được lịch trên nền tảng. Lịch cũ vẫn giữ nguyên. Vui lòng thử lại sau ít phút.", 502);
     }
     // Có điều kiện: webhook "đã đăng" / don-lich có thể vừa đổi bài trong lúc gọi nhà cung cấp — không ghi đè.

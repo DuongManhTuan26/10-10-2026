@@ -5824,7 +5824,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "đổi lịch ghi giờ mới khi nhà cung cấp báo đã kịp đăng",
     tep: "server/routes/posts.ts",
-    tim: "      if (status === 400) throw new AppError(LOI_DA_KIP_DANG, 409);\n",
+    tim: "        throw new AppError(`${LOI_DA_KIP_DANG}${lyDo}`, 409);\n",
     thay: "",
   },
   {
@@ -5856,6 +5856,12 @@ const DUC: PhepDuc[] = [
     tep: "server/routes/posts.ts",
     tim: "    if (luc.getTime() < Date.now() + GAN_NHAT_PHUT * 60_000) throw new AppError(LOI_QUA_GAN);\n",
     thay: "    if (luc.getTime() <= Date.now()) throw new AppError(LOI_QUA_GAN);\n",
+  },
+  {
+    ten: "đổi lịch 404 ghi đè trạng thái vừa đổi",
+    tep: "server/routes/posts.ts",
+    tim: "            WHERE id = $1 AND status = 'scheduled' AND platform_post_ref = $3 RETURNING *`,\n          [bai.id, LOI_KHONG_CON_BEN_NCC, bai.platform_post_ref]",
+    thay: "            WHERE id = $1 RETURNING *`,\n          [bai.id, LOI_KHONG_CON_BEN_NCC, bai.platform_post_ref]",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

@@ -6439,7 +6439,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("H6 đổi / huỷ lịch", "máy chủ đổi lịch: chốt cửa ra → gọi nhà cung cấp → MỚI ghi giờ mới; 400 / 404 / lỗi khác không ghi giờ mới",
     [doiLich.indexOf("await chanCuaRa(") >= 0 && doiLich.indexOf("await chanCuaRa(") < doiLich.indexOf("await zernio.doiLichBai(") &&
         doiLich.indexOf("await zernio.doiLichBai(") < doiLich.indexOf("UPDATE posts SET scheduled_for = $2"),
-      /if \(status === 400\) throw new AppError\(LOI_DA_KIP_DANG, 409\);/.test(doiLich),
+      /if \(status === 400\) \{\s*const lyDo = [^\n]*\n\s*throw new AppError\(`\$\{LOI_DA_KIP_DANG\}\$\{lyDo\}`, 409\);/.test(doiLich) && /WHERE id = \$1 AND status = 'scheduled' AND platform_post_ref = \$3 RETURNING \*`,\s*\[bai\.id, LOI_KHONG_CON_BEN_NCC, bai\.platform_post_ref\]\s*\);\s*if \(!hong\) throw new AppError\(LOI_VUA_DOI, 409\);/.test(doiLich),
       /throw new AppError\("Chưa đổi được lịch trên nền tảng\. Lịch cũ vẫn giữ nguyên/.test(doiLich)],
     [true, true, true]);
   kiem("H6 đổi / huỷ lịch", "máy chủ huỷ lịch: xoá bên nhà cung cấp TRƯỚC (404 = đã huỷ; 400 / lỗi khác → báo, KHÔNG đổi DB) rồi bài về đúng chỗ, bỏ mã + giờ + mốc tự đăng",
