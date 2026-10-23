@@ -2,7 +2,7 @@
  * Phụ thuộc THẬT của bộ xoá (services/xoa-tai-khoan.ts): database + nhà cung cấp. Tách riêng để phần thứ tự lệnh thử
  * được bằng hàm giả trong bộ kiểm tra.
  */
-import { query } from "../db.js";
+import { query, transaction } from "../db.js";
 import * as zernio from "./zernio.js";
 import { ghiKenhTheoNgay } from "./trang.js";
 import { khoaTaiKhoan as khoaTaiKhoanChung } from "./tai-khoan-mo.js";
@@ -17,6 +17,38 @@ export async function lietKeKenhHoSo(profileId: string): Promise<KenhNcc[]> {
     ten: a.displayName || a.username || a._id,
     dangNoi: !(a.needsReconnection === true || a.isActive === false || a.enabled === false),
   }));
+}
+
+/*
+ * XOÁ TÀI KHOẢN = XOÁ DỮ LIỆU (sơ đồ mục 1). Phần lớn bảng xoá theo khoá ngoại ON DELETE CASCADE từ users / trang; các bảng
+ * dưới đây KHÔNG có khoá ngoại (sổ ghi theo user_id) nên phải xoá tay — bỏ sót từ 041–060 tới 23/10/2026 (mục 11a).
+ * Mọi bảng có cột user_id phải thuộc: khoá ngoại xoá theo, BANG_XOA_THEM, BANG_SAO_LUU hoặc BANG_GIU (phép kiểm khoá).
+ */
+export const BANG_XOA_THEM = ["de_xuat_dieu_hanh", "so_loi_ai", "so_thay_doi", "so_bai_ngay", "hoi_thoai_cham"] as const;
+/** Bảng sao lưu của migration (bản sao đầy đủ, có dữ liệu khách) — xoá dòng của tài khoản nếu bảng còn. */
+export const BANG_SAO_LUU = [
+  "posts_truoc_057", "conversations_truoc_058", "customers_truoc_059", "comments_truoc_059", "auto_scripts_truoc_059",
+  "handoff_rules_truoc_060", "send_attempts_truoc_060",
+] as const;
+/** CỐ Ý GIỮ sau khi xoá tài khoản — sổ TIỀN, phải khớp hoá đơn nhà cung cấp kể cả khi tài khoản không còn. */
+export const BANG_GIU: Record<string, string> = {
+  kenh_trang_ngay: "migration 041: tiền kênh chia theo ngày ở từng cửa hàng — 'Giữ cả khi kênh/tài khoản đã xoá'",
+  ai_usage: "sổ tiền AI — đối chiếu nhà cung cấp tính cả lượt của tài khoản đã xoá (chi-phi.ts: user_id không còn)",
+};
+
+/** Xoá mọi dữ liệu của tài khoản trong MỘT giao dịch có sẵn (kịch bản thử tự hoàn tác gọi đúng hàm này). */
+export async function xoaDuLieuTaiKhoan(
+  c: { query: <T extends Record<string, unknown> = Record<string, unknown>>(sql: string, ts?: unknown[]) => Promise<{ rows: T[] }> },
+  userId: number
+): Promise<void> {
+  // users TRƯỚC: xoá dây chuyền chạy trigger ghi so_thay_doi (dòng "xoá" của ai_configs, tài liệu…) — xoá sổ SAU
+  // mới không còn dòng sinh ra trong lúc xoá.
+  await c.query("DELETE FROM users WHERE id = $1", [userId]);
+  for (const bang of BANG_XOA_THEM) await c.query(`DELETE FROM ${bang} WHERE user_id = $1`, [userId]);
+  for (const bang of BANG_SAO_LUU) {
+    const co = await c.query<{ co: boolean }>("SELECT to_regclass($1) IS NOT NULL AS co", [`public.${bang}`]);
+    if (co.rows[0]?.co) await c.query(`DELETE FROM ${bang} WHERE user_id = $1`, [userId]);
+  }
 }
 
 export const la404NhaCungCap = (e: unknown) => e instanceof zernio.ZernioError && e.status === 404;
@@ -57,7 +89,7 @@ export const phuThuocXoaThat: PhuThuocXoa = {
   ngatKenh: (id) => zernio.disconnectAccount(id),
   xoaHoSo: (id) => zernio.xoaHoSo(id),
   async xoaTaiKhoan(userId) {
-    await query("DELETE FROM users WHERE id = $1", [userId]);
+    await transaction((c) => xoaDuLieuTaiKhoan(c, userId));
   },
   la404: la404NhaCungCap,
 };

@@ -5455,6 +5455,36 @@ const DUC: PhepDuc[] = [
     thay: "year",
   },
   {
+    ten: "xoá tài khoản để sót sổ thay đổi",
+    tep: "server/services/xoa-tai-khoan-that.ts",
+    tim: "\"so_loi_ai\", \"so_thay_doi\", \"so_bai_ngay\"",
+    thay: "\"so_loi_ai\", \"so_bai_ngay\"",
+  },
+  {
+    ten: "xoá tài khoản để sót bảng sao lưu khách",
+    tep: "server/services/xoa-tai-khoan-that.ts",
+    tim: " \"customers_truoc_059\",",
+    thay: "",
+  },
+  {
+    ten: "xoá sổ TRƯỚC khi xoá users (trigger ghi lại sổ)",
+    tep: "server/services/xoa-tai-khoan-that.ts",
+    tim: "  await c.query(\"DELETE FROM users WHERE id = $1\", [userId]);\n  for (const bang of BANG_XOA_THEM) await c.query(`DELETE FROM ${bang} WHERE user_id = $1`, [userId]);",
+    thay: "  for (const bang of BANG_XOA_THEM) await c.query(`DELETE FROM ${bang} WHERE user_id = $1`, [userId]);\n  await c.query(\"DELETE FROM users WHERE id = $1\", [userId]);",
+  },
+  {
+    ten: "xoá luôn sổ tiền kênh khi xoá tài khoản",
+    tep: "server/services/xoa-tai-khoan-that.ts",
+    tim: "export const BANG_XOA_THEM = [\"de_xuat_dieu_hanh\",",
+    thay: "export const BANG_XOA_THEM = [\"kenh_trang_ngay\", \"de_xuat_dieu_hanh\",",
+  },
+  {
+    ten: "thẻ kịch bản bỏ ghi chú 7 ngày",
+    tep: "src/pages/AutoScripts.tsx",
+    tim: " <span className=\"text-[11px]\">(trong 7 ngày sau tin riêng)</span>",
+    thay: "",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

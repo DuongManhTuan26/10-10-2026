@@ -7570,8 +7570,10 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /o\.origin = 'binh_luan' AND o\.status <> 'cancelled'/.test(st17), /a\.platform, \$\{SQL_PHAN_HOI\} AS phan_hoi/.test(st17),
       /k\.participant_id = cm\.author_id/.test(ab17) && /m\.sent_at >= cm\.private_replied_at AND m\.sent_at < cm\.private_replied_at \+ interval '7 days'/.test(ab17),
       /stats\?\.replied/.test(as17), /\{Number\(script\.phan_hoi \?\? 0\)\}/.test(as17),
-      /Trả lời sau \$\{giayTraLoiCongKhai\(script\.public_reply_delay_seconds, script\.delay_seconds\)\} giây/.test(as17)],
-    [true, true, true, true, false, true, true]);
+      /Trả lời sau \$\{giayTraLoiCongKhai\(script\.public_reply_delay_seconds, script\.delay_seconds\)\} giây/.test(as17),
+      // Số "khách phản hồi" có cửa sổ 7 ngày — thẻ nói rõ để không hiểu nhầm (phiên kiểm duyệt dặn 23/10/2026).
+      /Khách phản hồi <span className="text-\[11px\]">\(trong 7 ngày sau tin riêng\)<\/span>/.test(as17)],
+    [true, true, true, true, false, true, true, true]);
   // Mọi "(SELECT count(*) FROM orders …)" là số ĐƠN THẬT (bỏ huỷ) — trừ mức dùng Gói dịch vụ (tính theo lượt tạo đơn).
   const thieuHuy = tepMay17.flatMap((t) => [...boChuThich(fs.readFileSync(t, "utf8")).matchAll(/\(SELECT (?:COUNT|count)\(\*\)(?:::int)? FROM orders\b[^)]*\)/g)]
     .filter((m) => !/cancelled/.test(m[0])).map(() => path.relative(GOC, t)));
@@ -7587,6 +7589,38 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /getFullYear|getMonth|getDate/.test(or17),
       or17.search(/pg_advisory_xact_lock\(hashtext\(\$1\)\)/) > 0 && or17.search(/pg_advisory_xact_lock\(hashtext\(\$1\)\)/) < or17.search(/const code = await soDonTiepTheo\(/)],
     [true, false, true]);
+}
+
+// ---------------------------------------------------------------------------
+// XOÁ TÀI KHOẢN = XOÁ DỮ LIỆU (mục 11a, 23/10/2026): mọi bảng có cột user_id phải được xoá theo (khoá ngoại ON DELETE
+// CASCADE) hoặc nằm trong danh sách xoá tay / sao lưu / giữ có lý do. Bảng mới mà quên xếp → hỏng.
+// ---------------------------------------------------------------------------
+{
+  const xt = await import("../server/services/xoa-tai-khoan-that.js");
+  const sql18 = fs.readdirSync(path.join(GOC, "server/migrations")).filter((t) => t.endsWith(".sql")).sort()
+    .map((t) => fs.readFileSync(path.join(GOC, "server/migrations", t), "utf8").replace(/--[^\n]*/g, "")).join("\n");
+  const coFk: Record<string, boolean> = {};
+  for (const m of sql18.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?(\w+)\s*\(([\s\S]*?)\n\);/g)) {
+    if (/^\s*user_id\b/m.test(m[2])) coFk[m[1]] = /user_id[^,\n]*REFERENCES users\s*\(id\)\s*ON DELETE CASCADE/.test(m[2]);
+  }
+  for (const m of sql18.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?(\w+) AS\s+SELECT([^;]*);/g)) if (/user_id/.test(m[2])) coFk[m[1]] = false;
+  for (const m of sql18.matchAll(/ALTER TABLE (\w+) ADD COLUMN (?:IF NOT EXISTS )?user_id\b([^;]*);/g)) coFk[m[1]] ??= /REFERENCES users/.test(m[2]);
+  const xepTay = new Set<string>([...xt.BANG_XOA_THEM, ...xt.BANG_SAO_LUU, ...Object.keys(xt.BANG_GIU)]);
+  const chuaXep = Object.entries(coFk).filter(([b, fk]) => !fk && !xepTay.has(b)).map(([b]) => b).sort();
+  const thua = [...xepTay].filter((b) => !(b in coFk) || coFk[b]).sort();
+  console.log(`  [xoá tài khoản] ${Object.keys(coFk).length} bảng có user_id: ${Object.values(coFk).filter(Boolean).length} xoá theo khoá ngoại, ${xepTay.size} xếp tay`);
+  const giaoNhau = [...xt.BANG_XOA_THEM, ...xt.BANG_SAO_LUU].filter((b) => b in xt.BANG_GIU);
+  kiem("xoá tài khoản", "mọi bảng có user_id: có khoá ngoại xoá theo, hoặc nằm trong danh sách xoá tay / sao lưu / giữ có lý do; danh sách không thừa bảng, không bảng nào vừa xoá vừa giữ",
+    [chuaXep, thua, Object.keys(xt.BANG_GIU).sort(), giaoNhau], [[], [], ["ai_usage", "kenh_trang_ngay"], []]);
+  const x18 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/xoa-tai-khoan-that.ts"), "utf8"));
+  // Nhật ký quản trị (016): dòng ghi CHÍNH việc xoá phải còn sau khi xoá — target_id không có khoá ngoại, bộ xoá không đụng.
+  const m016 = fs.readFileSync(path.join(GOC, "server/migrations/016_vai_tro_quan_tri.sql"), "utf8");
+  kiem("xoá tài khoản", "nhật ký quản trị giữ dấu vết việc xoá: target_id / target_email không khoá ngoại; bộ xoá không đụng admin_audit",
+    [/target_id\s+BIGINT,/.test(m016), /target_id[^,\n]*REFERENCES/.test(m016), /admin_audit/.test(boChuThich(fs.readFileSync(path.join(GOC, "server/services/xoa-tai-khoan-that.ts"), "utf8")))],
+    [true, false, false]);
+  kiem("xoá tài khoản", "một giao dịch: xoá users TRƯỚC (trigger sổ thay đổi chạy khi xoá dây chuyền) rồi mới xoá các sổ + bảng sao lưu còn tồn tại",
+    [/await transaction\(\(c\) => xoaDuLieuTaiKhoan\(c, userId\)\);/.test(x18) && /\): Promise<void> \{\s*await c\.query\("DELETE FROM users WHERE id = \$1", \[userId\]\);\s*for \(const bang of BANG_XOA_THEM\) await c\.query\(`DELETE FROM \$\{bang\} WHERE user_id = \$1`, \[userId\]\);\s*for \(const bang of BANG_SAO_LUU\) \{\s*const co = await c\.query<\{ co: boolean \}>\("SELECT to_regclass\(\$1\) IS NOT NULL AS co", \[`public\.\$\{bang\}`\]\);\s*if \(co\.rows\[0\]\?\.co\) await c\.query\(`DELETE FROM \$\{bang\} WHERE user_id = \$1`, \[userId\]\);/.test(x18)],
+    [true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

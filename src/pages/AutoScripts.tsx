@@ -1648,7 +1648,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
                     <span className="font-bold text-on-surface">— {Number(script.stats?.sent ?? 0)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-on-surface-variant">Khách phản hồi</span>
+                    <span className="text-on-surface-variant">Khách phản hồi <span className="text-[11px]">(trong 7 ngày sau tin riêng)</span></span>
                     <span className="font-bold text-primary">— {Number(script.phan_hoi ?? 0)}</span>
                   </div>
                 </div>
