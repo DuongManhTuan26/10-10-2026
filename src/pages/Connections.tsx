@@ -37,6 +37,11 @@ export default function Connections() {
   const navigate = useNavigate();
 
   const [connectStep, setConnectStep] = useState(0); // 0 = đóng, 1-4 = các bước
+  /**
+   * Mã KÊNH vừa tạo ở bước chọn Trang (select-pages trả về) — bước 4 liệt kê đúng các kênh này. Bản cũ lọc lại danh sách
+   * chọn Trang bằng mã Fanpage SAU KHI đã xoá danh sách đó → bước 4 luôn trống (kiểm toàn 23/10/2026, sơ đồ mục 5).
+   */
+  const [kenhVuaNoi, setKenhVuaNoi] = useState<string[]>([]);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   /*
@@ -663,6 +668,7 @@ export default function Connections() {
     setErrorMessage('');
     try {
       const { data } = await api.connections.selectPages(selectedPages);
+      setKenhVuaNoi(data.connected);
       // Kéo kênh vừa tạo về database của mình rồi mới sang bước cuối.
       const result = await api.connections.sync();
       setAccounts(result.data);
@@ -786,6 +792,7 @@ export default function Connections() {
     setConnectStep(0);
     setLoginSuccess(false);
     setSelectedPages([]);
+    setKenhVuaNoi([]);
   };
 
   /**
@@ -1681,13 +1688,13 @@ export default function Connections() {
                     
                     {selectedPlatform.connectionType === 'oauth_with_selection' && (
                       <div>
-                        <div className="text-sm text-on-surface-variant mb-4">Các {selectedPlatform.selectionLabel?.toLowerCase()} sẽ được kết nối:</div>
+                        <div className="text-sm text-on-surface-variant mb-4">Các {selectedPlatform.selectionLabel?.toLowerCase()} đã kết nối:</div>
                         <div className="space-y-3">
-                          {newlyConnectedPages.filter(p => selectedPages.includes(p.id)).map(page => (
-                            <div key={page.id} className="flex items-center gap-3">
+                          {accounts.filter((a) => kenhVuaNoi.includes(a.id)).map((a) => (
+                            <div key={a.id} className="flex items-center gap-3">
                               <span className="material-symbols-outlined text-primary text-[18px]">check_circle</span>
-                              <AnhDaiDien src={page.avatar} ten={page.name} lop="w-6 h-6 text-xs" />
-                              <span className="font-bold text-on-surface">{page.name}</span>
+                              <AnhDaiDien src={a.profile_picture ?? null} ten={a.display_name || a.username} lop="w-6 h-6 text-xs" />
+                              <span className="font-bold text-on-surface">{a.display_name || a.username}</span>
                             </div>
                           ))}
                         </div>
@@ -1695,15 +1702,8 @@ export default function Connections() {
                     )}
                   </div>
 
+                  {/* Không có "Quay lại": kênh đã được tạo ở bước 3 — quay lại chọn tiếp không huỷ được kênh vừa nối. */}
                   <div className="mt-8 flex gap-3">
-                    {selectedPlatform.connectionType === 'oauth_with_selection' && (
-                      <button 
-                        onClick={() => setConnectStep(3)}
-                        className="flex-1 py-3.5 px-4 bg-surface-container border border-outline-variant text-on-surface font-bold text-lg rounded-xl hover:bg-surface-variant transition-colors"
-                      >
-                        Quay lại
-                      </button>
-                    )}
                     <button 
                       onClick={handleFinishConnection}
                       className="flex-1 py-3.5 px-4 bg-primary text-on-primary font-bold text-lg rounded-xl hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"

@@ -24,7 +24,8 @@ export function docTinhTrang(t: TrangVanHanh): Viec[] {
   if (t.kenh_can_noi_lai > 0) {
     viec.push({ mucDo: 'hong', chu: `${t.kenh_can_noi_lai} kênh cần nối lại` });
   } else if (t.kenh_noi === 0) {
-    viec.push({ mucDo: 'canXem', chu: 'Chưa nối Fanpage nào' });
+    // kenh_noi đếm MỌI nền tảng → "kênh", không phải "Fanpage" (sơ đồ mục 7, kiểm toàn 23/10/2026).
+    viec.push({ mucDo: 'canXem', chu: 'Chưa nối kênh nào' });
   }
 
   /*

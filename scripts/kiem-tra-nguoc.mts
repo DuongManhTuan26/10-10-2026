@@ -5767,6 +5767,18 @@ const DUC: PhepDuc[] = [
     thay: "      <div>\n      <h3 className=\"tieu-de-muc\">Bài đăng</h3>",
   },
   {
+    ten: "chữ cũ 'Chưa nối Fanpage nào' quay lại",
+    tep: "src/components/TinhTrangTrang.tsx",
+    tim: "chu: 'Chưa nối kênh nào'",
+    thay: "chu: 'Chưa nối Fanpage nào'",
+  },
+  {
+    ten: "bước 4 nối Fanpage lại lọc danh sách đã xoá (trống)",
+    tep: "src/pages/Connections.tsx",
+    tim: "{accounts.filter((a) => kenhVuaNoi.includes(a.id)).map((a) => (",
+    thay: "{accounts.filter((a) => selectedPages.includes(a.id)).map((a) => (",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

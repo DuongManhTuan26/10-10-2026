@@ -7747,7 +7747,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("P2 thư viện + ảnh", "thư viện ảnh tải lại khi đổi cửa hàng; không còn ảnh đại diện từ ui-avatars.com (vẽ chữ cái tại chỗ)",
     [/\.then\(\(\{ data \}\) => !huy && setDs\(data\)\)[\s\S]{0,120}\}, \[activeTrangId\]\);/.test(tv20),
       fs.readdirSync(path.join(GOC, "src"), { recursive: true }).map(String).filter((t) => /\.tsx?$/.test(t) && /ui-avatars\.com/.test(boChuThich(fs.readFileSync(path.join(GOC, "src", t), "utf8")))),
-      (cn20.match(/<AnhDaiDien src=\{page\.avatar\} ten=\{page\.name\}/g) ?? []).length],
+      (cn20.match(/<AnhDaiDien src=\{(page\.avatar|a\.profile_picture \?\? null)\} ten=\{(page\.name|a\.display_name \|\| a\.username)\}/g) ?? []).length],
     [true, [], 2]);
   const pr20 = d20("src/pages/Pricing.tsx"), eb20 = d20("src/components/ErrorBoundary.tsx"), sb20 = d20("src/components/Sidebar.tsx"), od20 = d20("src/pages/Orders.tsx"), api20 = d20("src/lib/api.ts");
   const hu20 = fs.readdirSync(path.join(GOC, "src"), { recursive: true }).map(String).filter((t) => /\.tsx?$/.test(t) && /Hủy|hủy/.test(boChuThich(fs.readFileSync(path.join(GOC, "src", t), "utf8"))));
@@ -7808,6 +7808,23 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       (pr30.match(/className="khung-muc (mau-[a-z]+)[^"]*"/g) ?? []).map((x) => x.match(/mau-[a-z]+/)![0]),
       [tg30, ql30, pr30].map((x) => /bg-surface-container border border-outline-variant rounded-2xl p-[46]/.test(x))],
     [["mau-lam", "mau-lam", "mau-xam", "mau-lam", "mau-xam", "mau-lam"], ["mau-cam", "mau-xam", "mau-lam"], ["mau-lam"], [false, false, false]]);
+}
+
+// --- Kiểm toàn 23/10/2026: chữ cũ còn sót (sơ đồ mục 7).
+kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chưa nối kênh nào' (kenh_noi đếm mọi nền tảng), không còn 'Chưa nối Fanpage nào'",
+  [/chu: 'Chưa nối kênh nào'/.test(boChuThich(fs.readFileSync(path.join(GOC, "src/components/TinhTrangTrang.tsx"), "utf8"))),
+    /Chưa nối Fanpage nào/.test(boChuThich(fs.readFileSync(path.join(GOC, "src/components/TinhTrangTrang.tsx"), "utf8")))],
+  [true, false]);
+
+{
+  // Kiểm toàn 23/10/2026 (sơ đồ mục 5 "danh sách trống ở bước 4"): bước 4 liệt kê đúng các KÊNH select-pages vừa tạo.
+  const cnKt = boChuThich(fs.readFileSync(path.join(GOC, "src/pages/Connections.tsx"), "utf8"));
+  const buoc4 = cnKt.slice(cnKt.indexOf("{connectStep === 4 && selectedPlatform"), cnKt.indexOf("Hoàn tất kết nối"));
+  kiem("kiểm toàn bước 4", "nối Fanpage: bước 4 lấy kênh vừa tạo (data.connected), không lọc lại danh sách đã xoá; chữ 'đã kết nối'; không có 'Quay lại' sau khi kênh đã tạo",
+    [/const \{ data \} = await api\.connections\.selectPages\(selectedPages\);\s*setKenhVuaNoi\(data\.connected\);/.test(cnKt),
+      /accounts\.filter\(\(a\) => kenhVuaNoi\.includes\(a\.id\)\)/.test(buoc4), /newlyConnectedPages/.test(buoc4),
+      /đã kết nối:/.test(buoc4) && !/sẽ được kết nối/.test(buoc4), /setConnectStep\(3\)/.test(buoc4)],
+    [true, true, false, true, false]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);
