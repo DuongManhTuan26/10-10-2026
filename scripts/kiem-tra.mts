@@ -6624,9 +6624,61 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
 
   const tr = d4("server/services/trang.ts");
   kiem("2b kịch bản", "kênh RỜI cửa hàng → tắt kịch bản của cửa hàng cũ trên kênh đó (ghi lý do), CÙNG giao dịch với đổi nhiệm kỳ; quay về không tự bật",
-    [/const doi = await doiNhiemKy\(k, \{ accountId, userId, trangMoi: trangId \}\);\s*[\s\S]{0,300}if \(doi\.daDong\?\.trang_id != null\) \{\s*await k\.query\(\s*`UPDATE auto_scripts SET is_active = FALSE, tat_ly_do = \$3/.test(tr),
+    [/const doi = await doiNhiemKy\(k, \{ accountId, userId, trangMoi: trangId \}\);\s*[\s\S]{0,300}if \(doi\.daDong\?\.trang_id != null\) await tatKichBanKenhRoi\(k, accountId, doi\.daDong\.trang_id, "Kênh đã rời cửa hàng"\);/.test(tr) &&
+        /async function tatKichBanKenhRoi\([\s\S]{0,200}await k\.query\(\s*`UPDATE auto_scripts SET is_active = FALSE, tat_ly_do = \$3/.test(tr),
       /WHERE social_account_id = \$1 AND trang_id = \$2 AND is_active`/.test(tr), /is_active = TRUE/.test(tr)],
     [true, true, false]);
+  {
+    // 064 — CHỦ SHOP GỠ KÊNH = NGHỈ VIỆC (phiên kiểm duyệt duyệt 23/10/2026). Hành vi thật: scripts/thu-064-hoan-tac.mts.
+    const goTrong = tr.slice(tr.indexOf("export async function goKenhTrong("), tr.indexOf("export async function goKenh("));
+    const go = tr.slice(tr.indexOf("export async function goKenh("), tr.indexOf("/*", tr.indexOf("export async function goKenh(")));
+    kiem("064 gỡ kênh", "goKenhTrong: đánh dấu go_luc + bỏ 'cần nối lại' (giữ trang_id) → đóng nhiệm kỳ → tắt kịch bản 'Kênh đã ngắt kết nối'; goKenh: giao dịch rồi MỚI gỡ lịch",
+      [/SET connected = FALSE, needs_reconnection = FALSE, go_luc = now\(\), updated_at = now\(\)/.test(goTrong) && !/trang_id\s*=/.test(goTrong.split("WHERE")[0]),
+        /const daDong = await dongNhiemKy\(k, accountId\);\s*if \(daDong\?\.trang_id != null\) await tatKichBanKenhRoi\(k, accountId, daDong\.trang_id, "Kênh đã ngắt kết nối"\);/.test(goTrong),
+        /await transaction\(\(k\) => goKenhTrong\(k, accountId, userId\)\);\s*await donLichKenhDaRoi\(userId\)\.catch\(/.test(go)],
+      [true, true, true]);
+    const nkk = d4("server/services/nhiem-ky.ts");
+    kiem("064 gỡ kênh", "dongNhiemKy chỉ đóng nhiệm kỳ đang mở, KHÔNG mở nhiệm kỳ mới",
+      [/UPDATE kenh_nhiem_ky SET den_luc = now\(\) WHERE account_id = \$1 AND den_luc IS NULL RETURNING id, trang_id/.test(nkk),
+        /INSERT INTO kenh_nhiem_ky/.test(nkk.slice(nkk.indexOf("export async function dongNhiemKy("), nkk.indexOf("/** Điều kiện SQL: hội thoại thuộc nhiệm kỳ còn mở")))],
+      [true, false]);
+    const cn = d4("server/routes/connections.ts");
+    const xoaKenh = cn.slice(cn.indexOf('connectionsRouter.delete(\n  "/accounts/:id"'));
+    kiem("064 gỡ kênh", "DELETE /accounts/:id: nhà cung cấp gỡ TRƯỚC rồi goKenh; không còn UPDATE connected trơn",
+      [/await zernio\.disconnectAccount\(account\.id\);\s*await goKenh\(account\.id, req\.user!\.id\);/.test(xoaKenh),
+        /UPDATE social_accounts SET connected = FALSE/.test(xoaKenh.slice(0, xoaKenh.indexOf("res.json")))],
+      [true, false]);
+    kiem("064 gỡ kênh", "3 câu liệt kê kênh ở màn Kết nối đều ẩn kênh đã gỡ (go_luc IS NULL)",
+      [/FROM social_accounts WHERE user_id = \$1 AND go_luc IS NULL`,\s*\[req\.user!\.id\]/.test(cn),
+        /WHERE user_id = \$1 AND go_luc IS NULL\s*ORDER BY platform, display_name`,\s*\[req\.user!\.id\]/.test(cn),
+        /FROM social_accounts WHERE user_id = \$1 AND go_luc IS NULL ORDER BY platform, display_name`,\s*\[user\.id\]/.test(cn)],
+      [true, true, true]);
+    const acc = d4("server/services/accounts.ts");
+    kiem("064 gỡ kênh", "đồng bộ: kênh có lại trong danh sách nhà cung cấp → go_luc = NULL (ON CONFLICT), trước khi ganKenhVaoTrang",
+      /ON CONFLICT \(id\) DO UPDATE SET[\s\S]*?go_luc\s*= NULL,[\s\S]*?\[\s*account\._id,[\s\S]*?ganKenhVaoTrang\(account\._id, userId, trangId\)/.test(acc), true);
+    const ev = d4("server/services/events.ts");
+    const doiTk = ev.slice(ev.indexOf("async function handleAccountChange("), ev.indexOf("const result = await query(", ev.indexOf("async function handleAccountChange(")));
+    kiem("064 gỡ kênh", "webhook tài khoản trên kênh đã gỡ: connected → đồng bộ đầy đủ (mở nhiệm kỳ mới); disconnected → bỏ qua; KHÔNG bật connected trơn",
+      [/WHERE id = \$1 AND go_luc IS NOT NULL/.test(doiTk),
+        /if \(daGo\) \{\s*if \(connected && daGo\.profile_ref\) \{\s*const count = await syncAccountsForUser\(daGo\.user_id, daGo\.profile_ref\);[\s\S]*?\}\s*return;\s*\}/.test(doiTk)],
+      [true, true]);
+    const tq = d4("server/services/tong-quan.ts");
+    kiem("064 gỡ kênh", "Tổng quan VẪN đọc kênh đã gỡ (tiền kênh trong kỳ) nhưng chỉ hiện khi có tiền, không như kênh đang chạy",
+      [/s\.page_id, s\.go_luc\s*FROM social_accounts s JOIN users u ON u\.id = s\.user_id WHERE \$\{trongPhamVi\} ORDER BY s\.created_at`/.test(tq),
+        /if \(k\.go_luc\) \{[\s\S]{0,200}if \(tien\) t\.kenh\.push\(\{[\s\S]{0,120}?\(đã ngắt kết nối\)`, dangNoi: false, canNoiLai: false/.test(tq)],
+      [true, true]);
+    const cnx = d4("src/pages/Connections.tsx");
+    const hoiNgat = cnx.slice(cnx.indexOf("const handleDisconnectPage = async"), cnx.indexOf("const allPlatforms ="));
+    kiem("064 gỡ kênh", "hộp hỏi Ngắt kết nối: kiểu nguy hiểm, đọc hậu quả từ máy chủ, nói hội thoại chỉ xem / kịch bản tắt / bài hẹn giờ gỡ lịch / nối lại là bắt đầu lại",
+      [/nguyHiem: true/.test(hoiNgat), /await api\.connections\.hauQuaChuyenKenh\(accountId\)/.test(hoiNgat),
+        /hội thoại cũ chỉ còn xem lịch sử/.test(hoiNgat) && /kịch bản bình luận trên kênh này sẽ tắt/.test(hoiNgat) &&
+          /bài hẹn giờ trên kênh này sẽ bị gỡ lịch/.test(hoiNgat) && /Kết nối lại sau này là bắt đầu lại từ đầu/.test(hoiNgat)],
+      [true, true, true]);
+    kiem("064 gỡ kênh", "migration 064 chỉ THÊM cột rỗng, không sửa dòng nào",
+      [/ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS go_luc TIMESTAMPTZ;/.test(d4("server/migrations/064_go_kenh.sql")),
+        /\b(UPDATE|DELETE|INSERT)\b/.test(d4("server/migrations/064_go_kenh.sql").replace(/--.*$/gm, ""))],
+      [true, false]);
+  }
   const st = d4("server/routes/settings.ts");
   kiem("2b kịch bản", "danh sách kịch bản theo cửa hàng đang chọn; tạo kịch bản gắn cửa hàng đang chọn, kênh phải thuộc cửa hàng (kiểm TRƯỚC khi ghi)",
     [/WHERE s\.user_id = \$1 AND s\.trang_id = \$2 ORDER BY s\.created_at DESC`,\s*\[req\.user!\.id, trang\]/.test(st),
@@ -6732,9 +6784,16 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   // ĐIỀU KIỆN 5 (phiên kiểm duyệt): chỉ chọn bài có kênh đích ĐÃ RỜI cửa hàng của bài.
   const { CHON_BAI_KENH_DA_ROI, donLichKenhDaRoi } = await import("../server/services/don-lich.js");
   kiem("3 gỡ lịch", "câu chọn: CHỈ bài 'scheduled' đã giao nhà cung cấp CÓ kênh đích hiện không thuộc cửa hàng của bài",
-    [gom(CHON_BAI_KENH_DA_ROI).includes("WHERE p.user_id = $1 AND p.status = 'scheduled' AND p.platform_post_ref IS NOT NULL AND EXISTS (SELECT 1 FROM social_accounts s WHERE s.user_id = p.user_id AND s.id = ANY(p.target_account_ids) AND s.trang_id IS DISTINCT FROM p.trang_id)"),
+    [gom(CHON_BAI_KENH_DA_ROI).includes("WHERE p.user_id = $1 AND p.status = 'scheduled' AND p.platform_post_ref IS NOT NULL AND EXISTS (SELECT 1 FROM social_accounts s WHERE s.user_id = p.user_id AND s.id = ANY(p.target_account_ids) AND (s.trang_id IS DISTINCT FROM p.trang_id OR s.go_luc IS NOT NULL))"),
       (gom(CHON_BAI_KENH_DA_ROI).match(/WHERE/g) ?? []).length],
-    [true, 3]);
+    [true, 4]);
+  // 064: kênh chủ shop gỡ GIỮ trang_id → nhánh riêng kenh_go (cùng cửa hàng + go_luc); lý do nói đúng việc từng kênh.
+  kiem("064 gỡ lịch", "kenh_go = kênh cùng cửa hàng mà chủ shop đã gỡ; lý do ghép đúng 'rời cửa hàng' / 'ngắt kết nối'",
+    [gom(CHON_BAI_KENH_DA_ROI).includes("AND s.trang_id IS NOT DISTINCT FROM p.trang_id AND s.go_luc IS NOT NULL) AS kenh_go"),
+      (await import("../server/services/don-lich.js")).moTaKenhRoi(["A"], []),
+      (await import("../server/services/don-lich.js")).moTaKenhRoi([], ["B"]),
+      (await import("../server/services/don-lich.js")).moTaKenhRoi(["A"], ["B", "C"])],
+    [true, "Kênh A đã rời cửa hàng", "Kênh B đã ngắt kết nối", "Kênh A đã rời cửa hàng; kênh B, C đã ngắt kết nối"]);
   {
     // Hành vi với kết nối + nhà cung cấp mô phỏng: xoá được → failed; 404 → coi như đã gỡ; 400 / lỗi khác → giữ, ghi lý do.
     const { ZernioError } = await import("../server/services/zernio.js");
@@ -6759,7 +6818,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       [{ daGo: [1, 3], loi: [2, 4] }, [[1, true, "go"], [2, false, "kip"], [3, true, "go"], [4, false, "lai"]]]);
   }
   const thanGan = tr.slice(tr.indexOf("export async function ganKenhVaoTrang("), tr.indexOf("export async function ganKenhVaoTrangTrong("));
-  const thanGanTrong = tr.slice(tr.indexOf("export async function ganKenhVaoTrangTrong("), tr.indexOf("export async function hoSoCuaTaiKhoan("));
+  const thanGanTrong = tr.slice(tr.indexOf("export async function ganKenhVaoTrangTrong("), tr.indexOf("async function tatKichBanKenhRoi("));
   kiem("3 gỡ lịch", "gọi SAU giao dịch đổi cửa hàng (chỉ khi kênh vừa rời một cửa hàng), KHÔNG trong giao dịch; mỗi lượt đồng bộ gọi lại (lưới an toàn)",
     [/const daRoiTrang = await transaction\(\(k\) => ganKenhVaoTrangTrong\(k, accountId, userId, trangId\)\);[\s\S]*?if \(daRoiTrang != null\) \{\s*await donLichKenhDaRoi\(userId\)\.catch\(/.test(thanGan),
       /donLichKenhDaRoi/.test(thanGanTrong), /return doi\.daDong\?\.trang_id \?\? null;/.test(thanGanTrong),

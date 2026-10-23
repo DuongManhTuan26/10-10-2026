@@ -11,7 +11,7 @@ import { ghiNhatKyQuanTri } from "../services/nhat-ky-quan-tri.js";
 import { lietKeKenhHoSo, phuThuocXoaThat } from "../services/xoa-tai-khoan-that.js";
 import { chanNeuThemFanpage } from "../services/gioi-han.js";
 import {
-  chuCuaHoSo, ghiKenhTheoNgay, hauQuaChuyenKenh, hoSoCuaCuaHang, taoTrangMoi, trangChuyenDuoc, trangCuaTaiKhoan,
+  chuCuaHoSo, ghiKenhTheoNgay, goKenh, hauQuaChuyenKenh, hoSoCuaCuaHang, taoTrangMoi, trangChuyenDuoc, trangCuaTaiKhoan,
 } from "../services/trang.js";
 import {
   socialChannels,
@@ -50,7 +50,7 @@ connectionsRouter.get(
       needs_reconnection: boolean;
     }>(
       `SELECT id, platform, display_name, connected, needs_reconnection
-         FROM social_accounts WHERE user_id = $1`,
+         FROM social_accounts WHERE user_id = $1 AND go_luc IS NULL`,
       [req.user!.id]
     );
 
@@ -114,7 +114,8 @@ connectionsRouter.get(
               last_synced_at, created_at, trang_id,
               (SELECT t.ten FROM trang t WHERE t.id = social_accounts.trang_id) AS trang_ten
          FROM social_accounts
-        WHERE user_id = $1
+        -- Kênh chủ shop đã gỡ (064) không hiện nữa; hội thoại / bài cũ của nó vẫn đọc được ở chỗ xem lịch sử.
+        WHERE user_id = $1 AND go_luc IS NULL
         ORDER BY platform, display_name`,
       [req.user!.id]
     );
@@ -427,7 +428,7 @@ connectionsRouter.post(
       `SELECT id, platform, username, display_name, profile_picture, profile_url,
               followers_count, connected, needs_reconnection, token_expires_at,
               trang_id, (SELECT t.ten FROM trang t WHERE t.id = social_accounts.trang_id) AS trang_ten
-         FROM social_accounts WHERE user_id = $1 ORDER BY platform, display_name`,
+         FROM social_accounts WHERE user_id = $1 AND go_luc IS NULL ORDER BY platform, display_name`,
       [user.id]
     );
 
@@ -864,12 +865,12 @@ connectionsRouter.delete(
       throw new AppError("Không tìm thấy tài khoản này", 404);
     }
 
+    // Nhà cung cấp gỡ TRƯỚC (lỗi → báo lỗi, không đổi gì). Rồi "nghỉ việc" trong app: đóng nhiệm kỳ, tắt kịch bản, gỡ lịch
+    // bài hẹn giờ (services/trang.ts goKenh). Giao dịch lỗi sau khi nhà cung cấp đã gỡ (hiếm) → lượt đồng bộ sau đánh dấu
+    // mất kết nối như cũ.
     await zernio.disconnectAccount(account.id);
-    await query(
-      `UPDATE social_accounts SET connected = FALSE, updated_at = now() WHERE id = $1`,
-      [account.id]
-    );
+    await goKenh(account.id, req.user!.id);
 
-    res.json({ success: true, message: "Đã ngắt kết nối" });
+    res.json({ success: true, message: "Đã ngắt kết nối. Hội thoại cũ của kênh này vẫn xem được trong Hộp thư." });
   })
 );

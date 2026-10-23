@@ -4220,8 +4220,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "2b: kênh rời mà kịch bản của cửa hàng cũ không tắt",
     tep: "server/services/trang.ts",
-    tim: "  if (doi.daDong?.trang_id != null) {",
-    thay: "  if (false) {",
+    tim: "  if (doi.daDong?.trang_id != null) await tatKichBanKenhRoi(",
+    thay: "  if (false) await tatKichBanKenhRoi(",
   },
   {
     ten: "2b: danh sách kịch bản lấy cả tài khoản",
@@ -4275,7 +4275,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "3: gỡ lịch chọn MỌI bài hẹn giờ (gỡ nhầm bài của cửa hàng đang giữ kênh)",
     tep: "server/services/don-lich.ts",
-    tim: "   WHERE p.user_id = $1 AND p.status = 'scheduled' AND p.platform_post_ref IS NOT NULL\n     AND EXISTS (SELECT 1 FROM social_accounts s\n                  WHERE s.user_id = p.user_id AND s.id = ANY(p.target_account_ids)\n                    AND s.trang_id IS DISTINCT FROM p.trang_id)`;",
+    tim: "   WHERE p.user_id = $1 AND p.status = 'scheduled' AND p.platform_post_ref IS NOT NULL\n     AND EXISTS (SELECT 1 FROM social_accounts s\n                  WHERE ${KENH_CUA_BAI} AND (s.trang_id IS DISTINCT FROM p.trang_id OR s.go_luc IS NOT NULL))`;",
     thay: "   WHERE p.user_id = $1 AND p.status = 'scheduled' AND p.platform_post_ref IS NOT NULL`;",
   },
   {
@@ -5657,6 +5657,60 @@ const DUC: PhepDuc[] = [
     tep: "src/lib/phong-cach-anh.ts",
     tim: "'bố cục theo tỷ lệ vàng, cảm giác đắt tiền.'",
     thay: "'bố cục theo tỷ lệ vàng, cảm giác đắt tiền, tỷ lệ vuông.'",
+  },
+  {
+    ten: "gỡ kênh mà không đóng nhiệm kỳ (hội thoại vẫn trả lời được)",
+    tep: "server/services/trang.ts",
+    tim: "  const daDong = await dongNhiemKy(k, accountId);\n",
+    thay: "  const daDong = null as { trang_id: number | null } | null;\n",
+  },
+  {
+    ten: "gỡ kênh quên bỏ 'cần nối lại'",
+    tep: "server/services/trang.ts",
+    tim: "SET connected = FALSE, needs_reconnection = FALSE, go_luc = now()",
+    thay: "SET connected = FALSE, go_luc = now()",
+  },
+  {
+    ten: "Ngắt kết nối quay lại chỉ tắt connected (kênh nằm mãi 'Mất kết nối')",
+    tep: "server/routes/connections.ts",
+    tim: "    await goKenh(account.id, req.user!.id);\n",
+    thay: "    await query(\"UPDATE social_accounts SET connected = FALSE WHERE id = $1\", [account.id]);\n",
+  },
+  {
+    ten: "danh sách kênh lại hiện kênh đã gỡ",
+    tep: "server/routes/connections.ts",
+    tim: "        WHERE user_id = $1 AND go_luc IS NULL\n        ORDER BY platform, display_name`,",
+    thay: "        WHERE user_id = $1\n        ORDER BY platform, display_name`,",
+  },
+  {
+    ten: "nối lại kênh đã gỡ mà không xoá dấu gỡ",
+    tep: "server/services/accounts.ts",
+    tim: "         go_luc             = NULL,\n",
+    thay: "",
+  },
+  {
+    ten: "webhook bật connected trơn cho kênh đã gỡ (AI im)",
+    tep: "server/services/events.ts",
+    tim: "  if (daGo) {\n",
+    thay: "  if (daGo && false) {\n",
+  },
+  {
+    ten: "gỡ lịch bỏ sót bài hẹn giờ trên kênh chủ shop đã gỡ",
+    tep: "server/services/don-lich.ts",
+    tim: " AND (s.trang_id IS DISTINCT FROM p.trang_id OR s.go_luc IS NOT NULL))`;",
+    thay: " AND (s.trang_id IS DISTINCT FROM p.trang_id))`;",
+  },
+  {
+    ten: "Tổng quan bỏ kênh đã gỡ → mất tiền kênh trong kỳ",
+    tep: "server/services/tong-quan.ts",
+    tim: "WHERE ${trongPhamVi} ORDER BY s.created_at`",
+    thay: "WHERE ${trongPhamVi} AND s.go_luc IS NULL ORDER BY s.created_at`",
+  },
+  {
+    ten: "hộp hỏi Ngắt kết nối không nói nối lại là bắt đầu lại",
+    tep: "src/pages/Connections.tsx",
+    tim: "'Kết nối lại sau này là bắt đầu lại từ đầu: kịch bản phải bật lại, hội thoại mới tách khỏi hội thoại cũ.'",
+    thay: "'Muốn dùng lại thì kết nối lại.'",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

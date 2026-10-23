@@ -526,6 +526,24 @@ async function handleAccountChange(event: WebhookEvent): Promise<void> {
   if (!event.accountId) return;
 
   const connected = event.eventType === "account.connected";
+
+  /*
+   * Kênh chủ shop đã gỡ trong app (064): bật connected trơn thì kênh hiện "đã nối" mà nhiệm kỳ đã đóng → AI im. Nối lại
+   * → đi đường đồng bộ đầy đủ (xoá go_luc, mở nhiệm kỳ mới). Tin "mất kết nối" của kênh đã gỡ (nhà cung cấp báo sau lệnh
+   * gỡ của mình) → bỏ qua, không biến kênh đã gỡ thành "cần nối lại".
+   */
+  const daGo = await queryOne<{ user_id: number; profile_ref: string | null }>(
+    "SELECT user_id, profile_ref FROM social_accounts WHERE id = $1 AND go_luc IS NOT NULL",
+    [event.accountId]
+  );
+  if (daGo) {
+    if (connected && daGo.profile_ref) {
+      const count = await syncAccountsForUser(daGo.user_id, daGo.profile_ref);
+      console.log(`[sự kiện] Kênh đã gỡ ${event.accountId} được nối lại — đồng bộ ${count} kênh, mở nhiệm kỳ mới`);
+    }
+    return;
+  }
+
   const result = await query(
     `UPDATE social_accounts
         SET connected = $2, needs_reconnection = $3, updated_at = now()

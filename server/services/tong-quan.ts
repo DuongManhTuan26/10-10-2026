@@ -180,9 +180,10 @@ export async function layTongQuan(phamVi: PhamViTongQuan, toiId: number, ky: KyT
     ),
     query<{
       id: string; user_id: number; trang_id: number | null; platform: string; display_name: string;
-      connected: boolean; needs_reconnection: boolean; page_id: string | null;
+      connected: boolean; needs_reconnection: boolean; page_id: string | null; go_luc: Date | null;
     }>(
-      `SELECT s.id, s.user_id, s.trang_id, s.platform, s.display_name, s.connected, s.needs_reconnection, s.page_id
+      // Kênh chủ shop đã gỡ (064) VẪN đọc: tiền kênh những ngày nó còn chạy trong kỳ phải tính cho cửa hàng.
+      `SELECT s.id, s.user_id, s.trang_id, s.platform, s.display_name, s.connected, s.needs_reconnection, s.page_id, s.go_luc
          FROM social_accounts s JOIN users u ON u.id = s.user_id WHERE ${trongPhamVi} ORDER BY s.created_at`
     ),
     query<{ user_id: number; trang_id: number | null; viec: string | null; usd: string; chua_chot: number }>(
@@ -277,7 +278,10 @@ export async function layTongQuan(phamVi: PhamViTongQuan, toiId: number, ky: KyT
       const phan = phanCuaTrang(k.id, k.trang_id, trangId);
       const tien = coSoKenh ? (theoKenh[k.id] ?? 0) * phan : null;
       // Kênh chỉ hiện ở trang hiện tại của nó; trang cũ (đã đổi Fanpage) chỉ nhận phần tiền.
-      if (k.trang_id === trangId) {
+      if (k.go_luc) {
+        // Đã gỡ: chỉ hiện khi còn tiền trong kỳ (để tổng tiền khớp), không hiện như kênh đang chạy / cần nối lại.
+        if (tien) t.kenh.push({ id: k.id, nenTang: k.platform, ten: `${k.display_name} (đã ngắt kết nối)`, dangNoi: false, canNoiLai: false, tienUsd: tien });
+      } else if (k.trang_id === trangId) {
         t.kenh.push({ id: k.id, nenTang: k.platform, ten: k.display_name, dangNoi: k.connected, canNoiLai: k.needs_reconnection, tienUsd: tien });
         if (k.connected) t.hoatDong = true;
       } else if (tien) {

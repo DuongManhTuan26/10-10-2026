@@ -164,6 +164,9 @@ export async function syncAccountsForUser(
          raw                = EXCLUDED.raw,
          page_id            = EXCLUDED.page_id,
          last_synced_at     = now(),
+         -- Kênh có lại trong danh sách nhà cung cấp = chủ shop đã nối lại → hết "đã gỡ" (064); ganKenhVaoTrang bên dưới
+         -- mở nhiệm kỳ MỚI vì nhiệm kỳ cũ đã đóng lúc gỡ ("quay về người không").
+         go_luc             = NULL,
          updated_at         = now()`,
       [
         account._id,

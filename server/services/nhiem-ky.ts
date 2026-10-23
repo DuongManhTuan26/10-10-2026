@@ -144,6 +144,21 @@ export async function doiNhiemKy(
   return { daDong: dangMo, moMoi: true };
 }
 
+/**
+ * Đóng nhiệm kỳ đang mở của kênh mà KHÔNG mở nhiệm kỳ mới — chủ shop gỡ kênh ("nghỉ việc", 064). Gọi TRONG giao dịch
+ * của goKenhTrong. Kênh nối lại sau → doiNhiemKy thấy không còn nhiệm kỳ mở → mở nhiệm kỳ MỚI. Trả về nhiệm kỳ vừa đóng.
+ */
+export async function dongNhiemKy(
+  k: Pick<pg.PoolClient, "query">,
+  accountId: string
+): Promise<{ id: number; trang_id: number | null } | null> {
+  const r = await k.query<{ id: number; trang_id: number | null }>(
+    "UPDATE kenh_nhiem_ky SET den_luc = now() WHERE account_id = $1 AND den_luc IS NULL RETURNING id, trang_id",
+    [accountId]
+  );
+  return r.rows[0] ?? null;
+}
+
 /** Điều kiện SQL: hội thoại thuộc nhiệm kỳ còn mở (hoặc chưa có nhiệm kỳ — dữ liệu từ kênh chưa gắn cửa hàng). */
 export const DK_NHIEM_KY_MO = (cot: string) =>
   `(${cot} IS NULL OR EXISTS (SELECT 1 FROM kenh_nhiem_ky nk_mo WHERE nk_mo.id = ${cot} AND nk_mo.den_luc IS NULL))`;

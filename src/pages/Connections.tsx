@@ -364,9 +364,25 @@ export default function Connections() {
     // Hỏi đúng KÊNH nào (bản cũ hỏi "trang này" — chữ "trang" đã dành cho trang bán hàng) và nói rõ hậu quả.
     const kenh = accounts.find((a) => a.id === accountId);
     const tenNenTang = allPlatforms.find((c) => c.platformKey === kenh?.platform)?.name ?? kenh?.platform ?? 'kênh';
+    // Ngắt kết nối = kênh "nghỉ việc" (064): nói trước đúng những gì sẽ thay đổi, đọc từ máy chủ như hộp chuyển kênh.
+    let hauQua = '';
+    try {
+      const { data: hq } = await api.connections.hauQuaChuyenKenh(accountId);
+      hauQua = [
+        hq.hoiThoaiOLai > 0 && `• ${hq.hoiThoaiOLai} hội thoại cũ chỉ còn xem lịch sử, không trả lời qua kênh này nữa.`,
+        hq.kichBanSeTat > 0 && `• ${hq.kichBanSeTat} kịch bản bình luận trên kênh này sẽ tắt.`,
+        hq.baiHenGio > 0 && `• ${hq.baiHenGio} bài hẹn giờ trên kênh này sẽ bị gỡ lịch — vui lòng hẹn lại cho kênh khác.`,
+      ].filter(Boolean).join('\n');
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : 'Không đọc được những gì sẽ thay đổi khi ngắt kết nối');
+      return;
+    }
     if (!(await hoiXacNhan({
       tieuDe: `Ngắt kết nối ${tenNenTang} "${kenh?.display_name || kenh?.username || ''}"?`,
-      noiDung: 'AI ngừng trả lời khách và đăng bài trên kênh này. Hội thoại và đơn hàng cũ vẫn được giữ. Muốn dùng lại thì kết nối lại.',
+      noiDung:
+        'AI ngừng trả lời khách và đăng bài trên kênh này, kênh rời cửa hàng. Đơn hàng cũ vẫn được giữ.\n\n' +
+        (hauQua ? `${hauQua}\n\n` : '') +
+        'Kết nối lại sau này là bắt đầu lại từ đầu: kịch bản phải bật lại, hội thoại mới tách khỏi hội thoại cũ.',
       nutDongY: 'Ngắt kết nối',
       nguyHiem: true,
     }))) return;

@@ -2,7 +2,7 @@ import type pg from "pg";
 import { query, queryOne, transaction } from "../db.js";
 import { AppError } from "../http.js";
 import { donLichKenhDaRoi } from "./don-lich.js";
-import { doiNhiemKy } from "./nhiem-ky.js";
+import { doiNhiemKy, dongNhiemKy } from "./nhiem-ky.js";
 
 /**
  * Suy ra Trang từ một kênh.
@@ -213,14 +213,42 @@ export async function ganKenhVaoTrangTrong(
   const doi = await doiNhiemKy(k, { accountId, userId, trangMoi: trangId });
   // Kênh RỜI cửa hàng cũ → kịch bản bình luận của cửa hàng cũ gắn trên kênh này TẮT (cùng giao dịch); kênh quay về thì
   // chủ shop tự bật lại (chủ dự án chốt 19/10/2026 — "quay về người không").
-  if (doi.daDong?.trang_id != null) {
-    await k.query(
-      `UPDATE auto_scripts SET is_active = FALSE, tat_ly_do = $3, updated_at = now()
-        WHERE social_account_id = $1 AND trang_id = $2 AND is_active`,
-      [accountId, doi.daDong.trang_id, `Kênh đã rời cửa hàng lúc ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}`]
-    );
-  }
+  if (doi.daDong?.trang_id != null) await tatKichBanKenhRoi(k, accountId, doi.daDong.trang_id, "Kênh đã rời cửa hàng");
   return doi.daDong?.trang_id ?? null;
+}
+
+/** Tắt kịch bản bình luận của một cửa hàng trên kênh vừa rời / vừa gỡ — dùng chung cho chuyển kênh và gỡ kênh. */
+async function tatKichBanKenhRoi(k: Pick<pg.PoolClient, "query">, accountId: string, trangId: number, viec: string): Promise<void> {
+  await k.query(
+    `UPDATE auto_scripts SET is_active = FALSE, tat_ly_do = $3, updated_at = now()
+      WHERE social_account_id = $1 AND trang_id = $2 AND is_active`,
+    [accountId, trangId, `${viec} lúc ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}`]
+  );
+}
+
+/**
+ * CHỦ SHOP GỠ KÊNH = NHÂN VIÊN NGHỈ VIỆC (064; phiên kiểm duyệt duyệt 23/10/2026). CHỈ đường chủ shop bấm "Ngắt kết nối"
+ * trong app — kênh thiếu trong danh sách nhà cung cấp / webhook account.disconnected là "nghỉ ốm" (giữ nhiệm kỳ): không
+ * đáng tin là ý định (đã từng đánh dấu nhầm khi kênh đổi hồ sơ). Cùng một giao dịch: đánh dấu đã gỡ (GIỮ trang_id làm
+ * lịch sử) + đóng nhiệm kỳ (hội thoại cũ thành chỉ xem qua LY_DO_CHI_XEM, chốt cửa ra chặn gửi) + tắt kịch bản.
+ * Trả về cửa hàng kênh vừa rời (null nếu kênh chưa thuộc cửa hàng nào / không có nhiệm kỳ mở).
+ */
+export async function goKenhTrong(k: Pick<pg.PoolClient, "query">, accountId: string, userId: number): Promise<number | null> {
+  const r = await k.query(
+    `UPDATE social_accounts SET connected = FALSE, needs_reconnection = FALSE, go_luc = now(), updated_at = now()
+      WHERE id = $1 AND user_id = $2`,
+    [accountId, userId]
+  );
+  if (!r.rowCount) return null;
+  const daDong = await dongNhiemKy(k, accountId);
+  if (daDong?.trang_id != null) await tatKichBanKenhRoi(k, accountId, daDong.trang_id, "Kênh đã ngắt kết nối");
+  return daDong?.trang_id ?? null;
+}
+
+/** Gọi SAU khi nhà cung cấp đã gỡ kênh. Gỡ lịch bài hẹn giờ trên kênh SAU giao dịch (không gọi HTTP trong giao dịch). */
+export async function goKenh(accountId: string, userId: number): Promise<void> {
+  await transaction((k) => goKenhTrong(k, accountId, userId));
+  await donLichKenhDaRoi(userId).catch((e) => console.error("[gỡ lịch] Lỗi, sẽ thử lại ở lượt đồng bộ sau:", e));
 }
 
 /*

@@ -17,19 +17,32 @@ import * as zernio from "./zernio.js";
 
 /**
  * CHỈ bài hẹn giờ đã giao nhà cung cấp mà CÓ kênh đích hiện không thuộc cửa hàng của bài (phiên kiểm duyệt 19/10: chọn
- * nhầm là gỡ lịch bài thật của cửa hàng đang giữ kênh). Kênh đã xoá khỏi app (không còn dòng) không tính.
+ * nhầm là gỡ lịch bài thật của cửa hàng đang giữ kênh), HOẶC kênh đích chủ shop đã gỡ (go_luc — 064: kênh giữ trang_id
+ * nên điều kiện lệch cửa hàng không bắt; nhà cung cấp đã gỡ tài khoản thì lịch hỏng âm thầm bên họ). Kênh đã xoá khỏi
+ * app (không còn dòng) không tính.
  */
+const TEN_KENH = "COALESCE(NULLIF(s.display_name, ''), NULLIF(s.username, ''), s.platform)";
+const KENH_CUA_BAI = "s.user_id = p.user_id AND s.id = ANY(p.target_account_ids)";
 export const CHON_BAI_KENH_DA_ROI = `
   SELECT p.id, p.platform_post_ref,
-         ARRAY(SELECT COALESCE(NULLIF(s.display_name, ''), NULLIF(s.username, ''), s.platform)
-                 FROM social_accounts s
-                WHERE s.user_id = p.user_id AND s.id = ANY(p.target_account_ids)
-                  AND s.trang_id IS DISTINCT FROM p.trang_id) AS kenh_roi
+         ARRAY(SELECT ${TEN_KENH} FROM social_accounts s
+                WHERE ${KENH_CUA_BAI} AND s.trang_id IS DISTINCT FROM p.trang_id) AS kenh_roi,
+         ARRAY(SELECT ${TEN_KENH} FROM social_accounts s
+                WHERE ${KENH_CUA_BAI} AND s.trang_id IS NOT DISTINCT FROM p.trang_id AND s.go_luc IS NOT NULL) AS kenh_go
     FROM posts p
    WHERE p.user_id = $1 AND p.status = 'scheduled' AND p.platform_post_ref IS NOT NULL
      AND EXISTS (SELECT 1 FROM social_accounts s
-                  WHERE s.user_id = p.user_id AND s.id = ANY(p.target_account_ids)
-                    AND s.trang_id IS DISTINCT FROM p.trang_id)`;
+                  WHERE ${KENH_CUA_BAI} AND (s.trang_id IS DISTINCT FROM p.trang_id OR s.go_luc IS NOT NULL))`;
+
+/** "Kênh A đã rời cửa hàng; kênh B đã ngắt kết nối" — đúng việc đã xảy ra với từng kênh. */
+export function moTaKenhRoi(kenhRoi: string[], kenhGo: string[]): string {
+  const phan = [
+    kenhRoi.length ? `Kênh ${kenhRoi.join(", ")} đã rời cửa hàng` : "",
+    kenhGo.length ? `kênh ${kenhGo.join(", ")} đã ngắt kết nối` : "",
+  ].filter(Boolean);
+  const cau = phan.join("; ");
+  return cau.charAt(0).toUpperCase() + cau.slice(1);
+}
 
 /**
  * Bài đã GỠ HẾT khỏi các kênh (routes/posts.ts "Gỡ bài") → về nháp, giữ nội dung + ảnh để sửa rồi đăng lại. stats và
@@ -52,11 +65,14 @@ export async function donLichKenhDaRoi(
   xoaBaiNcc: XoaBaiNcc = zernio.deletePost,
   db: ChayLenh = KHO_CHUNG
 ): Promise<{ daGo: number[]; loi: number[] }> {
-  const bai = await db.query<{ id: number; platform_post_ref: string; kenh_roi: string[] }>(CHON_BAI_KENH_DA_ROI, [userId]);
+  const bai = await db.query<{ id: number; platform_post_ref: string; kenh_roi: string[]; kenh_go?: string[] }>(
+    CHON_BAI_KENH_DA_ROI,
+    [userId]
+  );
   const daGo: number[] = [];
   const loi: number[] = [];
   for (const b of bai.rows) {
-    const tenKenh = b.kenh_roi.join(", ");
+    const moTa = moTaKenhRoi(b.kenh_roi, b.kenh_go ?? []);
     try {
       await xoaBaiNcc(b.platform_post_ref);
     } catch (error) {
@@ -66,8 +82,8 @@ export async function donLichKenhDaRoi(
         // 400: bài đã kịp đăng (tài liệu: "Cannot delete published posts") — webhook sẽ cập nhật trạng thái thật.
         const lyDo =
           status === 400
-            ? `Kênh ${tenKenh} đã rời cửa hàng nhưng bài đã kịp đăng trước khi gỡ lịch.`
-            : `Kênh ${tenKenh} đã rời cửa hàng — chưa gỡ được lịch bài này, hệ thống sẽ thử lại.`;
+            ? `${moTa} nhưng bài đã kịp đăng trước khi gỡ lịch.`
+            : `${moTa} — chưa gỡ được lịch bài này, hệ thống sẽ thử lại.`;
         await db.query("UPDATE posts SET last_error = $2, updated_at = now() WHERE id = $1", [b.id, lyDo]);
         loi.push(b.id);
         continue;
@@ -76,7 +92,7 @@ export async function donLichKenhDaRoi(
     await db.query(
       `UPDATE posts SET status = 'failed', platform_post_ref = NULL, last_error = $2, updated_at = now()
         WHERE id = $1 AND status = 'scheduled'`,
-      [b.id, `Kênh ${tenKenh} đã rời cửa hàng — đã gỡ lịch bài này. Vui lòng hẹn lại cho các kênh còn lại.`]
+      [b.id, `${moTa} — đã gỡ lịch bài này. Vui lòng hẹn lại cho các kênh còn lại.`]
     );
     daGo.push(b.id);
   }
