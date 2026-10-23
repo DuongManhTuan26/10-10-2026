@@ -92,13 +92,13 @@ export const aiTheoMa = (ma: MaAi): MotAi => BON_AI.find((a) => a.ma === ma)!;
  * Thẻ đầu tiên là thẻ mở mặc định.
  */
 export const BON_THE = [
-  { ma: 'huong-dan', ten: 'Hướng dẫn AI', moTa: 'Vai trò, lời dặn, cách làm', bieuTuong: 'school', hex: '#60a5fa' },
-  { ma: 'dang-lam', ten: 'Đang làm', moTa: 'Việc AI đang xử lý', bieuTuong: 'play_circle', hex: '#f472b6' },
-  { ma: 'ket-qua', ten: 'Kết quả', moTa: 'Số liệu AI tạo ra', bieuTuong: 'insights', hex: '#fb923c' },
-  { ma: 'nhat-ky', ten: 'Nhật ký', moTa: 'Thay đổi theo thời gian', bieuTuong: 'history', hex: '#94a3b8' },
+  { ma: 'huong-dan', ten: 'Hướng dẫn AI', moTa: 'Vai trò, lời dặn, cách làm', bieuTuong: 'school' },
+  { ma: 'dang-lam', ten: 'Đang làm', moTa: 'Việc AI đang xử lý', bieuTuong: 'play_circle' },
+  { ma: 'ket-qua', ten: 'Kết quả', moTa: 'Số liệu AI tạo ra', bieuTuong: 'insights' },
+  { ma: 'nhat-ky', ten: 'Nhật ký', moTa: 'Thay đổi theo thời gian', bieuTuong: 'history' },
 ] as const;
 /*
- * Màu 4 bước (kế hoạch lượt 2, mục C): lấy từ bảng màu theo mức quan trọng — lam · hồng · cam · xám; bước đang mở tô
- * đặc. Không dùng lục / vàng / tím / xanh ngọc để không lẫn với màu miền của 4 AI.
+ * Màu 4 bước: MỘT màu — màu của AI đang xem (① xanh lá, ② đỏ, ③ tím, ④ vàng). Chủ dự án 23/10/2026: "chỉ cố định 1 màu
+ * thôi, không cần cả 4 màu khác nhau" (bản cũ lam · hồng · cam · xám). Bước đang mở tô đặc, bước khác viền nhạt.
  */
 export type MaThe = (typeof BON_THE)[number]['ma'];

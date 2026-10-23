@@ -7827,6 +7827,17 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     [true, true, false, true, false]);
 }
 
+{
+  // Chủ dự án 23/10/2026: thanh 4 bước MỘT màu = màu AI của màn (không lam · hồng · cam · xám).
+  const ka = boChuThich(fs.readFileSync(path.join(GOC, "src/components/KhuonAi.tsx"), "utf8"));
+  const ba = boChuThich(fs.readFileSync(path.join(GOC, "src/lib/bon-ai.ts"), "utf8"));
+  const bonThe = ba.slice(ba.indexOf("export const BON_THE"), ba.indexOf("] as const;", ba.indexOf("export const BON_THE")));
+  kiem("thanh 4 bước", "một màu theo AI: bước mở tô motAi.hex, bước khác viền motAi.hex; BON_THE không còn màu riêng",
+    [/\? \{ background: motAi\.hex, borderColor: motAi\.hex, color: '#0b1417' \}\s*: \{ background: `\$\{motAi\.hex\}12`, borderColor: `\$\{motAi\.hex\}59`, color: motAi\.hex \}/.test(ka),
+      /t\.hex/.test(ka), /hex:/.test(bonThe)],
+    [true, false, false]);
+}
+
 console.log(`\nĐã kiểm ${tong} điểm.`);
 if (hong === 0) {
   console.log("Tất cả đều đạt.\n");

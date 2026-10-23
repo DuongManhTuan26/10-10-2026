@@ -5779,6 +5779,12 @@ const DUC: PhepDuc[] = [
     thay: "{accounts.filter((a) => selectedPages.includes(a.id)).map((a) => (",
   },
   {
+    ten: "thanh 4 bước quay lại mỗi bước một màu",
+    tep: "src/components/KhuonAi.tsx",
+    tim: "? { background: motAi.hex, borderColor: motAi.hex, color: '#0b1417' }",
+    thay: "? { background: ['#60a5fa', '#f472b6'][i % 2], borderColor: motAi.hex, color: '#0b1417' }",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

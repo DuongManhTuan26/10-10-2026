@@ -48,8 +48,8 @@ export default function KhuonAi({
       </div>
 
       {/*
-        4 BƯỚC — cùng tên, cùng thứ tự, cùng màu ở mọi AI (Hướng dẫn lam · Đang làm hồng · Kết quả cam · Nhật ký xám).
-        Bước đang mở tô đặc; bước khác viền màu của nó. Số thứ tự nhắc trình tự làm việc.
+        4 BƯỚC — cùng tên, cùng thứ tự ở mọi AI; MỘT màu = màu của AI này (chủ dự án 23/10/2026). Bước đang mở tô đặc;
+        bước khác viền nhạt cùng màu. Số thứ tự nhắc trình tự làm việc.
       */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 mb-6" role="tablist">
         {BON_THE.map((t, i) => {
@@ -62,12 +62,12 @@ export default function KhuonAi({
               onClick={() => datTim((p) => { const m = new URLSearchParams(p); m.set('the', t.ma); return m; }, { replace: true })}
               className={clsx('flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition', !mo && 'hover:brightness-125')}
               style={mo
-                ? { background: t.hex, borderColor: t.hex, color: '#0b1417' }
-                : { background: `${t.hex}12`, borderColor: `${t.hex}59`, color: t.hex }}
+                ? { background: motAi.hex, borderColor: motAi.hex, color: '#0b1417' }
+                : { background: `${motAi.hex}12`, borderColor: `${motAi.hex}59`, color: motAi.hex }}
             >
               <span
                 className="w-7 h-7 rounded-full flex items-center justify-center font-mono text-sm font-black shrink-0"
-                style={mo ? { background: '#0b141726', color: '#0b1417' } : { border: `1px solid ${t.hex}80` }}
+                style={mo ? { background: '#0b141726', color: '#0b1417' } : { border: `1px solid ${motAi.hex}80` }}
               >
                 {i + 1}
               </span>
