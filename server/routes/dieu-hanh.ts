@@ -100,6 +100,7 @@ dieuHanhRouter.post(
     const userId = req.user!.id;
     const trangId = await trangCuaToi(userId);
     const goTay = typeof req.body?.vanDe === "string" ? req.body.vanDe.trim().slice(0, 500) : "";
+    // Kiểm + giữ khoá LIỀN NHAU, không await xen giữa — lượt chấm hằng ngày dùng cùng khoá (không gọi AI hai lần).
     if (dangChayDieuHanh.has(trangId)) throw new AppError("Cửa hàng này đang chạy thử, chờ lượt trước xong", 409);
     dangChayDieuHanh.add(trangId);
     try {

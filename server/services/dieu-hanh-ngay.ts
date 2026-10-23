@@ -99,11 +99,13 @@ export async function runDueDieuHanhNgay(bayGio = new Date()): Promise<number> {
   const ds = await query<{ trang_id: number; user_id: number }>(CHON_CUA_HANG_HOM_NAY);
   let daLam = 0;
   for (const { trang_id: trangId, user_id: userId } of ds.rows) {
+    // Kiểm + giữ khoá LIỀN NHAU, không có await xen giữa (nút bấm tay /chay dùng cùng khoá) — rồi mới giành chỗ.
     if (dangChayDieuHanh.has(trangId)) continue;
-    const cho = await queryOne<{ id: number; created_at: Date }>(GIANH_CHO, [userId, trangId]);
-    if (!cho) continue;
     dangChayDieuHanh.add(trangId);
+    let cho: { id: number; created_at: Date } | null = null;
     try {
+      cho = await queryOne<{ id: number; created_at: Date }>(GIANH_CHO, [userId, trangId]);
+      if (!cho) continue;
       const sk = await sucKhoeTrang(trangId, bayGio);
       const vanDe = vanDeTuDong(sk);
       if (!vanDe) {
@@ -133,8 +135,10 @@ export async function runDueDieuHanhNgay(bayGio = new Date()): Promise<number> {
         /* Không báo được thì đề xuất vẫn nằm chờ trong app. */
       });
     } catch (error) {
-      const tien = (await queryOne<{ usd: number }>(TIEN_THAT_CUA_LUOT, [trangId, cho.created_at]).catch(() => null))?.usd ?? 0;
-      await xong(cho.id, { trangThai: "loi", tienUsd: tien, ghiChu: error instanceof Error ? error.message.slice(0, 300) : String(error) });
+      if (cho) {
+        const tien = (await queryOne<{ usd: number }>(TIEN_THAT_CUA_LUOT, [trangId, cho.created_at]).catch(() => null))?.usd ?? 0;
+        await xong(cho.id, { trangThai: "loi", tienUsd: tien, ghiChu: error instanceof Error ? error.message.slice(0, 300) : String(error) });
+      }
       console.error(`[④ hằng ngày] Cửa hàng ${trangId}:`, error instanceof Error ? error.message : error);
     } finally {
       dangChayDieuHanh.delete(trangId);

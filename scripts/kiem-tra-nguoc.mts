@@ -5872,8 +5872,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "④ hằng ngày không giành chỗ trước (khởi động lại chạy hai lần)",
     tep: "server/services/dieu-hanh-ngay.ts",
-    tim: "    const cho = await queryOne<{ id: number; created_at: Date }>(GIANH_CHO, [userId, trangId]);\n    if (!cho) continue;\n",
-    thay: "    const cho = { id: 0, created_at: new Date() };\n",
+    tim: "      cho = await queryOne<{ id: number; created_at: Date }>(GIANH_CHO, [userId, trangId]);\n      if (!cho) continue;\n",
+    thay: "      cho = { id: 0, created_at: new Date() };\n",
   },
   {
     ten: "④ hằng ngày bỏ trần ngày",
@@ -5898,6 +5898,18 @@ const DUC: PhepDuc[] = [
     tep: "server/worker.ts",
     tim: "          luotDieuHanhNgay = runDueDieuHanhNgay()",
     thay: "          await runDueDieuHanhNgay(); luotDieuHanhNgay = Promise.resolve()",
+  },
+  {
+    ten: "lượt ④ hằng ngày giữ khoá sau await (chen với nút bấm tay)",
+    tep: "server/services/dieu-hanh-ngay.ts",
+    tim: "    if (dangChayDieuHanh.has(trangId)) continue;\n    dangChayDieuHanh.add(trangId);\n    let cho: { id: number; created_at: Date } | null = null;\n    try {\n      cho = await queryOne<{ id: number; created_at: Date }>(GIANH_CHO, [userId, trangId]);\n",
+    thay: "    if (dangChayDieuHanh.has(trangId)) continue;\n    let cho: { id: number; created_at: Date } | null = null;\n    try {\n      cho = await queryOne<{ id: number; created_at: Date }>(GIANH_CHO, [userId, trangId]);\n      dangChayDieuHanh.add(trangId);\n",
+  },
+  {
+    ten: "nút /chay giữ khoá sau await",
+    tep: "server/routes/dieu-hanh.ts",
+    tim: "    if (dangChayDieuHanh.has(trangId)) throw new AppError(\"Cửa hàng này đang chạy thử, chờ lượt trước xong\", 409);\n    dangChayDieuHanh.add(trangId);",
+    thay: "    if (dangChayDieuHanh.has(trangId)) throw new AppError(\"Cửa hàng này đang chạy thử, chờ lượt trước xong\", 409);\n    await Promise.resolve();\n    dangChayDieuHanh.add(trangId);",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

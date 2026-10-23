@@ -7929,7 +7929,7 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
       /await chayChoTrang\(trangId, async \(\) => \{[\s\S]{0,200}?tranTien: TRAN_LUOT_USD/.test(than),
       /"dieu_hanh",\s*trangId\s*\)/.test(than),
       // Giành chỗ thật (không có dòng thì bỏ qua) + chặn khi vượt trần ngày.
-      /const cho = await queryOne<\{ id: number; created_at: Date \}>\(GIANH_CHO, \[userId, trangId\]\);\s*if \(!cho\) continue;/.test(than),
+      /cho = await queryOne<\{ id: number; created_at: Date \}>\(GIANH_CHO, \[userId, trangId\]\);\s*if \(!cho\) continue;/.test(than),
       /if \(daTieu > TRAN_NGAY_USD\) \{\s*await xong\(cho\.id, \{ trangThai: "cham_tran"/.test(than)],
     [true, true, true, true, true, true, true]);
   kiem("H7 ④ hằng ngày", "trần: lượt đang chạy tính tạm bằng trần lượt; ngày dùng NGAY_VN chung (không viết AT TIME ZONE mới); lượt kẹt → 'loi' không chạy lại; trần 0,30 / 1,00 USD",
@@ -7946,6 +7946,17 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     [/UNIQUE \(trang_id, ngay\)/.test(mg), /user_id\s+BIGINT\s+NOT NULL REFERENCES users\(id\) ON DELETE CASCADE/.test(mg),
       /trang_id\s+BIGINT\s+NOT NULL REFERENCES trang\(id\) ON DELETE CASCADE/.test(mg), /^\s*(UPDATE|DELETE|INSERT)\b/m.test(mg.replace(/--.*$/gm, ""))],
     [true, true, true, false]);
+}
+
+{
+  // Phiên kiểm duyệt (H7): khoá dangChayDieuHanh phải "kiểm + giữ" LIỀN NHAU (không await xen giữa) ở cả lượt hằng ngày và nút
+  // bấm tay — chen vào lúc await là hai lượt cùng gọi AI cho một cửa hàng.
+  const dn9 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/dieu-hanh-ngay.ts"), "utf8"));
+  const rt9 = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/dieu-hanh.ts"), "utf8"));
+  kiem("H7 khoá chạy", "kiểm has rồi add ngay (không await giữa) ở lượt hằng ngày và nút /chay; giành chỗ sau khi giữ khoá",
+    [/if \(dangChayDieuHanh\.has\(trangId\)\) continue;\s*dangChayDieuHanh\.add\(trangId\);\s*let cho:[\s\S]{0,60}?= null;\s*try \{\s*cho = await queryOne/.test(dn9),
+      /if \(dangChayDieuHanh\.has\(trangId\)\) throw new AppError\([^;]*;\s*dangChayDieuHanh\.add\(trangId\);/.test(rt9)],
+    [true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);
