@@ -12,12 +12,10 @@ import Pricing from './pages/Pricing';
 import QuanLy from './pages/QuanLy';
 import DangXemThay from './components/DangXemThay';
 import Auth from './pages/Auth';
-import Onboarding from './pages/Onboarding';
-import SetupComplete from './pages/SetupComplete';
 import { api, ApiError, type User } from './lib/api';
 import { ActivePageProvider } from './lib/ActivePage';
 
-type AppState = 'loading' | 'auth' | 'onboarding' | 'setup_complete' | 'main';
+type AppState = 'loading' | 'auth' | 'main';
 
 export default function App() {
   // Màu miền của vùng nội dung theo đường dẫn (index.css .mien-*): mọi màu chính bên trong theo đúng AI đang xem.
@@ -122,26 +120,13 @@ export default function App() {
           setUser(registered);
           /*
            * Người mới đăng ký vào thẳng màn chính: tài khoản mới đã có "Cửa hàng đầu tiên" (services/tai-khoan.ts), và
-           * luồng dẫn "nối kênh → mở bộ não" nằm ở màn Kết nối (sơ đồ mục 5). Màn Onboarding / SetupComplete cũ không còn
-           * đường vào (đề xuất gỡ — báo cáo P2, 23/10/2026).
+           * luồng dẫn "nối kênh → mở bộ não" nằm ở màn Kết nối (sơ đồ mục 5). Màn hướng dẫn ba bước cũ đã gỡ (không còn
+           * đường vào — 23/10/2026).
            */
           setAppState('main');
         }}
       />
     );
-  }
-
-  if (appState === 'onboarding') {
-    return (
-      <Onboarding
-        onComplete={() => setAppState('setup_complete')}
-        onSkip={() => setAppState('main')}
-      />
-    );
-  }
-
-  if (appState === 'setup_complete') {
-    return <SetupComplete onFinish={() => setAppState('main')} />;
   }
 
   return (

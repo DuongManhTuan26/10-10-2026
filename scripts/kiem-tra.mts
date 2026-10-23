@@ -2071,42 +2071,6 @@ kiem("phân tích", "có so sánh tỷ lệ chốt hai kỳ",
 kiem("phân tích", "không còn nhánh nào trả null ở cả hai đầu",
   /\? null : null/.test(boChuThich(nguonPhanTich)), false);
 
-// --- Ba bước hướng dẫn phải là thật ------------------------------------------
-//
-// Tái hiện: nút "Bắt đầu ngay" chỉ cộng một biến đếm; bấm ba lần là cả ba bước
-// hiện dấu tích rồi nhảy sang màn hình khẳng định "Đã kết nối kênh bán hàng",
-// "AI đã được cấu hình và thử nghiệm", "Telegram đã kết nối" — cả ba đều sai.
-const nguonHuongDan = fs.readFileSync(path.join(GOC, "src/pages/Onboarding.tsx"), "utf8");
-kiem("ba bước đầu", "đọc trạng thái thật từ máy chủ",
-  /export async function docTrangThaiBaBuoc/.test(nguonHuongDan) &&
-    /api\.connections\.accounts\(\)/.test(nguonHuongDan) &&
-    /api\.ai\.config\('sales'\)/.test(nguonHuongDan) &&
-    /api\.settings\.telegram\(\)/.test(nguonHuongDan), true);
-kiem("ba bước đầu", "không còn đếm bước bằng biến trong bộ nhớ",
-  /completedSteps/.test(nguonHuongDan), false);
-kiem("ba bước đầu", "không còn tự nhảy sang màn hình hoàn tất sau 0,6 giây",
-  /setTimeout\(onComplete/.test(nguonHuongDan), false);
-kiem("ba bước đầu", "mỗi bước dẫn tới đúng trang làm việc",
-  ["/connections", "/auto-scripts", "/telegram"].every((d) =>
-    nguonHuongDan.includes(`duong: '${d}'`)
-  ), true);
-const nguonHoanTat = fs.readFileSync(path.join(GOC, "src/pages/SetupComplete.tsx"), "utf8");
-kiem("ba bước đầu", "màn hình hoàn tất đọc trạng thái thật",
-  /docTrangThaiBaBuoc/.test(nguonHoanTat), true);
-/*
- * Chữ trên màn hình phải LẤY TỪ trạng thái, không phải chữ chết.
- *
- * Bản đầu tôi chỉ kiểm "không còn chuỗi font-bold">Đã kết nối kênh bán hàng<".
- * Đục thẳng chữ đó vào chỗ khác — className là template literal nên dấu đóng
- * khác đi — là phép kiểm vẫn xanh trong khi màn hình lại khẳng định bừa.
- */
-kiem("ba bước đầu", "ba dòng đều lấy chữ từ trạng thái đọc được",
-  /\{m\.xong \? m\.chuXong : m\.chuChua\}/.test(nguonHoanTat), true);
-kiem("ba bước đầu", "không có dòng nào khẳng định cứng là đã xong",
-  ["Đã kết nối kênh bán hàng", "AI đã được cấu hình và thử nghiệm", "Đã kết nối Telegram"].some(
-    (chu) => new RegExp(`>\\s*${chu}\\s*<`).test(boChuThich(nguonHoanTat))
-  ), false);
-
 // --- Dùng được trên điện thoại -----------------------------------------------
 //
 // Tái hiện trên màn 375px: thanh menu rộng cố định 288px chiếm 77% bề ngang,

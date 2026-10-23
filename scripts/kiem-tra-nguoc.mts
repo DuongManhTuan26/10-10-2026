@@ -2015,18 +2015,6 @@ const DUC: PhepDuc[] = [
     thay: "    const prevConversations = 0;",
   },
   {
-    ten: "ba bước hướng dẫn quay lại đếm bằng biến trong bộ nhớ",
-    tep: "src/pages/Onboarding.tsx",
-    tim: "export async function docTrangThaiBaBuoc",
-    thay: "const completedSteps = 0;\nexport async function docTrangThaiBaBuoc",
-  },
-  {
-    ten: "màn hình hoàn tất khẳng định cứng là đã kết nối kênh",
-    tep: "src/pages/SetupComplete.tsx",
-    tim: "{m.xong ? m.chuXong : m.chuChua}",
-    thay: 'Đã kết nối kênh bán hàng',
-  },
-  {
     ten: "thanh menu lại chiếm chỗ cố định trên điện thoại",
     tep: "src/App.tsx",
     tim: 'className="flex-1 lg:ml-72 min-w-0',
