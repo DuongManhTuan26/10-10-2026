@@ -7679,6 +7679,15 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [/nohup python3 -c 'import os, sys; os\.setsid\(\); os\.execvp\(sys\.argv\[1\], sys\.argv\[1:\]\)' npm run dev >> "\$NHAT_KY" 2>&1 &/.test(mo),
       /nohup npm run dev/.test(mo), /detached: true,/.test(dh) && /\.unref\(\);/.test(dh)],
     [true, false, true]);
+  // LaunchAgent soạn sẵn (TD-27, chưa cài): chạy KHÔNG watch (watch sống khi server.ts sập → launchd không bật lại);
+  // mo-app.sh thấy LaunchAgent đã cài thì nhờ launchd (kickstart), không bật bản thứ hai.
+  const pl = fs.readFileSync(path.join(GOC, "docs/launchagent/vn.quanly.fanpage.plist"), "utf8");
+  const plMa = pl.replace(/<!--[\s\S]*?-->/g, "");
+  kiem("bật máy chủ", "LaunchAgent: KeepAlive + RunAtLoad, chạy tsx server.ts KHÔNG watch; mo-app.sh kickstart khi LaunchAgent đã cài, TRƯỚC khi tự bật",
+    [/<key>KeepAlive<\/key>\s*<true\/>/.test(plMa) && /<key>RunAtLoad<\/key>\s*<true\/>/.test(plMa), /exec node_modules\/\.bin\/tsx server\.ts/.test(plMa),
+      /watch|npm run dev/.test(plMa),
+      mo.search(/launchctl kickstart -k "gui\/\$\(id -u\)\/\$NHAN_LAUNCHD"/) > 0 && mo.search(/launchctl kickstart -k/) < mo.search(/nohup python3 -c/)],
+    [true, true, false, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

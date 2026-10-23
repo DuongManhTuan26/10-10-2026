@@ -5575,6 +5575,18 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
+    ten: "LaunchAgent chạy tsx watch (sập không được bật lại)",
+    tep: "docs/launchagent/vn.quanly.fanpage.plist",
+    tim: "exec node_modules/.bin/tsx server.ts",
+    thay: "exec npm run dev",
+  },
+  {
+    ten: "mo-app.sh bật bản thứ hai khi LaunchAgent đã cài",
+    tep: "scripts/mo-app.sh",
+    tim: "  launchctl kickstart -k \"gui/$(id -u)/$NHAN_LAUNCHD\" >/dev/null 2>&1\n",
+    thay: "",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

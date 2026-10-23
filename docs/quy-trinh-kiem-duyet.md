@@ -183,3 +183,11 @@ migration trước khi mở cổng, vỡ là máy chủ không lên, khách mấ
 2. Kịch bản đó phải ĐẠT trước khi gộp. Gộp khi hàng đợi = 0, xem "[migrate] Đã áp dụng …" trong nhật ký, rồi báo cáo chỉ
    đọc sau migration.
 3. Kiểm tra ngược và kịch bản thử KHÔNG chạy cùng lúc (kiểm tra ngược sửa tạm tệp migration mà kịch bản thử đọc).
+
+## Gộp xong phải nạp lại máy chủ khi máy chủ chạy bằng LaunchAgent (23/10/2026)
+
+Hiện máy chủ chạy `tsx watch` (scripts/mo-app.sh): gộp mã là tự nạp lại. NẾU chủ dự án đồng ý cài LaunchAgent
+(docs/launchagent/vn.quanly.fanpage.plist — chạy KHÔNG watch để sập là launchd bật lại) thì gộp xong KHÔNG tự nạp: sau khi
+gộp (hàng đợi = 0) chạy `launchctl kickstart -k gui/$(id -u)/vn.quanly.fanpage`, rồi xem nhật ký "[migrate] …" / "Sẵn sàng".
+Bật máy chủ từ một phiên (Terminal, phiên Claude) luôn qua scripts/mo-app.sh — script tự tách phiên (setsid), không chết
+theo phiên gọi.

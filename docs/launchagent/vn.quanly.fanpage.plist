@@ -2,10 +2,23 @@
 <!--
   BẢN SOẠN SẴN — CHƯA CÀI (cần chủ dự án đồng ý: thay đổi cấu hình hệ thống của máy).
   launchd giữ máy chủ chạy: máy khởi động lại / máy chủ sập / phiên nào bị đóng → tự bật lại (KeepAlive + RunAtLoad).
-  Người canh đường hầm do máy chủ tự bật (services/duong-ham.ts) nên đi theo luôn.
+
+  Chạy KHÔNG watch (`tsx server.ts`, không phải `npm run dev` = `tsx watch`): với watch, server.ts sập thì tiến trình
+  `tsx watch` vẫn sống ngồi chờ tệp đổi → launchd thấy còn sống, KHÔNG bật lại (phiên kiểm duyệt bắt 23/10/2026).
+  Không watch: sập là thoát → launchd bật lại sau ThrottleInterval.
+    · Lỗi không bắt được (uncaughtException) → server.ts exit(1); khởi động hỏng (mất DB…) → main().catch exit(1).
+    · Promise bị từ chối không ai bắt (unhandledRejection) chỉ ghi nhật ký, máy chủ chạy tiếp (không treo).
+
+  Người canh đường hầm: máy chủ tự bật (services/duong-ham.ts, spawn detached), giữ chỗ duy nhất bằng .tunnel.pid —
+  máy chủ được bật lại KHÔNG sinh người canh thứ hai. Người canh chết riêng lẻ: worker thấy webhook chết thì tự bật lại
+  (worker.ts tuSuaWebhook → damBaoNguoiCanh), mỗi lần máy chủ khởi động cũng kiểm.
+
+  HỆ QUẢ QUY TRÌNH: không watch thì gộp mã xong KHÔNG tự nạp lại → sau khi gộp (hàng đợi = 0):
+      launchctl kickstart -k gui/$(id -u)/vn.quanly.fanpage
+  (docs/quy-trinh-kiem-duyet.md; scripts/mo-app.sh cũng tự dùng lệnh này khi thấy LaunchAgent đã cài.)
+
   Cài:   cp docs/launchagent/vn.quanly.fanpage.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/vn.quanly.fanpage.plist
   Gỡ:    launchctl unload ~/Library/LaunchAgents/vn.quanly.fanpage.plist && rm ~/Library/LaunchAgents/vn.quanly.fanpage.plist
-  Sau khi cài: nút "Mở app" (scripts/mo-app.sh) chỉ còn mở trình duyệt — máy chủ đã chạy sẵn nên script không bật thêm.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -18,7 +31,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-c</string>
-    <string>export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:$PATH"; PORT=3000 exec npm run dev</string>
+    <string>export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:$PATH"; PORT=3000 exec node_modules/.bin/tsx server.ts</string>
   </array>
   <key>RunAtLoad</key>
   <true/>

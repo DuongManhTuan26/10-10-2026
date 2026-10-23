@@ -14,6 +14,17 @@ NHAT_KY="$HOME/Library/Logs/quan-ly-fanpage.log"
 
 dang_chay() { curl -sf -m 2 -o /dev/null "${DIA_CHI}/api/health"; }
 
+# LaunchAgent đã cài (docs/launchagent/vn.quanly.fanpage.plist) thì launchd giữ máy chủ — KHÔNG bật bản thứ hai, chỉ nhờ
+# launchd bật lại ngay (kickstart) nếu đang tắt.
+NHAN_LAUNCHD="vn.quanly.fanpage"
+if ! dang_chay && launchctl list "$NHAN_LAUNCHD" >/dev/null 2>&1; then
+  launchctl kickstart -k "gui/$(id -u)/$NHAN_LAUNCHD" >/dev/null 2>&1
+  for _ in $(seq 1 120); do
+    dang_chay && break
+    sleep 1
+  done
+fi
+
 if ! dang_chay; then
   cd "$DU_AN" || exit 1
   # TÁCH PHIÊN (setsid) — 23/10/2026: bật từ một phiên khác (cửa sổ Terminal, phiên Claude…) thì máy chủ nằm trong NHÓM
