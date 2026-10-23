@@ -275,3 +275,5 @@ không có tin Telegram nào vì người canh tắt cùng lúc. Đã sửa gố
 Còn lại: máy sập / khởi động lại máy / máy chủ chết vì lý do khác thì vẫn không ai bật lại. Giải pháp chuẩn trên Mac:
 LaunchAgent (KeepAlive + RunAtLoad) — bản soạn sẵn docs/launchagent/vn.quanly.fanpage.plist, cần chủ dự án đồng ý cài
 (thay đổi cấu hình hệ thống). Lâu dài: máy chủ thật (TD-16).
+Hệ quả nếu cài (nói rõ khi hỏi): sau khi cài, mỗi lần gộp mã cần một lệnh khởi động lại (đã có trong quy trình); mất DB
+thì máy chủ tự thử lại mỗi 30 giây.

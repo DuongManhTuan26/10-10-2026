@@ -26,6 +26,8 @@ import {
  * tìm nguyên nhân khi vận hành thật.
  */
 function installCrashGuards(): void {
+  // Promise lỗi không ai bắt: GHI rồi chạy tiếp, KHÔNG thoát (phiên kiểm duyệt chốt 23/10/2026) — một lời hứa lỗi lặt vặt
+  // (vd. một lần gọi Telegram) mà thoát thì máy chủ bật lại liên tục dưới LaunchAgent, hại hơn lợi.
   process.on("unhandledRejection", (reason) => {
     console.error(
       "[nghiêm trọng] Promise bị từ chối mà không ai bắt:",
