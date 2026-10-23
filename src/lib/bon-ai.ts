@@ -45,6 +45,33 @@ export const BON_AI: readonly MotAi[] = [
 /** Màu thương hiệu (logo, thanh menu, Tổng quan) — không thuộc AI nào. */
 export const MAU_THUONG_HIEU = '#22d3ee';
 
+/** Màu nghĩa ngoài 4 AI — khớp .mau-lam / .mau-xam trong index.css (lam = thông tin; xám = không mang nghĩa). */
+export const MAU_THONG_TIN = '#60a5fa';
+export const MAU_XAM = '#94a3b8';
+
+/**
+ * MỘT kiểu biểu đồ cho mọi màn (P3, 23/10/2026 — trước đó Điều hành nền chú thích '#111827', Quảng cáo '#18181B', mỗi
+ * màn một màu trục). Khung chú thích cùng chất liệu thẻ (--color-the), trục xám dịu, lưới rất nhạt.
+ */
+export const BIEU_DO = {
+  truc: '#8b95a1',
+  luoi: 'rgba(255,255,255,0.06)',
+  chuThich: { backgroundColor: 'var(--color-the)', borderColor: 'rgba(255,255,255,0.15)', borderRadius: 10 },
+  nhanChuThich: { color: '#9ca3af' },
+} as const;
+
+/**
+ * Màu lát "Nguồn khách" = màu của AI mang khách về (phiên kiểm duyệt 23/10/2026): quảng cáo → ②, bình luận bài → ①,
+ * khách tự nhắn → ③; đường dẫn nhắn tin không thuộc AI nào → lam; chưa ghi nguồn → xám. ② là màu AI, không phải đỏ lỗi.
+ */
+export const MAU_NGUON_KHACH = {
+  quangCao: '#ff4d6a',
+  binhLuan: '#4ade80',
+  tuNhan: '#b38bff',
+  lienKet: MAU_THONG_TIN,
+  chuaGhiNguon: MAU_XAM,
+} as const;
+
 /** Miền của một đường dẫn: 4 AI theo màu của nó, Tổng quan = màu thương hiệu, còn lại là trang hệ thống (trung tính). */
 export function mienTheoDuong(duong: string): string {
   const ai = BON_AI.find((a) => duong === a.duong || duong.startsWith(`${a.duong}/`));

@@ -247,7 +247,9 @@ export default function TelegramAlerts() {
       {/* HÀNG 1: THẺ TRẠNG THÁI KẾT NỐI */}
       <div className="space-y-4">
         {isConnected && (
-        <div className="bg-surface-container border border-primary/50 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="khung-muc mau-lam">
+          <h3 className="tieu-de-muc dau-muc">Kết nối Telegram</h3>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
           
           <div className="flex items-center gap-5">
             <div className="w-16 h-16 bg-[#2AABEE]/10 rounded-full flex items-center justify-center shrink-0 border border-[#2AABEE]/30">
@@ -280,11 +282,14 @@ export default function TelegramAlerts() {
             </button>
           </div>
         </div>
+        </div>
 
         )}
 
         {!isConnected && (
-        <div className="bg-surface-container border border-outline-variant rounded-2xl p-6 flex flex-col gap-5">
+        <div className="khung-muc mau-lam">
+          <h3 className="tieu-de-muc dau-muc">Kết nối Telegram</h3>
+          <div className="flex flex-col gap-5">
           <div className="flex items-center gap-5 flex-1">
             <div className="w-16 h-16 bg-surface-variant rounded-full flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-on-surface-variant text-[32px]">send</span>
@@ -423,6 +428,7 @@ export default function TelegramAlerts() {
             )}
           </div>
         </div>
+        </div>
         )}
       </div>
 
@@ -430,9 +436,9 @@ export default function TelegramAlerts() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Cột trái */}
-        <div className="bg-surface-container border border-outline-variant rounded-2xl p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-on-surface">Thông báo quan trọng</h2>
+        <div className="khung-muc mau-xam flex flex-col">
+          <div className="dau-muc flex items-center justify-between gap-3">
+            <h2 className="tieu-de-muc">Thông báo quan trọng</h2>
             <span className="font-mono text-[10px] font-bold tracking-wider text-error bg-error/10 border border-error/20 px-2 py-0.5 rounded uppercase">LUÔN GỬI NGAY LẬP TỨC</span>
           </div>
 
@@ -468,10 +474,8 @@ export default function TelegramAlerts() {
         </div>
 
         {/* Cột phải */}
-        <div className="bg-surface-container border border-outline-variant rounded-2xl p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-on-surface">Thông báo thường</h2>
-          </div>
+        <div className="khung-muc mau-lam flex flex-col">
+          <h2 className="tieu-de-muc dau-muc">Thông báo thường</h2>
 
           <div className="space-y-4 flex-1">
             <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
@@ -491,8 +495,8 @@ export default function TelegramAlerts() {
       </div>
 
       {/* HÀNG 3: XEM TRƯỚC TIN NHẮN */}
-      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-on-surface mb-6">Tin nhắn Telegram sẽ trông thế nào</h2>
+      <div className="khung-muc mau-xam">
+        <h2 className="tieu-de-muc dau-muc">Tin nhắn Telegram sẽ trông thế nào</h2>
         
         {/*
           ẢNH MẪU — dựng đúng từng dòng của tin thật (services/telegram.ts sendOrderReport / sendHandoffAlert), dữ liệu là
@@ -524,10 +528,8 @@ export default function TelegramAlerts() {
       </div>
 
       {/* HÀNG 4: LỊCH SỬ THÔNG BÁO */}
-      <div className="bg-surface-container border border-outline-variant rounded-2xl overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-outline-variant/50">
-          <h2 className="text-lg font-bold text-on-surface">Thông báo gần đây</h2>
-        </div>
+      <div className="khung-muc mau-lam flex flex-col">
+        <h2 className="tieu-de-muc dau-muc">Thông báo gần đây</h2>
         <div className="overflow-x-auto ">
           <table className="w-full min-w-[700px] text-left border-collapse">
             <thead>

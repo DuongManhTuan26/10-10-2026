@@ -87,11 +87,12 @@ export default function Pricing() {
       </div>
 
       <div className="max-w-5xl mx-auto pb-xl">
-        {/* HÀNG 1 — thẻ ngang rộng hết chiều ngang, viền phát sáng */}
-        <div className="bg-surface-container border border-outline-variant rounded-xl p-md grid grid-cols-1 md:grid-cols-10 gap-md items-start mb-md">
+        {/* HÀNG 1 — thẻ ngang rộng hết chiều ngang; chất liệu khung-muc lam (màn hệ thống, P3 23/10/2026) */}
+        <div className="khung-muc mau-lam mb-md">
+          <h3 className="tieu-de-muc dau-muc">Gói đang dùng</h3>
+          <div className="grid grid-cols-1 md:grid-cols-10 gap-md items-start">
           {/* Left */}
           <div className="flex flex-col md:col-span-4">
-            <span className="font-label-sm text-primary tracking-widest uppercase mb-1">GÓI ĐANG DÙNG</span>
             <h3 className="text-3xl font-bold text-on-surface">{currentPlan.name}</h3>
             <p className="text-base text-primary font-bold">{currentPlan.price.replace('/tháng', ' mỗi tháng')}</p>
             <p className="font-body-md text-on-surface-variant mt-2">{plan === 'trial' ? 'Đang dùng thử' : 'Gia hạn tự động hằng tháng'}</p>
@@ -119,6 +120,7 @@ export default function Pricing() {
           <div className="flex flex-col gap-sm md:col-span-3 w-full">
             <button className="w-full py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg hover:brightness-110 transition-all font-bold" onClick={() => handleUpgrade()}>Nâng cấp gói</button>
           </div>
+        </div>
         </div>
 
         {/* HÀNG 2 — dải giải thích cách tính tiền, nền sáng hơn nền chung, có biểu tượng thông tin */}

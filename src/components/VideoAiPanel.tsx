@@ -10,6 +10,7 @@ import VideoTrendPanel from './VideoTrendPanel';
 import { ThuVienAnh } from './ThuVienAnh';
 import { useDangKyHanhDong, useXuong } from '../lib/xuong';
 import { hoiXacNhan } from './HopHoi';
+import { TY_GIA } from '../lib/tien-chi';
 
 /**
  * Khối "AI tạo video" trong khung soạn bài.
@@ -20,8 +21,6 @@ import { hoiXacNhan } from './HopHoi';
  * chừng cũng không mất video.
  */
 
-/** Tỷ giá chỉ để chủ shop hình dung, số tiền thật tính bằng USD. */
-const TY_GIA = 25_500;
 
 const KHUNG: { id: string; ten: string }[] = [
   { id: '9:16', ten: 'Dọc 9:16 (Reels)' },

@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { useDangKyHanhDong, useXuong } from '../lib/xuong';
 import { api, ApiError, type MediaItem, type ModelSuaVideo, type ViecVideo } from '../lib/api';
 import { hoiXacNhan } from './HopHoi';
+import { TY_GIA } from '../lib/tien-chi';
 
 /**
  * Video → video: sửa video chủ shop đã có — đổi bối cảnh, thêm bớt đồ vật, đổi
@@ -11,7 +12,6 @@ import { hoiXacNhan } from './HopHoi';
  * nguồn), nên đọc độ dài video ngay trên trình duyệt để báo giá trước.
  */
 
-const TY_GIA = 25_500;
 const GOI_Y = [
   'Đổi bối cảnh thành quán cà phê sang trọng, giữ nguyên người và sản phẩm',
   'Chuyển sang phong cách phim điện ảnh, màu ấm',

@@ -16,7 +16,7 @@ import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 import { clsx } from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { api, formatCurrency, timeAgo, ORDER_STATUS_LABELS, type User } from '../lib/api';
-import { aiTheoMa } from '../lib/bon-ai';
+import { aiTheoMa, BIEU_DO, MAU_XAM } from '../lib/bon-ai';
 
 type Range = '1d' | '7d' | '30d';
 
@@ -299,8 +299,8 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
                     </defs>
                     <XAxis dataKey="label" hide />
                     <Tooltip
-                      contentStyle={{ backgroundColor: 'var(--color-the)', borderColor: 'rgba(255,255,255,0.15)', borderRadius: 10 }}
-                      labelStyle={{ color: '#9ca3af' }}
+                      contentStyle={BIEU_DO.chuThich}
+                      labelStyle={BIEU_DO.nhanChuThich}
                       formatter={(v: number) => [formatCurrency(v), 'Doanh thu']}
                     />
                     <Area type="monotone" dataKey="revenue" stroke={mauBan} strokeWidth={2.5} fill="url(#dtNgay)" />
@@ -359,13 +359,13 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={duLieu7} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                    <XAxis dataKey="ngay" stroke="#8b95a1" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis yAxisId="tin" stroke="#8b95a1" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <YAxis yAxisId="don" orientation="right" stroke="#8b95a1" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-the)', borderColor: 'rgba(255,255,255,0.15)', borderRadius: 10 }} labelStyle={{ color: '#9ca3af' }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={BIEU_DO.luoi} vertical={false} />
+                    <XAxis dataKey="ngay" stroke={BIEU_DO.truc} fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis yAxisId="tin" stroke={BIEU_DO.truc} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <YAxis yAxisId="don" orientation="right" stroke={BIEU_DO.truc} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={BIEU_DO.chuThich} labelStyle={BIEU_DO.nhanChuThich} />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                    <Line yAxisId="tin" type="monotone" dataKey="tin" name="Tin nhắn" stroke="#94a3b8" strokeWidth={2} dot={false} />
+                    <Line yAxisId="tin" type="monotone" dataKey="tin" name="Tin nhắn" stroke={MAU_XAM} strokeWidth={2} dot={false} />
                     <Line yAxisId="tin" type="monotone" dataKey="ai" name="AI trả lời" stroke={mauBan} strokeWidth={2} dot={false} />
                     <Line yAxisId="don" type="monotone" dataKey="don" name="Đơn hàng" stroke="#e9ddff" strokeWidth={2.5} dot={{ r: 3 }} />
                   </LineChart>

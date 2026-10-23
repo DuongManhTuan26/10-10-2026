@@ -7,7 +7,7 @@ import { api, ApiError, formatCurrency, type NhamChonQc, type Post } from '../li
 import BangLoi from '../components/BangLoi';
 import { hoiNhap, hoiXacNhan } from '../components/HopHoi';
 import { Link } from 'react-router-dom';
-import { aiTheoMa } from '../lib/bon-ai';
+import { aiTheoMa, BIEU_DO } from '../lib/bon-ai';
 import { lichChay, ngayNgan, khoangTheoKy, ngayDayDu } from '../lib/ky-ngay';
 import { docChienDich, nhanTrangThaiChienDich } from '../lib/chien-dich';
 import { docYDinhLuu, luuYDinh, yDinhDayBai, type YDinhDayBai } from '../lib/day-bai';
@@ -777,9 +777,9 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
       </div>
 
       {/* Row 3: Performance Chart */}
-      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6 mb-8 flex flex-col">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-on-surface">Hiệu quả chiến dịch</h2>
+      <div className="khung-muc mau-do mb-8 flex flex-col">
+        <div className="dau-muc flex items-center justify-between gap-3">
+          <h2 className="tieu-de-muc">Hiệu quả chiến dịch</h2>
           <button onClick={handleAnalyze} disabled={dangPhanTich || busy || !connected} className="font-mono text-xs font-bold text-primary hover:brightness-110 uppercase tracking-wider disabled:opacity-50">
             {dangPhanTich ? 'ĐANG PHÂN TÍCH…' : 'AI PHÂN TÍCH →'}
           </button>
@@ -847,15 +847,12 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                   <stop offset="95%" stopColor={aiTheoMa('sales').hex} stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#A1A1AA', fontSize: 12 }} dy={10} />
-              <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#A1A1AA', fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#A1A1AA', fontSize: 12 }} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#18181B', borderColor: '#27272A', borderRadius: '12px', color: '#fff' }}
-                itemStyle={{ color: '#fff' }}
-              />
-              <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '12px', color: '#A1A1AA' }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={BIEU_DO.luoi} />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: BIEU_DO.truc, fontSize: 12 }} dy={10} />
+              <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: BIEU_DO.truc, fontSize: 12 }} />
+              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: BIEU_DO.truc, fontSize: 12 }} />
+              <Tooltip contentStyle={BIEU_DO.chuThich} labelStyle={BIEU_DO.nhanChuThich} />
+              <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '12px', color: BIEU_DO.truc }} />
               <Area yAxisId="left" type="monotone" dataKey="reach" name="Lượt tiếp cận" stroke={aiTheoMa('ads').hex} strokeWidth={2} fillOpacity={1} fill="url(#colorReach)" />
               {/* Chưa đo được đơn từ quảng cáo thì không vẽ đường "Đơn chốt" (một đường 0 phẳng là số giả). */}
               {donQuangCao && <Area yAxisId="right" type="monotone" dataKey="orders" name="Đơn chốt" stroke={aiTheoMa('sales').hex} strokeWidth={2} fillOpacity={1} fill="url(#colorOrders)" />}
@@ -865,7 +862,10 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
       </div>
 
       {/* Row 4: Campaigns List */}
-      <div id="ds-chien-dich" className="bg-surface-container border border-outline-variant rounded-2xl overflow-hidden mb-8 scroll-mt-6">
+      {/* Liền giữa hai khung đỏ ② → xám, để hai phần liền nhau khác màu. */}
+      <div id="ds-chien-dich" className="khung-muc mau-xam mb-8 scroll-mt-6">
+        <h3 className="tieu-de-muc dau-muc">Chiến dịch</h3>
+        <div className="rounded-xl border border-outline-variant overflow-hidden">
         <div className="p-6 border-b border-outline-variant/50">
           <div className="flex flex-wrap gap-2">
             {['Tất cả', 'Đang chạy', 'Tạm dừng', 'Đã kết thúc'].map(opt => (
@@ -1000,11 +1000,12 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
           )}
         </div>
       </div>
+      </div>
 
       {/* Row 5: Audiences */}
-      <div className="bg-surface-container border border-outline-variant rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-on-surface">Tệp đối tượng đã lưu</h2>
+      <div className="khung-muc mau-do">
+        <div className="dau-muc flex items-center justify-between gap-3">
+          <h2 className="tieu-de-muc">Tệp đối tượng đã lưu</h2>
           <button onClick={() => setIsAudienceFlowOpen(true)} className="px-3 py-1.5 border border-outline-variant text-on-surface font-bold text-sm rounded-lg hover:bg-surface-variant transition-colors flex items-center gap-1">
             <span className="material-symbols-outlined text-[16px]">add</span>
             Tạo tệp mới

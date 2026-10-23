@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { clsx } from 'clsx';
 import { api, type ModelVideo, type VideoTuDong } from '../lib/api';
 import { LuatNoiDungChon } from './LuatNoiDungChon';
+import { TY_GIA } from '../lib/tien-chi';
 
 /**
  * Video đăng kèm bài trong lịch tự đăng — cùng cơ chế công tắc như ảnh (chủ dự án 03/10/2026).
@@ -9,7 +10,6 @@ import { LuatNoiDungChon } from './LuatNoiDungChon';
  * lịch đăng kèm ảnh thay thế.
  */
 
-const TY_GIA = 25_500;
 const GIAY = [5, 8, 10, 15];
 const DO_NET = ['480p', '720p', '1080p'];
 const KHUNG = [

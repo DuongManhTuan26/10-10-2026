@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { clsx } from 'clsx';
 import { api, type LuaChonVeAnh, type ModelAnh } from '../lib/api';
+import { TY_GIA } from '../lib/tien-chi';
 
 /**
  * Chọn mô hình vẽ ảnh, xếp rẻ tới đắt, kèm GIÁ MỘT ẢNH theo đúng lựa chọn (chủ dự án 03/10/2026:
@@ -8,7 +9,6 @@ import { api, type LuaChonVeAnh, type ModelAnh } from '../lib/api';
  * Dùng chung cho vẽ ảnh bằng tay và ảnh tự tạo theo lịch đăng bài.
  */
 
-const TY_GIA = 25_500;
 
 export function vndAnh(usd: number | null | undefined): string {
   if (usd === null || usd === undefined) return 'chưa rõ giá';

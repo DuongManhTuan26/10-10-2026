@@ -15,9 +15,8 @@ import { useActivePage } from '../lib/ActivePage';
 import BaoCaoChuoi from '../components/BaoCaoChuoi';
 import SucKhoeTrang from '../components/SucKhoeTrang';
 import DieuHanhThu from '../components/DieuHanhThu';
-import { aiTheoMa } from '../lib/bon-ai';
+import { aiTheoMa, BIEU_DO, MAU_NGUON_KHACH } from '../lib/bon-ai';
 
-const COLORS = ['#22d3ee', '#d946ef', '#f59e0b', '#3b82f6', '#10b981', '#ef4444'];
 const vnd = (x: number) => `${x.toLocaleString('vi-VN')} ₫`;
 
 function Khung({ tieuDe, phu, mau, children }: { tieuDe: string; phu?: string; mau: string; children: ReactNode }) {
@@ -34,7 +33,7 @@ function Khung({ tieuDe, phu, mau, children }: { tieuDe: string; phu?: string; m
 export function DangLamDieuHanh() {
   const { activeTrangId } = useActivePage();
   return (
-    <Khung tieuDe="Rà soát và đề xuất" phu="Chế độ đề xuất — không thực thi gì, mọi đề xuất chờ duyệt" mau="mau-xanh">
+    <Khung tieuDe="Rà soát và đề xuất" phu="Chế độ đề xuất — không thực thi gì, mọi đề xuất chờ duyệt" mau="mau-vang">
       <DieuHanhThu trangId={activeTrangId} />
     </Khung>
   );
@@ -64,11 +63,11 @@ export function KetQuaDieuHanh() {
   const donThat = bh ? bh.soDon - bh.donHuy : 0;
   const theNguon = bh
     ? [
-        { name: 'Quảng cáo', value: bh.theoNguon.quangCao },
-        { name: 'Bình luận bài', value: bh.theoNguon.binhLuan },
-        { name: 'Liên kết', value: bh.theoNguon.lienKet },
-        { name: 'Tự nhắn', value: bh.theoNguon.tuNhan },
-        { name: 'Chưa ghi nguồn', value: bh.theoNguon.chuaGhiNguon },
+        { name: 'Quảng cáo', value: bh.theoNguon.quangCao, mau: MAU_NGUON_KHACH.quangCao },
+        { name: 'Bình luận bài', value: bh.theoNguon.binhLuan, mau: MAU_NGUON_KHACH.binhLuan },
+        { name: 'Liên kết', value: bh.theoNguon.lienKet, mau: MAU_NGUON_KHACH.lienKet },
+        { name: 'Tự nhắn', value: bh.theoNguon.tuNhan, mau: MAU_NGUON_KHACH.tuNhan },
+        { name: 'Chưa ghi nguồn', value: bh.theoNguon.chuaGhiNguon, mau: MAU_NGUON_KHACH.chuaGhiNguon },
       ].filter((x) => x.value > 0)
     : [];
   const coDoanhThu = (du?.theoNgay ?? []).some((d) => d.doanhThu > 0 || d.don > 0);
@@ -120,8 +119,9 @@ export function KetQuaDieuHanh() {
 
             {/* Biểu đồ: doanh thu theo ngày + nguồn khách — của RIÊNG trang này */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="bg-surface-container rounded-xl border border-outline-variant p-6 shadow-lg lg:col-span-2">
-                <h3 className="font-headline-sm text-lg font-bold text-on-surface mb-6">Doanh thu theo ngày</h3>
+              {/* Hai phần liền nhau khác màu: doanh thu xám, nguồn khách lam (khung "Báo cáo" bên dưới là vàng ④). */}
+              <div className="khung-muc mau-xam lg:col-span-2">
+                <h3 className="tieu-de-muc dau-muc">Doanh thu theo ngày</h3>
                 <div className="h-[280px] w-full">
                   {!coDoanhThu ? (
                     <div className="h-full flex flex-col items-center justify-center text-center gap-2">
@@ -137,13 +137,13 @@ export function KetQuaDieuHanh() {
                             <stop offset="95%" stopColor={aiTheoMa('analytics').hex} stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis dataKey="ngay" stroke="#8b95a1" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                        <YAxis stroke="#8b95a1" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000000}M`} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={BIEU_DO.luoi} vertical={false} />
+                        <XAxis dataKey="ngay" stroke={BIEU_DO.truc} fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                        <YAxis stroke={BIEU_DO.truc} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000000}M`} />
                         <Tooltip
-                          contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px' }}
+                          contentStyle={BIEU_DO.chuThich}
                           itemStyle={{ color: aiTheoMa('analytics').hex, fontWeight: 'bold' }}
-                          labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
+                          labelStyle={{ ...BIEU_DO.nhanChuThich, marginBottom: '4px' }}
                           formatter={(v: number) => vnd(v)}
                         />
                         <Area type="monotone" dataKey="doanhThu" name="Doanh thu" stroke={aiTheoMa('analytics').hex} strokeWidth={3} fillOpacity={1} fill="url(#mauDoanhThu)" />
@@ -152,8 +152,8 @@ export function KetQuaDieuHanh() {
                   )}
                 </div>
               </div>
-              <div className="bg-surface-container rounded-xl border border-outline-variant p-6 shadow-lg flex flex-col">
-                <h3 className="font-headline-sm text-lg font-bold text-on-surface mb-6">Nguồn khách (hội thoại mới)</h3>
+              <div className="khung-muc mau-lam flex flex-col">
+                <h3 className="tieu-de-muc dau-muc">Nguồn khách (hội thoại mới)</h3>
                 <div className="h-[280px] w-full flex-1">
                   {theNguon.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center gap-2">
@@ -164,9 +164,9 @@ export function KetQuaDieuHanh() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={theNguon} cx="50%" cy="45%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" stroke="none">
-                          {theNguon.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          {theNguon.map((x) => <Cell key={x.name} fill={x.mau} />)}
                         </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px' }} itemStyle={{ fontWeight: 'bold' }} />
+                        <Tooltip contentStyle={BIEU_DO.chuThich} itemStyle={{ fontWeight: 'bold' }} />
                         <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                       </PieChart>
                     </ResponsiveContainer>
@@ -176,7 +176,7 @@ export function KetQuaDieuHanh() {
             </div>
 
             {/* Báo cáo của 3 AI nhân viên — chuỗi 4 khâu */}
-            <Khung tieuDe="Báo cáo 3 AI nhân viên" phu="Nội dung → Quảng cáo → Bán hàng → Tổng: đã làm gì, tốn bao nhiêu, ra kết quả gì, hỏng ở đâu" mau="mau-xanh">
+            <Khung tieuDe="Báo cáo 3 AI nhân viên" phu="Nội dung → Quảng cáo → Bán hàng → Tổng: đã làm gì, tốn bao nhiêu, ra kết quả gì, hỏng ở đâu" mau="mau-vang">
               <BaoCaoChuoi t={du.trang} du={du.chuoi} />
             </Khung>
 

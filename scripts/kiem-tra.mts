@@ -7763,6 +7763,53 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [true, true]);
 }
 
+// --- P3 (23/10/2026, phiên kiểm duyệt duyệt thiết kế): thẻ đúng chất liệu khung-muc, ④ vàng, một kiểu biểu đồ, một tỷ giá.
+{
+  const d30 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const tep30 = (goc: string) => fs.readdirSync(path.join(GOC, goc), { recursive: true }).map(String).filter((t) => /\.(tsx?|mts)$/.test(t));
+  kiem("P3 tỷ giá", "một tỷ giá duy nhất: chỉ src/lib/tien-chi.ts khai 25_500; mọi chỗ khác import TY_GIA",
+    [...tep30("src").map((t) => `src/${t}`), ...tep30("server").map((t) => `server/${t}`)]
+      .filter((t) => t !== "src/lib/tien-chi.ts" && /25_?500/.test(d30(t))),
+    []);
+  const css30 = fs.readFileSync(path.join(GOC, "src/index.css"), "utf8");
+  const mauCss = (lop: string) => (css30.match(new RegExp(`\\.${lop} \\{ --mau: (#[0-9a-f]{6}); \\}`)) ?? [])[1];
+  const bonAi30 = await import("../src/lib/bon-ai.ts");
+  kiem("P3 màu", "mã màu 4 AI trong bon-ai.ts KHỚP .mau-* trong index.css (một nguồn cho biểu đồ / SVG và khung); lam, xám cũng khớp",
+    [bonAi30.BON_AI.map((a) => [a.mau, a.hex === mauCss(a.mau)]), bonAi30.MAU_THONG_TIN === mauCss("mau-lam"), bonAi30.MAU_XAM === mauCss("mau-xam")],
+    [[["mau-la", true], ["mau-do", true], ["mau-tim", true], ["mau-vang", true]], true, true]);
+  kiem("P3 màu", "lát 'Nguồn khách' = màu AI mang khách về (quảng cáo ②, bình luận ①, tự nhắn ③), liên kết lam, chưa ghi xám",
+    [bonAi30.MAU_NGUON_KHACH.quangCao === bonAi30.aiTheoMa("ads").hex, bonAi30.MAU_NGUON_KHACH.binhLuan === bonAi30.aiTheoMa("content").hex,
+      bonAi30.MAU_NGUON_KHACH.tuNhan === bonAi30.aiTheoMa("sales").hex, bonAi30.MAU_NGUON_KHACH.lienKet, bonAi30.MAU_NGUON_KHACH.chuaGhiNguon],
+    [true, true, true, "#60a5fa", "#94a3b8"]);
+  const dh30 = d30("src/pages/DieuHanh.tsx"), ad30 = d30("src/pages/Ads.tsx"), db30 = d30("src/pages/Dashboard.tsx");
+  kiem("P3 ④ vàng", "Điều hành: không còn khung xanh ngọc; 'Rà soát' + 'Báo cáo' vàng; doanh thu xám, nguồn khách lam (liền kề khác màu); lát bánh theo nguồn",
+    [/mau-xanh/.test(dh30), (dh30.match(/mau="mau-vang"/g) ?? []).length,
+      /<div className="khung-muc mau-xam lg:col-span-2">\s*<h3 className="tieu-de-muc dau-muc">Doanh thu theo ngày<\/h3>/.test(dh30),
+      /<div className="khung-muc mau-lam flex flex-col">\s*<h3 className="tieu-de-muc dau-muc">Nguồn khách \(hội thoại mới\)<\/h3>/.test(dh30),
+      /\{theNguon\.map\(\(x\) => <Cell key=\{x\.name\} fill=\{x\.mau\} \/>\)\}/.test(dh30), /COLORS/.test(dh30)],
+    [false, 2, true, true, true, false]);
+  kiem("P3 biểu đồ", "Điều hành / Quảng cáo / Tổng quan: một kiểu chú thích + trục + lưới (BIEU_DO), không còn mã màu riêng",
+    [[dh30, ad30, db30].map((x) => /#111827|#18181B|#27272A|#374151|#A1A1AA|#8b95a1|#9ca3af|rgba\(255,255,255,0\.0[56]\)/.test(x)),
+      [dh30, ad30, db30].map((x) => (x.match(/contentStyle=\{BIEU_DO\.chuThich\}/g) ?? []).length)],
+    [[false, false, false], [2, 1, 2]]);
+  kiem("P3 khung", "② Đang làm: 'Hiệu quả chiến dịch' đỏ → bảng 'Chiến dịch' xám → 'Tệp đối tượng' đỏ (liền kề khác màu)",
+    [/<div className="khung-muc mau-do mb-8 flex flex-col">\s*<div className="dau-muc flex items-center justify-between gap-3">\s*<h2 className="tieu-de-muc">Hiệu quả chiến dịch<\/h2>/.test(ad30),
+      /<div id="ds-chien-dich" className="khung-muc mau-xam mb-8 scroll-mt-6">\s*<h3 className="tieu-de-muc dau-muc">Chiến dịch<\/h3>/.test(ad30),
+      /<div className="khung-muc mau-do">\s*<div className="dau-muc flex items-center justify-between gap-3">\s*<h2 className="tieu-de-muc">Tệp đối tượng đã lưu<\/h2>/.test(ad30),
+      // Ba thẻ cũ (thẻ nút "Đẩy bài" và bảng trong hộp thoại thì giữ).
+      /<div (id="ds-chien-dich" )?className="bg-surface-container border border-outline-variant rounded-2xl (p-6( mb-8 flex flex-col)?|overflow-hidden mb-8 scroll-mt-6)">/.test(ad30)],
+    [true, true, true, false]);
+  kiem("P3 khung", "① Đang làm: danh sách bài trong khung xám 'Bài đăng'",
+    /<div className="khung-muc mau-xam">\s*<h3 className="tieu-de-muc dau-muc">Bài đăng<\/h3>/.test(d30("src/pages/Content.tsx")), true);
+  const tg30 = d30("src/pages/TelegramAlerts.tsx"), ql30 = d30("src/pages/QuanLy.tsx"), pr30 = d30("src/pages/Pricing.tsx");
+  kiem("P3 màn hệ thống", "Telegram / Gói dịch vụ / Quản lý: phần lớn là khung-muc xám · lam · cam (cảnh báo), không dùng màu 4 AI; không còn thẻ viền xám cũ",
+    [(tg30.match(/className="khung-muc (mau-[a-z]+)[^"]*"/g) ?? []).map((x) => x.match(/mau-[a-z]+/)![0]),
+      (ql30.match(/className="khung-muc (mau-[a-z]+)[^"]*"/g) ?? []).map((x) => x.match(/mau-[a-z]+/)![0]),
+      (pr30.match(/className="khung-muc (mau-[a-z]+)[^"]*"/g) ?? []).map((x) => x.match(/mau-[a-z]+/)![0]),
+      [tg30, ql30, pr30].map((x) => /bg-surface-container border border-outline-variant rounded-2xl p-[46]/.test(x))],
+    [["mau-lam", "mau-lam", "mau-xam", "mau-lam", "mau-xam", "mau-lam"], ["mau-cam", "mau-xam", "mau-lam"], ["mau-lam"], [false, false, false]]);
+}
+
 console.log(`\nĐã kiểm ${tong} điểm.`);
 if (hong === 0) {
   console.log("Tất cả đều đạt.\n");

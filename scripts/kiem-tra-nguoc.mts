@@ -3052,8 +3052,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "bỏ dải việc phải xử lý, chủ chuỗi tự đi dò từng trang",
     tep: "src/pages/QuanLy.tsx",
-    tim: "<h2 className=\"tieu-de-muc mb-3\">Cần xử lý ({canXuLy.length})</h2>",
-    thay: "<h2 className=\"tieu-de-muc mb-3\">Can xu ly</h2>",
+    tim: "<h2 className=\"tieu-de-muc dau-muc\">Cần xử lý ({canXuLy.length})</h2>",
+    thay: "<h2 className=\"tieu-de-muc dau-muc\">Can xu ly</h2>",
   },
   {
     ten: "bảng điều hành bỏ số liệu bộ não, không biết trang nào chưa dạy AI",
@@ -5711,6 +5711,60 @@ const DUC: PhepDuc[] = [
     tep: "src/pages/Connections.tsx",
     tim: "'Kết nối lại sau này là bắt đầu lại từ đầu: kịch bản phải bật lại, hội thoại mới tách khỏi hội thoại cũ.'",
     thay: "'Muốn dùng lại thì kết nối lại.'",
+  },
+  {
+    ten: "khung ④ 'Rà soát' quay về xanh ngọc",
+    tep: "src/pages/DieuHanh.tsx",
+    tim: "phu=\"Chế độ đề xuất — không thực thi gì, mọi đề xuất chờ duyệt\" mau=\"mau-vang\">",
+    thay: "phu=\"Chế độ đề xuất — không thực thi gì, mọi đề xuất chờ duyệt\" mau=\"mau-xanh\">",
+  },
+  {
+    ten: "lát 'Nguồn khách' quay lại bảng màu tự chọn",
+    tep: "src/pages/DieuHanh.tsx",
+    tim: "<Cell key={x.name} fill={x.mau} />",
+    thay: "<Cell key={x.name} fill={['#22d3ee', '#d946ef'][x.value % 2]} />",
+  },
+  {
+    ten: "quảng cáo trong 'Nguồn khách' dùng đỏ báo lỗi",
+    tep: "src/lib/bon-ai.ts",
+    tim: "  quangCao: '#ff4d6a',",
+    thay: "  quangCao: '#f87171',",
+  },
+  {
+    ten: "màu lam trong bon-ai lệch .mau-lam",
+    tep: "src/lib/bon-ai.ts",
+    tim: "export const MAU_THONG_TIN = '#60a5fa';",
+    thay: "export const MAU_THONG_TIN = '#3b82f6';",
+  },
+  {
+    ten: "tỷ giá riêng quay lại một màn video",
+    tep: "src/components/VideoSuaPanel.tsx",
+    tim: "import { TY_GIA } from '../lib/tien-chi';",
+    thay: "const TY_GIA = 25_500;",
+  },
+  {
+    ten: "chú thích biểu đồ Điều hành lại nền riêng",
+    tep: "src/pages/DieuHanh.tsx",
+    tim: "<Tooltip contentStyle={BIEU_DO.chuThich} itemStyle={{ fontWeight: 'bold' }} />",
+    thay: "<Tooltip contentStyle={{ backgroundColor: '#111827' }} itemStyle={{ fontWeight: 'bold' }} />",
+  },
+  {
+    ten: "bảng chiến dịch mất khung xám",
+    tep: "src/pages/Ads.tsx",
+    tim: "<div id=\"ds-chien-dich\" className=\"khung-muc mau-xam mb-8 scroll-mt-6\">",
+    thay: "<div id=\"ds-chien-dich\" className=\"bg-surface-container border border-outline-variant rounded-2xl overflow-hidden mb-8 scroll-mt-6\">",
+  },
+  {
+    ten: "màn Telegram mượn màu AI cho khung",
+    tep: "src/pages/TelegramAlerts.tsx",
+    tim: "        <div className=\"khung-muc mau-lam flex flex-col\">",
+    thay: "        <div className=\"khung-muc mau-tim flex flex-col\">",
+  },
+  {
+    ten: "danh sách bài ① mất khung",
+    tep: "src/pages/Content.tsx",
+    tim: "      <div className=\"khung-muc mau-xam\">\n      <h3 className=\"tieu-de-muc dau-muc\">Bài đăng</h3>",
+    thay: "      <div>\n      <h3 className=\"tieu-de-muc\">Bài đăng</h3>",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

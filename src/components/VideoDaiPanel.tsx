@@ -10,6 +10,7 @@ import { HuongKichBanChon } from './HuongKichBanChon';
 import { ChonMoHinhAnh } from './ChonMoHinhAnh';
 import { hoiXacNhan } from './HopHoi';
 import { laDungDoKhoa } from '../lib/tai-khoan-khoa';
+import { TY_GIA } from '../lib/tien-chi';
 
 /**
  * Video dài nhiều cảnh: kịch bản → video, ảnh tham chiếu → video, trend → video.
@@ -18,7 +19,6 @@ import { laDungDoKhoa } from '../lib/tai-khoan-khoa';
  * shop đọc, sửa từng cảnh rồi mới bấm tạo — từ đó mới tốn tiền video.
  */
 
-const TY_GIA = 25_500;
 // Tới 5 phút (chủ dự án: video dài 1–5 phút).
 const TONG_GIAY = [15, 30, 45, 60, 90, 120, 180, 240, 300];
 const TOI_DA_GIAY = 300;

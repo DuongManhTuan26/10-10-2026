@@ -2,11 +2,12 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { XuongAi, type KeHoachDang } from '../components/XuongAi';
 import { khoaTab } from '../lib/khoa-tab';
 import { vndAnh } from '../components/ChonMoHinhAnh';
+import { TY_GIA } from '../lib/tien-chi';
 import { hoiNhap, hoiXacNhan } from '../components/HopHoi';
 
 /** Giá video làm tròn 500đ — khớp đúng số hiện ở phần video của Xưởng AI. */
 const vndVideo = (usd: number | null) =>
-  usd === null ? 'chưa rõ giá' : `~${(Math.round((usd * 25_500) / 500) * 500).toLocaleString('vi-VN')}đ`;
+  usd === null ? 'chưa rõ giá' : `~${(Math.round((usd * TY_GIA) / 500) * 500).toLocaleString('vi-VN')}đ`;
 import { clsx } from 'clsx';
 import AITrainingModal from '../components/AITrainingModal';
 import AutoPilotPanel from '../components/AutoPilotPanel';
@@ -821,7 +822,9 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
         </div>
       </div>
 
-      {/* Row 3: Filter Tabs */}
+      {/* Row 3: Danh sách bài — một khung xám (P3: phần lớn của màn phải là khung-muc; xanh lá ① dành cho "Tự động hoá"). */}
+      <div className="khung-muc mau-xam">
+      <h3 className="tieu-de-muc dau-muc">Bài đăng</h3>
       <div className="flex flex-wrap items-center gap-2 mb-6">
         {FILTERS.map(filter => {
           const isActive = khoaTab(filter) === activeFilter;
@@ -994,6 +997,7 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
           <p className="text-on-surface-variant font-medium">Không có bài đăng nào trong mục này</p>
         </div>
       )}
+      </div>
 
       {/* Centered Composer Panel */}
       {isComposerOpen && (
