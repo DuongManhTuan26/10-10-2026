@@ -1889,8 +1889,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "shop chưa có tài liệu thì gật đầu với mọi giá",
     tep: "server/services/sales-ai.ts",
-    tim: "  if (tep.rows.length === 0) return false;",
-    thay: "  if (tep.rows.length === 0) return true;",
+    tim: "  if (!tl.phanDaDoc) return false;",
+    thay: "  if (!tl.phanDaDoc) return true;",
   },
   {
     ten: "đọc ảnh từ bất kỳ địa chỉ nào khách gửi",
@@ -2378,9 +2378,9 @@ const DUC: PhepDuc[] = [
    */
   {
     ten: "đối chiếu giá theo tài khoản thay vì theo Trang",
-    tep: "server/services/sales-ai.ts",
-    tim: "      WHERE trang_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL`,\n    [trangId]",
-    thay: "      WHERE user_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL`,\n    [trangId]",
+    tep: "server/services/knowledge.ts",
+    tim: "      WHERE trang_id = $1 AND kind = $2 AND extracted_text IS NOT NULL",
+    thay: "      WHERE user_id = $1 AND kind = $2 AND extracted_text IS NOT NULL",
   },
   {
     ten: "không biết Trang vẫn đi tìm bảng giá",
@@ -2406,7 +2406,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "kiến thức: không biết Trang thì lấy đại tài liệu",
     tep: "server/services/knowledge.ts",
-    tim: '  if (!trangId) return "";',
+    tim: "  if (!trangId) return chonTaiLieu([], tran);\n",
     thay: "",
   },
   {
@@ -5146,14 +5146,14 @@ const DUC: PhepDuc[] = [
   {
     ten: "chưa có tài liệu lại gán chuỗi giữ chỗ (AI nhận 'kiến thức: chưa có')",
     tep: "server/services/sales-ai.ts",
-    tim: "  const knowledgeBlock = coChu\n    .map((doc) => `# ${doc.filename}\\n${(doc.extracted_text ?? \"\").slice(0, 4_000)}`)\n    .join(\"\\n\\n\");",
-    thay: "  const knowledgeBlock = coChu.length ? coChu\n    .map((doc) => `# ${doc.filename}\\n${(doc.extracted_text ?? \"\").slice(0, 4_000)}`)\n    .join(\"\\n\\n\") : \"(Chưa có kiến thức.)\";",
+    tim: "  const knowledgeBlock = (await docTaiLieu(trangId, \"sales\")).noiDung;",
+    thay: "  const knowledgeBlock = (await docTaiLieu(trangId, \"sales\")).noiDung || \"(Chưa có kiến thức.)\";",
   },
   {
     ten: "tài liệu không chữ vẫn tính là có kiến thức",
-    tep: "server/services/sales-ai.ts",
-    tim: "  const coChu = knowledge.rows.filter((doc) => (doc.extracted_text ?? \"\").trim() !== \"\");",
-    thay: "  const coChu = knowledge.rows;",
+    tep: "server/services/knowledge.ts",
+    tim: "  const coChu = docs.filter((d) => (d.extracted_text ?? \"\").trim() !== \"\");",
+    thay: "  const coChu = docs;",
   },
   {
     ten: "đẩy bài thiếu goal (trường bắt buộc)",
@@ -5910,6 +5910,30 @@ const DUC: PhepDuc[] = [
     tep: "server/routes/dieu-hanh.ts",
     tim: "    if (dangChayDieuHanh.has(trangId)) throw new AppError(\"Cửa hàng này đang chạy thử, chờ lượt trước xong\", 409);\n    dangChayDieuHanh.add(trangId);",
     thay: "    if (dangChayDieuHanh.has(trangId)) throw new AppError(\"Cửa hàng này đang chạy thử, chờ lượt trước xong\", 409);\n    await Promise.resolve();\n    dangChayDieuHanh.add(trangId);",
+  },
+  {
+    ten: "cắt tài liệu giữa dòng (giá cụt)",
+    tep: "server/services/knowledge.ts",
+    tim: "      if (dai + x.length + 1 > con) break;\n      lay.push(x);",
+    thay: "      if (dai + x.length + 1 > con) { lay.push(x.slice(0, Math.max(0, con - dai - 1))); break; }\n      lay.push(x);",
+  },
+  {
+    ten: "xác nhận giá đọc mọi tài liệu (cả phần AI không thấy)",
+    tep: "server/services/sales-ai.ts",
+    tim: "  return giaCoTrongChu(tl.phanDaDoc, gia);",
+    thay: "  return giaCoTrongChu(tl.noiDung + (await query<{ extracted_text: string }>(\"SELECT extracted_text FROM ai_documents WHERE trang_id = $1\", [trangId])).rows.map((r) => r.extracted_text).join(\"\\n\"), gia);",
+  },
+  {
+    ten: "AI bán hàng quay lại trần cũ 24.000",
+    tep: "server/services/knowledge.ts",
+    tim: "{ sales: 40_000, content: 24_000, ads: 24_000 }",
+    thay: "{ sales: 24_000, content: 24_000, ads: 24_000 }",
+  },
+  {
+    ten: "thiếu câu dặn không đoán khi tài liệu chưa đọc hết",
+    tep: "server/services/knowledge.ts",
+    tim: "        ...(thieu ? [CAU_CHUA_DOC_HET] : []),\n",
+    thay: "",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
@@ -7059,14 +7083,14 @@ const DUC: PhepDuc[] = [
   {
     ten: "sổ bằng chứng: không đánh dấu tài liệu AI nhân viên không thấy",
     tep: "server/services/so-bang-chung.ts",
-    tim: "if (i >= SO_TAI_LIEU_TOI_DA) gioiHan.push(",
-    thay: "if (false) gioiHan.push(",
+    tim: "      if (chon.chuaDoc.includes(t.filename)) gioiHan.push(",
+    thay: "      if (false) gioiHan.push(",
   },
   {
     ten: "sổ bằng chứng: không đánh dấu tài liệu bị cắt",
     tep: "server/services/so-bang-chung.ts",
-    tim: "else if (t.extracted_text!.length > KY_TU_MOI_TAI_LIEU) gioiHan.push(",
-    thay: "else if (false) gioiHan.push(",
+    tim: "      else if (cat) gioiHan.push(",
+    thay: "      else if (false) gioiHan.push(",
   },
   {
     ten: "sổ bằng chứng: chỉ số thiếu mẫu vẫn coi là đủ mẫu",

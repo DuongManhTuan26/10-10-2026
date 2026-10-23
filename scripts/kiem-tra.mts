@@ -1856,8 +1856,10 @@ kiem("giá đơn", "giá không có trong tài liệu thì KHÔNG làm giá đơ
  * Trang bán bột sắn dây ra xác nhận cho khách của Trang bán quần áo. Đã đo:
  * giá 180.000đ có thật ở Trang 1 nhưng phải bị từ chối ở Trang 2.
  */
+// H8: đối chiếu giá theo Trang qua ĐÚNG phần AI đã đọc (docTaiLieu(trangId, "sales") — knowledge.ts lọc trang_id + kind).
 kiem("giá đơn", "đối chiếu giá theo Trang",
-  /WHERE trang_id = \$1 AND kind = 'sales' AND extracted_text IS NOT NULL/.test(nguonSales), true);
+  /const tl = await docTaiLieu\(trangId, "sales"\);/.test(nguonSales) &&
+    /WHERE trang_id = \$1 AND kind = \$2 AND extracted_text IS NOT NULL/.test(fs.readFileSync(path.join(GOC, "server/services/knowledge.ts"), "utf8")), true);
 kiem("giá đơn", "không biết Trang thì KHÔNG xác nhận giá nào",
   /if \(!trangId\) return false;/.test(nguonSales), true);
 kiem("giá đơn", "chặn giá lạ thì báo chủ shop, không im lặng",
@@ -1891,7 +1893,7 @@ for (const [gia, mong, vi] of [
   kiem("giá đơn", `so giá với tài liệu — ${vi}`, giaCoTrongChu(TAI_LIEU_THU, gia), mong);
 }
 kiem("giá đơn", "shop chưa có tài liệu thì không xác nhận được giá nào",
-  /if \(tep\.rows\.length === 0\) return false;/.test(nguonSales), true);
+  /if \(!tl\.phanDaDoc\) return false;\s*return giaCoTrongChu\(tl\.phanDaDoc, gia\);/.test(nguonSales), true);
 
 // --- Ảnh khách gửi -----------------------------------------------------------
 const nguonAnh = fs.readFileSync(path.join(GOC, "server/services/vision.ts"), "utf8");
@@ -2665,7 +2667,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
 
   const nguonKt = fs.readFileSync(path.join(GOC, "server/services/knowledge.ts"), "utf8");
   kiem("bộ não theo Trang", "không biết Trang thì trả kiến thức rỗng, không lấy đại",
-    /if \(!trangId\) return "";/.test(nguonKt), true);
+    /if \(!trangId\) return chonTaiLieu\(\[\], tran\);/.test(nguonKt) && /if \(!kq\.noiDung\) return "";/.test(nguonKt), true);
 
   const nguonTaoTk2 = fs.readFileSync(path.join(GOC, "server/services/tai-khoan.ts"), "utf8");
   // Phép kiểm cũ chỉ tìm chữ "INSERT INTO trang", nên một câu lệnh đã bị chú
@@ -5506,15 +5508,16 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       [bGio.ma, hangBangChung(bGio, luc).hang, bGio.noiDung.includes('settings.autoPilot.gio: ["19:30"] → ["03:00"]'), bGio.noiDung.includes("người đổi: chưa rõ"),
         bGio.noiDung.includes("(content)"), !!bGio.gioiHan, !!bDai.gioiHan?.length],
       ["TD-9", "A", true, true, true, false, true]);
-    const dai = "Giá lẻ 120.000đ. " + "x".repeat(4100) + " Giá sỉ từ 10 hộp: 95.000đ mỗi hộp.";
+    // H8: tài liệu dài hơn trần 40.000 ký tự của AI bán hàng (cắt theo dòng); tài liệu sau đó AI không thấy; AI khác không ảnh hưởng.
+    const dai = "Giá lẻ 120.000đ.\n" + ("x".repeat(100) + "\n").repeat(450) + "Giá sỉ từ 10 hộp: 95.000đ mỗi hộp.";
     const tl = (id: number, ngay: number, chu: string | null, kind = "sales") => ({ id, kind, filename: `tl${id}.txt`, extracted_text: chu, created_at: new Date(luc.getTime() - ngay * 86_400_000) });
-    const ds = [tl(1, 1, dai), tl(2, 2, "b"), tl(3, 3, "c"), tl(4, 4, "d"), tl(5, 5, "e"), tl(6, 30, "Bảng giá cũ"), tl(7, 1, null)];
+    const ds = [tl(1, 1, dai), tl(2, 2, "b"), tl(3, 3, "c"), tl(4, 4, "d"), tl(5, 5, "e"), tl(6, 30, "Bảng giá cũ"), tl(7, 1, null), tl(8, 1, "ngắn", "content")];
     const kq = bangChungTuTaiLieu(ds);
     const kho = new Map(kq.bangChung.map((b) => [b.ma, b]));
     kiem("sổ bằng chứng", "tài liệu: giữ NGUYÊN VĂN đầy đủ (trích được phần sau ký tự 4.000); đánh dấu phần AI nhân viên chỉ thấy một phần / không thấy; chưa đọc được chữ → khoảng trống",
       [kiemTrich({ ma: "TL-1", trich: "Giá sỉ từ 10 hộp: 95.000đ mỗi hộp" }, kho).dung,
-        /chỉ thấy 4\.000 ký tự đầu/.test(kho.get("TL-1")!.gioiHan?.[0] ?? ""), /KHÔNG thấy tài liệu này/.test(kho.get("TL-6")!.gioiHan?.[0] ?? ""),
-        kho.has("TL-7"), kq.khoangTrong.some((x) => x.includes("tl7.txt") && x.includes("chưa đọc được chữ")), kho.get("TL-2")!.gioiHan === undefined],
+        /không thấy [\d.]+ ký tự cuối/.test(kho.get("TL-1")!.gioiHan?.[0] ?? ""), /KHÔNG thấy tài liệu này/.test(kho.get("TL-6")!.gioiHan?.[0] ?? ""),
+        kho.has("TL-7"), kq.khoangTrong.some((x) => x.includes("tl7.txt") && x.includes("chưa đọc được chữ")), kho.get("TL-8")!.gioiHan === undefined],
       [true, true, true, false, true, true]);
     const kho4 = new Map([["TL-4", { ma: "TL-4", nguon: "tai_lieu_trang", luc, noiDung: "Miễn phí giao hàng cho đơn từ 300.000đ; dưới 300.000đ phí 30.000đ. Giao 2–4 ngày." } as BangChung]]);
     kiem("sổ bằng chứng", "trích dẫn thiếu ngữ cảnh: trả CẢ CÂU + từ điều kiện bị bỏ mất ('từ'); trích đủ điều kiện → không cảnh báo",
@@ -5529,8 +5532,11 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       [true, true, true, true, false]);
     const kn = doc("server/services/knowledge.ts");
     kiem("sổ bằng chứng", "giới hạn tài liệu của AI nhân viên và của sổ dùng CHUNG một hằng số (không lệch nhau)",
-      [/ORDER BY created_at DESC LIMIT \$\{SO_TAI_LIEU_TOI_DA\}`/.test(kn), /\.slice\(0, KY_TU_MOI_TAI_LIEU\)/.test(kn), !/slice\(0, 4_000\)|LIMIT 5`/.test(kn)],
-      [true, true, true]);
+      // H8: một hàm chonTaiLieu cho mọi AI và cho sổ; không còn LIMIT / cắt cứng ở chỗ nào.
+      [/const chon = chonTaiLieu\(coChu, TRAN_KY_TU_TAI_LIEU\[loai\] \?\? 24_000\);/.test(fs.readFileSync(path.join(GOC, "server/services/so-bang-chung.ts"), "utf8")),
+        ["server/services/sales-ai.ts", "server/services/content-ai.ts", "server/services/knowledge.ts"].map((t) => /FROM ai_documents[\s\S]{0,200}?LIMIT \d|slice\(0, [34]_000\)/.test(fs.readFileSync(path.join(GOC, t), "utf8"))),
+        !/LIMIT/.test(kn.slice(kn.indexOf("export async function docTaiLieu")))],
+      [true, [false, false, false], true]);
   }
   // Quy trình AI điều hành (bước 3, docs mục 14) — chạy THẬT cả quy trình với AI GIẢ có kịch bản (không tốn tiền):
   // bỏ sót lỗi bị bắt; đề xuất đúng không bị chặn nhầm; việc bình thường hoàn thành với số lượt AI tối thiểu.
@@ -7957,6 +7963,31 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     [/if \(dangChayDieuHanh\.has\(trangId\)\) continue;\s*dangChayDieuHanh\.add\(trangId\);\s*let cho:[\s\S]{0,60}?= null;\s*try \{\s*cho = await queryOne/.test(dn9),
       /if \(dangChayDieuHanh\.has\(trangId\)\) throw new AppError\([^;]*;\s*dangChayDieuHanh\.add\(trangId\);/.test(rt9)],
     [true, true]);
+  // H8 (TD-09, 24/10/2026): một hàm chọn tài liệu cho mọi AI — trọn tài liệu khi còn chỗ, cắt Ở RANH GIỚI DÒNG, báo phần chưa đọc.
+  const { chonTaiLieu, TRAN_KY_TU_TAI_LIEU, CAU_CHUA_DOC_HET } = await import("../server/services/knowledge.ts");
+  const doc = (filename: string, extracted_text: string | null) => ({ filename, extracted_text });
+  const vua = chonTaiLieu([doc("a.txt", "Áo A: 120.000đ"), doc("b.txt", "Áo B: 150.000đ")], 1_000);
+  kiem("H8 tài liệu", "đủ chỗ: đưa NGUYÊN mọi tài liệu, không câu báo thiếu",
+    [vua.noiDung, vua.biCat, vua.chuaDoc], ["# a.txt\nÁo A: 120.000đ\n\n# b.txt\nÁo B: 150.000đ", [], []]);
+  const cat = chonTaiLieu([doc("gia.txt", "Áo A: 120.000đ\nÁo B: 1.250.000đ\nÁo C: 99.000đ"), doc("sau.txt", "Quần: 200.000đ")], 40);
+  kiem("H8 tài liệu", "chạm trần giữa tài liệu: cắt Ở RANH GIỚI DÒNG (không có '1.2' cụt), ghi số ký tự bỏ, tài liệu sau chỉ liệt kê tên, có câu dặn không đoán",
+    [cat.phanDaDoc, /1\.2(?!50)/.test(cat.noiDung), cat.biCat.map((x) => x.ten), cat.chuaDoc, cat.noiDung.includes(CAU_CHUA_DOC_HET), cat.noiDung.includes("(Chưa đưa vào vì quá dài: sau.txt)")],
+    ["Áo A: 120.000đ", false, ["gia.txt"], ["sau.txt"], true, true]);
+  const dongDai = chonTaiLieu([doc("dai.txt", "x".repeat(500) + "\nÁo D: 50.000đ")], 100);
+  kiem("H8 tài liệu", "một dòng dài hơn chỗ còn lại → dừng ở đó, không cắt giữa dòng; rỗng → chuỗi rỗng; trần bán hàng 40.000, nội dung / quảng cáo 24.000",
+    [dongDai.phanDaDoc, dongDai.chuaDoc, chonTaiLieu([doc("r.txt", "  "), doc("n.txt", null)], 1000).noiDung, TRAN_KY_TU_TAI_LIEU],
+    ["", ["dai.txt"], "", { sales: 40_000, content: 24_000, ads: 24_000 }]);
+  const sa8 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/sales-ai.ts"), "utf8"));
+  const ct8 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/content-ai.ts"), "utf8"));
+  kiem("H8 tài liệu", "AI bán hàng, AI nội dung, AI quảng cáo (loadKnowledge) và bộ xác nhận giá cùng đi qua docTaiLieu",
+    [/const knowledgeBlock = \(await docTaiLieu\(trangId, "sales"\)\)\.noiDung;/.test(sa8), /const tl = await docTaiLieu\(params\.trangId, "content"\);/.test(ct8),
+      /const kq = await docTaiLieu\(trangId, kind\);/.test(boChuThich(fs.readFileSync(path.join(GOC, "server/services/knowledge.ts"), "utf8")))],
+    [true, true, true]);
+  const atm = boChuThich(fs.readFileSync(path.join(GOC, "src/components/AITrainingModal.tsx"), "utf8"));
+  kiem("H8 tài liệu", "hộp Dạy AI: số ký tự AI đọc được lấy từ máy chủ (cùng hàm AI dùng); vượt trần → chữ cam + tên tài liệu bị cắt / chưa đọc",
+    [/const doc = kind in TRAN_KY_TU_TAI_LIEU \? await docTaiLieu\(await trangCuaReq\(req\), kind\) : null;/.test(boChuThich(fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8"))),
+      /setDocDuoc\(data\.docDuoc \?\? null\);/.test(atm), /docDuoc\.biCat\.length \|\| docDuoc\.chuaDoc\.length \? 'text-canh-bao'/.test(atm)],
+    [true, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

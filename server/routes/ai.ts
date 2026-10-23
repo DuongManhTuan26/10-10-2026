@@ -2,6 +2,7 @@ import { MODEL_GIONG_DOC_DUOC_CHON, MODEL_NHIEU_CANH, MODEL_NOI_DAI, MODEL_TIENG
 import { Router } from "express";
 import { query, queryOne } from "../db.js";
 import { requireAuth } from "../auth.js";
+import { docTaiLieu, TRAN_KY_TU_TAI_LIEU } from "../services/knowledge.js";
 import { AppError, requireString, route } from "../http.js";
 import { chat, chatJson, asRecord, stringArray, DEFAULT_MODELS } from "../services/ai.js";
 import {
@@ -98,12 +99,15 @@ aiRouter.get(
       [await trangCuaReq(req), kind]
     );
 
+    // H8: AI này đọc được bao nhiêu chữ tài liệu (cùng hàm chonTaiLieu AI dùng) — để chủ shop biết phần nào AI không thấy.
+    const doc = kind in TRAN_KY_TU_TAI_LIEU ? await docTaiLieu(await trangCuaReq(req), kind) : null;
     res.json({
       success: true,
       data: {
         config: config ?? { kind, system_prompt: "", tone: "friendly", settings: {} },
         documents: documents.rows,
         model: DEFAULT_MODELS[kind as keyof typeof DEFAULT_MODELS],
+        docDuoc: doc && { daDocKyTu: doc.daDocKyTu, tongKyTu: doc.tongKyTu, tran: doc.tran, biCat: doc.biCat, chuaDoc: doc.chuaDoc },
       },
     });
   })

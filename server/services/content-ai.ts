@@ -8,6 +8,7 @@
  */
 
 import { query, queryOne } from "../db.js";
+import { docTaiLieu } from "./knowledge.js";
 import { chatJson, asRecord, stringArray } from "./ai.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "./text.js";
 
@@ -64,19 +65,9 @@ export async function generatePostContent(params: {
     [params.trangId]
   );
 
-  const documents = await query<{ filename: string; extracted_text: string | null }>(
-    `SELECT filename, extracted_text FROM ai_documents
-      WHERE trang_id = $1 AND kind = 'content' AND extracted_text IS NOT NULL
-      ORDER BY created_at DESC LIMIT 5`,
-    [params.trangId]
-  );
-
-  const knowledge = documents.rows.length
-    ? "\n\nTHÔNG TIN SẢN PHẨM VÀ VĂN PHONG CỦA SHOP:\n" +
-      documents.rows
-        .map((doc) => `# ${doc.filename}\n${(doc.extracted_text ?? "").slice(0, 3_000)}`)
-        .join("\n\n")
-    : "";
+  // Mọi tài liệu có chữ vừa trần 24.000 ký tự, cắt ở ranh giới dòng (knowledge.ts chonTaiLieu — H8; bản cũ 5 × 3.000).
+  const tl = await docTaiLieu(params.trangId, "content");
+  const knowledge = tl.noiDung ? "\n\nTHÔNG TIN SẢN PHẨM VÀ VĂN PHONG CỦA SHOP:\n" + tl.noiDung : "";
 
   const khongLap = params.tranhLap?.length
     ? "\n\nCÁC BÀI SHOP VỪA ĐĂNG — PHẢI VIẾT KHÁC HẲN, khác cả câu mở đầu:\n" +

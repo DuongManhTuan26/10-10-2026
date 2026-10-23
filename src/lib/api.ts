@@ -1575,7 +1575,15 @@ export const api = {
 
   ai: {
     config: (kind: string) =>
-      get<{ data: { config: AiConfig; documents: AiDocument[]; model: string } }>(
+      get<{
+        data: {
+          config: AiConfig;
+          documents: AiDocument[];
+          model: string;
+          /** H8: phần tài liệu AI đọc được mỗi lượt (null với AI không dùng trần này). */
+          docDuoc: { daDocKyTu: number; tongKyTu: number; tran: number; biCat: { ten: string; boKyTu: number }[]; chuaDoc: string[] } | null;
+        };
+      }>(
         `/ai/configs/${kind}`
       ),
     saveConfig: (

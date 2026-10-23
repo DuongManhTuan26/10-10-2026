@@ -13,7 +13,7 @@
  */
 import { query } from "../db.js";
 import type { BangChung } from "./kiem-cung.js";
-import { KY_TU_MOI_TAI_LIEU, SO_TAI_LIEU_TOI_DA } from "./knowledge.js";
+import { chonTaiLieu, TRAN_KY_TU_TAI_LIEU } from "./knowledge.js";
 import { docThayDoi, sotBatDauLuc, type DongThayDoi } from "./so-thay-doi.js";
 import { sucKhoeTrang, type ChiSo, type SuCo } from "./suc-khoe.js";
 
@@ -113,8 +113,8 @@ export interface TaiLieu {
 }
 
 /**
- * Tài liệu trang → bằng chứng nguyên văn ĐẦY ĐỦ + đánh dấu phần AI nhân viên KHÔNG thấy (theo đúng giới hạn của
- * knowledge.ts: chỉ SO_TAI_LIEU_TOI_DA tài liệu mới nhất mỗi loại, mỗi tài liệu KY_TU_MOI_TAI_LIEU ký tự đầu).
+ * Tài liệu trang → bằng chứng nguyên văn ĐẦY ĐỦ + đánh dấu phần AI nhân viên KHÔNG thấy — theo ĐÚNG hàm AI dùng
+ * (knowledge.ts chonTaiLieu, trần ký tự từng AI — H8), không theo con số riêng.
  * Tài liệu chưa đọc được chữ → không thành bằng chứng, vào khoảng trống.
  */
 export function bangChungTuTaiLieu(ds: TaiLieu[]): { bangChung: BangChung[]; khoangTrong: string[] } {
@@ -125,10 +125,12 @@ export function bangChungTuTaiLieu(ds: TaiLieu[]): { bangChung: BangChung[]; kho
   for (const [loai, tl] of theoLoai) {
     const coChu = tl.filter((t) => t.extracted_text).sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
     for (const t of tl.filter((t) => !t.extracted_text)) khoangTrong.push(`Tài liệu "${t.filename}" (${loai}) chưa đọc được chữ — AI không biết nội dung.`);
-    coChu.forEach((t, i) => {
+    const chon = chonTaiLieu(coChu, TRAN_KY_TU_TAI_LIEU[loai] ?? 24_000);
+    coChu.forEach((t) => {
       const gioiHan: string[] = [];
-      if (i >= SO_TAI_LIEU_TOI_DA) gioiHan.push(`AI nhân viên (${loai}) KHÔNG thấy tài liệu này (chỉ thấy ${SO_TAI_LIEU_TOI_DA} tài liệu mới nhất)`);
-      else if (t.extracted_text!.length > KY_TU_MOI_TAI_LIEU) gioiHan.push(`AI nhân viên (${loai}) chỉ thấy ${KY_TU_MOI_TAI_LIEU.toLocaleString("vi-VN")} ký tự đầu / ${t.extracted_text!.length.toLocaleString("vi-VN")}`);
+      const cat = chon.biCat.find((x) => x.ten === t.filename);
+      if (chon.chuaDoc.includes(t.filename)) gioiHan.push(`AI nhân viên (${loai}) KHÔNG thấy tài liệu này (vượt trần ${chon.tran.toLocaleString("vi-VN")} ký tự tài liệu mỗi lượt)`);
+      else if (cat) gioiHan.push(`AI nhân viên (${loai}) không thấy ${cat.boKyTu.toLocaleString("vi-VN")} ký tự cuối / ${t.extracted_text!.length.toLocaleString("vi-VN")}`);
       const b: BangChung = { ma: `TL-${t.id}`, nguon: "tai_lieu_trang", noiDung: `# ${t.filename}\n${t.extracted_text}`, luc: new Date(t.created_at) };
       if (gioiHan.length) { b.gioiHan = gioiHan; khoangTrong.push(`Tài liệu "${t.filename}": ${gioiHan[0]}.`); }
       bangChung.push(b);

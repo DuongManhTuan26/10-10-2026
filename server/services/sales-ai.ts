@@ -1,4 +1,5 @@
 import { query, queryOne, transaction } from "../db.js";
+import { docTaiLieu } from "./knowledge.js";
 import { chat, chatJson, asRecord, optionalString } from "./ai.js";
 import { docCacBuoc, moTaCacBuoc, maCacBuoc } from "./sales-stages.js";
 import { docTuChu, moTaTuChu, type TuChuConfig } from "./sales-autonomy.js";
@@ -489,14 +490,12 @@ export async function giaCoTrongTaiLieu(
    */
   if (!trangId) return false;
 
-  const tep = await query<{ extracted_text: string | null }>(
-    `SELECT extracted_text FROM ai_documents
-      WHERE trang_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL`,
-    [trangId]
-  );
-  if (tep.rows.length === 0) return false;
+  // Chỉ tin giá nằm trong PHẦN AI ĐÃ ĐỌC (cùng chonTaiLieu với lời dặn — H8): bản cũ đọc mọi tài liệu nên giá ở tài liệu AI
+  // không thấy vẫn được "xác nhận".
+  const tl = await docTaiLieu(trangId, "sales");
+  if (!tl.phanDaDoc) return false;
 
-  return giaCoTrongChu(tep.rows.map((r) => r.extracted_text ?? "").join("\n"), gia);
+  return giaCoTrongChu(tl.phanDaDoc, gia);
 }
 
 
@@ -792,12 +791,6 @@ export async function dungLoiDanBanHang(
     [trangId]
   );
 
-  const knowledge = await query<{ filename: string; extracted_text: string | null }>(
-    `SELECT filename, extracted_text FROM ai_documents
-      WHERE trang_id = $1 AND kind = 'sales' AND extracted_text IS NOT NULL
-      ORDER BY created_at DESC LIMIT 10`,
-    [trangId]
-  );
 
   /*
    * Không có tài liệu (hoặc tài liệu không có chữ) → RỖNG, để lời dặn đi nhánh CHUA_CO_TAI_LIEU bên dưới. Từ 8d325c6 tới
@@ -805,10 +798,8 @@ export async function dungLoiDanBanHang(
    * AI nhận "KIẾN THỨC ĐƯỢC PHÉP DÙNG: (Chưa có tài liệu…)" thay vì lời dặn "vẫn trò chuyện, không nói số" (bộ chụp lời
    * dặn lộ ra; Fanpage thật của cửa hàng 47 / 370 đều chưa có tài liệu bán hàng).
    */
-  const coChu = knowledge.rows.filter((doc) => (doc.extracted_text ?? "").trim() !== "");
-  const knowledgeBlock = coChu
-    .map((doc) => `# ${doc.filename}\n${(doc.extracted_text ?? "").slice(0, 4_000)}`)
-    .join("\n\n");
+  // Mọi tài liệu có chữ, mới nhất trước, vừa trần 40.000 ký tự, cắt ở ranh giới dòng (knowledge.ts chonTaiLieu — H8).
+  const knowledgeBlock = (await docTaiLieu(trangId, "sales")).noiDung;
 
   const activeRules = rules
     .filter((rule) => rule.enabled && RULE_DESCRIPTIONS[rule.rule_key])

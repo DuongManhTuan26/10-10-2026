@@ -112,7 +112,7 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
      khoản chi cho Fanpage khác chỉ ghi để biết. Đo: 2 tài khoản quảng cáo (VND, UTC+7), năm 2026 chưa có quảng cáo
      → 0 ₫ thật.
 
-## TD-09 — AI nhân viên chỉ thấy 5 tài liệu mới nhất mỗi loại, mỗi tài liệu 4.000 ký tự đầu
+## TD-09 — ĐÃ LÀM (H8, 24/10/2026): AI nhân viên chỉ thấy 5 tài liệu mới nhất mỗi loại, mỗi tài liệu 4.000 ký tự đầu
 
 - **Loại:** CHỜ CHỦ DỰ ÁN — **chưa gọi là lỗi** (chưa có yêu cầu của chủ dự án về việc này).
 - **Hiện tượng (đọc mã `knowledge.ts`, mức "có cơ sở"):** `LIMIT 5` + cắt 4.000 ký tự mỗi tài liệu. Bảng giá ở tài liệu
@@ -121,6 +121,13 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
   không thấy. KHÔNG đổi hành vi của AI nhân viên.
 - **Cần chủ dự án quyết:** có nới / đổi cách đưa tài liệu (vd. chọn đoạn liên quan) không — dính chi phí mỗi lượt AI.
 
+- **Đã làm 24/10/2026 (chủ dự án đồng ý "đọc hết, có trần tổng"):** MỘT hàm knowledge.ts chonTaiLieu cho AI bán hàng, nội
+  dung, quảng cáo + bộ xác nhận giá + sổ bằng chứng. Mọi tài liệu có chữ, mới nhất trước; trần mỗi lượt: bán hàng 40.000 ký
+  tự (= mức cũ 10 × 4.000, không giảm), nội dung / quảng cáo 24.000 (cũ 5 × 3.000 / 5 × 4.000). Cắt ở RANH GIỚI DÒNG; tài
+  liệu sau trần chỉ liệt kê tên; có phần chưa đọc thì AI được dặn "nói sẽ kiểm tra lại với shop, KHÔNG đoán". Xác nhận giá
+  chỉ tin phần AI đã đọc (trước: đọc mọi tài liệu → giá ở tài liệu thứ 11 AI không thấy vẫn được xác nhận). Hộp Dạy AI hiện
+  "AI đọc được X / Y ký tự" + tên tài liệu bị cắt / chưa đọc. Giá thật (OpenRouter /models 24/10): claude-sonnet-5 0,000002
+  USD / token vào → trần 40.000 ký tự ≈ 0,03 USD mỗi tin, chỉ khi shop có chừng đó tài liệu.
 ## TD-10 — Số quảng cáo của Meta chốt sau bao lâu: chưa xác minh
 
 - **Loại:** GIỚI HẠN (tạm thời).

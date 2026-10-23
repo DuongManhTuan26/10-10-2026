@@ -71,6 +71,8 @@ export default function AITrainingModal({
   const { activeAccountId, activeTrangId } = useActivePage();
   const [role, setRole] = useState('');
   const [files, setFiles] = useState<AiDocument[]>([]);
+  /** H8: phần tài liệu AI đọc được mỗi lượt (máy chủ tính bằng đúng hàm AI dùng). */
+  const [docDuoc, setDocDuoc] = useState<{ daDocKyTu: number; tongKyTu: number; tran: number; biCat: { ten: string; boKyTu: number }[]; chuaDoc: string[] } | null>(null);
   const [dangTai, setDangTai] = useState(true);
   const [dangLuu, setDangLuu] = useState(false);
   const [loi, setLoi] = useState('');
@@ -94,6 +96,7 @@ export default function AITrainingModal({
       const { data } = await api.ai.config(kind);
       setRole(data.config.system_prompt ?? '');
       setFiles(data.documents ?? []);
+      setDocDuoc(data.docDuoc ?? null);
     } catch (error) {
       setLoi(error instanceof ApiError ? error.message : 'Không tải được cấu hình AI');
     } finally {
@@ -340,6 +343,17 @@ export default function AITrainingModal({
             {files.length > 0 && (
               <div className="space-y-2 mt-6">
                 <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">Tài liệu đã tải lên ({files.length})</h3>
+                {/* H8: AI đọc được bao nhiêu chữ mỗi lượt — vượt trần thì nói rõ tài liệu nào bị cắt / chưa đọc (cam = cảnh báo). */}
+                {docDuoc && docDuoc.tongKyTu > 0 && (
+                  <p className={clsx('text-xs mb-3', docDuoc.biCat.length || docDuoc.chuaDoc.length ? 'text-canh-bao' : 'text-on-surface-variant')}>
+                    AI đọc được {docDuoc.daDocKyTu.toLocaleString('vi-VN')} / {docDuoc.tongKyTu.toLocaleString('vi-VN')} ký tự tài liệu mỗi lượt
+                    (tối đa {docDuoc.tran.toLocaleString('vi-VN')}).
+                    {(docDuoc.biCat.length > 0 || docDuoc.chuaDoc.length > 0) && (
+                      <> AI không thấy: {[...docDuoc.biCat.map((x) => `phần cuối "${x.ten}"`), ...docDuoc.chuaDoc.map((x) => `"${x}"`)].join(', ')}.
+                        {' '}Vui lòng rút gọn, hoặc đưa bảng giá lên tài liệu mới nhất.</>
+                    )}
+                  </p>
+                )}
                 {files.map(file => (
                   <div key={file.id} className="flex items-center justify-between p-3 bg-surface-container-lowest border border-outline-variant rounded-xl group hover:border-primary/50 transition-colors">
                     <div className="flex items-center gap-3 overflow-hidden">
