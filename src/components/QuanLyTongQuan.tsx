@@ -24,6 +24,7 @@ import {
 } from '../lib/api';
 import { chi, chiDu, mauChi, vnd } from '../lib/tien-chi';
 import { DongLuot } from './NhatKyChiPhi';
+import { aiTheoMa, MAU_THONG_TIN, MAU_THUONG_HIEU } from '../lib/bon-ai';
 
 /** Các loại tiền, đúng thứ tự hiện. Tiền AI theo nhóm việc của sổ AI; "kenh" = tiền hoá đơn kết nối kênh tính cho từng kênh. */
 export const LOAI_TIEN = [
@@ -110,12 +111,18 @@ export const GIAI_CHOT = {
 export const tienGoc = (n: number, tienTe: string) =>
   `${n > 0 ? '−' : ''}${n.toLocaleString('vi-VN')} ${tienTe === 'VND' ? '₫' : tienTe}`;
 
-/** Một ô số chính. */
-function OSo({ nhan, so, phu, mau, className, chot }: { nhan: string; so: string; phu?: string; mau?: string; className?: string; chot?: ReactNode }) {
+/**
+ * Một ô số chính — kiểu thẻ Tổng quan (chủ dự án 23/10/2026): .the + ô biểu tượng phát sáng, màu thẻ theo NGHĨA (mauThe);
+ * `mau` vẫn là màu CHỮ SỐ (tiền đã chi đỏ).
+ */
+function OSo({ nhan, so, phu, mau, className, chot, mauThe, icon }: { nhan: string; so: string; phu?: string; mau?: string; className?: string; chot?: ReactNode; mauThe: string; icon: string }) {
   return (
-    <div className={clsx('rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 min-w-0', className)}>
+    <div className={clsx('the px-4 py-3 min-w-0', className)} style={{ ['--nhan' as string]: mauThe }}>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-        <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{nhan}</span>
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="o-bieu-tuong !w-8 !h-8 shrink-0"><span className="material-symbols-outlined text-[18px]">{icon}</span></span>
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{nhan}</span>
+        </span>
         {chot}
       </div>
       {/* Không cắt số tiền: điện thoại chữ nhỏ hơn và được xuống dòng. */}
@@ -143,11 +150,14 @@ function ThanhChong({ doan, toiDa }: { doan: { mau: string; giaTri: number; ten:
   );
 }
 
-/** Một khối biểu đồ: tiêu đề + các dòng (nhãn trái, thanh giữa, số phải). */
-function BieuDo({ tieuDe, phu, children }: { tieuDe: string; phu?: string; children: ReactNode }) {
+/** Một khối biểu đồ: tiêu đề + các dòng (nhãn trái, thanh giữa, số phải). Kiểu thẻ Tổng quan, màu theo nghĩa. */
+function BieuDo({ tieuDe, phu, children, mauThe, icon }: { tieuDe: string; phu?: string; children: ReactNode; mauThe: string; icon: string }) {
   return (
-    <section className="rounded-2xl border border-outline-variant bg-surface-container p-4 sm:p-5 min-w-0">
-      <h3 className="font-bold text-on-surface">{tieuDe}</h3>
+    <section className="the p-4 sm:p-5 min-w-0" style={{ ['--nhan' as string]: mauThe }}>
+      <h3 className="flex items-center gap-3 font-bold text-on-surface">
+        <span className="o-bieu-tuong shrink-0"><span className="material-symbols-outlined text-[20px]">{icon}</span></span>
+        {tieuDe}
+      </h3>
       {phu && <p className="text-xs text-on-surface-variant mt-0.5">{phu}</p>}
       <div className="mt-4 space-y-3">{children}</div>
     </section>
@@ -242,9 +252,11 @@ export function TongQuanTaiSan({
 
       {/* Số chính */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
-        <OSo nhan="Tài khoản hoạt động" so={`${du.tong.taiKhoanHoatDong}/${du.tong.taiKhoan}`} phu="đang mở / tổng số" />
-        <OSo nhan="Cửa hàng hoạt động" so={`${du.tong.trangHoatDong}/${du.tong.trang}`} phu="có kênh đang nối / tổng số" />
+        <OSo mauThe={MAU_THUONG_HIEU} icon="manage_accounts" nhan="Tài khoản hoạt động" so={`${du.tong.taiKhoanHoatDong}/${du.tong.taiKhoan}`} phu="đang mở / tổng số" />
+        <OSo mauThe="var(--color-thanh-cong)" icon="storefront" nhan="Cửa hàng hoạt động" so={`${du.tong.trangHoatDong}/${du.tong.trang}`} phu="có kênh đang nối / tổng số" />
         <OSo
+          mauThe={aiTheoMa('sales').hex}
+          icon="smart_toy"
           nhan="Tiền AI"
           chot={<NhanChot chot={du.chot.ai} giai={GIAI_CHOT.ai} />}
           so={chi(du.tong.tienAiUsd + du.tong.tienAiTaiKhoanDaXoaUsd)}
@@ -252,6 +264,8 @@ export function TongQuanTaiSan({
           phu={vnd(du.tong.tienAiUsd + du.tong.tienAiTaiKhoanDaXoaUsd)}
         />
         <OSo
+          mauThe={MAU_THONG_TIN}
+          icon="cable"
           nhan="Tiền kết nối kênh"
           chot={<NhanChot chot={du.chot.kenh} giai={GIAI_CHOT.kenh} />}
           so={chi(tienKenhTong)}
@@ -260,6 +274,8 @@ export function TongQuanTaiSan({
         />
         <OSo
           className="col-span-2 lg:col-span-1"
+          mauThe={aiTheoMa('ads').hex}
+          icon="campaign"
           nhan="Tiền quảng cáo"
           chot={du.tong.coFanpage ? <NhanChot chot={du.chot.quangCao} giai={GIAI_CHOT.quangCao} /> : undefined}
           so={
@@ -285,7 +301,7 @@ export function TongQuanTaiSan({
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <BieuDo tieuDe="Số cửa hàng theo tài khoản" phu="Xanh: cửa hàng có kênh đang nối · Xám: chưa nối kênh">
+        <BieuDo mauThe="var(--color-thanh-cong)" icon="storefront" tieuDe="Số cửa hàng theo tài khoản" phu="Xanh: cửa hàng có kênh đang nối · Xám: chưa nối kênh">
           {nhomTien.map(({ g, trang }) => {
             const hd = trang.filter((t) => t.hoatDong).length;
             return (
@@ -302,7 +318,7 @@ export function TongQuanTaiSan({
           })}
         </BieuDo>
 
-        <BieuDo tieuDe="Tiền theo tài khoản" phu="Mỗi màu một loại chi phí (USD)">
+        <BieuDo mauThe={MAU_THUONG_HIEU} icon="payments" tieuDe="Tiền theo tài khoản" phu="Mỗi màu một loại chi phí (USD)">
           {nhomTien.map(({ g, tien }) => (
             <DongBieuDo key={g.goc.id} nhan={`${g.so}. ${tenTk(g.goc)}`} so={<span className={mauChi(tong(tien))}>{chi(tong(tien))}</span>}>
               <ThanhChong toiDa={toiDaTienNhom} doan={doanCua(tien)} />
@@ -312,7 +328,7 @@ export function TongQuanTaiSan({
         </BieuDo>
       </div>
 
-      <BieuDo tieuDe="Tiền theo cửa hàng" phu="Từng cửa hàng, nhiều tiền nhất ở trên — số đánh theo cây ở phần Chi tiết">
+      <BieuDo mauThe={MAU_THONG_TIN} icon="store" tieuDe="Tiền theo cửa hàng" phu="Từng cửa hàng, nhiều tiền nhất ở trên — số đánh theo cây ở phần Chi tiết">
         {dsTrang.length === 0 ? (
           <p className="text-sm text-on-surface-variant">Chưa có cửa hàng nào.</p>
         ) : (

@@ -8,6 +8,8 @@ import { PRICING_PLANS, goiHienTai, type PricingPlan } from '../lib/pricing';
  * đổi một chỗ là đổi cả hệ thống.
  */
 import { SUPPORT_URL, IS_EXTERNAL_SUPPORT } from '../lib/ho-tro';
+import TheMuc from '../components/TheMuc';
+import { aiTheoMa, MAU_THONG_TIN, MAU_THUONG_HIEU } from '../lib/bon-ai';
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -87,9 +89,8 @@ export default function Pricing() {
       </div>
 
       <div className="max-w-5xl mx-auto pb-xl">
-        {/* HÀNG 1 — thẻ ngang rộng hết chiều ngang; chất liệu khung-muc lam (màn hệ thống, P3 23/10/2026) */}
-        <div className="khung-muc mau-lam mb-md">
-          <h3 className="tieu-de-muc dau-muc">Gói đang dùng</h3>
+        {/* HÀNG 1 — thẻ ngang rộng hết chiều ngang; kiểu thẻ Tổng quan, màu thương hiệu (chủ dự án 23/10/2026). */}
+        <TheMuc mau={MAU_THUONG_HIEU} bieuTuong="workspace_premium" tieuDe="Gói đang dùng" className="mb-md">
           <div className="grid grid-cols-1 md:grid-cols-10 gap-md items-start">
           {/* Left */}
           <div className="flex flex-col md:col-span-4">
@@ -121,11 +122,11 @@ export default function Pricing() {
             <button className="w-full py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg hover:brightness-110 transition-all font-bold" onClick={() => handleUpgrade()}>Nâng cấp gói</button>
           </div>
         </div>
-        </div>
+        </TheMuc>
 
         {/* HÀNG 2 — dải giải thích cách tính tiền, nền sáng hơn nền chung, có biểu tượng thông tin */}
-        <div className="bg-surface-container-high rounded-xl p-4 flex items-start gap-3 mb-lg">
-          <span className="material-symbols-outlined text-primary mt-0.5">info</span>
+        <div className="the p-4 flex items-start gap-3 mb-lg" style={{ ['--nhan' as string]: MAU_THONG_TIN }}>
+          <span className="o-bieu-tuong shrink-0"><span className="material-symbols-outlined text-[20px]">info</span></span>
           <div>
             <p className="font-body-md text-on-surface font-bold">Bạn chỉ trả tiền theo số kênh kết nối</p>
             <p className="font-body-md text-on-surface-variant">Tin nhắn, bình luận và bài đăng không giới hạn. Một bài viral thu về nghìn bình luận cũng không tốn thêm đồng nào.</p>
@@ -141,15 +142,19 @@ export default function Pricing() {
         */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-md mb-lg">
           {[
-            { nhan: 'TIN AI ĐÃ TRẢ LỜI', so: usage.ai_messages_month },
+            // Màu = AI làm ra số đó (giống Tổng quan): tin AI + đơn ③ Bán hàng, bài ① Nội dung.
+            { nhan: 'TIN AI ĐÃ TRẢ LỜI', so: usage.ai_messages_month, mau: aiTheoMa('sales').hex, icon: 'smart_toy' },
             // Đếm MỌI đơn và MỌI bài lập trong tháng (server/routes/settings.ts /usage) — nhãn phải đúng với số: đơn gồm cả
             // đơn nhân viên lập và đơn chưa xác nhận; bài gồm cả nháp, chờ duyệt (bản cũ ghi "chốt được", "đã đăng").
-            { nhan: 'ĐƠN HÀNG', so: usage.orders_month },
-            { nhan: 'BÀI ĐÃ TẠO', so: usage.posts_month },
+            { nhan: 'ĐƠN HÀNG', so: usage.orders_month, mau: aiTheoMa('sales').hex, icon: 'receipt_long' },
+            { nhan: 'BÀI ĐÃ TẠO', so: usage.posts_month, mau: aiTheoMa('content').hex, icon: 'post_add' },
           ].map((o) => (
-            <div key={o.nhan} className="glass-card rounded-xl p-md">
-              <span className="font-label-sm text-on-surface-variant tracking-widest uppercase">{o.nhan}</span>
-              <p className="text-3xl font-bold text-on-surface mt-1">{o.so.toLocaleString('vi-VN')}</p>
+            <div key={o.nhan} className="the p-md" style={{ ['--nhan' as string]: o.mau }}>
+              <div className="flex items-center gap-3">
+                <span className="o-bieu-tuong shrink-0"><span className="material-symbols-outlined text-[20px]">{o.icon}</span></span>
+                <span className="font-label-sm text-on-surface-variant tracking-widest uppercase">{o.nhan}</span>
+              </div>
+              <p className="so-lon text-3xl font-bold text-on-surface mt-3">{o.so.toLocaleString('vi-VN')}</p>
               <p className="font-body-md text-on-surface-variant">trong tháng này, không tính thêm tiền</p>
             </div>
           ))}
@@ -160,11 +165,11 @@ export default function Pricing() {
           {plans.map((plan, idx) => (
             <div 
               key={plan.id} 
-              className={`rounded-xl p-md flex flex-col relative overflow-hidden border ${
-                plan.isCurrent 
-                  ? 'border-primary bg-surface-container z-10' 
-                  : 'bg-surface-container border-outline-variant transition-transform hover:-translate-y-1 duration-300'
-              }`}
+              // Kiểu thẻ Tổng quan: gói đang dùng màu thương hiệu + quầng mạnh hơn; gói khác lam, nổi lên khi rê chuột.
+              className={`the the-bam p-md flex flex-col overflow-hidden ${plan.isCurrent ? 'z-10' : ''}`}
+              style={plan.isCurrent
+                ? { ['--nhan' as string]: MAU_THUONG_HIEU, borderColor: MAU_THUONG_HIEU, boxShadow: `0 0 32px ${MAU_THUONG_HIEU}40` }
+                : { ['--nhan' as string]: MAU_THONG_TIN }}
             >
               {plan.isCurrent && (
                 <div className="absolute top-0 right-0 bg-primary text-on-primary font-label-sm text-[10px] px-3 py-1 rounded-bl-lg font-bold">ĐANG DÙNG</div>
@@ -186,10 +191,10 @@ export default function Pricing() {
               <button 
                 className={`w-full py-3 font-label-sm rounded-lg font-bold mt-auto transition-all ${
                   plan.isCurrent 
-                    ? 'bg-surface-container-highest text-on-surface-variant cursor-not-allowed border border-outline-variant'
+                    ? 'bg-primary/10 text-primary cursor-not-allowed border border-primary/40'
                     : plan.id === 'enterprise'
                       ? 'bg-gradient-to-r from-primary to-primary-container text-on-primary hover:brightness-110'
-                      : 'bg-surface-container-high text-on-surface border border-outline hover:border-primary'
+                      : 'bg-primary/10 text-primary border border-primary/50 hover:bg-primary/20'
                 }`}
                 disabled={plan.isCurrent}
                 onClick={() => handleUpgrade(plan.id)}

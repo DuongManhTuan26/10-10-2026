@@ -42,6 +42,8 @@ import {
 } from '../components/QuanLyTongQuan';
 import { chi, mauChi } from '../lib/tien-chi';
 import { loiMatKhau } from '../lib/mat-khau';
+import TheMuc from '../components/TheMuc';
+import { MAU_THONG_TIN, MAU_THUONG_HIEU } from '../lib/bon-ai';
 
 const TEN_VIEC: Record<string, string> = {
   tao_tai_khoan: 'Tạo tài khoản',
@@ -631,9 +633,8 @@ export default function QuanLy({ user }: { user: User | null }) {
         <>
           {/* Việc phải xử lý */}
           {canXuLy.length > 0 && (
-            // Cam = cảnh báo (bảng màu nghĩa đã chốt); ba phần liền nhau cam → xám → lam.
-            <section className="khung-muc mau-cam mb-8">
-              <h2 className="tieu-de-muc dau-muc">Cần xử lý ({canXuLy.length})</h2>
+            // Cam = cảnh báo (bảng màu nghĩa đã chốt); ba phần liền nhau cam → xanh ngọc → lam, kiểu thẻ Tổng quan.
+            <TheMuc mau="var(--color-canh-bao)" bieuTuong="warning" tieuDe={`Cần xử lý (${canXuLy.length})`} className="mb-8">
               <div className="grid gap-2">
                 {canXuLy.map(({ tk, viec }) => (
                   <div key={tk.id} className="flex flex-wrap items-center gap-2 text-sm">
@@ -644,12 +645,10 @@ export default function QuanLy({ user }: { user: User | null }) {
                   </div>
                 ))}
               </div>
-            </section>
+            </TheMuc>
           )}
 
-          <section className="khung-muc mau-xam mb-8">
-            <div className="dau-muc flex flex-wrap items-center justify-between gap-3">
-              <h2 className="tieu-de-muc">Tài khoản &amp; cửa hàng</h2>
+          <TheMuc mau={MAU_THUONG_HIEU} bieuTuong="account_tree" tieuDe="Tài khoản & cửa hàng" className="mb-8" phai={
               <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden text-sm">
                 {(
                   [
@@ -667,7 +666,7 @@ export default function QuanLy({ user }: { user: User | null }) {
                   </button>
                 ))}
               </div>
-            </div>
+          }>
             {dangTai || !tq ? (
               <p className="text-sm text-on-surface-variant">Đang tải…</p>
             ) : (
@@ -684,14 +683,13 @@ export default function QuanLy({ user }: { user: User | null }) {
                 {gomCay(tq).map((g) => veNhom(g))}
               </div>
             )}
-          </section>
+          </TheMuc>
         </>
       )}
 
       {/* Nhật ký thao tác — thuộc phần Chi tiết. */}
       {phan === 'chi_tiet' && (
-      <section className="khung-muc mau-lam">
-        <h2 className="tieu-de-muc dau-muc">Nhật ký quản lý</h2>
+      <TheMuc mau={MAU_THONG_TIN} bieuTuong="history" tieuDe="Nhật ký quản lý">
         <div className="space-y-2">
           {nhatKy.length === 0 ? (
             <p className="text-sm text-on-surface-variant">Chưa có thao tác nào.</p>
@@ -707,7 +705,7 @@ export default function QuanLy({ user }: { user: User | null }) {
             ))
           )}
         </div>
-      </section>
+      </TheMuc>
       )}
 
       {doiMatKhauMo && <DoiMatKhau onClose={() => setDoiMatKhauMo(false)} />}

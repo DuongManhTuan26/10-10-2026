@@ -173,7 +173,7 @@ export default function App() {
             <Route path="/ban-hang" element={<BanHangAi />} />
             <Route path="/dieu-hanh" element={<DieuHanhAi />} />
             <Route path="/ket-noi" element={<Connections />} />
-            <Route path="/telegram" element={<TelegramAlerts />} />
+            <Route path="/telegram" element={<TelegramAlerts laQuanTri={user?.role === 'admin'} />} />
             <Route path="/pricing" element={<Pricing />} />
             {/*
               Chỉ quản trị mới có đường vào. Đây CHỈ là lớp che mắt — máy chủ

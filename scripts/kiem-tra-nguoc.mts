@@ -1427,8 +1427,8 @@ const DUC: PhepDuc[] = [
     ten: "thôi hiển thị số đơn chốt được trong tháng",
     // Nhãn đổi 12/10/2026: "ĐƠN CHỐT ĐƯỢC" → "ĐƠN HÀNG" (số đếm mọi đơn).
     tep: "src/pages/Pricing.tsx",
-    tim: "{ nhan: '\u0110\u01a0N H\u00c0NG', so: usage.orders_month },",
-    thay: "{ nhan: '\u0110\u01a0N H\u00c0NG', so: 0 },",
+    tim: "{ nhan: '\u0110\u01a0N H\u00c0NG', so: usage.orders_month, mau:",
+    thay: "{ nhan: '\u0110\u01a0N H\u00c0NG', so: 0, mau:",
   },
   {
     ten: "trả express.static về phục vụ cả thư mục dist",
@@ -3052,8 +3052,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "bỏ dải việc phải xử lý, chủ chuỗi tự đi dò từng trang",
     tep: "src/pages/QuanLy.tsx",
-    tim: "<h2 className=\"tieu-de-muc dau-muc\">Cần xử lý ({canXuLy.length})</h2>",
-    thay: "<h2 className=\"tieu-de-muc dau-muc\">Can xu ly</h2>",
+    tim: "tieuDe={`Cần xử lý (${canXuLy.length})`}",
+    thay: "tieuDe={`Can xu ly`}",
   },
   {
     ten: "bảng điều hành bỏ số liệu bộ não, không biết trang nào chưa dạy AI",
@@ -5757,8 +5757,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "màn Telegram mượn màu AI cho khung",
     tep: "src/pages/TelegramAlerts.tsx",
-    tim: "        <div className=\"khung-muc mau-lam flex flex-col\">",
-    thay: "        <div className=\"khung-muc mau-tim flex flex-col\">",
+    tim: "<TheMuc mau={MAU_THONG_TIN} bieuTuong=\"notifications\" tieuDe=\"Thông báo thường\" className=\"flex flex-col\">",
+    thay: "<div className=\"khung-muc mau-tim flex flex-col\">",
   },
   {
     ten: "danh sách bài ① mất khung",
@@ -5783,6 +5783,36 @@ const DUC: PhepDuc[] = [
     tep: "src/components/KhuonAi.tsx",
     tim: "? { background: motAi.hex, borderColor: motAi.hex, color: '#0b1417' }",
     thay: "? { background: ['#60a5fa', '#f472b6'][i % 2], borderColor: motAi.hex, color: '#0b1417' }",
+  },
+  {
+    ten: "trang hệ thống lại nút trắng",
+    tep: "src/index.css",
+    tim: "  .mien-he-thong  { --mien: #22d3ee; --tren-mien: #003640; }",
+    thay: "  .mien-he-thong  { --mien: #e2e8f0; --tren-mien: #0b1417; }",
+  },
+  {
+    ten: "người dùng thường thấy cảnh báo chi phí (chỉ gửi quản trị)",
+    tep: "src/lib/luong-thong-bao.ts",
+    tim: "  if (p.laQuanTri) {",
+    thay: "  if (p.laQuanTri || true) {",
+  },
+  {
+    ten: "tắt đơn hàng mới mà đường vẫn chạy",
+    tep: "src/lib/luong-thong-bao.ts",
+    tim: "chay: p.daNoi && p.events.new_order !== false }",
+    thay: "chay: p.daNoi }",
+  },
+  {
+    ten: "chưa kết nối mà sợi nối vẫn chạy",
+    tep: "src/components/LuongThongBao.tsx",
+    tim: "className={d.chay ? 'dong-chay' : 'duong-nen'}",
+    thay: "className={'dong-chay'}",
+  },
+  {
+    ten: "menu mục hệ thống lại trắng",
+    tep: "src/components/Sidebar.tsx",
+    tim: "  const MAU_HE_THONG = MAU_THUONG_HIEU;",
+    thay: "  const MAU_HE_THONG = '#e2e8f0';",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

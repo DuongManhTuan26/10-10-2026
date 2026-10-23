@@ -380,8 +380,12 @@ textarea::placeholder {
   .mien-dieu-hanh { --mien: #facc15; --tren-mien: #2a2100; }
   /* Tổng quan: màu thương hiệu (không thuộc AI nào). */
   .mien-tong-quan { --mien: #22d3ee; --tren-mien: #003640; }
-  /* Trang hệ thống: trung tính, không tranh màu với 4 AI. */
-  .mien-he-thong  { --mien: #e2e8f0; --tren-mien: #0b1417; --color-outline-variant: rgb(203 213 225 / 0.26); }
+  /*
+   * Trang hệ thống (Telegram, Gói dịch vụ, Quản lý tài khoản): màu thương hiệu GIỐNG Tổng quan. Chủ dự án 23/10/2026 chê
+   * bản trung tính cũ (#e2e8f0): "tối đen xì không nổi bật, nút màu trắng khác phần Tổng quan — ít nhất phải học theo
+   * Tổng quan". Không mượn màu 4 AI làm màu miền.
+   */
+  .mien-he-thong  { --mien: #22d3ee; --tren-mien: #003640; }
 
   .mau-xanh { --mau: #22d3ee; }
   .mau-vang { --mau: #facc15; }

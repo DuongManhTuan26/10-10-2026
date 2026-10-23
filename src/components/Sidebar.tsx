@@ -88,8 +88,8 @@ export default function Sidebar({
     <div className="px-3 pb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#E8EDF2]/50">{chu}</div>
   );
 
-  /** Màu sáng của mục khi đang chọn: 4 AI + Tổng quan theo màu miền, mục hệ thống trắng (không tranh màu với 4 AI). */
-  const MAU_HE_THONG = '#e2e8f0';
+  /** Màu sáng của mục khi đang chọn: 4 AI theo màu miền; Tổng quan + mục hệ thống màu thương hiệu (chủ dự án 23/10/2026: học theo Tổng quan). */
+  const MAU_HE_THONG = MAU_THUONG_HIEU;
   const renderNavGroup = (items: any[]) => (
     <div className="flex flex-col relative" style={{ gap: '8px' }}>
       {items.map((item) => { const mau: string = item.mau ?? MAU_HE_THONG; return (

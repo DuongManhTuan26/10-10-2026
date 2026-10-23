@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { api, ApiError } from '../lib/api';
 import { hoiXacNhan } from '../components/HopHoi';
+import TheMuc from '../components/TheMuc';
+import LuongThongBao from '../components/LuongThongBao';
+import { luongThongBao } from '../lib/luong-thong-bao';
+import { aiTheoMa, MAU_THONG_TIN, MAU_THUONG_HIEU } from '../lib/bon-ai';
 
 /*
  * MỖI DÒNG TRÊN TRANG NÀY PHẢI ỨNG VỚI MỘT TIN MÁY CHỦ GỬI THẬT (rà soát 11/10/2026: bản gốc có 6/8 công tắc không có
@@ -22,7 +26,7 @@ interface LogRow {
   created_at: string;
 }
 
-export default function TelegramAlerts() {
+export default function TelegramAlerts({ laQuanTri = false }: { laQuanTri?: boolean } = {}) {
   const [isConnected, setIsConnected] = useState(false);
   const [hasToken, setHasToken] = useState(false);
   const [chatId, setChatId] = useState('');
@@ -247,8 +251,7 @@ export default function TelegramAlerts() {
       {/* HÀNG 1: THẺ TRẠNG THÁI KẾT NỐI */}
       <div className="space-y-4">
         {isConnected && (
-        <div className="khung-muc mau-lam">
-          <h3 className="tieu-de-muc dau-muc">Kết nối Telegram</h3>
+        <TheMuc mau="var(--color-thanh-cong)" bieuTuong="check_circle" tieuDe="Kết nối Telegram">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
           
           <div className="flex items-center gap-5">
@@ -274,7 +277,7 @@ export default function TelegramAlerts() {
           </div>
 
           <div className="flex gap-3 w-full md:w-auto">
-            <button className="flex-1 md:flex-none px-5 py-2.5 bg-surface-container border border-outline-variant text-on-surface font-bold rounded-xl hover:bg-surface-variant transition-colors" onClick={handleSendTest} disabled={busy}>
+            <button className="flex-1 md:flex-none px-5 py-2.5 bg-primary/10 border border-primary/50 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors" onClick={handleSendTest} disabled={busy}>
               Gửi tin thử
             </button>
             <button className="flex-1 md:flex-none px-5 py-2.5 bg-surface-container border border-error/50 text-error font-bold rounded-xl hover:bg-error/10 hover:border-error transition-colors" onClick={handleDisconnect} disabled={busy}>
@@ -282,13 +285,12 @@ export default function TelegramAlerts() {
             </button>
           </div>
         </div>
-        </div>
+        </TheMuc>
 
         )}
 
         {!isConnected && (
-        <div className="khung-muc mau-lam">
-          <h3 className="tieu-de-muc dau-muc">Kết nối Telegram</h3>
+        <TheMuc mau={MAU_THUONG_HIEU} bieuTuong="link" tieuDe="Kết nối Telegram">
           <div className="flex flex-col gap-5">
           <div className="flex items-center gap-5 flex-1">
             <div className="w-16 h-16 bg-surface-variant rounded-full flex items-center justify-center shrink-0">
@@ -420,7 +422,7 @@ export default function TelegramAlerts() {
                   </div>
                 </div>
 
-                <button className="w-full md:w-auto md:self-start px-8 py-3 bg-surface-container border border-outline-variant text-on-surface font-bold rounded-xl hover:bg-surface-variant transition-colors flex items-center justify-center gap-2 shrink-0 disabled:opacity-60" onClick={handleConnect} disabled={busy}>
+                <button className="w-full md:w-auto md:self-start px-8 py-3 bg-primary/10 border border-primary/50 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors flex items-center justify-center gap-2 shrink-0 disabled:opacity-60" onClick={handleConnect} disabled={busy}>
                   <span className="material-symbols-outlined text-[20px]">link</span>
                   {busy ? 'Đang kết nối…' : 'Dùng bot riêng và gửi tin thử'}
                 </button>
@@ -428,22 +430,35 @@ export default function TelegramAlerts() {
             )}
           </div>
         </div>
-        </div>
+        </TheMuc>
         )}
       </div>
+
+      {/* LUỒNG THÔNG BÁO — sợi nối phát sáng kiểu Tổng quan; chỉ loại tin máy chủ gửi THẬT, đường chạy khi tin đó đang gửi được. */}
+      <TheMuc mau={MAU_THUONG_HIEU} bieuTuong="hub" tieuDe="Luồng thông báo về Telegram">
+        <LuongThongBao
+          dong={luongThongBao({ daNoi: isConnected, events, laQuanTri })}
+          noiNhan={isConnected ? (usesPlatformBot ? (linkedName ?? `Chat ID ${chatId}`) : `Chat ID ${chatId}`) : null}
+        />
+        <p className="text-xs text-on-surface-variant mt-4">
+          Đường sáng chạy: tin loại đó đang được gửi về Telegram. Đường mờ đứt: đang không gửi (chưa kết nối hoặc đã tắt).
+        </p>
+      </TheMuc>
 
       {/* HÀNG 2: HAI NHÓM THÔNG BÁO */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Cột trái */}
-        <div className="khung-muc mau-xam flex flex-col">
-          <div className="dau-muc flex items-center justify-between gap-3">
-            <h2 className="tieu-de-muc">Thông báo quan trọng</h2>
-            <span className="font-mono text-[10px] font-bold tracking-wider text-error bg-error/10 border border-error/20 px-2 py-0.5 rounded uppercase">LUÔN GỬI NGAY LẬP TỨC</span>
-          </div>
+        <TheMuc
+          mau="var(--color-gap)"
+          bieuTuong="priority_high"
+          tieuDe="Thông báo quan trọng"
+          className="flex flex-col"
+          phai={<span className="font-mono text-[10px] font-bold tracking-wider text-gap bg-gap/10 border border-gap/30 px-2 py-0.5 rounded uppercase">LUÔN GỬI NGAY LẬP TỨC</span>}
+        >
 
           <div className="space-y-4 flex-1">
-            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
+            <div className="o-trong flex items-center justify-between gap-4 p-4">
               <div>
                 <div className="font-bold text-on-surface mb-1">AI chốt được đơn hàng</div>
                 <div className="text-sm text-on-surface-variant">Gửi ngay tên khách, số điện thoại và chi tiết đơn</div>
@@ -455,7 +470,7 @@ export default function TelegramAlerts() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
+            <div className="o-trong flex items-center justify-between gap-4 p-4">
               <div>
                 <div className="font-bold text-on-surface mb-1">Khách cần người thật xử lý</div>
                 <div className="text-sm text-on-surface-variant">Khách khiếu nại, đòi gặp người, hoặc AI không xử lý được</div>
@@ -471,14 +486,13 @@ export default function TelegramAlerts() {
           <p className="text-xs text-on-surface-variant mt-6 pt-4 border-t border-outline-variant/50">
             Hai mục bị khóa là những việc bạn buộc phải biết ngay, nếu bỏ lỡ có thể mất khách hoặc mất tiền.
           </p>
-        </div>
+        </TheMuc>
 
         {/* Cột phải */}
-        <div className="khung-muc mau-lam flex flex-col">
-          <h2 className="tieu-de-muc dau-muc">Thông báo thường</h2>
+        <TheMuc mau={MAU_THONG_TIN} bieuTuong="notifications" tieuDe="Thông báo thường" className="flex flex-col">
 
           <div className="space-y-4 flex-1">
-            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/50">
+            <div className="o-trong flex items-center justify-between gap-4 p-4">
               <div>
                 <div className="font-bold text-on-surface mb-1">AI tự viết / tự đăng bài</div>
                 <div className="text-sm text-on-surface-variant">Báo mỗi khi AI viết xong bài theo lịch: bài chờ duyệt, sắp tự đăng, đã đăng. Hiện luôn gửi.</div>
@@ -490,13 +504,13 @@ export default function TelegramAlerts() {
               </div>
             </div>
           </div>
-        </div>
+        </TheMuc>
 
       </div>
 
       {/* HÀNG 3: XEM TRƯỚC TIN NHẮN */}
-      <div className="khung-muc mau-xam">
-        <h2 className="tieu-de-muc dau-muc">Tin nhắn Telegram sẽ trông thế nào</h2>
+      {/* Cả hai tin mẫu là việc của ③ AI Bán hàng → màu ③. */}
+      <TheMuc mau={aiTheoMa('sales').hex} bieuTuong="preview" tieuDe="Tin nhắn Telegram sẽ trông thế nào">
         
         {/*
           ẢNH MẪU — dựng đúng từng dòng của tin thật (services/telegram.ts sendOrderReport / sendHandoffAlert), dữ liệu là
@@ -525,11 +539,10 @@ export default function TelegramAlerts() {
         </div>
 
         <p className="text-xs text-on-surface-variant text-center">Mẫu minh hoạ — tin thật có đúng các dòng này, với dữ liệu của đơn / khách thật</p>
-      </div>
+      </TheMuc>
 
       {/* HÀNG 4: LỊCH SỬ THÔNG BÁO */}
-      <div className="khung-muc mau-lam flex flex-col">
-        <h2 className="tieu-de-muc dau-muc">Thông báo gần đây</h2>
+      <TheMuc mau={MAU_THUONG_HIEU} bieuTuong="history" tieuDe="Thông báo gần đây" className="flex flex-col">
         <div className="overflow-x-auto ">
           <table className="w-full min-w-[700px] text-left border-collapse">
             <thead>
@@ -580,7 +593,7 @@ export default function TelegramAlerts() {
             </tbody>
           </table>
         </div>
-      </div>
+      </TheMuc>
 
     </main>
   );

@@ -3005,7 +3005,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonManHinhQL = fs.readFileSync(path.join(GOC, "src/pages/QuanLy.tsx"), "utf8");
   kiem("phân tầng", "màn hình quản lý là bảng điều hành, không phải danh sách suông",
     /api\.admin\.accounts\(\)/.test(nguonManHinhQL) &&
-      /Cần xử lý \(\{canXuLy\.length\}\)/.test(nguonManHinhQL), true);
+      /Cần xử lý \((\{|\$\{)canXuLy\.length\}\)/.test(nguonManHinhQL), true);
 
   /*
    * Số liệu vận hành phải là số THẬT lấy từ database, không phải số dựng sẵn.
@@ -7802,12 +7802,13 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("P3 khung", "① Đang làm: danh sách bài trong khung xám 'Bài đăng'",
     /<div className="khung-muc mau-xam">\s*<h3 className="tieu-de-muc dau-muc">Bài đăng<\/h3>/.test(d30("src/pages/Content.tsx")), true);
   const tg30 = d30("src/pages/TelegramAlerts.tsx"), ql30 = d30("src/pages/QuanLy.tsx"), pr30 = d30("src/pages/Pricing.tsx");
-  kiem("P3 màn hệ thống", "Telegram / Gói dịch vụ / Quản lý: phần lớn là khung-muc xám · lam · cam (cảnh báo), không dùng màu 4 AI; không còn thẻ viền xám cũ",
-    [(tg30.match(/className="khung-muc (mau-[a-z]+)[^"]*"/g) ?? []).map((x) => x.match(/mau-[a-z]+/)![0]),
-      (ql30.match(/className="khung-muc (mau-[a-z]+)[^"]*"/g) ?? []).map((x) => x.match(/mau-[a-z]+/)![0]),
-      (pr30.match(/className="khung-muc (mau-[a-z]+)[^"]*"/g) ?? []).map((x) => x.match(/mau-[a-z]+/)![0]),
+  // H2 (chủ dự án 23/10/2026 tối): màn hệ thống học theo Tổng quan — thẻ .the có ô biểu tượng (TheMuc), màu theo nghĩa,
+  // KHÔNG còn khung-muc xám; (thay phép kiểm P3 khung-muc xám · lam của cùng ba màn).
+  const demThe = (x: string) => (x.match(/<TheMuc\b/g) ?? []).length;
+  kiem("H2 màn hệ thống", "Telegram / Gói dịch vụ / Quản lý: thẻ kiểu Tổng quan (TheMuc), không còn khung-muc, không còn thẻ viền xám cũ",
+    [[tg30, ql30, pr30].map(demThe), [tg30, ql30, pr30].map((x) => /khung-muc/.test(x)),
       [tg30, ql30, pr30].map((x) => /bg-surface-container border border-outline-variant rounded-2xl p-[46]/.test(x))],
-    [["mau-lam", "mau-lam", "mau-xam", "mau-lam", "mau-xam", "mau-lam"], ["mau-cam", "mau-xam", "mau-lam"], ["mau-lam"], [false, false, false]]);
+    [[7, 3, 1], [false, false, false], [false, false, false]]);
 }
 
 // --- Kiểm toàn 23/10/2026: chữ cũ còn sót (sơ đồ mục 7).
@@ -7836,6 +7837,36 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     [/\? \{ background: motAi\.hex, borderColor: motAi\.hex, color: '#0b1417' \}\s*: \{ background: `\$\{motAi\.hex\}12`, borderColor: `\$\{motAi\.hex\}59`, color: motAi\.hex \}/.test(ka),
       /t\.hex/.test(ka), /hex:/.test(bonThe)],
     [true, false, false]);
+}
+
+{
+  // H2 — nút trắng: gốc là màu miền trang hệ thống #e2e8f0. Nay màu thương hiệu như Tổng quan (menu + tiêu đề cũng vậy).
+  const css = fs.readFileSync(path.join(GOC, "src/index.css"), "utf8");
+  const sb = boChuThich(fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8"));
+  const tn = boChuThich(fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8"));
+  kiem("H2 màu miền", "trang hệ thống dùng màu thương hiệu (#22d3ee) như Tổng quan: màu miền, mục menu đang chọn, tiêu đề thanh trên — không còn trắng",
+    [/\.mien-he-thong\s*\{ --mien: #22d3ee; --tren-mien: #003640; \}/.test(css), /#e2e8f0/.test(css.match(/\.mien-he-thong[^}]*\}/)?.[0] ?? ""),
+      /const MAU_HE_THONG = MAU_THUONG_HIEU;/.test(sb), /'#f1f5f9'/.test(tn)],
+    [true, false, true, false]);
+  // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
+  const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");
+  const ma = (x: { ma: string }[]) => x.map((d) => d.ma);
+  const chay = (x: { ma: string; chay: boolean }[]) => Object.fromEntries(x.map((d) => [d.ma, d.chay]));
+  kiem("H2 luồng thông báo", "(i) người dùng thường KHÔNG thấy cảnh báo chi phí / mất nhận tin (chỉ gửi quản trị); quản trị thấy",
+    [ma(luongThongBao({ daNoi: true, events: {}, laQuanTri: false })), ma(luongThongBao({ daNoi: true, events: {}, laQuanTri: true }))],
+    [["content", "new_order", "handoff", "queue_stuck"], ["content", "new_order", "handoff", "queue_stuck", "chi_phi", "webhook_dead"]]);
+  kiem("H2 luồng thông báo", "(ii) tắt loại tin trong events → đường đó KHÔNG chạy dù đã kết nối; (iii) chưa kết nối → không đường nào chạy",
+    [chay(luongThongBao({ daNoi: true, events: { new_order: false, handoff: false }, laQuanTri: false })),
+      Object.values(chay(luongThongBao({ daNoi: false, events: {}, laQuanTri: true }))).filter(Boolean).length],
+    [{ content: true, new_order: false, handoff: false, queue_stuck: true }, 0]);
+  const ltb = boChuThich(fs.readFileSync(path.join(GOC, "src/components/LuongThongBao.tsx"), "utf8"));
+  const tga = boChuThich(fs.readFileSync(path.join(GOC, "src/pages/TelegramAlerts.tsx"), "utf8"));
+  const app = boChuThich(fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8"));
+  kiem("H2 luồng thông báo", "chỉ đường đang chạy mới có lớp dong-chay; màn Telegram truyền đúng trạng thái kết nối + events + vai trò quản trị",
+    [/className=\{d\.chay \? 'dong-chay' : 'duong-nen'\}/.test(ltb), (ltb.match(/dong-chay/g) ?? []).length,
+      /luongThongBao\(\{ daNoi: isConnected, events, laQuanTri \}\)/.test(tga),
+      /<TelegramAlerts laQuanTri=\{user\?\.role === 'admin'\} \/>/.test(app)],
+    [true, 1, true, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

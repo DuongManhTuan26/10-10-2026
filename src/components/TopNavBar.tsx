@@ -64,9 +64,10 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
    * còn chỗ nào để mở menu — mà menu thì đã trượt ra ngoài màn hình. Giờ luôn
    * hiện, và dưới lg có thêm nút mở ngăn kéo.
    */
-  // Màu tiêu đề theo miền (src/lib/bon-ai.ts): 4 AI theo màu của nó, Tổng quan = ④ Điều hành, trang hệ thống = trắng.
+  // Màu tiêu đề theo miền (src/lib/bon-ai.ts): 4 AI theo màu của nó; Tổng quan, Kết nối và trang hệ thống = màu thương hiệu
+  // (chủ dự án 23/10/2026: trang hệ thống học theo Tổng quan — bỏ chữ trắng).
   const aiDangXem = BON_AI.find((a) => a.duong === location.pathname);
-  const mauTieuDe = aiDangXem?.hex ?? (location.pathname === '/' || location.pathname === '/ket-noi' ? MAU_THUONG_HIEU : '#f1f5f9');
+  const mauTieuDe = aiDangXem?.hex ?? MAU_THUONG_HIEU;
 
   return (
     <nav className="fixed top-0 right-0 w-full lg:w-[calc(100%-288px)] z-40 bg-surface border-b border-outline-variant transition-all duration-200 flex justify-between items-center gap-2 px-4 sm:px-margin py-base h-16">
