@@ -214,16 +214,18 @@ trên màn thật. Sẽ thấy ở lần chuyển kênh thật đầu tiên.
 Mở link hội thoại (vd. từ Telegram) thuộc cửa hàng khác cửa hàng đang chọn → chưa có dải báo "Hội thoại của cửa hàng X
 — chuyển sang?". Phiên viết + phiên kiểm duyệt cùng hoãn khỏi đợt 3, làm sau.
 
-## TD-20 — LỖI: lúc tắt máy chủ, việc chạy theo giờ gọi DB sau khi pool đã đóng (19/10/2026)
+## TD-20 — ĐÃ SỬA (2ee9f2e, 23/10/2026): lúc tắt máy chủ, việc chạy theo giờ gọi DB sau khi pool đã đóng (19/10/2026)
 
 Hiện tượng: mỗi lần máy chủ nhận SIGTERM, nhật ký có "[worker] Lỗi khi làm việc bình luận tới hạn: Cannot use a pool after
 calling end on the pool" và "[video AI] Lỗi khi theo dõi video: (cùng câu)" — 59 lần trong ~/Library/Logs/quan-ly-fanpage.log
 tính tới 19/10. Nguyên nhân gốc: hẹn giờ của worker / video AI vẫn chạy sau pool.end(). Không mất dữ liệu (tiến trình đang
-thoát), nhưng là lỗi thật. Sửa: dừng mọi hẹn giờ + chờ lượt đang chạy xong rồi mới pool.end(). Không do đợt 3. Chưa sửa.
+thoát), nhưng là lỗi thật. Sửa: dừng mọi hẹn giờ + chờ lượt đang chạy xong rồi mới pool.end(). Không do đợt 3.
+ĐÃ SỬA 23/10 (2ee9f2e: server/tat-may.ts tắt êm, worker / Telegram dừng có chờ). Chứng cứ nhật ký: từ 14:02 ngày 23/10 mọi lần
+khởi động lại chỉ có "[tắt] Nhận SIGTERM, đang đóng…" + "[worker] Đã dừng." — 0 "Force killing", 0 "Cannot use a pool".
 Bổ sung 22/10/2026 (lúc gộp A3, 11:34:42): "[tsx] Process didn't exit in 5s. Force killing..." — tiến trình cũ không tự
 thoát trong 5 giây, tsx phải buộc tắt (các lần trước tự thoát). Cùng gốc: tắt máy chủ chưa dừng hết hẹn giờ / kết nối.
 
-## TD-21 — LỖI: trần tốc độ dự phòng đếm kênh của MỘT tài khoản, tài liệu nói đếm cả team (22/10/2026)
+## TD-21 — ĐÃ SỬA (2ee9f2e, 23/10/2026): trần tốc độ dự phòng đếm kênh của MỘT tài khoản, tài liệu nói đếm cả team (22/10/2026)
 
 Tài liệu nhà cung cấp (docs/zernio-api-reference.txt, mục "# Rate Limits"): "Rate limits are based on your team's total
 connected social accounts" · "Connected accounts are counted across the whole billing team" · "One API key is enough —
@@ -233,7 +235,9 @@ Hiện trạng (services/guardrails.ts effectiveRateLimit): nhánh "số sống"
 chung cho số shop đang gửi. Nhánh DỰ PHÒNG (chưa có header) lại tính bậc theo số kênh của RIÊNG tài khoản đó
 (policyLimitPerMinute(kênh của user)) và trả trọn bậc đó cho từng tài khoản → khi chưa có số sống, mỗi tài khoản tưởng mình
 có trọn trần. Phiên kiểm duyệt bắt ở thiết kế A3 (22/10), dặn không sửa trong A3. Sửa: nhánh dự phòng đếm kênh cả hệ thống
-rồi chia cho số shop đang gửi như nhánh số sống. Chưa sửa.
+rồi chia cho số shop đang gửi như nhánh số sống.
+ĐÃ SỬA 23/10 (2ee9f2e): effectiveRateLimit() không nhận tài khoản; nhánh dự phòng tính bậc theo kênh CẢ HỆ THỐNG rồi
+chiaTran(trần, số shop đang gửi), cùng cách với nhánh số sống.
 
 ## TD-22 — A4b: quảng cáo theo cửa hàng CHƯA THỬ THẬT (22/10/2026) — CHỜ CHỦ DỰ ÁN
 

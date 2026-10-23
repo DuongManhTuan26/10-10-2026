@@ -126,7 +126,7 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 
 - **Telegram**: MỘT Telegram cho cả tài khoản, mỗi tin về việc của một cửa hàng ghi rõ tên cửa hàng (chốt 18/10 — ĐẠT ở A4d, bf7edb3).
 
-## 5. Luồng người dùng (chốt 17/10 — đạt phần dẫn; chữ bước 3 đã sửa ở P2 4f82746; danh sách trống ở bước 4 — chưa kiểm lại)
+## 5. Luồng người dùng (chốt 17/10 — ĐẠT về mã: chữ bước 3 sửa ở P2 4f82746; danh sách trống ở bước 4 sửa ở 6bff07f — chưa nối Fanpage thật để xem)
 
 Tạo cửa hàng mới → đặt tên → tự dẫn xuống bảng "Kết nối kênh cho cửa hàng" → cả bảng sáng viền + mũi tên chỉ xuống →
 chọn tự do bất kỳ mạng nào → nối xong ô đó sáng ✓ → mũi tên vẫn chỉ để nối tiếp → "Xong, không nối thêm" thì tắt →
@@ -142,13 +142,13 @@ mở bộ não của cửa hàng để dạy AI.
   Không có nút "Kết thúc" (chốt 18/10 — chỉ Tạm dừng). Ngân sách tầng nhóm (ABO) chưa sửa được trong app (TD-13).
 - Số theo cửa hàng chỉ tính từ mốc 05/10/2026; mỗi số có nhãn "đã chốt" / "tạm tính".
 
-## 7. Tên gọi (đã chốt — CHƯA ĐẠT: còn chữ cũ, sửa khi làm lại từng màn theo phiếu C/D)
+## 7. Tên gọi (đã chốt — ĐẠT trừ tên sản phẩm ở mục 8.4)
 
 Cửa hàng (đơn vị có bộ não) · Kênh (tài khoản mạng xã hội) · Fanpage (Facebook Page). Chữ "Zernio" không bao giờ hiện
 cho khách. Chữ cho khách dùng "Vui lòng", không "Hãy".
 Còn chữ cũ trước mặt khách (phiên kiểm duyệt thấy 19/10): ĐÃ SỬA — bước 3 "Mỗi tài khoản một Fanpage" (P2 4f82746: "Mỗi
-cửa hàng một Fanpage…"), câu "chưa gắn Fanpage" (không còn trong mã). CÒN: Quản lý tài khoản "Chưa nối Fanpage nào"
-(TinhTrangTrang.tsx); tab trình duyệt "BrewManager AI" (mục 8.4).
+cửa hàng một Fanpage…"), câu "chưa gắn Fanpage" (không còn trong mã), Quản lý tài khoản "Chưa nối Fanpage nào" → "Chưa nối
+kênh nào" (6bff07f). CÒN: tab trình duyệt "BrewManager AI" + chữ "LOGO" (mục 8.4, chờ chủ dự án).
 
 ## 8. Chưa chốt — chờ chủ dự án
 
