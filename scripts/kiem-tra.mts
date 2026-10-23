@@ -7977,6 +7977,14 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   kiem("H8 tài liệu", "một dòng dài hơn chỗ còn lại → dừng ở đó, không cắt giữa dòng; rỗng → chuỗi rỗng; trần bán hàng 40.000, nội dung / quảng cáo 24.000",
     [dongDai.phanDaDoc, dongDai.chuaDoc, chonTaiLieu([doc("r.txt", "  "), doc("n.txt", null)], 1000).noiDung, TRAN_KY_TU_TAI_LIEU],
     ["", ["dai.txt"], "", { sales: 40_000, content: 24_000, ads: 24_000 }]);
+  // Phiên kiểm duyệt: PDF / docx trích ra thường là MỘT dòng dài — không được bỏ trọn (bản cũ đọc 4.000 ký tự đầu).
+  const motDong = Array.from({ length: 4000 }, (_, i) => `Áo ${i}: ${(i * 1000 + 250000).toLocaleString("vi-VN")}đ`).join(" ");
+  const pdf = chonTaiLieu([doc("pdf.txt", motDong)], 40_000);
+  const ranh = (tran: number) => chonTaiLieu([doc("g.txt", "Áo A: 120.000đ Áo B: 1.250.000đ")], tran).phanDaDoc;
+  kiem("H8 tài liệu", "một dòng rất dài (PDF không xuống dòng): đọc gần đủ trần, cắt ở khoảng trắng — không kết thúc giữa một số; giá chạm trần thì đủ hoặc không có",
+    [pdf.daDocKyTu > 39_000 && pdf.daDocKyTu <= 40_000, /\d$|\d\.$/.test(pdf.phanDaDoc) ? /\d{3}đ$/.test(pdf.phanDaDoc) || /:\s*$/.test(pdf.phanDaDoc) : true,
+      [20, 24, 27, 30, 33, 37, 40].map((t) => ranh(t)).every((x) => !/1\.2(?!50\.000đ)|1\.25(?!0)|1\.250\.0(?!00)/.test(x))],
+    [true, true, true]);
   const sa8 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/sales-ai.ts"), "utf8"));
   const ct8 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/content-ai.ts"), "utf8"));
   kiem("H8 tài liệu", "AI bán hàng, AI nội dung, AI quảng cáo (loadKnowledge) và bộ xác nhận giá cùng đi qua docTaiLieu",

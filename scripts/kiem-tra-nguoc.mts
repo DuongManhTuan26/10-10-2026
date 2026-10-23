@@ -5936,6 +5936,18 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
+    ten: "tài liệu một dòng dài bị bỏ trọn (AI đọc 0 ký tự)",
+    tep: "server/services/knowledge.ts",
+    tim: "      if (cuoi <= 0) {",
+    thay: "      if (true) {",
+  },
+  {
+    ten: "cắt dòng dài giữa một số",
+    tep: "server/services/knowledge.ts",
+    tim: "      lay.push(dau0.slice(0, cuoi).trimEnd());",
+    thay: "      lay.push(dau0.slice(0, cho));",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

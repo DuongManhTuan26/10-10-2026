@@ -43,8 +43,8 @@ export const CAU_CHUA_DOC_HET =
 
 /**
  * Hàm thuần: chọn tài liệu (mới nhất trước) cho vừa trần. Đưa NGUYÊN tài liệu khi còn chỗ; tài liệu chạm trần cắt ở RANH GIỚI
- * DÒNG (không cắt giữa dòng — cắt giữa "Áo A: 1.250.000" thành "Áo A: 1.2" là AI đọc sai giá); một dòng dài hơn chỗ còn lại thì
- * dừng ở đó. Hết chỗ thì các tài liệu sau chỉ được liệt kê tên.
+ * DÒNG (không cắt giữa dòng — cắt giữa "Áo A: 1.250.000" thành "Áo A: 1.2" là AI đọc sai giá); gặp dòng không vừa thì dừng ở
+ * đó — riêng khi dòng ĐẦU đã quá dài thì cắt dòng đó ở khoảng trắng. Hết chỗ thì các tài liệu sau chỉ được liệt kê tên.
  */
 export function chonTaiLieu(docs: TaiLieuChu[], tran: number): KetQuaChonTaiLieu {
   const coChu = docs.filter((d) => (d.extracted_text ?? "").trim() !== "");
@@ -77,8 +77,17 @@ export function chonTaiLieu(docs: TaiLieuChu[], tran: number): KetQuaChonTaiLieu
       dai += x.length + 1;
     }
     if (lay.length === 0) {
-      chuaDoc.push(d.filename);
-      continue;
+      // Dòng đầu đã dài hơn chỗ còn lại (PDF / docx trích ra thường không xuống dòng — cả tài liệu là MỘT dòng): cắt ở KHOẢNG
+      // TRẮNG cuối cùng trước trần, không bao giờ giữa một từ / một con số (mất nửa sau thì mất trọn cặp "tên: giá", không
+      // sinh giá cụt). Không có khoảng trắng nào thì bỏ (phiên kiểm duyệt 24/10/2026).
+      const cho = con - dau.length - 1;
+      const dau0 = dong[0] ?? "";
+      const cuoi = dau0.slice(0, cho + 1).search(/\s\S*$/);
+      if (cuoi <= 0) {
+        chuaDoc.push(d.filename);
+        continue;
+      }
+      lay.push(dau0.slice(0, cuoi).trimEnd());
     }
     const phanLay = lay.join("\n");
     const bo = chu.length - phanLay.length;
