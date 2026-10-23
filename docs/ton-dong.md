@@ -176,12 +176,18 @@ tài khoản thử 118 (0 kênh). Còn chưa thử với dữ liệu thật vì 
 Cách thử khi có: tài khoản thử nối 1 Fanpage thử → khoá → nhắn thử 1 tin + 1 bình luận → mở khoá → xem hộp thư (tin có,
 AI không trả lời; bình luận skipped_reason "Đến lúc tài khoản đang khoá…").
 
-## TD-15 — A1: chưa thử thật lịch tự đăng của 2 cửa hàng cùng giờ (19/10/2026)
+## TD-15 — ĐÃ THỬ THẬT, ĐẠT (24/10/2026 00:22): A1 lịch tự đăng của 2 cửa hàng cùng giờ (19/10/2026)
 
 Mã + phép kiểm + đột biến đạt (822b793, phiên kiểm duyệt cho đạt). Chưa cửa hàng nào bật lịch; bật thử = AI tốn tiền +
 đăng thật. Cách thử khi chủ dự án cho phép: bật lịch 2 cửa hàng cùng một khung giờ, chế độ "Chờ tôi duyệt" (không đăng
 thật), xem auto_pilot_runs có 2 dòng (mỗi cửa hàng một) và mỗi cửa hàng có 1 bài chờ duyệt đúng kênh của nó.
 
+ĐÃ THỬ THẬT 24/10/2026 (chủ dự án đồng ý, chế độ "Chờ tôi duyệt" — không đăng công khai): cửa hàng 12 (370) và cửa hàng 1
+(47) cùng lịch 00:22 thứ Bảy → 2 lượt riêng (auto_pilot_runs 7, 8, cùng slot_key, khác trang_id), bài 71 → đúng Fanpage
+"Chạm Tay Vạn Điều Hay", bài 72 → đúng Fanpage "Tư Vấn Tài Chính", cả hai pending_approval; Telegram 2 tin "content" ghi đúng
+"🏪 Cửa hàng: 12" / "1". Tiền AI thật: 0,009726 + 0,006678 = 0,016404 USD. Trả lại như cũ: xoá bài 71, 72 qua nút Xoá; xoá
+2 lượt thử; cửa hàng 12 bỏ khoá autoPilot (trước đó không có), cửa hàng 1 xoá dòng cấu hình nội dung do lần thử tạo (333).
+Lỗi tìm ra khi thử: khối Tự động hoá liệt kê lượt của MỌI cửa hàng (GET /ai/auto-pilot lọc theo tài khoản) — đã sửa (H5).
 ## TD-16 — Webhook / người canh đường hầm: phần chưa kiểm thật + bản ân hạn chờ áp dụng (19/10/2026)
 
 Điều tra: máy chủ chạy dưới khung xem trước bị app tắt 11:28–12:44 → người canh dựng lại ~30 đường hầm → Cloudflare chặn
@@ -193,7 +199,7 @@ máy chủ tắt, chống chồng lượt, báo Telegram quản trị; đã áp 
   máy chủ ≥ 5 phút).
 - LÂU DÀI (chủ dự án quyết): máy chủ thật + tên miền cố định thay cho đường hầm tạm trycloudflare trên máy cá nhân.
 
-## TD-17 — Đợt 3: huỷ lịch thật lên nhà cung cấp CHƯA THỬ THẬT (19/10/2026) — CHỜ CHỦ DỰ ÁN
+## TD-17 — ĐÃ THỬ THẬT, ĐẠT (24/10/2026): Đợt 3: huỷ lịch thật lên nhà cung cấp (19/10/2026)
 
 GỠ THẬT ĐÃ KIỂM 22/10/2026 (chủ dự án cho phép, bài thử 65 trên Tư Vấn Tài Chính): unpublish 200 → app về nháp, stats {},
 ghi chú "Đã gỡ khỏi Tư Vấn Tài Chính lúc …"; nhà cung cấp báo "cancelled"; link Facebook báo nội dung đã xoá; 12 bài cũ
@@ -207,6 +213,10 @@ Gỡ thật = xoá bài trên Fanpage, không khôi phục → chỉ làm khi ch
 thử → "Gỡ để sửa ảnh" → bài mất trên Fanpage, app về nháp kèm "Đã gỡ khỏi … lúc …". Huỷ lịch: hẹn giờ 1 bài thử xa (≥ 1
 ngày) → "Xoá bài" → bài không còn trong lịch phía nhà cung cấp.
 
+ĐÃ THỬ THẬT 24/10/2026 (chủ dự án đồng ý): POST /api/posts (cửa hàng 12, Fanpage "Chạm Tay Vạn Điều Hay", hẹn 22/11) → bài 70;
+POST /api/posts/70/publish → nhà cung cấp nhận lịch (ref 6adb96cd79d29a0d675e5fd5, GET bài: status scheduled, facebook pending);
+DELETE /api/posts/70 (đúng nút Xoá) → 200; GET bài phía nhà cung cấp → 404 "Post not found"; bản ghi app đã xoá. Bài chưa
+từng lên Fanpage. 0 đồng.
 ## TD-18 — Đợt 3: giao diện hội thoại "chỉ xem" chưa thấy với dữ liệu thật (19/10/2026)
 
 Cờ chi_xem đã kiểm trên Postgres bằng phép thử tự hoàn tác (đã rời / chưa gắn / bình thường) và API trả trường này. Hiện

@@ -84,7 +84,8 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
 │         · GỠ KÊNH = NGHỈ VIỆC (23/10, 064 — 0328e6e; suy từ luật trên, phiên kiểm duyệt duyệt — chủ dự án xem lại): chủ
 │           shop bấm "Ngắt kết nối" → kênh rời cửa hàng như chuyển đi (đóng nhiệm kỳ, hội thoại cũ chỉ xem, kịch bản tắt, bài
 │           hẹn giờ gỡ lịch), ẩn khỏi danh sách kênh; nối lại = nhiệm kỳ mới. Nhà cung cấp tắt / mất token = NGHỈ ỐM: giữ
-│           nhiệm kỳ, hiện "Mất kết nối" + nút nối lại. Đã thử tự hoàn tác trên Neon 14/14; chưa bấm gỡ kênh thật.
+│           nhiệm kỳ, hiện "Mất kết nối" + nút nối lại. Thử tự hoàn tác Neon 14/14; ĐÃ GỠ THẬT 24/10 kênh TikTok tuanhoang3660
+│           (đạt: đã gỡ + nhiệm kỳ đóng + ẩn; nhà cung cấp không còn kênh). Chủ dự án tự nối lại khi cần.
 │     • Không có "Đổi Fanpage": ngắt cái cũ, nối cái mới
 │     • Quảng cáo Meta đi kèm Facebook, không nối riêng
 ├── BỘ NÃO AI — 4 AI cố định, liền mạch, không tách rời
@@ -103,12 +104,12 @@ CỬA HÀNG = 1 hồ sơ nhà cung cấp = 1 bộ não 4 AI = 1 hệ thống kê
            • Duyệt / Lên lịch KHÔNG đổi kênh đích của bài; bài chỉ đăng vào kênh của ĐÚNG cửa hàng
            • Bảng tự chạy chỉ hiện kênh của cửa hàng; thư viện ảnh / video AI theo cửa hàng
            • Đẩy quảng cáo chỉ bài của cửa hàng đang chọn; xoá cửa hàng GIỮ bài
-           CHƯA THỬ THẬT: 2 cửa hàng cùng giờ lịch tự đăng (TD-15)
+           ĐÃ THỬ THẬT 24/10: 2 cửa hàng cùng giờ lịch tự đăng (TD-15, chế độ chờ duyệt) — đạt
       A2 (làm qua "kênh là nhân viên" đợt 2a / 2b: c015f65, eb9d969, a26be2d, 6204a1b, 4a8b5f1; migration 058, 059) — ĐẠT
            • Hội thoại chốt cửa hàng + nhiệm kỳ kênh; KHÁCH riêng theo cửa hàng (quay về dùng lại hồ sơ cũ)
            • Số đếm hộp thư theo cửa hàng; nhắc khách cũ + nút bật tự chủ chỉ chạm hội thoại của cửa hàng đó
            • Đợt 3 (e95f810, 89a3669): kênh rời → gỡ lịch bài hẹn giờ, hộp thư "chỉ xem", hộp xác nhận chuyển kênh
-           CHƯA THỬ THẬT: huỷ lịch thật (TD-17), màn "chỉ xem" với dữ liệu thật (TD-18); liên kết sâu ?hoi-thoai= (TD-19)
+           ĐÃ THỬ THẬT 24/10: huỷ lịch thật (TD-17) — đạt. CHƯA: màn "chỉ xem" với dữ liệu thật (TD-18); liên kết sâu ?hoi-thoai= (TD-19)
       A3 (52108c7, 48063ae; migration 060) — ĐẠT
            • Đơn hàng + số tổng theo cửa hàng; sửa đơn của cửa hàng khác báo tên cửa hàng; Tổng quan ghi cửa hàng của đơn
            • Kịch bản + thống kê kịch bản theo cửa hàng

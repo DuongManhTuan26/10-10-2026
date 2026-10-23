@@ -305,11 +305,13 @@ aiRouter.get(
       [trangGet]
     );
 
+    // Lượt tự đăng CỦA CỬA HÀNG đang xem (cùng lỗi đã sửa ở nhật ký ① — P2, 23/10/2026): bản cũ lọc theo tài khoản nên
+    // cửa hàng này hiện cả lượt của cửa hàng khác.
     const runs = await query(
       `SELECT slot_key, status, topic, post_id, note, created_at
-         FROM auto_pilot_runs WHERE user_id = $1
+         FROM auto_pilot_runs WHERE user_id = $1 AND trang_id = $2
         ORDER BY id DESC LIMIT 20`,
-      [req.user!.id]
+      [req.user!.id, trangGet]
     );
 
     res.json({

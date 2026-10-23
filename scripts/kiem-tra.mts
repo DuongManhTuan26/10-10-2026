@@ -7858,6 +7858,15 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     [true, false, false, false, false, true, false]);
 }
 
+{
+  // H5 (24/10/2026): mọi chỗ đọc lượt tự đăng (auto_pilot_runs) phải lọc theo CỬA HÀNG — khối Tự động hoá từng hiện lượt
+  // của cửa hàng khác (cùng lỗi P2 đã sửa ở nhật ký ①).
+  const docLuot = ["server/routes/ai.ts", "server/routes/dieu-hanh.ts"].map((t) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8")))
+    .flatMap((x) => [...x.matchAll(/FROM auto_pilot_runs WHERE ([^`]*?)ORDER BY/g)].map((m) => m[1].trim()));
+  kiem("H5 lượt tự đăng", "mọi danh sách lượt tự đăng lọc user_id VÀ trang_id",
+    [docLuot.length, docLuot.every((w) => /user_id = \$1 AND trang_id = \$2/.test(w))], [2, true]);
+}
+
 console.log(`\nĐã kiểm ${tong} điểm.`);
 if (hong === 0) {
   console.log("Tất cả đều đạt.\n");

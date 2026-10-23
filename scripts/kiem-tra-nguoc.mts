@@ -5804,6 +5804,12 @@ const DUC: PhepDuc[] = [
     thay: "(data.usesPlatformBot || data.hasToken)",
   },
   {
+    ten: "khối Tự động hoá hiện lượt của cửa hàng khác",
+    tep: "server/routes/ai.ts",
+    tim: "FROM auto_pilot_runs WHERE user_id = $1 AND trang_id = $2\n",
+    thay: "FROM auto_pilot_runs WHERE user_id = $1 AND $2::bigint IS NOT NULL\n",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",
