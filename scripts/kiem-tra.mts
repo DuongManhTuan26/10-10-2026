@@ -1711,8 +1711,8 @@ kiem("nhiều shop", "mọi bảng dữ liệu đều gắn với một shop c�
 // Tệ hơn: 5 thất bại + 15 treo ra 25% nên KHÔNG ngắt, trong khi thực chất cả
 // 5 tin đã gửi đều hỏng. Ngưỡng đang đặt là 30%.
 // ---------------------------------------------------------------------------
-kiem("tỷ lệ lỗi", "lưới tự ngắt chỉ đếm lượt đã biết kết quả",
-  /COUNT\(\*\) FILTER \(WHERE outcome <> 'pending'\)::int AS total/.test(nguonHangRao), true);
+kiem("tỷ lệ lỗi", "lưới tự ngắt chỉ đếm lượt đã biết CHẮC kết quả (sent / failed — không pending / bo_do / chua_ro)",
+  /COUNT\(\*\) FILTER \(WHERE outcome IN \('sent', 'failed'\)\)::int AS total/.test(nguonHangRao), true);
 kiem("tỷ lệ lỗi", "con số hiển thị cho chủ shop cũng dùng mẫu số đó",
   /decided_last_hour/.test(nguonHangRao) &&
     /const daBiet = usage\?\.decided_last_hour \?\? 0/.test(nguonHangRao), true);
@@ -6922,7 +6922,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   // Lượt gửi ghi cửa hàng của việc ở MỌI chỗ.
   const ob3 = d6("server/services/outbound.ts");
   kiem("A3 lượt gửi", "recordAttempt ghi trang_id; mọi lời gọi truyền trangId (outbound 2 + bình luận 1); xin suất bình luận 4 chỗ truyền cửa hàng của bình luận; tự ngắt nhận cửa hàng",
-    [/error_code, trang_id\)\s*VALUES \(\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10\)/.test(gr) && /params\.errorCode \?\? null,\s*params\.trangId,/.test(gr),
+    [/error_code, trang_id, ma_khoi_dong, ma_kich_hoat, noi_dung_bam\)\s*VALUES \(\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10,\$11,\$12,\$13\)/.test(gr) && /params\.errorCode \?\? null,\s*params\.trangId,/.test(gr),
       (ob3.match(/await recordAttempt\(\{\s*userId: conversation\.user_id,\s*trangId: conversation\.trang_id,/g) ?? []).length,
       /await recordAttempt\(\{\s*userId,\s*trangId,/.test(gr),
       (ca3.match(/xinPhepGuiBinhLuan\((account\.user_id, accountId, trangBL|row\.user_id, row\.social_account_id, row\.trang_id)\)/g) ?? []).length,
@@ -7621,6 +7621,51 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("xoá tài khoản", "một giao dịch: xoá users TRƯỚC (trigger sổ thay đổi chạy khi xoá dây chuyền) rồi mới xoá các sổ + bảng sao lưu còn tồn tại",
     [/await transaction\(\(c\) => xoaDuLieuTaiKhoan\(c, userId\)\);/.test(x18) && /\): Promise<void> \{\s*await c\.query\("DELETE FROM users WHERE id = \$1", \[userId\]\);\s*for \(const bang of BANG_XOA_THEM\) await c\.query\(`DELETE FROM \$\{bang\} WHERE user_id = \$1`, \[userId\]\);\s*for \(const bang of BANG_SAO_LUU\) \{\s*const co = await c\.query<\{ co: boolean \}>\("SELECT to_regclass\(\$1\) IS NOT NULL AS co", \[`public\.\$\{bang\}`\]\);\s*if \(co\.rows\[0\]\?\.co\) await c\.query\(`DELETE FROM \$\{bang\} WHERE user_id = \$1`, \[userId\]\);/.test(x18)],
     [true]);
+}
+
+// ---------------------------------------------------------------------------
+// CHỐNG GỬI LẶP SAU KHI BỊ CẮT (23/10/2026; phiên kiểm duyệt duyệt + 3 sửa): mã lần khởi động (không ngưỡng thời gian),
+// đối chiếu với nhà cung cấp, không chắc → người xem, "cùng ý định" theo mã kích hoạt.
+// ---------------------------------------------------------------------------
+{
+  const d19 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const cg = await import("../server/services/chong-gui-lap.js");
+  const MOC = new Date("2026-10-23T03:00:00Z");
+  const t = (giay: number, noiDung: string, id = `m${giay}`) => ({ id, noiDung, luc: new Date(MOC.getTime() + giay * 1000) });
+  const B = cg.bamNoiDung("Dạ  shop còn hàng\n ạ ");
+  kiem("chống gửi lặp", "quyết định đối chiếu: đúng tin (băm sau khi gộp khoảng trắng) sau mốc → đã gửi; tin khác của trang sau mốc → chưa rõ; không có gì sau mốc → gửi lại; lệch đồng hồ 60 giây",
+    [cg.quyetDinhDoiChieu({ bam: B, luc: MOC }, [t(5, "Dạ shop còn hàng ạ")]).ket, cg.quyetDinhDoiChieu({ bam: B, luc: MOC }, [t(-30, "Dạ shop còn hàng ạ", "x")]),
+      cg.quyetDinhDoiChieu({ bam: B, luc: MOC }, [t(8, "Dạ shop còn hàng ạ 😊")]), cg.quyetDinhDoiChieu({ bam: B, luc: MOC }, [t(-300, "Dạ shop còn hàng ạ")]),
+      cg.quyetDinhDoiChieu({ bam: B, luc: MOC }, [])],
+    ["da_gui", { ket: "da_gui", id: "x", noiDung: "Dạ shop còn hàng ạ" }, { ket: "chua_ro" }, { ket: "gui_lai" }, { ket: "gui_lai" }]);
+  kiem("chống gửi lặp", "tin của trang lấy theo direction 'outgoing' (như reconcile); câu trả lời của trang theo from.isOwner, gộp replies lồng",
+    [cg.tinCuaTrang([{ id: "a", direction: "incoming", message: "khách" }, { id: "b", direction: "outgoing", text: "trang", createdTime: "2026-10-23T03:00:05Z" }]).map((x) => [x.id, x.noiDung, x.luc.toISOString()]),
+      cg.traLoiCuaTrang([{ id: "c1", message: "khách", from: { isOwner: false }, replies: [{ id: "r1", message: "trang trả lời", from: { isOwner: true }, createdTime: "2026-10-23T03:01:00Z" }] }]).map((x) => [x.id, x.noiDung])],
+    [[["b", "trang", "2026-10-23T03:00:05.000Z"]], [["r1", "trang trả lời"]]]);
+  const ob19 = d19("server/services/outbound.ts"), sa19 = d19("server/services/sales-ai.ts"), ca19 = d19("server/services/comment-ai.ts"), gr19 = d19("server/services/guardrails.ts");
+  kiem("chống gửi lặp", "tin Messenger: đối chiếu lần dở của LẦN KHỞI ĐỘNG KHÁC trước khi ghi lần gửi; cùng mã kích hoạt: đã gửi → trả đúng tin đã đi, chưa rõ → không gửi; lần gửi ghi mã khởi động + mã kích hoạt + băm",
+    [/AND ma_khoi_dong IS NOT NULL AND ma_khoi_dong <> \$2 AND noi_dung_bam IS NOT NULL`,\s*\[conversationId, MA_KHOI_DONG\]/.test(ob19),
+      /const ket: KetDoiChieu = tin \? quyetDinhDoiChieu\(\{ bam: l\.noi_dung_bam, luc: l\.created_at \}, tin\) : \{ ket: "chua_ro" \};/.test(ob19),
+      /ket\.ket === "da_gui" \? "sent" : ket\.ket === "chua_ro" \? "chua_ro" : "bo_do",/.test(ob19),
+      ob19.search(/const doiChieu = await doiChieuLanBoDo\(/) > 0 && ob19.search(/const doiChieu = await doiChieuLanBoDo\(/) < ob19.search(/const attemptId = await recordAttempt\(\{/),
+      /if \(cungYDinh\?\.ket\.ket === "da_gui"\) \{[\s\S]{0,200}return \{ sent: true, text: cungYDinh\.ket\.noiDung, externalId: cungYDinh\.ket\.id \};/.test(ob19),
+      /if \(cungYDinh\?\.ket\.ket === "chua_ro"\) \{[\s\S]{0,200}return \{ sent: false, text, externalId: null, blockReason: "chua_ro", blockMessage: LOI_CHUA_RO_TIN \};/.test(ob19),
+      /maKhoiDong: MA_KHOI_DONG,\s*maKichHoat: params\.maKichHoat \?\? null,\s*noiDungBam: bamNoiDung\(text\),/.test(ob19)],
+    [true, true, true, true, true, true, true]);
+  kiem("chống gửi lặp", "mã kích hoạt có căn cứ: AI trả lời = mã tin khách cuối; nhắc khách = lần nhắc thứ N; 'chua_ro' đi nhánh cần người",
+    [/maKichHoat: `tra-loi-\$\{lastMessage\.id\}`,/.test(sa19), /maKichHoat: `nhac-\$\{hoi\.id\}-\$\{hoi\.nhac_lai_count\}`,/.test(sa19),
+      /result\.blockReason === "chua_ro";/.test(sa19), /SELECT id, sender_type, content, attachments, attachment_text FROM messages/.test(sa19)],
+    [true, true, true, true]);
+  kiem("chống gửi lặp", "trả lời công khai: đã trả lời → thôi; đang gửi ở chính lần khởi động → thôi; lần khởi động khác bỏ dở → đối chiếu; GIỮ chỗ (đang gửi + mã) TRƯỚC khi gọi nhà cung cấp; xong / lỗi đều xoá dấu đang gửi",
+    [/if \(dong\?\.public_replied_at\) return;\s*if \(dong\?\.public_dang_gui_ma === MA_KHOI_DONG\) return;/.test(ca19),
+      /let ket: KetDoiChieu = \{ ket: "chua_ro" \};\s*try \{\s*const ds = await zernio\.layBinhLuanCuaBai\(\{ postId: params\.targetCommentId, accountId: params\.accountId \}\);\s*ket = quyetDinhDoiChieu\(\{ bam: bamNoiDung\(params\.text\), luc: dong\.public_dang_gui_luc \}, traLoiCuaTrang\(ds as never\)\);/.test(ca19),
+      ca19.search(/UPDATE comments SET public_dang_gui_luc = now\(\), public_dang_gui_ma = \$2/) > 0 && ca19.search(/UPDATE comments SET public_dang_gui_luc = now\(\), public_dang_gui_ma = \$2/) < ca19.search(/await zernio\.replyToComment\(\{/),
+      /if \(!giu\) return;/.test(ca19), (ca19.match(/public_dang_gui_luc = NULL, public_dang_gui_ma = NULL/g) ?? []).length],
+    [true, true, true, true, 4]);
+  const m63 = fs.readFileSync(path.join(GOC, "server/migrations/063_chong_gui_lap.sql"), "utf8").replace(/--[^\n]*/g, "");
+  kiem("chống gửi lặp", "063 chỉ THÊM cột / chỉ mục; lưới tự ngắt chỉ đếm 'sent' / 'failed' (bo_do / chua_ro không phải lỗi nền tảng); mã khởi động có dạng thời điểm-pid",
+    [/UPDATE|DELETE|DROP/i.test(m63), (m63.match(/ADD COLUMN IF NOT EXISTS/g) ?? []).length, (gr19.match(/outcome IN \('sent', 'failed'\)/g) ?? []).length, /^[0-9a-z]+-\d+$/.test(cg.MA_KHOI_DONG)],
+    [false, 5, 2, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

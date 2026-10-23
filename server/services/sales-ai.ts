@@ -190,12 +190,13 @@ export async function handleIncomingMessage(conversationId: string): Promise<boo
    * anh/chị đang quan tâm sản phẩm nào ạ?" như thể khách chưa nói gì.
    */
   const messages = await query<{
+    id: number;
     sender_type: string;
     content: string;
     attachments: unknown;
     attachment_text: string | null;
   }>(
-    `SELECT sender_type, content, attachments, attachment_text FROM messages
+    `SELECT id, sender_type, content, attachments, attachment_text FROM messages
       WHERE conversation_id = $1
       ORDER BY created_at DESC LIMIT $2`,
     [conversationId, CONTEXT_MESSAGE_LIMIT]
@@ -331,6 +332,8 @@ export async function handleIncomingMessage(conversationId: string): Promise<boo
     conversationId: conversation.id,
     text: decision.reply,
     actor: "ai",
+    // Chống gửi lặp: lần gửi này trả lời ĐÚNG tin khách cuối — xử lý lại cùng sự kiện sau khi bị cắt thì cùng mã.
+    maKichHoat: `tra-loi-${lastMessage.id}`,
   });
 
   if (!result.sent) {
@@ -378,7 +381,9 @@ export async function handleIncomingMessage(conversationId: string): Promise<boo
      * lần cũng vẫn bị chặn, nên chuyển cho người thật ngay.
      */
     const needsHuman =
-      result.blockReason === "ai_outside_24h" || result.blockReason === "ai_paused";
+      result.blockReason === "ai_outside_24h" || result.blockReason === "ai_paused" ||
+      // Chống gửi lặp: lần gửi trước (bị cắt) chưa rõ đã tới khách chưa — người xem, không tự gửi.
+      result.blockReason === "chua_ro";
 
     if (needsHuman) {
       /*
@@ -1486,6 +1491,8 @@ export async function runDueFollowUps(): Promise<number> {
           conversationId: hoi.id,
           text: cau,
           actor: "ai",
+          // Chống gửi lặp: lần nhắc thứ N của hội thoại (số đếm chỉ tăng sau khi gửi xong).
+          maKichHoat: `nhac-${hoi.id}-${hoi.nhac_lai_count}`,
         });
         if (!ketQua.sent) continue;
 

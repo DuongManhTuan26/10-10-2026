@@ -6,6 +6,7 @@ import { DK_TAI_KHOAN_MO } from "./tai-khoan-mo.js";
 import { chanCuaRa } from "./cua-ra.js";
 import { cacNhiemKy, chonNhiemKy, DK_NHIEM_KY_MO } from "./nhiem-ky.js";
 import { kichBanChoBai, LY_DO_KHONG_AP_BAI } from "./kich-ban-ap-dung.js";
+import { bamNoiDung, LOI_CHUA_RO_CONG_KHAI, MA_KHOI_DONG, quyetDinhDoiChieu, traLoiCuaTrang, type KetDoiChieu } from "./chong-gui-lap.js";
 
 /**
  * Xử lý bình luận mới: trả lời công khai và nhắn tin riêng cho người bình luận.
@@ -719,6 +720,49 @@ export async function sendPublicReply(params: {
   targetCommentId: string;
   text: string;
 }): Promise<void> {
+  /*
+   * CHỐNG GỬI LẶP (063): ghi "đang gửi" kèm mã lần khởi động TRƯỚC khi gọi nhà cung cấp. Lần trước (khởi động khác) bị
+   * cắt giữa chừng → đối chiếu câu trả lời của trang dưới bình luận: đã có → ghi đã trả lời; có câu khác của trang →
+   * chưa rõ, để người xem; không có → gửi.
+   */
+  const dong = await queryOne<{ public_replied_at: Date | null; public_dang_gui_luc: Date | null; public_dang_gui_ma: string | null }>(
+    "SELECT public_replied_at, public_dang_gui_luc, public_dang_gui_ma FROM comments WHERE id = $1",
+    [params.commentId]
+  );
+  if (dong?.public_replied_at) return;
+  if (dong?.public_dang_gui_ma === MA_KHOI_DONG) return; // đang gửi ở chính lần khởi động này
+  if (dong?.public_dang_gui_luc) {
+    let ket: KetDoiChieu = { ket: "chua_ro" };
+    try {
+      const ds = await zernio.layBinhLuanCuaBai({ postId: params.targetCommentId, accountId: params.accountId });
+      ket = quyetDinhDoiChieu({ bam: bamNoiDung(params.text), luc: dong.public_dang_gui_luc }, traLoiCuaTrang(ds as never));
+    } catch (error) {
+      console.warn(`[chống gửi lặp] Không đọc được câu trả lời của ${params.commentId}:`, error instanceof Error ? error.message : error);
+    }
+    if (ket.ket === "da_gui") {
+      await query(
+        `UPDATE comments SET public_replied_at = now(), public_reply_due_at = NULL, pending_reply_text = NULL,
+                public_dang_gui_luc = NULL, public_dang_gui_ma = NULL WHERE id = $1`,
+        [params.commentId]
+      );
+      console.log(`[chống gửi lặp] ${params.commentId}: câu trả lời công khai của lần khởi động trước ĐÃ có — không gửi lại`);
+      return;
+    }
+    if (ket.ket === "chua_ro") {
+      await query(
+        `UPDATE comments SET last_error = $2, public_reply_due_at = NULL, pending_reply_text = NULL,
+                public_dang_gui_luc = NULL, public_dang_gui_ma = NULL WHERE id = $1`,
+        [params.commentId, LOI_CHUA_RO_CONG_KHAI]
+      );
+      return;
+    }
+  }
+  const giu = await queryOne(
+    `UPDATE comments SET public_dang_gui_luc = now(), public_dang_gui_ma = $2
+      WHERE id = $1 AND public_replied_at IS NULL AND public_dang_gui_ma IS DISTINCT FROM $2 RETURNING id`,
+    [params.commentId, MA_KHOI_DONG]
+  );
+  if (!giu) return;
   try {
     // CHỐT CỬA RA (services/cua-ra.ts): cửa hàng + nhiệm kỳ CỦA BÌNH LUẬN.
     const cuaRa = await chanCuaRa(params.userId, [params.accountId], params.trangId, undefined, params.nhiemKyId);
@@ -731,7 +775,7 @@ export async function sendPublicReply(params: {
     await query(
       `UPDATE comments
           SET public_replied_at = now(), public_reply_due_at = NULL,
-              pending_reply_text = NULL
+              pending_reply_text = NULL, public_dang_gui_luc = NULL, public_dang_gui_ma = NULL
         WHERE id = $1`,
       [params.commentId]
     );
@@ -741,7 +785,7 @@ export async function sendPublicReply(params: {
     console.error(`[bình luận] Không trả lời công khai được ${params.commentId}: ${message}`);
     await query(
       `UPDATE comments SET last_error = $2, public_reply_due_at = NULL,
-              pending_reply_text = NULL
+              pending_reply_text = NULL, public_dang_gui_luc = NULL, public_dang_gui_ma = NULL
         WHERE id = $1`,
       [params.commentId, message.slice(0, 500)]
     );

@@ -1823,7 +1823,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "tính tỷ lệ lỗi trên cả lượt chưa biết kết quả, làm loãng lưới an toàn",
     tep: "server/services/guardrails.ts",
-    tim: "    `SELECT COUNT(*) FILTER (WHERE outcome <> 'pending')::int AS total,",
+    tim: "    `SELECT COUNT(*) FILTER (WHERE outcome IN ('sent', 'failed'))::int AS total,",
     thay: "    `SELECT COUNT(*)::int AS total,",
   },
   {
@@ -5483,6 +5483,84 @@ const DUC: PhepDuc[] = [
     tep: "src/pages/AutoScripts.tsx",
     tim: " <span className=\"text-[11px]\">(trong 7 ngày sau tin riêng)</span>",
     thay: "",
+  },
+  {
+    ten: "chống gửi lặp dùng ngưỡng thời gian thay mã khởi động (đụng lần đang gửi)",
+    tep: "server/services/outbound.ts",
+    tim: "AND ma_khoi_dong IS NOT NULL AND ma_khoi_dong <> $2 AND noi_dung_bam IS NOT NULL",
+    thay: "AND created_at < now() - interval '2 minutes' AND noi_dung_bam IS NOT NULL AND $2::text IS NOT NULL",
+  },
+  {
+    ten: "có tin khác của trang mà vẫn tự gửi lại",
+    tep: "server/services/chong-gui-lap.ts",
+    tim: "  if (sauMoc.length > 0) return { ket: \"chua_ro\" };\n",
+    thay: "",
+  },
+  {
+    ten: "đối chiếu không gộp khoảng trắng (lệch vì nhà cung cấp chuẩn hoá)",
+    tep: "server/services/chong-gui-lap.ts",
+    tim: "update(text.trim().replace(/\\s+/g, \" \"))",
+    thay: "update(text)",
+  },
+  {
+    ten: "đọc nhà cung cấp lỗi mà vẫn gửi lại",
+    tep: "server/services/outbound.ts",
+    tim: "tin ? quyetDinhDoiChieu({ bam: l.noi_dung_bam, luc: l.created_at }, tin) : { ket: \"chua_ro\" }",
+    thay: "tin ? quyetDinhDoiChieu({ bam: l.noi_dung_bam, luc: l.created_at }, tin) : { ket: \"gui_lai\" }",
+  },
+  {
+    ten: "lần gửi chưa đi bị tính là lỗi nền tảng (ngắt AI oan)",
+    tep: "server/services/outbound.ts",
+    tim: ": ket.ket === \"chua_ro\" ? \"chua_ro\" : \"bo_do\",",
+    thay: ": ket.ket === \"chua_ro\" ? \"chua_ro\" : \"failed\",",
+  },
+  {
+    ten: "đã gửi rồi vẫn gửi lại",
+    tep: "server/services/outbound.ts",
+    tim: "  if (cungYDinh?.ket.ket === \"da_gui\") {",
+    thay: "  if (cungYDinh?.ket.ket === \"khong_co\") {",
+  },
+  {
+    ten: "lần gửi không ghi mã khởi động",
+    tep: "server/services/outbound.ts",
+    tim: "    maKhoiDong: MA_KHOI_DONG,\n",
+    thay: "",
+  },
+  {
+    ten: "AI trả lời không có mã kích hoạt",
+    tep: "server/services/sales-ai.ts",
+    tim: "    maKichHoat: `tra-loi-${lastMessage.id}`,\n",
+    thay: "",
+  },
+  {
+    ten: "chưa rõ mà AI tự trả lời tiếp (không cần người)",
+    tep: "server/services/sales-ai.ts",
+    tim: "      result.blockReason === \"chua_ro\";",
+    thay: "      false;",
+  },
+  {
+    ten: "trả lời công khai gọi nhà cung cấp trước khi giữ chỗ",
+    tep: "server/services/comment-ai.ts",
+    tim: "  if (!giu) return;\n",
+    thay: "",
+  },
+  {
+    ten: "trả lời công khai đối chiếu lỗi vẫn gửi",
+    tep: "server/services/comment-ai.ts",
+    tim: "    let ket: KetDoiChieu = { ket: \"chua_ro\" };",
+    thay: "    let ket: KetDoiChieu = { ket: \"gui_lai\" };",
+  },
+  {
+    ten: "câu trả lời của trang nhận nhầm cả câu của khách",
+    tep: "server/services/chong-gui-lap.ts",
+    tim: "    .filter((x) => (x.from as { isOwner?: unknown } | undefined)?.isOwner === true)\n",
+    thay: "",
+  },
+  {
+    ten: "lưới tự ngắt đếm cả lần bị cắt",
+    tep: "server/services/guardrails.ts",
+    tim: "    `SELECT COUNT(*) FILTER (WHERE outcome IN ('sent', 'failed'))::int AS total,",
+    thay: "    `SELECT COUNT(*) FILTER (WHERE outcome <> 'pending')::int AS total,",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

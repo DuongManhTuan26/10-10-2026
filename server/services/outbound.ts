@@ -11,6 +11,42 @@ import {
   type Actor,
 } from "./guardrails.js";
 import { chanCuaRa } from "./cua-ra.js";
+import { bamNoiDung, LOI_CHUA_RO_TIN, MA_KHOI_DONG, quyetDinhDoiChieu, tinCuaTrang, type KetDoiChieu } from "./chong-gui-lap.js";
+
+/**
+ * Đối chiếu các lần gửi CỦA LẦN KHỞI ĐỘNG KHÁC còn 'pending' trong hội thoại với tin thật bên nhà cung cấp, ghi kết quả.
+ * Đọc lỗi → mọi lần dở là 'chua_ro' (không đoán). Không có lần dở → không gọi nhà cung cấp.
+ */
+async function doiChieuLanBoDo(
+  conversationId: string,
+  maLuong: string,
+  kenh: string
+): Promise<{ maKichHoat: string | null; ket: KetDoiChieu }[]> {
+  const lanDo = await query<{ id: number; ma_kich_hoat: string | null; noi_dung_bam: string; created_at: Date }>(
+    `SELECT id, ma_kich_hoat, noi_dung_bam, created_at FROM send_attempts
+      WHERE conversation_id = $1 AND decision = 'allowed' AND outcome = 'pending'
+        AND ma_khoi_dong IS NOT NULL AND ma_khoi_dong <> $2 AND noi_dung_bam IS NOT NULL`,
+    [conversationId, MA_KHOI_DONG]
+  );
+  if (lanDo.rows.length === 0) return [];
+  let tin: ReturnType<typeof tinCuaTrang> | null = null;
+  try {
+    tin = tinCuaTrang((await zernio.getConversation(maLuong, kenh, 50)).messages as Array<Record<string, unknown>>);
+  } catch (error) {
+    console.warn(`[chống gửi lặp] Không đọc được tin của ${conversationId}:`, error instanceof Error ? error.message : error);
+  }
+  const ra: { maKichHoat: string | null; ket: KetDoiChieu }[] = [];
+  for (const l of lanDo.rows) {
+    const ket: KetDoiChieu = tin ? quyetDinhDoiChieu({ bam: l.noi_dung_bam, luc: l.created_at }, tin) : { ket: "chua_ro" };
+    await query("UPDATE send_attempts SET outcome = $2, error_code = 'doi_chieu' WHERE id = $1", [
+      l.id,
+      // 'bo_do' (bị cắt trước khi đi) / 'chua_ro' KHÔNG phải lỗi nền tảng — lưới tự ngắt chỉ đếm 'sent' / 'failed'.
+      ket.ket === "da_gui" ? "sent" : ket.ket === "chua_ro" ? "chua_ro" : "bo_do",
+    ]);
+    ra.push({ maKichHoat: l.ma_kich_hoat, ket });
+  }
+  return ra;
+}
 
 /**
  * Đường duy nhất để gửi tin nhắn ra ngoài.
@@ -57,6 +93,11 @@ export async function sendMessageSafely(params: {
   actor: Actor;
   throwOnBlock?: boolean;
   skipRateLimit?: boolean;
+  /**
+   * Mã KÍCH HOẠT có căn cứ (tin khách mà AI đang trả lời, lần nhắc…) — chống gửi lặp: lần gửi bị bỏ dở do khởi động lại
+   * mà cùng mã kích hoạt thì KHÔNG gửi lần hai (services/chong-gui-lap.ts). Không có mã → gửi như thường.
+   */
+  maKichHoat?: string;
 }): Promise<SendResult> {
   const conversation = await queryOne<{
     user_id: number;
@@ -164,6 +205,22 @@ export async function sendMessageSafely(params: {
     text = `${decision.disclosureText}\n\n${text}`;
   }
 
+  /*
+   * CHỐNG GỬI LẶP: lần gửi của LẦN KHỞI ĐỘNG TRƯỚC còn dở trong hội thoại này (máy chủ bị cắt giữa "đã gửi" và "đã ghi")
+   * → đối chiếu với nhà cung cấp trước khi gửi. Cùng mã kích hoạt: đã đi thì coi như đã gửi (trả đúng tin đã đi); chưa
+   * rõ thì KHÔNG gửi, để người xem; không có gì thì gửi bình thường.
+   */
+  const doiChieu = await doiChieuLanBoDo(params.conversationId, conversation.ma_luong, kenhGui);
+  const cungYDinh = params.maKichHoat ? doiChieu.find((x) => x.maKichHoat === params.maKichHoat) : undefined;
+  if (cungYDinh?.ket.ket === "da_gui") {
+    console.log(`[chống gửi lặp] ${params.conversationId}: tin của lần khởi động trước ĐÃ tới khách — không gửi lại`);
+    return { sent: true, text: cungYDinh.ket.noiDung, externalId: cungYDinh.ket.id };
+  }
+  if (cungYDinh?.ket.ket === "chua_ro") {
+    console.log(`[chống gửi lặp] ${params.conversationId}: chưa rõ lần gửi trước — để người xem, không gửi`);
+    return { sent: false, text, externalId: null, blockReason: "chua_ro", blockMessage: LOI_CHUA_RO_TIN };
+  }
+
   const attemptId = await recordAttempt({
     userId: conversation.user_id,
     trangId: conversation.trang_id,
@@ -173,6 +230,9 @@ export async function sendMessageSafely(params: {
     decision: "allowed",
     messageTag: decision.messageTag,
     outcome: "pending",
+    maKhoiDong: MA_KHOI_DONG,
+    maKichHoat: params.maKichHoat ?? null,
+    noiDungBam: bamNoiDung(text),
   });
 
   try {

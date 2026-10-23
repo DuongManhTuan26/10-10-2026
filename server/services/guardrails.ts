@@ -576,12 +576,16 @@ export async function recordAttempt(params: {
   messageTag?: string;
   outcome?: "sent" | "failed" | "pending";
   errorCode?: string;
+  /** Chống gửi lặp (063, services/chong-gui-lap.ts): mã lần khởi động, mã kích hoạt, băm nội dung của lần gửi THẬT. */
+  maKhoiDong?: string;
+  maKichHoat?: string | null;
+  noiDungBam?: string;
 }): Promise<number> {
   const row = await queryOne<{ id: number }>(
     `INSERT INTO send_attempts
        (user_id, social_account_id, conversation_id, actor, decision,
-        block_reason, message_tag, outcome, error_code, trang_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        block_reason, message_tag, outcome, error_code, trang_id, ma_khoi_dong, ma_kich_hoat, noi_dung_bam)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING id`,
     [
       params.userId,
@@ -594,6 +598,9 @@ export async function recordAttempt(params: {
       params.outcome ?? "pending",
       params.errorCode ?? null,
       params.trangId,
+      params.maKhoiDong ?? null,
+      params.maKichHoat ?? null,
+      params.noiDungBam ?? null,
     ]
   );
   return row!.id;
@@ -641,6 +648,7 @@ export async function evaluateAutoPause(params: {
   /*
    * CHỈ đếm những lượt đã biết kết quả.
    *
+   * Chỉ đếm lượt có kết quả CHẮC ('sent' / 'failed'); 'bo_do' / 'chua_ro' (chống gửi lặp, 063) không phải lỗi nền tảng.
    * Lượt còn 'pending' là lượt tiến trình chết giữa chừng, không biết tin có
    * tới khách hay không. Đếm nó vào mẫu số mà không vào tử số là làm LOÃNG tỷ
    * lệ lỗi — đúng lúc hệ thống đang sập thì lưới an toàn lại càng khó nổ.
@@ -650,7 +658,7 @@ export async function evaluateAutoPause(params: {
    * KHÔNG ngắt, trong khi thực chất 5/5 tin đã gửi đều hỏng.
    */
   const stats = await queryOne<{ total: number; failed: number }>(
-    `SELECT COUNT(*) FILTER (WHERE outcome <> 'pending')::int AS total,
+    `SELECT COUNT(*) FILTER (WHERE outcome IN ('sent', 'failed'))::int AS total,
             COUNT(*) FILTER (WHERE outcome = 'failed')::int AS failed
        FROM send_attempts
       WHERE social_account_id = $1 AND decision = 'allowed'
@@ -754,7 +762,7 @@ export async function guardrailStatus(userId: number, trangId: number | null): P
        COUNT(*) FILTER (WHERE cua_hang AND decision = 'allowed'
                           AND created_at > now() - interval '1 hour')::int   AS total_last_hour,
        /* Chỉ những lượt đã biết kết quả — xem chú thích ở evaluateAutoPause. */
-       COUNT(*) FILTER (WHERE cua_hang AND decision = 'allowed' AND outcome <> 'pending'
+       COUNT(*) FILTER (WHERE cua_hang AND decision = 'allowed' AND outcome IN ('sent', 'failed')
                           AND created_at > now() - interval '1 hour')::int   AS decided_last_hour,
        COUNT(*) FILTER (WHERE cua_hang AND decision = 'blocked'
                           AND created_at > now() - interval '1 day')::int    AS blocked_last_day
