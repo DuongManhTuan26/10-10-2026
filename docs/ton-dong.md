@@ -262,3 +262,16 @@ không có trường tệp đối tượng; rawTargeting chỉ ghi "forwarded un
 gõ (cần mã từ GET /v1/ads/interests), ô "Khu vực" tự gõ (tỉnh / thành cần key từ GET /v1/ads/targeting/search?dimension=geo).
 Hiện gửi: Việt Nam + tuổi + giới tính, hoặc để Facebook tự tìm (advantage_audience). Làm khi có yêu cầu: tìm sở thích /
 tỉnh thành qua hai đường đọc trên rồi gửi interests[{id,name}] / regions[{key}] đúng tài liệu. Thử thật cần nối Meta Ads.
+
+## TD-26 — Chống gửi lặp: nhà cung cấp chậm hiện tin vừa gửi (23/10/2026) — CHẤP NHẬN
+
+'gui_lai' dựa trên "không thấy tin của trang sau mốc". Nếu nhà cung cấp chậm đồng bộ tin vừa gửi đúng lúc máy chủ khởi
+động lại, lần đối chiếu có thể không thấy và gửi lại một lần. Phiên kiểm duyệt chấp nhận (khởi động lại mất cỡ chục giây).
+
+## TD-27 — Máy chủ tắt thì không ai tự bật lại; người canh không báo được khi tắt cùng máy chủ (23/10/2026) — CHỜ CHỦ DỰ ÁN
+
+Sự cố 23/10: máy chủ + người canh tắt 10:55–13:53 (cả nhóm tiến trình nhận SIGTERM khi phiên Claude đã bật nó bị ngắt);
+không có tin Telegram nào vì người canh tắt cùng lúc. Đã sửa gốc nhóm tiến trình: mo-app.sh tự tách phiên (setsid).
+Còn lại: máy sập / khởi động lại máy / máy chủ chết vì lý do khác thì vẫn không ai bật lại. Giải pháp chuẩn trên Mac:
+LaunchAgent (KeepAlive + RunAtLoad) — bản soạn sẵn docs/launchagent/vn.quanly.fanpage.plist, cần chủ dự án đồng ý cài
+(thay đổi cấu hình hệ thống). Lâu dài: máy chủ thật (TD-16).

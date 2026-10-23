@@ -5563,6 +5563,18 @@ const DUC: PhepDuc[] = [
     thay: "    `SELECT COUNT(*) FILTER (WHERE outcome <> 'pending')::int AS total,",
   },
   {
+    ten: "mo-app.sh bật máy chủ chung phiên với người gọi",
+    tep: "scripts/mo-app.sh",
+    tim: "nohup python3 -c 'import os, sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' npm run dev",
+    thay: "nohup npm run dev",
+  },
+  {
+    ten: "người canh không tách phiên",
+    tep: "server/services/duong-ham.ts",
+    tim: "    detached: true,\n",
+    thay: "",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

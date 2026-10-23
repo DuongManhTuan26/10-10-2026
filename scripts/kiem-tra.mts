@@ -7668,6 +7668,19 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [false, 5, 2, true]);
 }
 
+// ---------------------------------------------------------------------------
+// BẬT MÁY CHỦ TÁCH PHIÊN (23/10/2026): máy chủ bật từ một phiên khác nằm trong nhóm tiến trình của phiên đó — phiên bị
+// ngắt là máy chủ tắt theo (đã tắt 10:55–13:53). mo-app.sh tự tách phiên; người canh bật bằng spawn detached.
+// ---------------------------------------------------------------------------
+{
+  const mo = fs.readFileSync(path.join(GOC, "scripts/mo-app.sh"), "utf8").split("\n").filter((d) => !/^\s*#/.test(d)).join("\n");
+  const dh = boChuThich(fs.readFileSync(path.join(GOC, "server/services/duong-ham.ts"), "utf8"));
+  kiem("bật máy chủ", "mo-app.sh bật npm run dev qua os.setsid() (phiên riêng, không chết theo phiên gọi); người canh spawn detached + unref",
+    [/nohup python3 -c 'import os, sys; os\.setsid\(\); os\.execvp\(sys\.argv\[1\], sys\.argv\[1:\]\)' npm run dev >> "\$NHAT_KY" 2>&1 &/.test(mo),
+      /nohup npm run dev/.test(mo), /detached: true,/.test(dh) && /\.unref\(\);/.test(dh)],
+    [true, false, true]);
+}
+
 console.log(`\nĐã kiểm ${tong} điểm.`);
 if (hong === 0) {
   console.log("Tất cả đều đạt.\n");

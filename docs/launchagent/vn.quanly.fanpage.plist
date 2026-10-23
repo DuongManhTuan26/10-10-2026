@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BẢN SOẠN SẴN — CHƯA CÀI (cần chủ dự án đồng ý: thay đổi cấu hình hệ thống của máy).
+  launchd giữ máy chủ chạy: máy khởi động lại / máy chủ sập / phiên nào bị đóng → tự bật lại (KeepAlive + RunAtLoad).
+  Người canh đường hầm do máy chủ tự bật (services/duong-ham.ts) nên đi theo luôn.
+  Cài:   cp docs/launchagent/vn.quanly.fanpage.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/vn.quanly.fanpage.plist
+  Gỡ:    launchctl unload ~/Library/LaunchAgents/vn.quanly.fanpage.plist && rm ~/Library/LaunchAgents/vn.quanly.fanpage.plist
+  Sau khi cài: nút "Mở app" (scripts/mo-app.sh) chỉ còn mở trình duyệt — máy chủ đã chạy sẵn nên script không bật thêm.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>vn.quanly.fanpage</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/mac/projects/zernio</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-c</string>
+    <string>export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:$PATH"; PORT=3000 exec npm run dev</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <!-- Sập liên tục thì chờ 30 giây giữa các lần bật lại, không dội. -->
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/mac/Library/Logs/quan-ly-fanpage.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/mac/Library/Logs/quan-ly-fanpage.log</string>
+</dict>
+</plist>
