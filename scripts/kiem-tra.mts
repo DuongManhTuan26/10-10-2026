@@ -6426,10 +6426,47 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       })()],
     [1, true, true]);
   const ct2 = doc2("src/pages/Content.tsx");
-  kiem("cửa ra", "bài đã giao nhà cung cấp hẹn giờ: Đổi / Huỷ lịch trong app bị chặn kèm câu nói thật (nền tảng vẫn đăng giờ cũ)",
-    [/const handleSchedule = async[^\n]*\{\s*if \(lichDaGui\(id\)\) \{\s*setErrorMessage\(LOI_LICH_DA_GUI\);\s*return;/.test(ct2),
-      /const handleCancelSchedule = \(id: number\) => \{\s*if \(lichDaGui\(id\)\) \{\s*setErrorMessage\(LOI_LICH_DA_GUI\);\s*return;/.test(ct2)],
-    [true, true]);
+  // TD-23 (H6, 24/10/2026): bài đã giao nhà cung cấp hẹn giờ — Đổi / Huỷ lịch đi đường RIÊNG đổi luôn lịch bên nền tảng
+  // (thay cho bản chặn "sẽ có ở bản sau"). Đường cũ (sửa giờ trong app) KHÔNG đổi được lịch nền tảng → không được dùng cho bài đã giao.
+  const pr6 = doc2("server/routes/posts.ts"), zn6 = doc2("server/services/zernio.ts");
+  const doiLich = pr6.slice(pr6.indexOf('"/:id/doi-lich"'), pr6.indexOf('"/:id/huy-lich"'));
+  const huyLich = pr6.slice(pr6.indexOf('"/:id/huy-lich"'), pr6.indexOf('postsRouter.delete('));
+  kiem("H6 đổi / huỷ lịch", "giao diện: bài có ref → doiLich / huyLich (huỷ hỏi trước, kiểu nguy hiểm); không còn câu chặn cũ",
+    [/if \(lichDaGui\(id\)\) return runAction\(id, \(\) => api\.posts\.doiLich\(id, when\.toISOString\(\)\)\);/.test(ct2),
+      /const handleCancelSchedule = async \(id: number\) => \{\s*const baiAi = [^\n]*\n\s*if \(lichDaGui\(id\)\) \{\s*if \(!\(await hoiXacNhan\(\{[\s\S]{0,400}?nguyHiem: true,[\s\S]{0,60}?return runAction\(id, \(\) => api\.posts\.huyLich\(id\)\);/.test(ct2),
+      /LOI_LICH_DA_GUI|sẽ có ở bản sau/.test(ct2)],
+    [true, true, false]);
+  kiem("H6 đổi / huỷ lịch", "máy chủ đổi lịch: chốt cửa ra → gọi nhà cung cấp → MỚI ghi giờ mới; 400 / 404 / lỗi khác không ghi giờ mới",
+    [doiLich.indexOf("await chanCuaRa(") >= 0 && doiLich.indexOf("await chanCuaRa(") < doiLich.indexOf("await zernio.doiLichBai(") &&
+        doiLich.indexOf("await zernio.doiLichBai(") < doiLich.indexOf("UPDATE posts SET scheduled_for = $2"),
+      /if \(status === 400\) throw new AppError\(LOI_DA_KIP_DANG, 409\);/.test(doiLich),
+      /throw new AppError\("Chưa đổi được lịch trên nền tảng\. Lịch cũ vẫn giữ nguyên/.test(doiLich)],
+    [true, true, true]);
+  kiem("H6 đổi / huỷ lịch", "máy chủ huỷ lịch: xoá bên nhà cung cấp TRƯỚC (404 = đã huỷ; 400 / lỗi khác → báo, KHÔNG đổi DB) rồi bài về đúng chỗ, bỏ mã + giờ + mốc tự đăng",
+    [huyLich.indexOf("await zernio.deletePost(") >= 0 && huyLich.indexOf("await zernio.deletePost(") < huyLich.indexOf("SET status = $3, scheduled_for = NULL, platform_post_ref = NULL, auto_publish_at = NULL"),
+      /if \(status !== 404\) throw new AppError\("Chưa huỷ được lịch trên nền tảng/.test(huyLich), /chanCuaRa/.test(huyLich)],
+    [true, true, false]);
+  kiem("H6 đổi / huỷ lịch", "ghi DB có điều kiện (status scheduled + đúng mã) — 0 dòng thì báo, không ghi đè; huỷ về Chờ duyệt (AI) / Bản nháp (tự viết), bỏ mốc tự đăng; bài phải thuộc cửa hàng đang chọn",
+    [/WHERE id = \$1 AND status = 'scheduled' AND platform_post_ref = \$3 RETURNING \*`,\s*\[bai\.id, luc, bai\.platform_post_ref\]\s*\);\s*if \(!updated\) throw new AppError\(LOI_VUA_DOI, 409\);/.test(doiLich),
+      /auto_publish_at = NULL,[\s\S]{0,120}WHERE id = \$1 AND status = 'scheduled' AND platform_post_ref = \$2 RETURNING \*`,\s*\[bai\.id, bai\.platform_post_ref, bai\.ai_generated \? "pending_approval" : "draft"\]\s*\);\s*if \(!updated\) throw new AppError\(LOI_VUA_DOI, 409\);/.test(huyLich),
+      /if \(bai\.trang_id !== \(await trangHienTai\(\)\)\) throw new AppError\(/.test(pr6)],
+    [true, true, true]);
+  kiem("H6 đổi / huỷ lịch", "giờ hẹn cách bây giờ ≥ 5 phút ở máy chủ (cả giờ cũ sát giờ thì không đổi) và giao diện; giao diện gửi toISOString (UTC 'Z')",
+    [/if \(luc\.getTime\(\) < Date\.now\(\) \+ GAN_NHAT_PHUT \* 60_000\) throw new AppError\(LOI_QUA_GAN\);/.test(doiLich),
+      /cu\.scheduled_for\.getTime\(\) < Date\.now\(\) \+ GAN_NHAT_PHUT \* 60_000/.test(doiLich), /export const GAN_NHAT_PHUT = 5;/.test(pr6),
+      /return t\.getTime\(\) < Date\.now\(\) \+ 5 \* 60_000 \? 'Giờ hẹn phải cách bây giờ ít nhất 5 phút\.' : null;/.test(ct2),
+      /api\.posts\.doiLich\(id, when\.toISOString\(\)\)/.test(ct2)],
+    [true, true, true, true, true]);
+  // Lỗi tiềm ẩn tìm ra ở H6: bài lịch tự động (chế độ báo trước) giữ mốc auto_publish_at; chủ shop hẹn giờ rồi huỷ → bài về
+  // Chờ duyệt với mốc đã quá hạn → runDueAutoPublishes đăng ngay. Mọi thao tác tay đổi trạng thái / đăng phải bỏ mốc.
+  const pb6 = doc2("server/services/publish.ts");
+  kiem("H6 mốc tự đăng", "đăng / hẹn giờ bỏ mốc tự đăng; chủ shop tự đổi trạng thái (PATCH) bỏ mốc; huỷ lịch bỏ mốc; huỷ lịch đường cũ cũng về đúng chỗ",
+    [/UPDATE posts SET status = \$2, auto_publish_at = NULL, updated_at = now\(\) WHERE id = \$1/.test(pb6),
+      /assign\("status", body\.status\);\s*assign\("auto_publish_at", null\);/.test(pr6),
+      /status: baiAi \? 'pending_approval' : 'draft', scheduledFor: null/.test(ct2)],
+    [true, true, true]);
+  kiem("H6 đổi / huỷ lịch", "zernio.doiLichBai: PUT /posts/{id} chỉ gửi scheduledFor (UTC 'Z'), không thử lại",
+    /export async function doiLichBai\(postId: string, scheduledFor: Date\)[\s\S]{0,200}?method: "PUT",\s*body: \{ scheduledFor: scheduledFor\.toISOString\(\) \},\s*retries: 0,/.test(zn6), true);
 }
 
 // ---------------------------------------------------------------------------

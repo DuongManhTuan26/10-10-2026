@@ -260,13 +260,20 @@ quảng cáo đều lấy kênh Meta Ads của CỬA HÀNG đang chọn (kenhQua
 nối quảng cáo) nên /api/ads/overview của mọi cửa hàng trả "Chưa kết nối tài khoản quảng cáo". Cách thử khi chủ dự án nối
 quảng cáo cho một cửa hàng: cửa hàng đó thấy tài khoản quảng cáo + chiến dịch; cửa hàng khác vẫn "chưa kết nối".
 
-## TD-23 — CHƯA LÀM: "Đổi lịch / Huỷ lịch" bài ĐÃ giao nhà cung cấp trên màn Nội dung (22/10/2026)
+## TD-23 — ĐÃ LÀM (H6, 24/10/2026): "Đổi lịch / Huỷ lịch" bài ĐÃ giao nhà cung cấp trên màn Nội dung (22/10/2026)
 
 Hiện màn Nội dung chặn hai nút này với bài hẹn giờ đã giao nhà cung cấp (LOI_LICH_DA_GUI — nói thật: nền tảng vẫn đăng
 giờ cũ). Đợt 3 làm: kênh rời → gỡ lịch; Xoá bài hẹn giờ → huỷ bên nhà cung cấp (DELETE /v1/posts/{id}). Chưa làm: Huỷ
 lịch giữ bài (DELETE phía nhà cung cấp rồi đưa bài về chờ duyệt) và Đổi lịch (PUT /v1/posts/{id} với scheduledFor — tài liệu
 ghi rõ cho bài scheduled). Cần chủ dự án xếp thứ tự ưu tiên.
 
+ĐÃ LÀM 24/10/2026 (chủ dự án xếp ưu tiên đầu): POST /api/posts/:id/doi-lich (PUT /v1/posts/{id} { scheduledFor }, qua chốt
+cửa ra, giờ mới ≥ 5 phút, giờ cũ sát < 5 phút thì không đổi) và /huy-lich (DELETE bên nhà cung cấp; 404 = đã huỷ; bài về
+Chờ duyệt nếu AI viết, Bản nháp nếu tự viết; bỏ mốc tự đăng). Cả hai gọi nhà cung cấp TRƯỚC, ghi DB có điều kiện
+(status scheduled + đúng mã), 0 dòng → báo, không ghi đè. Thử thật 0 đồng (bài 73, ref 6adb9ecf…): PUT chỉ gửi scheduledFor
+→ "Post updated successfully"; đọc lại trước / sau: nội dung, kênh đích, danh sách ảnh (bài thử KHÔNG có ảnh) giữ nguyên, giờ
+mới đúng, vẫn scheduled; xoá → 404. Lỗi tiềm ẩn tìm ra cùng lúc, đã sửa: bài lịch tự động (báo trước) giữ mốc auto_publish_at;
+hẹn giờ rồi huỷ → về Chờ duyệt với mốc quá hạn → bị đăng ngay. Nay đăng / hẹn giờ / đổi trạng thái tay / huỷ lịch đều bỏ mốc.
 ## TD-24 — AI Nội dung chưa có màn chọn giọng điệu (22/10/2026)
 
 Mục 5 (giọng điệu) làm cho AI Bán hàng: màn Kịch bản chọn giọng → dòng "GIỌNG ĐIỆU" trong lời dặn (sales-ai.ts moTaGiong).

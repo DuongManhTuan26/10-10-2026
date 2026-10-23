@@ -238,6 +238,9 @@ postsRouter.patch(
     if (typeof body.status === "string") {
       if (!STATUSES.has(body.status)) throw new AppError(`Trạng thái không hợp lệ: ${body.status}`);
       assign("status", body.status);
+      // Chủ shop tự đổi trạng thái = tự nắm bài: bỏ mốc tự đăng của lịch tự động (H6 — không thì đưa bài về Chờ duyệt có
+      // thể bị đăng ngay vì mốc đã quá hạn).
+      assign("auto_publish_at", null);
     }
     if (body.scheduledFor !== undefined) {
       const scheduled = body.scheduledFor ? new Date(body.scheduledFor) : null;
@@ -487,6 +490,100 @@ postsRouter.post(
  * KHÔNG xoá bản ghi. Bài đã đăng: chỉ xoá trong app, bài trên kênh vẫn còn (chủ dự án chốt 19/10/2026 — kể cả bài của
  * kênh đã rời cửa hàng); muốn gỡ khỏi kênh thì dùng "Gỡ bài".
  */
+/*
+ * ĐỔI LỊCH / HUỶ LỊCH bài ĐÃ giao nhà cung cấp hẹn giờ (TD-23, 24/10/2026 — chủ dự án xếp ưu tiên đầu). Bài chưa giao
+ * (không có platform_post_ref) vẫn đi đường cũ ở giao diện (sửa giờ + publish / về chờ duyệt). Gọi nhà cung cấp TRƯỚC,
+ * thành công mới ghi DB — lỗi thì app vẫn nói đúng lịch bên nền tảng.
+ */
+type BaiHenGio = { id: number; status: string; platform_post_ref: string | null; target_account_ids: string[]; trang_id: number | null; ai_generated: boolean };
+async function docBaiHenGioDaGiao(userId: number, id: string): Promise<BaiHenGio & { platform_post_ref: string }> {
+  const bai = await queryOne<BaiHenGio>(
+    "SELECT id, status, platform_post_ref, target_account_ids, trang_id, ai_generated FROM posts WHERE id = $1 AND user_id = $2",
+    [id, userId]
+  );
+  if (!bai) throw new AppError("Không tìm thấy bài viết", 404);
+  // Bài phải thuộc cửa hàng đang chọn (X-Cua-Hang) — màn Nội dung chỉ thao tác bài của cửa hàng đang xem.
+  if (bai.trang_id !== (await trangHienTai())) throw new AppError("Bài này thuộc cửa hàng khác. Vui lòng chuyển sang cửa hàng đó rồi thử lại.", 409);
+  if (bai.status !== "scheduled" || !bai.platform_post_ref) {
+    throw new AppError("Bài này không còn ở trạng thái hẹn giờ trên nền tảng. Vui lòng tải lại trang.", 409);
+  }
+  return bai as BaiHenGio & { platform_post_ref: string };
+}
+export const LOI_DA_KIP_DANG = "Bài đã kịp lên kênh nên không đổi được lịch. Vui lòng bấm \"Kiểm tra kết quả thật\" để cập nhật.";
+export const LOI_KHONG_CON_BEN_NCC = "Lịch của bài này không còn trên nền tảng — bài chưa đăng. Vui lòng hẹn lại.";
+/** Nhà cung cấp có thể đã cầm bài đi đăng khi sát giờ — đổi lịch phải cách giờ hiện tại ít nhất chừng này (cả giao diện). */
+export const GAN_NHAT_PHUT = 5;
+export const LOI_QUA_GAN = `Giờ hẹn mới phải cách bây giờ ít nhất ${GAN_NHAT_PHUT} phút.`;
+const LOI_VUA_DOI = "Bài vừa đổi trạng thái (đã đăng hoặc lịch đã được gỡ). Vui lòng tải lại trang để xem đúng tình trạng.";
+
+postsRouter.post(
+  "/:id/doi-lich",
+  route(async (req, res) => {
+    const luc = new Date(String(req.body?.scheduledFor ?? ""));
+    if (Number.isNaN(luc.getTime())) throw new AppError("Thời gian hẹn đăng không hợp lệ");
+    if (luc.getTime() < Date.now() + GAN_NHAT_PHUT * 60_000) throw new AppError(LOI_QUA_GAN);
+    const bai = await docBaiHenGioDaGiao(req.user!.id, String(req.params.id));
+    // Giờ cũ cũng sát quá thì nhà cung cấp có thể đang đăng — không đổi nữa.
+    const cu = await queryOne<{ scheduled_for: Date | null }>("SELECT scheduled_for FROM posts WHERE id = $1", [bai.id]);
+    if (cu?.scheduled_for && cu.scheduled_for.getTime() < Date.now() + GAN_NHAT_PHUT * 60_000) {
+      throw new AppError(`Bài sắp tới giờ đăng (còn dưới ${GAN_NHAT_PHUT} phút) nên không đổi lịch được nữa.`, 409);
+    }
+    // CHỐT CỬA RA (đổi lịch là lệnh ra ngoài nhân danh cửa hàng của bài): kênh đích đã rời → 409, không gọi nhà cung cấp.
+    await chanCuaRa(req.user!.id, bai.target_account_ids, bai.trang_id);
+    try {
+      await zernio.doiLichBai(bai.platform_post_ref, luc);
+    } catch (error) {
+      const status = error instanceof zernio.ZernioError ? error.status : 0;
+      if (status === 404) {
+        const hong = await queryOne(
+          "UPDATE posts SET status = 'failed', platform_post_ref = NULL, last_error = $2, updated_at = now() WHERE id = $1 RETURNING *",
+          [bai.id, LOI_KHONG_CON_BEN_NCC]
+        );
+        res.status(409).json({ success: false, error: LOI_KHONG_CON_BEN_NCC, data: anMediaTrongBai(hong) });
+        return;
+      }
+      if (status === 400) throw new AppError(LOI_DA_KIP_DANG, 409);
+      throw new AppError("Chưa đổi được lịch trên nền tảng. Lịch cũ vẫn giữ nguyên. Vui lòng thử lại sau ít phút.", 502);
+    }
+    // Có điều kiện: webhook "đã đăng" / don-lich có thể vừa đổi bài trong lúc gọi nhà cung cấp — không ghi đè.
+    const updated = await queryOne(
+      `UPDATE posts SET scheduled_for = $2, last_error = NULL, updated_at = now()
+        WHERE id = $1 AND status = 'scheduled' AND platform_post_ref = $3 RETURNING *`,
+      [bai.id, luc, bai.platform_post_ref]
+    );
+    if (!updated) throw new AppError(LOI_VUA_DOI, 409);
+    res.json({ success: true, data: anMediaTrongBai(updated) });
+  })
+);
+
+postsRouter.post(
+  "/:id/huy-lich",
+  route(async (req, res) => {
+    const bai = await docBaiHenGioDaGiao(req.user!.id, String(req.params.id));
+    // Huỷ chỉ làm BỚT việc gửi ra ngoài → không qua chốt cửa ra (kênh đã rời vẫn huỷ được lịch cũ).
+    try {
+      await zernio.deletePost(bai.platform_post_ref);
+    } catch (error) {
+      const status = error instanceof zernio.ZernioError ? error.status : 0;
+      // 404: không còn bài phía nhà cung cấp → không còn gì để đăng, coi như đã huỷ.
+      if (status === 400) {
+        throw new AppError("Bài đã kịp lên kênh nên không huỷ được. Vui lòng bấm \"Kiểm tra kết quả thật\", rồi dùng \"Gỡ bài\" nếu muốn gỡ.", 409);
+      }
+      if (status !== 404) throw new AppError("Chưa huỷ được lịch trên nền tảng. Lịch cũ vẫn giữ nguyên. Vui lòng thử lại sau ít phút.", 502);
+    }
+    // Giữ nội dung + ảnh + kênh đích. Về ĐÚNG chỗ trước khi hẹn: bài AI viết → Chờ duyệt; bài tự viết → Bản nháp (phiên kiểm
+    // duyệt 24/10). Bỏ mốc tự đăng (không thì bài AI về Chờ duyệt bị đăng ngay). Có điều kiện, không ghi đè thay đổi vừa xảy ra.
+    const updated = await queryOne(
+      `UPDATE posts SET status = $3, scheduled_for = NULL, platform_post_ref = NULL, auto_publish_at = NULL,
+                        last_error = NULL, updated_at = now()
+        WHERE id = $1 AND status = 'scheduled' AND platform_post_ref = $2 RETURNING *`,
+      [bai.id, bai.platform_post_ref, bai.ai_generated ? "pending_approval" : "draft"]
+    );
+    if (!updated) throw new AppError(LOI_VUA_DOI, 409);
+    res.json({ success: true, data: anMediaTrongBai(updated) });
+  })
+);
+
 postsRouter.delete(
   "/:id",
   route(async (req, res) => {

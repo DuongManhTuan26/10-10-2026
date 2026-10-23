@@ -1290,6 +1290,10 @@ export const api = {
         `/posts/${id}/recheck`
       ),
     remove: (id: number) => del<{ success: boolean }>(`/posts/${id}`),
+    /** Đổi giờ bài ĐÃ giao nhà cung cấp hẹn giờ (TD-23) — đổi luôn lịch bên nền tảng. */
+    doiLich: (id: number, scheduledFor: string) => post<{ data: Post }>(`/posts/${id}/doi-lich`, { scheduledFor }),
+    /** Huỷ lịch bài ĐÃ giao nhà cung cấp: huỷ bên nền tảng, bài về Chờ duyệt (giữ nội dung, ảnh, kênh). */
+    huyLich: (id: number) => post<{ data: Post }>(`/posts/${id}/huy-lich`),
   },
 
   settings: {

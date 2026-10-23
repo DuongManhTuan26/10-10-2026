@@ -212,18 +212,12 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
   const handleApprove = (id: number) => runAction(id, () => api.posts.publish(id));
 
   /*
-   * Bài đã giao nhà cung cấp hẹn giờ (có platform_post_ref): đổi / huỷ lịch trong app KHÔNG đổi được lịch bên nền tảng —
-   * nền tảng vẫn đăng đúng giờ cũ. Chặn, nói thật, cho tới khi làm đường sửa / huỷ lịch bên nhà cung cấp (đợt 3).
+   * Bài đã giao nhà cung cấp hẹn giờ (có platform_post_ref): đổi / huỷ lịch đi đường riêng đổi luôn lịch bên nền tảng
+   * (TD-23, 24/10/2026 — máy chủ: POST /posts/:id/doi-lich, /huy-lich). Bài chưa giao vẫn đi đường cũ.
    */
-  const LOI_LICH_DA_GUI =
-    'Bài này đã gửi hẹn giờ lên nền tảng — đổi hoặc huỷ lịch sẽ có ở bản sau. Hiện nền tảng vẫn đăng đúng giờ đã hẹn.';
   const lichDaGui = (id: number) => Boolean(dbPosts.find((p) => p.id === id)?.platform_post_ref);
 
   const handleSchedule = async (id: number, current?: string | null) => {
-    if (lichDaGui(id)) {
-      setErrorMessage(LOI_LICH_DA_GUI);
-      return;
-    }
     // Gợi ý theo GIỜ MÁY (bản cũ dùng toISOString → giờ UTC, lệch 7 tiếng so với câu hỏi "theo giờ trên máy bạn").
     const goc = current ? new Date(current) : new Date(Date.now() + 3600000);
     const suggestion = new Date(goc.getTime() - goc.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -237,7 +231,8 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
       kiemTra: (v) => {
         const t = new Date(v.trim());
         if (Number.isNaN(t.getTime())) return 'Thời gian không hợp lệ (vd. 2026-10-05T09:30).';
-        return t.getTime() <= Date.now() ? 'Thời gian hẹn đăng phải ở tương lai.' : null;
+        // Cách bây giờ ít nhất 5 phút (máy chủ cũng chặn — GAN_NHAT_PHUT): sát giờ thì nền tảng có thể đã cầm bài đi đăng.
+        return t.getTime() < Date.now() + 5 * 60_000 ? 'Giờ hẹn phải cách bây giờ ít nhất 5 phút.' : null;
       },
     });
     if (!input) return;
@@ -246,8 +241,8 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
       setErrorMessage('Thời gian không hợp lệ.');
       return;
     }
-    if (when.getTime() <= Date.now()) {
-      setErrorMessage('Thời gian hẹn đăng phải ở tương lai.');
+    if (when.getTime() < Date.now() + 5 * 60_000) {
+      setErrorMessage('Giờ hẹn phải cách bây giờ ít nhất 5 phút.');
       return;
     }
     /*
@@ -255,20 +250,30 @@ export default function Content({ trongKhuon = false }: { trongKhuon?: boolean }
      * "Hẹn giờ" ở khung soạn. Bản cũ chỉ đổi trạng thái trong app: không ai gửi bài đi, bài KHÔNG BAO GIỜ lên. Giữ nguyên
      * kênh đích của bài (A1).
      */
+    if (lichDaGui(id)) return runAction(id, () => api.posts.doiLich(id, when.toISOString()));
     return runAction(id, async () => {
       await api.posts.update(id, { scheduledFor: when.toISOString() });
       await api.posts.publish(id);
     });
   };
 
-  /** Huỷ lịch: đưa bài về chờ duyệt và xoá thời gian hẹn (chỉ bài CHƯA giao nhà cung cấp — xem LOI_LICH_DA_GUI). */
-  const handleCancelSchedule = (id: number) => {
+  /**
+   * Huỷ lịch: bài về ĐÚNG chỗ trước khi hẹn — bài AI viết về Chờ duyệt, bài tự viết về Bản nháp (giống máy chủ /huy-lich).
+   * Bài đã giao nhà cung cấp: huỷ luôn lịch bên nền tảng (hỏi trước).
+   */
+  const handleCancelSchedule = async (id: number) => {
+    const baiAi = Boolean(dbPosts.find((p) => p.id === id)?.ai_generated);
     if (lichDaGui(id)) {
-      setErrorMessage(LOI_LICH_DA_GUI);
-      return;
+      if (!(await hoiXacNhan({
+        tieuDe: 'Huỷ lịch đăng bài này?',
+        noiDung: `Lịch trên nền tảng sẽ bị huỷ, bài không được đăng. Bài về mục ${baiAi ? 'Chờ duyệt' : 'Bản nháp'} (giữ nội dung, ảnh, kênh) để bạn sửa hoặc hẹn lại.`,
+        nutDongY: 'Huỷ lịch',
+        nguyHiem: true,
+      }))) return;
+      return runAction(id, () => api.posts.huyLich(id));
     }
     return runAction(id, () =>
-      api.posts.update(id, { status: 'pending_approval', scheduledFor: null })
+      api.posts.update(id, { status: baiAi ? 'pending_approval' : 'draft', scheduledFor: null })
     );
   };
 

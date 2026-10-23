@@ -3963,14 +3963,14 @@ const DUC: PhepDuc[] = [
   {
     ten: "Đổi lịch bài đã gửi nền tảng mà không báo (nền tảng vẫn đăng giờ cũ)",
     tep: "src/pages/Content.tsx",
-    tim: "  const handleSchedule = async (id: number, current?: string | null) => {\n    if (lichDaGui(id)) {",
-    thay: "  const handleSchedule = async (id: number, current?: string | null) => {\n    if (false) {",
+    tim: "    if (lichDaGui(id)) return runAction(id, () => api.posts.doiLich(id, when.toISOString()));\n",
+    thay: "",
   },
   {
     ten: "Huỷ lịch bài đã gửi nền tảng mà không báo",
     tep: "src/pages/Content.tsx",
-    tim: "  const handleCancelSchedule = (id: number) => {\n    if (lichDaGui(id)) {",
-    thay: "  const handleCancelSchedule = (id: number) => {\n    if (false) {",
+    tim: "    if (lichDaGui(id)) {\n      if (!(await hoiXacNhan({\n        tieuDe: 'Huỷ lịch đăng bài này?',",
+    thay: "    if (false) {\n      if (!(await hoiXacNhan({\n        tieuDe: 'Huỷ lịch đăng bài này?',",
   },
   {
     ten: "cửa ra: kênh chỉ mất kết nối mà báo 'đã rời cửa hàng'",
@@ -5808,6 +5808,54 @@ const DUC: PhepDuc[] = [
     tep: "server/routes/ai.ts",
     tim: "FROM auto_pilot_runs WHERE user_id = $1 AND trang_id = $2\n",
     thay: "FROM auto_pilot_runs WHERE user_id = $1 AND $2::bigint IS NOT NULL\n",
+  },
+  {
+    ten: "đổi lịch bỏ chốt cửa ra (kênh đã rời vẫn đổi lịch)",
+    tep: "server/routes/posts.ts",
+    tim: "    await chanCuaRa(req.user!.id, bai.target_account_ids, bai.trang_id);\n    try {\n      await zernio.doiLichBai(",
+    thay: "    try {\n      await zernio.doiLichBai(",
+  },
+  {
+    ten: "huỷ lịch lỗi mạng mà app vẫn ghi đã huỷ",
+    tep: "server/routes/posts.ts",
+    tim: "if (status !== 404) throw new AppError(\"Chưa huỷ được lịch trên nền tảng.",
+    thay: "if (false) throw new AppError(\"Chưa huỷ được lịch trên nền tảng.",
+  },
+  {
+    ten: "đổi lịch ghi giờ mới khi nhà cung cấp báo đã kịp đăng",
+    tep: "server/routes/posts.ts",
+    tim: "      if (status === 400) throw new AppError(LOI_DA_KIP_DANG, 409);\n",
+    thay: "",
+  },
+  {
+    ten: "huỷ lịch rồi bài AI bị tự đăng ngay (giữ mốc tự đăng)",
+    tep: "server/services/publish.ts",
+    tim: "SET status = $2, auto_publish_at = NULL, updated_at = now() WHERE id = $1",
+    thay: "SET status = $2, updated_at = now() WHERE id = $1",
+  },
+  {
+    ten: "đổi trạng thái tay mà giữ mốc tự đăng",
+    tep: "server/routes/posts.ts",
+    tim: "      assign(\"auto_publish_at\", null);\n",
+    thay: "",
+  },
+  {
+    ten: "huỷ lịch ghi đè trạng thái vừa đổi (đã đăng)",
+    tep: "server/routes/posts.ts",
+    tim: "        WHERE id = $1 AND status = 'scheduled' AND platform_post_ref = $2 RETURNING *`,",
+    thay: "        WHERE id = $1 RETURNING *`,",
+  },
+  {
+    ten: "huỷ lịch ép mọi bài về Chờ duyệt",
+    tep: "server/routes/posts.ts",
+    tim: "bai.ai_generated ? \"pending_approval\" : \"draft\"",
+    thay: "\"pending_approval\"",
+  },
+  {
+    ten: "đổi lịch sát giờ (nhà cung cấp đã cầm bài)",
+    tep: "server/routes/posts.ts",
+    tim: "    if (luc.getTime() < Date.now() + GAN_NHAT_PHUT * 60_000) throw new AppError(LOI_QUA_GAN);\n",
+    thay: "    if (luc.getTime() <= Date.now()) throw new AppError(LOI_QUA_GAN);\n",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

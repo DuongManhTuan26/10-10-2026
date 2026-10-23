@@ -883,6 +883,20 @@ export async function updatePost(params: {
 }
 
 /**
+ * ĐỔI GIỜ bài hẹn giờ đã giao nhà cung cấp (PUT /v1/posts/{postId} { scheduledFor }) — TD-23, 24/10/2026. Tài liệu
+ * (docs.zernio.com/posts/update-post, đọc 24/10/2026): "Draft, scheduled, failed, partial, and cancelled posts can be
+ * edited"; bài không phải nháp chạy lại kiểm tra như lúc tạo, sai thì 400. Gửi giờ UTC có hậu tố Z (tài liệu múi giờ). Không
+ * thử lại: một lệnh đổi giờ gửi hai lần vô hại nhưng lỗi mạng giữa chừng phải để người dùng thấy.
+ */
+export async function doiLichBai(postId: string, scheduledFor: Date): Promise<Record<string, unknown>> {
+  return request(`/posts/${encodeURIComponent(postId)}`, {
+    method: "PUT",
+    body: { scheduledFor: scheduledFor.toISOString() },
+    retries: 0,
+  });
+}
+
+/**
  * XOÁ BẢN GHI bài phía Zernio (DELETE /v1/posts/{postId}) — dùng để HUỶ bài hẹn giờ / đang đăng.
  *
  * Tài liệu chính thức (openapi.yaml 1.295.0, đọc 19/10/2026): "Any status except `published` can be deleted"; bài

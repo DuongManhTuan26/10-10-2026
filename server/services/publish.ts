@@ -126,7 +126,9 @@ export async function publishPost(
       ? post.scheduled_for
       : null;
 
-  await query("UPDATE posts SET status = $2, updated_at = now() WHERE id = $1", [
+  // Bỏ mốc "tự đăng sau N phút" (lịch tự động, chế độ báo trước): bài đã được đăng / hẹn giờ thì mốc đó hết nghĩa. Để lại thì
+  // huỷ lịch về Chờ duyệt sau này sẽ bị runDueAutoPublishes đăng ngay vì mốc đã quá hạn (H6, 24/10/2026).
+  await query("UPDATE posts SET status = $2, auto_publish_at = NULL, updated_at = now() WHERE id = $1", [
     post.id,
     henGio ? "scheduled" : "publishing",
   ]);
