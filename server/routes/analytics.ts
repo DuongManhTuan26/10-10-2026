@@ -41,7 +41,7 @@ analyticsRouter.get(
            WHERE user_id = $1 AND status <> 'cancelled'
              AND created_at >= now() - ($2 || ' days')::interval)          AS revenue,
          (SELECT COUNT(*) FROM orders
-           WHERE user_id = $1
+           WHERE user_id = $1 AND status <> 'cancelled'
              AND created_at >= now() - ($2 || ' days')::interval)          AS orders_count,
          (SELECT COUNT(*) FROM conversations
            WHERE user_id = $1
@@ -50,7 +50,7 @@ analyticsRouter.get(
            WHERE user_id = $1 AND sender_type = 'ai'
              AND created_at >= now() - ($2 || ' days')::interval)          AS ai_messages,
          (SELECT COUNT(*) FROM orders
-           WHERE user_id = $1 AND closed_by = 'ai'
+           WHERE user_id = $1 AND closed_by = 'ai' AND status <> 'cancelled'
              AND created_at >= now() - ($2 || ' days')::interval)          AS ai_closed,
          (SELECT COUNT(*) FROM conversations
            WHERE user_id = $1 AND handoff_at IS NOT NULL
@@ -72,7 +72,7 @@ analyticsRouter.get(
              AND created_at >= now() - ($2 || ' days')::interval * 2
              AND created_at <  now() - ($2 || ' days')::interval)          AS revenue,
          (SELECT COUNT(*) FROM orders
-           WHERE user_id = $1
+           WHERE user_id = $1 AND status <> 'cancelled'
              AND created_at >= now() - ($2 || ' days')::interval * 2
              AND created_at <  now() - ($2 || ' days')::interval)          AS orders_count,
          (SELECT COUNT(*) FROM messages
@@ -120,7 +120,7 @@ analyticsRouter.get(
                  WHERE o.user_id = $2 AND o.status <> 'cancelled'
                    AND date_trunc('day', o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day), 0)::bigint AS revenue,
               (SELECT COUNT(*) FROM orders o
-                 WHERE o.user_id = $2 AND date_trunc('day', o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day)::int AS orders,
+                 WHERE o.user_id = $2 AND o.status <> 'cancelled' AND date_trunc('day', o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day)::int AS orders,
               (SELECT COUNT(*) FROM messages m
                  WHERE m.user_id = $2 AND m.sender_type = 'ai'
                    AND date_trunc('day', m.sent_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day)::int AS "aiInteractions"
@@ -204,7 +204,7 @@ analyticsRouter.post(
 
     const stats = await queryOne<Record<string, number>>(
       `SELECT
-         (SELECT COUNT(*) FROM orders WHERE user_id = $1
+         (SELECT COUNT(*) FROM orders WHERE user_id = $1 AND status <> 'cancelled'
             AND created_at >= now() - ($2 || ' days')::interval)      AS orders_count,
          (SELECT COALESCE(SUM(total),0) FROM orders WHERE user_id = $1
             AND status <> 'cancelled'

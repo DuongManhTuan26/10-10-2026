@@ -8,6 +8,7 @@ import { useActivePage } from '../lib/ActivePage';
 import { useSearchParams } from 'react-router-dom';
 import BangLoi from '../components/BangLoi';
 import HopThoai, { NHAN_O, NUT_CHINH, NUT_PHU, O_NHAP } from '../components/HopThoai';
+import { nhanNguon } from '../lib/nguon-hoi-thoai';
 
 /** Trạng thái hiển thị mà giao diện đang dùng cho chấm màu và nhãn. */
 type DisplayStatus = 'waiting' | 'ai' | 'expiring' | 'expired' | 'done';
@@ -357,7 +358,7 @@ export default function Inbox() {
       customerInitial: (conv.customer_name || '?').trim().charAt(0).toUpperCase(),
       customerName: conv.customer_name || 'Khách chưa có tên',
       platform: conv.platform,
-      source: conv.origin === 'comment' ? 'Từ bình luận bài đăng' : 'Khách nhắn trực tiếp',
+      source: nhanNguon(conv.origin),
       status: displayStatus(conv),
       time: timeAgo(conv.last_message_at),
       lastMessage: conv.last_message || '(chưa có tin nhắn)',
@@ -380,7 +381,7 @@ export default function Inbox() {
       customerInitial: (detail.customer_name || '?').trim().charAt(0).toUpperCase(),
       customerName: detail.customer_name || 'Khách chưa có tên',
       platform: detail.platform,
-      source: detail.origin === 'comment' ? 'Từ bình luận bài đăng' : 'Khách nhắn trực tiếp',
+      source: nhanNguon(detail.origin),
       status,
       time: timeAgo(detail.last_message_at),
       timeLeft: windowRemaining(detail.window_expires_at),

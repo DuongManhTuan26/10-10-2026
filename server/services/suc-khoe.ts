@@ -182,7 +182,7 @@ export async function sucKhoeTrang(trangId: number, bayGio = new Date()) {
   const hoiThoai = async (tu: Date, den: Date) =>
     queryOne<{ so: number; co_don: number; nhuong: number }>(
       `SELECT count(*)::int AS so,
-              count(*) FILTER (WHERE EXISTS (SELECT 1 FROM orders o WHERE o.conversation_id = c.id))::int AS co_don,
+              count(*) FILTER (WHERE EXISTS (SELECT 1 FROM orders o WHERE o.conversation_id = c.id AND o.status <> 'cancelled'))::int AS co_don,
               count(*) FILTER (WHERE c.handoff_at IS NOT NULL)::int AS nhuong
          FROM conversations c WHERE c.trang_id = $1 AND c.created_at >= $2 AND c.created_at < $3`,
       // Cửa hàng CỦA HỘI THOẠI (nhiệm kỳ kênh, đợt 2b) — không suy qua kênh hiện tại.

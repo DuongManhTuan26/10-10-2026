@@ -134,10 +134,10 @@ quanLyRouter.get(
            WHERE user_id = $1 AND status <> 'cancelled'
              AND created_at >= now() - ($2 || ' days')::interval)        AS doanh_thu,
          (SELECT count(*) FROM orders
-           WHERE user_id = $1
+           WHERE user_id = $1 AND status <> 'cancelled'
              AND created_at >= now() - ($2 || ' days')::interval)        AS don,
          (SELECT count(*) FROM orders
-           WHERE user_id = $1 AND closed_by = 'ai'
+           WHERE user_id = $1 AND closed_by = 'ai' AND status <> 'cancelled'
              AND created_at >= now() - ($2 || ' days')::interval)        AS don_ai_chot,
          (SELECT count(*) FROM conversations
            WHERE user_id = $1
@@ -164,7 +164,7 @@ quanLyRouter.get(
              AND created_at >= now() - ($2 || ' days')::interval * 2
              AND created_at <  now() - ($2 || ' days')::interval)        AS doanh_thu,
          (SELECT count(*) FROM orders
-           WHERE user_id = $1
+           WHERE user_id = $1 AND status <> 'cancelled'
              AND created_at >= now() - ($2 || ' days')::interval * 2
              AND created_at <  now() - ($2 || ' days')::interval)        AS don,
          (SELECT count(*) FROM conversations

@@ -33,3 +33,19 @@ export function docApDung(body: { applyTo?: unknown; baiApDung?: unknown }): { a
 export function kichBanChoBai<T extends { apply_to: string; bai_ap_dung: string[] | null }>(ds: T[], maBai: string): T[] {
   return ds.filter((k) => k.apply_to === "all" || (k.apply_to === "specific" && (k.bai_ap_dung ?? []).includes(maBai)));
 }
+
+/**
+ * Số khách đã nhắn lại trong 7 ngày sau tin riêng của kịch bản `s` (câu con, đặt trong SELECT … FROM auto_scripts s).
+ * Mục 8 (22/10/2026): bản cũ đọc stats.replied — không chỗ nào ghi, nên luôn 0. Khớp khách đúng như events.ts nối tin
+ * nhắn với bình luận (comments.author_id = mã người gửi tin = customers.participant_id), cùng cửa hàng + kênh.
+ */
+export const SQL_PHAN_HOI = `(SELECT COUNT(*)::int FROM comments cm
+        WHERE cm.matched_script_id = s.id AND cm.private_replied_at IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM messages m
+              JOIN conversations cv ON cv.id = m.conversation_id
+              JOIN customers k ON k.id = cv.customer_id
+             WHERE cv.user_id = s.user_id AND cv.trang_id = s.trang_id
+               AND cv.social_account_id = cm.social_account_id AND k.participant_id = cm.author_id
+               AND m.sender_type = 'customer'
+               AND m.sent_at >= cm.private_replied_at AND m.sent_at < cm.private_replied_at + interval '7 days'))`;

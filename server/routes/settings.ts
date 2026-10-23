@@ -15,7 +15,7 @@ import {
 import { DAU_THANG_VN } from "../moc-thoi-gian.js";
 import { trangChoSo, trangHienTai } from "../services/ngu-canh-trang.js";
 import { LOI_KENH_NGOAI_CUA_HANG_DANG_CHON } from "../services/kenh-dang.js";
-import { docApDung } from "../services/kich-ban-ap-dung.js";
+import { docApDung, SQL_PHAN_HOI } from "../services/kich-ban-ap-dung.js";
 
 export const settingsRouter = Router();
 
@@ -211,8 +211,13 @@ settingsRouter.get(
   route(async (req, res) => {
     // Kịch bản của CỬA HÀNG đang chọn (đợt 2b): cửa hàng B không thấy kịch bản của A, kể cả kịch bản "đã tắt vì kênh rời".
     const trang = await trangHienTai();
+    /*
+     * phan_hoi (mục 8, 22/10/2026): số khách đã nhắn lại trong 7 ngày sau tin riêng của kịch bản. Bản cũ đọc
+     * stats.replied — không chỗ nào ghi, nên luôn 0. Khớp khách đúng cách events.ts nối tin nhắn với bình luận
+     * (comments.author_id = mã người gửi tin), cùng cửa hàng + kênh.
+     */
     const rows = await query(
-      `SELECT s.*, a.display_name AS account_name, a.platform
+      `SELECT s.*, a.display_name AS account_name, a.platform, ${SQL_PHAN_HOI} AS phan_hoi
          FROM auto_scripts s
          LEFT JOIN social_accounts a ON a.id = s.social_account_id
         WHERE s.user_id = $1 AND s.trang_id = $2 ORDER BY s.created_at DESC`,
@@ -282,18 +287,20 @@ settingsRouter.get(
     );
 
     /*
-     * Khách phản hồi: trong số những hội thoại bắt nguồn từ bình luận, bao
-     * nhiêu hội thoại có ít nhất một tin do KHÁCH gửi. Đây mới là "phản hồi";
-     * đếm theo tin của Trang thì con số nào cũng đẹp.
+     * Khách phản hồi: hội thoại có lần chạm TỪ BÌNH LUẬN (hoi_thoai_cham — mọi lần chạm, không chỉ lần đầu) trong 30
+     * ngày VÀ có tin của KHÁCH sau lần chạm đó. Đếm theo tin của Trang thì con số nào cũng đẹp.
+     * Bản cũ lọc conversations.origin = 'comment' — từ migration 042 origin là quang_cao / lien_ket / binh_luan /
+     * tu_nhan, không chỗ nào ghi 'comment' nữa → luôn 0 (bắt được 22/10/2026).
      */
     const replied = await queryOne<{ n: number }>(
       `SELECT COUNT(DISTINCT c.id)::int AS n
          FROM conversations c
-        WHERE c.user_id = $1 AND c.trang_id = $2 AND c.origin = 'comment'
-          AND c.created_at > now() - interval '30 days'
+         JOIN hoi_thoai_cham h ON h.conversation_id = c.id AND h.loai = 'binh_luan'
+        WHERE c.user_id = $1 AND c.trang_id = $2
+          AND h.luc > now() - interval '30 days'
           AND EXISTS (
             SELECT 1 FROM messages m
-             WHERE m.conversation_id = c.id AND m.sender_type = 'customer'
+             WHERE m.conversation_id = c.id AND m.sender_type = 'customer' AND m.sent_at >= h.luc
           )`,
       [userId, trang]
     );
@@ -306,8 +313,8 @@ settingsRouter.get(
            WHERE o.created_at > now() - interval '60 days'
              AND o.created_at <= now() - interval '30 days')::int AS previous
          FROM orders o
-         JOIN conversations c ON c.id = o.conversation_id
-        WHERE o.user_id = $1 AND o.trang_id = $2 AND c.origin = 'comment'`,
+        -- orders.origin = nguồn của lần chạm GẦN NHẤT trước khi chốt, chốt cứng lúc tạo đơn (migration 042).
+        WHERE o.user_id = $1 AND o.trang_id = $2 AND o.origin = 'binh_luan' AND o.status <> 'cancelled'`,
       [userId, trang]
     );
 

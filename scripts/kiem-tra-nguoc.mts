@@ -3081,8 +3081,8 @@ const DUC: PhepDuc[] = [
      */
     ten: "đơn hôm nay của bảng điều hành tính theo giờ GMT",
     tep: "server/services/quan-ly-chung.ts",
-    tim: "  (SELECT count(*)::int FROM orders o WHERE o.user_id = u.id AND o.created_at >= ${DAU_NGAY_VN}) AS don_hom_nay,",
-    thay: "  (SELECT count(*)::int FROM orders o WHERE o.user_id = u.id) AS don_hom_nay,",
+    tim: "  (SELECT count(*)::int FROM orders o WHERE o.user_id = u.id AND o.created_at >= ${DAU_NGAY_VN} AND o.status <> 'cancelled') AS don_hom_nay,",
+    thay: "  (SELECT count(*)::int FROM orders o WHERE o.user_id = u.id AND o.status <> 'cancelled') AS don_hom_nay,",
   },
   {
     ten: "đã nối kênh mà chưa dạy AI không bị nêu là hỏng",
@@ -5387,6 +5387,72 @@ const DUC: PhepDuc[] = [
     tep: "server/services/telegram.ts",
     tim: "      if (pollingStopped) break;\n",
     thay: "",
+  },
+  {
+    ten: "thống kê kịch bản lại lọc origin 'comment'",
+    tep: "server/routes/settings.ts",
+    tim: "        WHERE o.user_id = $1 AND o.trang_id = $2 AND o.origin = 'binh_luan' AND o.status <> 'cancelled'`,",
+    thay: "        WHERE o.user_id = $1 AND o.trang_id = $2 AND o.origin = 'comment'`,",
+  },
+  {
+    ten: "khách phản hồi tính cả tin khách gửi TRƯỚC lần chạm",
+    tep: "server/routes/settings.ts",
+    tim: "m.sender_type = 'customer' AND m.sent_at >= h.luc",
+    thay: "m.sender_type = 'customer'",
+  },
+  {
+    ten: "khách phản hồi của kịch bản không giới hạn 7 ngày",
+    tep: "server/services/kich-ban-ap-dung.ts",
+    tim: " AND m.sent_at < cm.private_replied_at + interval '7 days'",
+    thay: "",
+  },
+  {
+    ten: "khách phản hồi của kịch bản không khớp đúng khách",
+    tep: "server/services/kich-ban-ap-dung.ts",
+    tim: " AND k.participant_id = cm.author_id",
+    thay: "",
+  },
+  {
+    ten: "thẻ kịch bản lại đọc stats.replied (luôn 0)",
+    tep: "src/pages/AutoScripts.tsx",
+    tim: "{Number(script.phan_hoi ?? 0)}",
+    thay: "{Number(script.stats?.replied ?? 0)}",
+  },
+  {
+    ten: "thẻ kịch bản in độ trễ công khai trơn",
+    tep: "src/pages/AutoScripts.tsx",
+    tim: "giayTraLoiCongKhai(script.public_reply_delay_seconds, script.delay_seconds)",
+    thay: "(script.public_reply_delay_seconds ?? 0)",
+  },
+  {
+    ten: "độ trễ công khai không kẹp trần 1 ngày",
+    tep: "src/lib/kich-ban.ts",
+    tim: "Math.min(Math.floor(n), 86_400)",
+    thay: "Math.floor(n)",
+  },
+  {
+    ten: "hộp thư lại so origin với 'comment'",
+    tep: "src/lib/nguon-hoi-thoai.ts",
+    tim: "  if (origin === 'binh_luan') return 'Từ bình luận bài đăng';",
+    thay: "  if (origin === 'comment') return 'Từ bình luận bài đăng';",
+  },
+  {
+    ten: "Tổng quan đếm cả đơn huỷ",
+    tep: "server/routes/dashboard.ts",
+    tim: "WHERE user_id = $1 AND status <> 'cancelled' AND created_at >= $2::timestamptz) AS orders_count,",
+    thay: "WHERE user_id = $1 AND created_at >= $2::timestamptz) AS orders_count,",
+  },
+  {
+    ten: "tỉ lệ chốt (sức khoẻ) tính cả đơn huỷ",
+    tep: "server/services/suc-khoe.ts",
+    tim: "WHERE o.conversation_id = c.id AND o.status <> 'cancelled'))::int AS co_don,",
+    thay: "WHERE o.conversation_id = c.id))::int AS co_don,",
+  },
+  {
+    ten: "mã đơn lấy ngày theo giờ máy chủ",
+    tep: "server/services/orders.ts",
+    tim: "timeZone: \"Asia/Ho_Chi_Minh\", year",
+    thay: "year",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

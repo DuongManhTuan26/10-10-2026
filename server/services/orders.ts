@@ -33,6 +33,19 @@ export interface DuLieuDon {
 
 const TRANG_THAI = new Set(["pending", "confirmed", "shipping", "completed", "cancelled"]);
 
+/**
+ * Tiền tố mã đơn "DH" + yyMMdd theo NGÀY VIỆT NAM (mục 10, 22/10/2026). Bản cũ lấy ngày theo múi giờ của máy chủ — lên
+ * máy chủ giờ UTC thì đơn từ 0h tới 7h sáng mang ngày hôm trước.
+ */
+export function tienToMaDon(bayGio: Date): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", year: "2-digit", month: "2-digit", day: "2-digit" })
+      .formatToParts(bayGio)
+      .map((x) => [x.type, x.value])
+  );
+  return `DH${p.year}${p.month}${p.day}`;
+}
+
 export async function soDonTiepTheo(
   userId: number,
   chay: (sql: string, params: unknown[]) => Promise<{ rows: Array<{ n: number }> }> = async (
@@ -40,12 +53,7 @@ export async function soDonTiepTheo(
     params
   ) => ({ rows: [(await queryOne<{ n: number }>(sql, params)) ?? { n: 0 }] })
 ): Promise<string> {
-  const today = new Date();
-  const prefix =
-    "DH" +
-    String(today.getFullYear()).slice(2) +
-    String(today.getMonth() + 1).padStart(2, "0") +
-    String(today.getDate()).padStart(2, "0");
+  const prefix = tienToMaDon(new Date());
 
   const kq = await chay(
     `SELECT COUNT(*)::int AS n FROM orders

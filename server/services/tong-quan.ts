@@ -203,7 +203,7 @@ export async function layTongQuan(phamVi: PhamViTongQuan, toiId: number, ky: KyT
         )
       : Promise.resolve({ rows: [{ usd: "0" }] }),
     query<{ trang_id: number; so: number; doanh_thu: string }>(
-      `SELECT o.trang_id, count(*)::int AS so, coalesce(sum(o.total) FILTER (WHERE o.status <> 'cancelled'), 0)::text AS doanh_thu
+      `SELECT o.trang_id, count(*) FILTER (WHERE o.status <> 'cancelled')::int AS so, coalesce(sum(o.total) FILTER (WHERE o.status <> 'cancelled'), 0)::text AS doanh_thu
          FROM orders o JOIN users u ON u.id = o.user_id
         WHERE ${trongPhamVi} AND o.trang_id IS NOT NULL AND o.created_at >= $1 AND o.created_at < $2
         GROUP BY 1`,

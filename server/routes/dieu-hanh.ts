@@ -58,7 +58,7 @@ dieuHanhRouter.get(
         `SELECT to_char(d.ngay, 'DD/MM') AS ngay,
                 coalesce((SELECT sum(o.total) FROM orders o WHERE o.trang_id = $1 AND o.status <> 'cancelled'
                    AND (o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = d.ngay), 0)::text AS doanh_thu,
-                (SELECT count(*) FROM orders o WHERE o.trang_id = $1
+                (SELECT count(*) FROM orders o WHERE o.trang_id = $1 AND o.status <> 'cancelled'
                    AND (o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = d.ngay)::int AS don,
                 (SELECT count(*) FROM conversations c
                   WHERE c.trang_id = $1 AND (c.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = d.ngay)::int AS hoi_thoai

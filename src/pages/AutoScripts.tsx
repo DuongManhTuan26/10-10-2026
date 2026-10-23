@@ -4,6 +4,7 @@ import { api, ApiError, type AiDocument, type SalesStage, type TuChuConfig } fro
 import { useActivePage } from '../lib/ActivePage';
 import TrangDangHuanLuyen from '../components/TrangDangHuanLuyen';
 import ChonBaiKichBan from '../components/ChonBaiKichBan';
+import { giayTraLoiCongKhai } from '../lib/kich-ban';
 import HopThoai, { NUT_CHINH, NUT_PHU } from '../components/HopThoai';
 import {
   toFileArray, doiCoTep, napTepChu, napTepAnh, NHAN_VAN_BAN, NHAN_ANH,
@@ -34,6 +35,8 @@ interface ScriptRow {
   /** FALSE = kịch bản chỉ trả lời công khai, không mở Messenger. */
   send_dm: boolean;
   stats: Record<string, unknown>;
+  /** Khách đã nhắn lại trong 7 ngày sau tin riêng của kịch bản — máy chủ đếm (GET /auto-scripts). */
+  phan_hoi?: number;
   account_name: string | null;
   platform: string | null;
 }
@@ -1627,7 +1630,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
                 </p>
                 <p className="text-xs text-on-surface-variant">
                   {script.send_dm === false
-                    ? `Trả lời sau ${script.public_reply_delay_seconds ?? 0} giây`
+                    ? `Trả lời sau ${giayTraLoiCongKhai(script.public_reply_delay_seconds, script.delay_seconds)} giây`
                     : `Gửi sau ${script.delay_seconds} giây`}
                 </p>
               </div>
@@ -1646,7 +1649,7 @@ export default function AutoScripts({ trongKhuon = false }: { trongKhuon?: boole
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-on-surface-variant">Khách phản hồi</span>
-                    <span className="font-bold text-primary">— {Number(script.stats?.replied ?? 0)}</span>
+                    <span className="font-bold text-primary">— {Number(script.phan_hoi ?? 0)}</span>
                   </div>
                 </div>
               </div>

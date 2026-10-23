@@ -60,7 +60,7 @@ export async function baoCaoChuoi(trangId: number, ky: KyTongQuan, khoang?: { tu
     // --- BÁN HÀNG: hội thoại MỚI trong kỳ theo nguồn --- (cửa hàng CỦA HỘI THOẠI — nhiệm kỳ kênh, đợt 2b)
     query<{ origin: string; so: number; co_don: number }>(
       `SELECT c.origin, count(*)::int AS so,
-              count(*) FILTER (WHERE EXISTS (SELECT 1 FROM orders o WHERE o.conversation_id = c.id))::int AS co_don
+              count(*) FILTER (WHERE EXISTS (SELECT 1 FROM orders o WHERE o.conversation_id = c.id AND o.status <> 'cancelled'))::int AS co_don
          FROM conversations c
         WHERE c.trang_id = $1 AND c.created_at >= $2 AND c.created_at < $3
         GROUP BY 1`,

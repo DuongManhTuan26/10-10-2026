@@ -36,7 +36,7 @@ dashboardRouter.get(
     const stats = await queryOne<Record<string, number>>(
       `SELECT
          (SELECT COUNT(*) FROM orders
-           WHERE user_id = $1 AND created_at >= $2::timestamptz)     AS orders_count,
+           WHERE user_id = $1 AND status <> 'cancelled' AND created_at >= $2::timestamptz) AS orders_count,
          (SELECT COALESCE(SUM(total), 0) FROM orders
            WHERE user_id = $1 AND status <> 'cancelled'
              AND created_at >= $2::timestamptz)                      AS revenue,
@@ -50,7 +50,7 @@ dashboardRouter.get(
            WHERE user_id = $1 AND sender_type = 'ai'
              AND created_at >= $2::timestamptz)                      AS ai_messages,
          (SELECT COUNT(*) FROM orders
-           WHERE user_id = $1 AND closed_by = 'ai'
+           WHERE user_id = $1 AND closed_by = 'ai' AND status <> 'cancelled'
              AND created_at >= $2::timestamptz)                      AS ai_closed_orders`,
       [userId, tu]
     );
@@ -138,7 +138,7 @@ dashboardRouter.get(
                 WHERE m.user_id = $1 AND m.sender_type = 'human'
                   AND date_trunc('day', m.sent_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day)::int  AS human_messages,
               (SELECT COUNT(*) FROM orders o
-                WHERE o.user_id = $1
+                WHERE o.user_id = $1 AND o.status <> 'cancelled'
                   AND date_trunc('day', o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day)::int AS orders,
               (SELECT COUNT(*) FROM customers c
                 WHERE c.user_id = $1

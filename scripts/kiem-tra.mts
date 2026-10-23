@@ -6692,6 +6692,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const XEP: Record<string, string> = {
     "routes/inbox.ts": "cua_hang", "routes/dieu-hanh.ts": "cua_hang", "services/bao-cao-chuoi.ts": "cua_hang", "services/suc-khoe.ts": "cua_hang",
     "routes/ai.ts": "cua_hang", "services/comment-ai.ts": "cua_hang", "services/sales-ai.ts": "cua_hang",
+    // mục 8: khách phản hồi của kịch bản — câu con lọc cv.trang_id = s.trang_id (cửa hàng của kịch bản)
+    "services/kich-ban-ap-dung.ts": "cua_hang",
     // theo một hội thoại / khách / bình luận cụ thể, hoặc đường nhập
     "services/events.ts": "mot_dong", "services/reconcile.ts": "mot_dong", "services/nhiem-ky.ts": "mot_dong", "services/khach.ts": "mot_dong",
     "services/orders.ts": "mot_dong", "services/outbound.ts": "mot_dong",
@@ -7538,6 +7540,53 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /signal: AbortSignal\.any\(\[AbortSignal\.timeout\(\(timeoutSeconds \+ 15\) \* 1_000\), dungPolling\.signal\]\),/.test(tl16),
       /\} catch \(error\) \{\s*if \(pollingStopped\) break;/.test(tl16), /setTimeout\(resolve, (60_000|backoffMs)\)/.test(tl16)],
     [true, true, true, false, true, true, true, true, false]);
+}
+
+// ---------------------------------------------------------------------------
+// SỐ LIỆU KỊCH BẢN / ĐƠN (mục 8–10, 22/10/2026): nguồn hội thoại theo giá trị THẬT (042: binh_luan…, không còn 'comment');
+// khách phản hồi từng kịch bản tính thật; độ trễ thẻ = máy thật; đếm đơn bỏ đơn huỷ; mã đơn theo ngày Việt Nam.
+// ---------------------------------------------------------------------------
+{
+  const d17 = (t: string) => boChuThich(fs.readFileSync(path.join(GOC, t), "utf8"));
+  const kb = await import("../src/lib/kich-ban.js");
+  const ng = await import("../src/lib/nguon-hoi-thoai.js");
+  const od = await import("../server/services/orders.js");
+  kiem("số liệu kịch bản", "độ trễ trả lời công khai = max(công khai, tin riêng), kẹp 0–86.400 — khớp comment-ai",
+    [kb.giayTraLoiCongKhai(0, 30), kb.giayTraLoiCongKhai(60, 30), kb.giayTraLoiCongKhai(null, undefined), kb.giayTraLoiCongKhai(100_000, 0), kb.giayTraLoiCongKhai(-5, 10.7)],
+    [30, 60, 0, 86_400, 10]);
+  kiem("số liệu kịch bản", "nhãn nguồn hội thoại theo đúng giá trị origin (binh_luan / quang_cao / lien_ket); giá trị khác → nhắn trực tiếp",
+    ["binh_luan", "quang_cao", "lien_ket", "tu_nhan", "message", null, "comment"].map(ng.nhanNguon),
+    ["Từ bình luận bài đăng", "Từ quảng cáo", "Từ đường dẫn nhắn tin", "Khách nhắn trực tiếp", "Khách nhắn trực tiếp", "Khách nhắn trực tiếp", "Khách nhắn trực tiếp"]);
+  kiem("số liệu đơn", "tiền tố mã đơn theo NGÀY VIỆT NAM: 17:30 UTC = 00:30 hôm sau giờ VN",
+    [od.tienToMaDon(new Date("2026-10-22T17:30:00Z")), od.tienToMaDon(new Date("2026-10-22T16:59:00Z")), od.tienToMaDon(new Date("2026-12-31T18:00:00Z"))],
+    ["DH261023", "DH261022", "DH270101"]);
+  const tepMay17 = [...moiTepMayChu(path.join(GOC, "server")), path.join(GOC, "server.ts")].filter((t) => !/migrations/.test(t));
+  const tepGd17 = fs.readdirSync(path.join(GOC, "src"), { recursive: true }).map(String).filter((t) => /\.tsx?$/.test(t)).map((t) => path.join(GOC, "src", t));
+  kiem("số liệu kịch bản", "không còn chỗ nào so origin với 'comment' (giá trị không còn ai ghi từ 042)",
+    [...tepMay17, ...tepGd17].filter((t) => /origin\s*(=|===)\s*'comment'|origin\s*===\s*"comment"/.test(boChuThich(fs.readFileSync(t, "utf8")))).map((t) => path.relative(GOC, t)), []);
+  const st17 = d17("server/routes/settings.ts"), ab17 = d17("server/services/kich-ban-ap-dung.ts"), as17 = d17("src/pages/AutoScripts.tsx");
+  kiem("số liệu kịch bản", "thống kê đầu màn: phản hồi theo lần chạm 'binh_luan' + tin khách sau lần chạm; đơn chốt theo orders.origin, bỏ huỷ; từng thẻ dùng SQL_PHAN_HOI (khớp khách như events.ts), không đọc stats.replied",
+    [/JOIN hoi_thoai_cham h ON h\.conversation_id = c\.id AND h\.loai = 'binh_luan'[\s\S]{0,300}m\.sender_type = 'customer' AND m\.sent_at >= h\.luc/.test(st17),
+      /o\.origin = 'binh_luan' AND o\.status <> 'cancelled'/.test(st17), /a\.platform, \$\{SQL_PHAN_HOI\} AS phan_hoi/.test(st17),
+      /k\.participant_id = cm\.author_id/.test(ab17) && /m\.sent_at >= cm\.private_replied_at AND m\.sent_at < cm\.private_replied_at \+ interval '7 days'/.test(ab17),
+      /stats\?\.replied/.test(as17), /\{Number\(script\.phan_hoi \?\? 0\)\}/.test(as17),
+      /Trả lời sau \$\{giayTraLoiCongKhai\(script\.public_reply_delay_seconds, script\.delay_seconds\)\} giây/.test(as17)],
+    [true, true, true, true, false, true, true]);
+  // Mọi "(SELECT count(*) FROM orders …)" là số ĐƠN THẬT (bỏ huỷ) — trừ mức dùng Gói dịch vụ (tính theo lượt tạo đơn).
+  const thieuHuy = tepMay17.flatMap((t) => [...boChuThich(fs.readFileSync(t, "utf8")).matchAll(/\(SELECT (?:COUNT|count)\(\*\)(?:::int)? FROM orders\b[^)]*\)/g)]
+    .filter((m) => !/cancelled/.test(m[0])).map(() => path.relative(GOC, t)));
+  const coDon = tepMay17.flatMap((t) => [...boChuThich(fs.readFileSync(t, "utf8")).matchAll(/EXISTS \(SELECT 1 FROM orders o WHERE o\.conversation_id = c\.id[^)]*\)/g)]
+    .filter((m) => !/cancelled/.test(m[0])).map(() => path.relative(GOC, t)));
+  kiem("số liệu đơn", "đếm đơn (Tổng quan, quản lý, điều hành, báo cáo, sức khoẻ…) bỏ đơn huỷ; 'có đơn' (tỉ lệ chốt) bỏ đơn huỷ; ngoại lệ duy nhất: mức dùng Gói dịch vụ",
+    [thieuHuy, coDon, /count\(\*\) FILTER \(WHERE o\.status <> 'cancelled'\)::int AS so, coalesce\(sum\(o\.total\)/.test(d17("server/services/tong-quan.ts"))],
+    [["server/routes/settings.ts"], [], true]);
+  const or17 = d17("server/services/orders.ts");
+  kiem("số liệu đơn", "mã đơn: tiền tố theo ngày VN; khoá tư vấn theo tài khoản giữ TRƯỚC khi đếm số thứ tự (không trùng khi tạo cùng lúc)",
+    // Máy chủ đang chạy giờ VN nên phép thử theo giá trị không phân biệt được "quên múi giờ" — kiểm thêm múi giờ khai rõ.
+    [/const prefix = tienToMaDon\(new Date\(\)\);/.test(or17) && /new Intl\.DateTimeFormat\("en-GB", \{ timeZone: "Asia\/Ho_Chi_Minh", year: "2-digit"/.test(or17),
+      /getFullYear|getMonth|getDate/.test(or17),
+      or17.search(/pg_advisory_xact_lock\(hashtext\(\$1\)\)/) > 0 && or17.search(/pg_advisory_xact_lock\(hashtext\(\$1\)\)/) < or17.search(/const code = await soDonTiepTheo\(/)],
+    [true, false, true]);
 }
 
 console.log(`\nĐã kiểm ${tong} điểm.`);

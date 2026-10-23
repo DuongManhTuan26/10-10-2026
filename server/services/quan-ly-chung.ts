@@ -39,10 +39,10 @@ export const COT_QUAN_LY = `
   (SELECT count(*)::int FROM posts p WHERE p.user_id = u.id) AS bai,
   (SELECT t.enabled FROM telegram_configs t WHERE t.user_id = u.id) AS telegram,
   /* --- Kết quả --- */
-  (SELECT count(*)::int FROM orders o WHERE o.user_id = u.id AND o.created_at >= ${DAU_NGAY_VN}) AS don_hom_nay,
+  (SELECT count(*)::int FROM orders o WHERE o.user_id = u.id AND o.created_at >= ${DAU_NGAY_VN} AND o.status <> 'cancelled') AS don_hom_nay,
   (SELECT count(*)::int FROM orders o
     WHERE o.user_id = u.id AND o.created_at >= ${DAU_THANG_VN} AND o.status <> 'cancelled') AS don_thang,
-  (SELECT count(*)::int FROM orders o WHERE o.user_id = u.id) AS don,
+  (SELECT count(*)::int FROM orders o WHERE o.user_id = u.id AND o.status <> 'cancelled') AS don,
   (SELECT COALESCE(SUM(o.total), 0)::bigint FROM orders o
     WHERE o.user_id = u.id AND o.created_at >= ${DAU_THANG_VN} AND o.status <> 'cancelled') AS doanh_thu_thang,
   -- Cùng cách tính với sao kê: số nhà cung cấp đã chốt, chưa chốt thì số lúc gọi.
