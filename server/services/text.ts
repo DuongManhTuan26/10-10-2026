@@ -62,9 +62,13 @@ export function boMarkdown(text: string): string {
   return ra.replace(/[ \t]+$/gm, "").trim();
 }
 
-/** Câu dặn chung, nhét vào mọi lời nhắc sinh chữ cho người thật đọc. */
+/**
+ * Câu dặn chung, nhét vào mọi lời nhắc sinh chữ cho người thật đọc.
+ * 24/10/2026 (H14): bản cũ mở đầu "Viết bằng chữ thường…" (ý: văn bản thuần) — mô hình hiểu nghĩa đen là KHÔNG viết hoa:
+ * 5/8 tin AI gần nhất gửi khách và bài 41 / 42 / 47 toàn chữ thường.
+ */
 export const DAN_KHONG_MARKDOWN =
-  "Viết bằng chữ thường như nhắn tin bình thường. TUYỆT ĐỐI KHÔNG dùng markdown: " +
+  "Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu và tên riêng đúng chính tả tiếng Việt. TUYỆT ĐỐI KHÔNG dùng markdown: " +
   "không dấu sao để in đậm, không dấu thăng làm tiêu đề, không dấu gạch dưới, " +
   "không liên kết dạng ngoặc vuông. Messenger và Facebook không dựng những ký " +
   "hiệu đó, khách sẽ đọc thấy nguyên dấu sao và tưởng tin nhắn bị lỗi.";

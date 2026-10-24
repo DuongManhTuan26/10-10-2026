@@ -269,8 +269,10 @@ quảng cáo cho một cửa hàng: cửa hàng đó thấy tài khoản quảng
 ĐẠT 24/10/2026 (H11 nối quảng cáo Meta cho cửa hàng 12): /api/ads/overview cửa hàng 12 → act_1357505662010463 + danh sách
 2 tài khoản; cửa hàng 1 → chưa kết nối. H9 thật (0 đồng): tìm "Hà Nội" → region 3983; "thời trang" → sở thích tiếng Việt;
 dự báo cả nước 41,6–49 triệu → Hà Nội 5,0–5,9 triệu → Hà Nội + Phụ kiện thời trang 2,9–3,4 triệu.
-CÒN: nhánh "nhà cung cấp trả đã nối" (H11b) chưa chạy thật trên giao diện — lần thử, lượt đồng bộ định kỳ đã kéo kênh
-quảng cáo về trước khi bấm lại; có phép kiểm + phép đục; chạy thật ở lần nối quảng cáo cho cửa hàng tiếp theo.
+Nhánh "nhà cung cấp trả đã nối" (H11b): ĐÃ CHẠY THẬT 24/10/2026 khi nối quảng cáo cho cửa hàng 1 — màn báo "Đã nối quảng
+cáo Meta cho cửa hàng 1…" (không chuyển trang, không lỗi); metaads 6adc7b1ab91509febdd955d5 trang 47, đúng hồ sơ; Facebook
+giữ id; phiên chờ xoá sạch. Cửa hàng 1 thấy 2 tài khoản quảng cáo (cùng người Facebook) → đẩy bài ở đó bị chặn tới khi
+chủ shop chọn hẳn tài khoản (H12).
 
 ## TD-23 — ĐÃ LÀM (H6, 24/10/2026): "Đổi lịch / Huỷ lịch" bài ĐÃ giao nhà cung cấp trên màn Nội dung (22/10/2026)
 

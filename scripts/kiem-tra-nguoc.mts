@@ -6350,6 +6350,12 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
+    ten: "câu dặn lại bảo mô hình viết chữ thường",
+    tep: "server/services/text.ts",
+    tim: "  \"Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu và tên riêng đúng chính tả tiếng Việt. TUYỆT ĐỐI KHÔNG dùng markdown: \" +",
+    thay: "  \"Viết bằng chữ thường như nhắn tin bình thường. TUYỆT ĐỐI KHÔNG dùng markdown: \" +",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

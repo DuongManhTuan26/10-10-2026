@@ -7546,6 +7546,15 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       fs.readFileSync(path.join(GOC, "server/migrations/067_noi_quang_cao.sql"), "utf8").split("\n").filter((d) => d.trim() && !d.trim().startsWith("--")),
       ["ALTER TABLE pending_connections ADD COLUMN IF NOT EXISTS loai TEXT;", "ALTER TABLE pending_connections ADD COLUMN IF NOT EXISTS trang_id BIGINT;"]);
   }
+  // H14 (24/10/2026): câu dặn chung không được bảo mô hình "viết chữ thường" (nghĩa đen → không viết hoa; 5/8 tin AI gửi khách).
+  {
+    const tx = await import("../server/services/text.js");
+    const mau14 = fs.readFileSync(path.join(GOC, "scripts/mau/loi-dan-ban-hang.json"), "utf8");
+    kiem("viết hoa", "DAN_KHONG_MARKDOWN: dặn văn bản thuần + viết hoa đầu câu / tên riêng; không còn \"chữ thường\"; bản mẫu lời dặn bán hàng mang câu mới ở cả 4 cảnh",
+      [/^Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu và tên riêng đúng chính tả tiếng Việt\. TUYỆT ĐỐI KHÔNG dùng markdown:/.test(tx.DAN_KHONG_MARKDOWN),
+        /chữ thường/.test(tx.DAN_KHONG_MARKDOWN), (mau14.match(/Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu/g) ?? []).length, /Viết bằng chữ thường/.test(mau14)],
+      [true, false, 4, false]);
+  }
   const as14 = fs.readFileSync(path.join(GOC, "src/pages/AutoScripts.tsx"), "utf8");
   kiem("thử AI = máy thật", "màn thử: nói rõ chỉ thử một tin đầu tiên (không lịch sử); hiện 'AI sẽ chuyển cho nhân viên' + bước bán AI chọn",
     [/Thử với một tin đầu tiên của khách, không có lịch sử hội thoại\./.test(as14), /AI sẽ chuyển cho nhân viên: \{testReply\.chuyenNguoi\}/.test(as14),
