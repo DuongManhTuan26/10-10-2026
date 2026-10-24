@@ -122,9 +122,10 @@ export async function taoTaiKhoan(params: {
       const trangId = trangMoi.rows[0].id;
 
       for (const config of DEFAULT_AI_CONFIGS) {
+        // AI Nội dung: chưa chọn giọng → tone NULL (cột có mặc định 'friendly' — TD-24, migration 066).
         await client.query(
-          `INSERT INTO ai_configs (user_id, trang_id, kind, system_prompt)
-           VALUES ($1, $2, $3, $4)`,
+          `INSERT INTO ai_configs (user_id, trang_id, kind, system_prompt, tone)
+           VALUES ($1, $2, $3, $4, CASE WHEN $3 = 'content' THEN NULL ELSE 'friendly' END)`,
           [userId, trangId, config.kind, config.prompt]
         );
       }

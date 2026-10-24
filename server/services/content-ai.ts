@@ -9,6 +9,7 @@
 
 import { query, queryOne } from "../db.js";
 import { docTaiLieu } from "./knowledge.js";
+import { moTaGiong } from "./giong-dieu.js";
 import { chatJson, asRecord, stringArray } from "./ai.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "./text.js";
 
@@ -59,11 +60,12 @@ export async function generatePostContent(params: {
   const count = Math.min(Math.max(params.count ?? 3, 1), 5);
   const goal = params.goal ?? "sales";
 
-  // Không đọc tone: AI Nội dung chưa có màn chọn giọng điệu (tồn đọng TD-24) — đọc mà không dùng dễ khiến tưởng có tác dụng.
-  const config = await queryOne<{ system_prompt: string }>(
-    "SELECT system_prompt FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
+  // Giọng điệu chủ shop chọn ở thẻ Hướng dẫn AI của ① (TD-24, 24/10/2026); chưa chọn → không có dòng GIỌNG.
+  const config = await queryOne<{ system_prompt: string; tone: string | null }>(
+    "SELECT system_prompt, tone FROM ai_configs WHERE trang_id = $1 AND kind = 'content'",
     [params.trangId]
   );
+  const giong = moTaGiong(config?.tone);
 
   // Mọi tài liệu có chữ vừa trần 24.000 ký tự, cắt ở ranh giới dòng (knowledge.ts chonTaiLieu — H8; bản cũ 5 × 3.000).
   const tl = await docTaiLieu(params.trangId, "content");
@@ -77,6 +79,7 @@ export async function generatePostContent(params: {
   const systemPrompt = [
     config?.system_prompt?.trim() ||
       "Bạn là người viết nội dung mạng xã hội cho shop bán hàng tại Việt Nam.",
+    ...(giong ? [giong] : []),
     GOAL_INSTRUCTIONS[goal] ?? GOAL_INSTRUCTIONS.sales,
     "Viết tiếng Việt tự nhiên, tránh sáo rỗng, không lạm dụng biểu tượng cảm xúc.",
     DAN_KHONG_MARKDOWN,

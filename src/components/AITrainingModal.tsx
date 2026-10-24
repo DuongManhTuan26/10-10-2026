@@ -9,6 +9,7 @@ import {
   toFileArray, doiCoTep, napTepChu, napTepAnh,
   NHAN_VAN_BAN, NHAN_ANH,
 } from '../lib/aiDocuments';
+import { AI_TONES_BAI_DANG } from '../lib/aiTraining';
 
 /** Loại AI, khớp với cột kind trong bảng ai_configs. */
 export type AiKind = 'content' | 'ads' | 'sales' | 'analytics';
@@ -70,6 +71,8 @@ export default function AITrainingModal({
 }: AITrainingModalProps) {
   const { activeAccountId, activeTrangId } = useActivePage();
   const [role, setRole] = useState('');
+  /** Giọng điệu — chỉ AI Nội dung (TD-24). '' = chưa chọn: AI viết không kèm dòng giọng điệu. */
+  const [giong, setGiong] = useState('');
   const [files, setFiles] = useState<AiDocument[]>([]);
   /** H8: phần tài liệu AI đọc được mỗi lượt (máy chủ tính bằng đúng hàm AI dùng). */
   const [docDuoc, setDocDuoc] = useState<{ daDocKyTu: number; tongKyTu: number; tran: number; biCat: { ten: string; boKyTu: number }[]; chuaDoc: string[] } | null>(null);
@@ -95,6 +98,7 @@ export default function AITrainingModal({
     try {
       const { data } = await api.ai.config(kind);
       setRole(data.config.system_prompt ?? '');
+      setGiong(data.config.tone ?? '');
       setFiles(data.documents ?? []);
       setDocDuoc(data.docDuoc ?? null);
     } catch (error) {
@@ -192,7 +196,8 @@ export default function AITrainingModal({
     setDangLuu(true);
     setLoi('');
     try {
-      await api.ai.saveConfig(kind, { systemPrompt: role });
+      // Chỉ AI Nội dung gửi giọng ('' = bỏ chọn → máy chủ lưu NULL); AI khác không gửi → giữ nguyên cột.
+      await api.ai.saveConfig(kind, kind === 'content' ? { systemPrompt: role, tone: giong } : { systemPrompt: role });
       setBao('Đã lưu cấu hình AI');
       onSaved?.();
       onClose();
@@ -252,6 +257,36 @@ export default function AITrainingModal({
               onChange={(e) => setRole(e.target.value)}
             ></textarea>
           </div>
+
+          {/* Giọng điệu — chỉ AI Nội dung (TD-24). Bấm lại giọng đang chọn để bỏ chọn. */}
+          {kind === 'content' && (
+            <div>
+              <label className="block text-sm font-bold text-on-surface mb-2">Giọng điệu bài viết</label>
+              <p className="text-sm text-on-surface-variant mb-3">
+                Không bắt buộc. Chọn một giọng thì AI viết mọi bài (bấm tay và lịch tự đăng) theo giọng đó; bấm lại để bỏ chọn.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {AI_TONES_BAI_DANG.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    aria-pressed={giong === g.id}
+                    onClick={() => setGiong((cu) => (cu === g.id ? '' : g.id))}
+                    className={clsx(
+                      'text-left p-4 rounded-xl border transition-all',
+                      giong === g.id ? 'bg-primary/10 border-primary' : 'bg-surface-container border-outline-variant hover:border-primary/50'
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={clsx('font-bold text-sm', giong === g.id ? 'text-primary' : 'text-on-surface')}>{g.name}</span>
+                      {giong === g.id && <span className="material-symbols-outlined text-[18px] text-primary">check_circle</span>}
+                    </div>
+                    <p className="text-xs text-on-surface-variant italic leading-relaxed">“{g.example}”</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Nguồn dữ liệu */}
           <div>

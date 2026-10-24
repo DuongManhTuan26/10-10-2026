@@ -1,5 +1,6 @@
 import { query, queryOne, transaction } from "../db.js";
 import { docTaiLieu } from "./knowledge.js";
+import { moTaGiong } from "./giong-dieu.js";
 import { chat, chatJson, asRecord, optionalString } from "./ai.js";
 import { docCacBuoc, moTaCacBuoc, maCacBuoc } from "./sales-stages.js";
 import { docTuChu, moTaTuChu, type TuChuConfig } from "./sales-autonomy.js";
@@ -764,16 +765,8 @@ const CHUA_CO_TAI_LIEU = [
  * Giọng điệu chọn ở màn Kịch bản (src/lib/aiTraining.ts AI_TONES) → một dòng lời dặn. Mô tả trung tính, ngắn, KHÔNG
  * thêm hành vi mới (phiên kiểm duyệt dặn 22/10/2026: mọi cửa hàng chưa chọn vẫn là 'friendly' theo mặc định cột).
  */
-const MO_TA_GIONG: Record<string, string> = {
-  friendly: "thân thiện, gần gũi.",
-  professional: "chuyên nghiệp, lịch sự.",
-  enthusiastic: "nhiệt tình, chủ động.",
-  concise: "ngắn gọn, đi thẳng vào ý.",
-};
-
-export function moTaGiong(tone: unknown): string | null {
-  return typeof tone === "string" && Object.hasOwn(MO_TA_GIONG, tone) ? `GIỌNG ĐIỆU: ${MO_TA_GIONG[tone]}` : null;
-}
+// Giọng điệu: services/giong-dieu.ts (dùng chung với AI Nội dung — TD-24).
+export { moTaGiong } from "./giong-dieu.js";
 
 /**
  * Lời dặn AI Bán hàng của MỘT cửa hàng — dùng CHUNG cho trả lời khách thật (decide) và "Thử AI" (routes/ai.ts /test).

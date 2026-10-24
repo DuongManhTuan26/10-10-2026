@@ -159,7 +159,7 @@ export function dungSoBangChung(p: {
   thayDoi: { dong: DongThayDoi; loai?: string | null }[];
   soBatDau: Date | null;
   taiLieu: TaiLieu[];
-  cauHinh: { kind: string; system_prompt: string; tone: string; settings: unknown }[];
+  cauHinh: { kind: string; system_prompt: string; tone: string | null; settings: unknown }[];
 }): SoBangChung {
   const bangChung: BangChung[] = [
     ...p.chiSo.map((c) => bangChungTuChiSo(c, p.luc)),
@@ -168,7 +168,7 @@ export function dungSoBangChung(p: {
     ...p.cauHinh.map((c): BangChung => ({
       ma: `CH-${c.kind}`,
       nguon: "nhat_ky_he_thong",
-      noiDung: `Cài đặt hiện tại của AI ${c.kind} · giọng: ${c.tone} · lời dặn: "${c.system_prompt}" · thiết lập: ${JSON.stringify(c.settings)}`,
+      noiDung: `Cài đặt hiện tại của AI ${c.kind} · giọng: ${c.tone ?? "chưa chọn"} · lời dặn: "${c.system_prompt}" · thiết lập: ${JSON.stringify(c.settings)}`,
       luc: p.luc,
     })),
   ];
@@ -199,7 +199,7 @@ export async function soBangChungTrang(userId: number, trangId: number, bayGio =
     docThayDoi(userId, trangId, tu, bayGio),
     sotBatDauLuc(),
     query<TaiLieu>("SELECT id, kind, filename, extracted_text, created_at FROM ai_documents WHERE trang_id = $1", [trangId]),
-    query<{ kind: string; system_prompt: string; tone: string; settings: unknown }>(
+    query<{ kind: string; system_prompt: string; tone: string | null; settings: unknown }>(
       "SELECT kind, system_prompt, tone, settings FROM ai_configs WHERE trang_id = $1 ORDER BY kind", [trangId]),
   ]);
   // Loại cài đặt của các dòng sổ đổi ai_configs (trigger chỉ ghi cột đã đổi, không có kind).

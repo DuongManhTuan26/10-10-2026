@@ -2677,7 +2677,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
     /INSERT INTO trang \(user_id, profile_ref, ten\)\s*\n\s*VALUES \(\$1, \$2, \$3\) RETURNING id/
       .test(nguonTaoTk2) &&
       /const trangId = trangMoi\.rows\[0\]\.id;/.test(nguonTaoTk2) &&
-      /INSERT INTO ai_configs \(user_id, trang_id, kind, system_prompt\)/.test(nguonTaoTk2) &&
+      /INSERT INTO ai_configs \(user_id, trang_id, kind, system_prompt, tone\)\s*\n\s*VALUES \(\$1, \$2, \$3, \$4, CASE WHEN \$3 = 'content' THEN NULL ELSE 'friendly' END\)/.test(nguonTaoTk2) &&
       /\[userId, trangId, config\.kind, config\.prompt\]/.test(nguonTaoTk2), true);
 
   const nguonTk = fs.readFileSync(path.join(GOC, "server/services/accounts.ts"), "utf8");
@@ -5534,9 +5534,11 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     kiem("sổ bằng chứng", "giới hạn tài liệu của AI nhân viên và của sổ dùng CHUNG một hằng số (không lệch nhau)",
       // H8: một hàm chonTaiLieu cho mọi AI và cho sổ; không còn LIMIT / cắt cứng ở chỗ nào.
       [/const chon = chonTaiLieu\(coChu, TRAN_KY_TU_TAI_LIEU\[loai\] \?\? 24_000\);/.test(fs.readFileSync(path.join(GOC, "server/services/so-bang-chung.ts"), "utf8")),
-        ["server/services/sales-ai.ts", "server/services/content-ai.ts", "server/services/knowledge.ts"].map((t) => /FROM ai_documents[\s\S]{0,200}?LIMIT \d|slice\(0, [34]_000\)/.test(fs.readFileSync(path.join(GOC, t), "utf8"))),
+        // Quét MỌI tệp máy chủ (H10 tìm ra nhánh "Thử AI" ở routes/ai.ts còn 5 × 3.000 mà bản quét 3 tệp bỏ sót).
+        fs.readdirSync(path.join(GOC, "server"), { recursive: true }).map(String).filter((t) => /\.ts$/.test(t))
+          .filter((t) => /SELECT[^;`]{0,80}extracted_text[^;`]{0,300}FROM ai_documents[^;`]{0,300}LIMIT \d|extracted_text[^\n]{0,40}slice\(0, [34]_000\)/.test(fs.readFileSync(path.join(GOC, "server", t), "utf8"))),
         !/LIMIT/.test(kn.slice(kn.indexOf("export async function docTaiLieu")))],
-      [true, [false, false, false], true]);
+      [true, [], true]);
   }
   // Quy trình AI điều hành (bước 3, docs mục 14) — chạy THẬT cả quy trình với AI GIẢ có kịch bản (không tốn tiền):
   // bỏ sót lỗi bị bắt; đề xuất đúng không bị chặn nhầm; việc bình thường hoàn thành với số lượt AI tối thiểu.
@@ -7417,12 +7419,60 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /temperature|maxTokens|task:/.test(nhanhBan),
       /query\(|queryOne\(|transaction\(|saveExtracted|taoDon|sendMessageSafely|sendHandoffAlert|zernio\.|decide\(|INSERT |UPDATE |DELETE /.test(nhanhBan)],
     [true, true, true, true, false, false]);
-  kiem("thử AI = máy thật", "decide dùng chung dựng lời dặn / tin / cách gọi / kiểm kết quả; nhiệt độ và độ dài chỉ khai một chỗ; content-ai không còn đọc tone thừa",
+  kiem("thử AI = máy thật", "decide dùng chung dựng lời dặn / tin / cách gọi / kiểm kết quả; nhiệt độ và độ dài chỉ khai một chỗ; content-ai đọc tone qua moTaGiong (TD-24, không tự mô tả riêng)",
     [/const \{ systemPrompt, cacBuoc \} = await dungLoiDanBanHang\(conversation\.trang_id \?\? null, conversation\.sales_stage, rules\);/.test(sa14),
       /\{ role: "user", content: tinHoiThoaiBanHang\(history\) \},/.test(sa14), /validate: kiemQuyetDinh\(cacBuoc\),/.test(sa14),
       (sa14.match(/temperature: 0\.4/g) ?? []).length, /export const GOI_AI_BAN_HANG = \{ task: "sales", temperature: 0\.4, maxTokens: 1_200 \} as const;/.test(sa14),
-      /\btone\b/.test(d14("server/services/content-ai.ts"))],
-    [true, true, true, 1, true, false]);
+      /const giong = moTaGiong\(config\?\.tone\);/.test(d14("server/services/content-ai.ts"))],
+    [true, true, true, 1, true, true]);
+  // H10 (TD-24): giọng điệu cho AI Nội dung — phiên kiểm duyệt bắt buộc: bỏ chọn được; máy chủ chỉ nhận 4 mã; MỌI đường viết bài.
+  {
+    const gd = await import("../server/services/giong-dieu.js");
+    const { AI_TONES_BAI_DANG } = await import("../src/lib/aiTraining.js");
+    kiem("giọng bài đăng", "docGiong: không gửi / null → không đổi; '' → bỏ chọn (NULL); 4 mã → lưu; mã lạ / __proto__ / số → lỗi",
+      [gd.docGiong(undefined), gd.docGiong(""), gd.docGiong(null), gd.docGiong("concise"), gd.docGiong("vui_ve"), gd.docGiong("__proto__"), gd.docGiong(5)],
+      [{ doi: false }, { doi: true, giaTri: null }, { doi: false }, { doi: true, giaTri: "concise" },
+        { loi: "Giọng điệu không hợp lệ" }, { loi: "Giọng điệu không hợp lệ" }, { loi: "Giọng điệu không hợp lệ" }]);
+    kiem("giọng bài đăng", "giọng của bài đăng CÙNG 4 mã với màn Kịch bản (máy chủ nhận đúng 4 mã đó), câu ví dụ khác",
+      [AI_TONES_BAI_DANG.map((t) => t.id).join(), AI_TONES_BAI_DANG.every((t) => gd.moTaGiong(t.id) !== null),
+        AI_TONES_BAI_DANG.some((t, i) => t.example === AI_TONES[i].example)],
+      [AI_TONES.map((t) => t.id).join(), true, false]);
+    const ai10 = fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8");
+    const put10 = ai10.slice(ai10.indexOf('aiRouter.put(\n  "/configs/:kind"'), ai10.indexOf("\n);\n", ai10.indexOf('aiRouter.put(\n  "/configs/:kind"')));
+    kiem("giọng bài đăng", "PUT cấu hình: mã lạ → 400; chỉ ghi tone khi có gửi ($7); dòng mới của AI Nội dung không giọng (NULL)",
+      [/const giong = docGiong\(body\.tone\);\s*if \("loi" in giong\) throw new AppError\(giong\.loi, 400\);/.test(put10),
+        /CASE WHEN \$7::boolean THEN \$4 WHEN \$2 = 'content' THEN NULL ELSE 'friendly' END/.test(put10),
+        /tone\s+= CASE WHEN \$7::boolean THEN \$4 ELSE ai_configs\.tone END/.test(put10),
+        /giong\.doi \? giong\.giaTri : null/.test(put10) && /\bgiong\.doi\b(?! \?)/.test(put10),
+        /config: config \?\? \{ kind, system_prompt: "", tone: kind === "content" \? null : "friendly", settings: \{\} \}/.test(ai10)],
+      [true, true, true, true, true]);
+    const ca10 = fs.readFileSync(path.join(GOC, "server/services/content-ai.ts"), "utf8");
+    // Mọi đường viết bài: chỉ content-ai đọc lời dặn của AI Nội dung, và mọi nơi viết bài đều gọi generatePostContent.
+    const tepMay = fs.readdirSync(path.join(GOC, "server"), { recursive: true }).map(String).filter((t) => /\.ts$/.test(t));
+    const docLoiDanNoiDung = tepMay.filter((t) => /system_prompt[^;`]{0,80}FROM ai_configs[^;`]{0,80}kind = 'content'/.test(fs.readFileSync(path.join(GOC, "server", t), "utf8")));
+    const goiViet = tepMay.filter((t) => /(?<!function )\bgeneratePostContent\(/.test(fs.readFileSync(path.join(GOC, "server", t), "utf8")));
+    kiem("giọng bài đăng", "content-ai: đọc tone + thêm dòng giọng NGAY SAU vai trò; là nơi DUY NHẤT đọc lời dặn AI Nội dung; được gọi từ bấm tay (routes/ai.ts) + lịch tự đăng (autopilot.ts)",
+      [/SELECT system_prompt, tone FROM ai_configs WHERE trang_id = \$1 AND kind = 'content'/.test(ca10),
+        /const giong = moTaGiong\(config\?\.tone\);/.test(ca10), /\.\.\.\(giong \? \[giong\] : \[\]\),/.test(ca10),
+        docLoiDanNoiDung, goiViet.sort()],
+      [true, true, true, ["services/content-ai.ts"], ["routes/ai.ts", "services/autopilot.ts"]]);
+    const mo10 = fs.readFileSync(path.join(GOC, "src/components/AITrainingModal.tsx"), "utf8");
+    kiem("giọng bài đăng", "màn Hướng dẫn AI: chỉ AI Nội dung có ô giọng; bấm lại để bỏ chọn ('' → NULL); AI khác không gửi tone",
+      [/\{kind === 'content' && \(/.test(mo10), /setGiong\(\(cu\) => \(cu === g\.id \? '' : g\.id\)\)/.test(mo10),
+        /setGiong\(data\.config\.tone \?\? ''\);/.test(mo10),
+        /saveConfig\(kind, kind === 'content' \? \{ systemPrompt: role, tone: giong \} : \{ systemPrompt: role \}\)/.test(mo10)],
+      [true, true, true, true]);
+    kiem("giọng bài đăng", "migration 066: bỏ NOT NULL của tone (giữ mặc định) rồi xoá giọng 'friendly' mặc định của AI Nội dung (chưa đường nào từng ghi) — chỉ kind content",
+      fs.readFileSync(path.join(GOC, "server/migrations/066_giong_noi_dung.sql"), "utf8").split("\n").filter((d) => d.trim() && !d.trim().startsWith("--")),
+      ["ALTER TABLE ai_configs ALTER COLUMN tone DROP NOT NULL;", "UPDATE ai_configs SET tone = NULL WHERE kind = 'content';"]);
+    kiem("giọng bài đăng", "sổ bằng chứng ④: giọng chưa chọn ghi 'chưa chọn', không in 'null'",
+      /· giọng: \$\{c\.tone \?\? "chưa chọn"\} ·/.test(fs.readFileSync(path.join(GOC, "server/services/so-bang-chung.ts"), "utf8")), true);
+    const thu10 = ai10.slice(ai10.indexOf("// Các AI khác (không trả lời khách)") - 600, ai10.indexOf("// Các AI khác (không trả lời khách)") + 900);
+    kiem("giọng bài đăng", "Thử AI (AI khác bán hàng): cùng hàm đọc tài liệu với máy thật + giọng của AI Nội dung",
+      [/const tl = await docTaiLieu\(await trangCuaReq\(req\), kind\);/.test(thu10),
+        /const giong = kind === "content" \? moTaGiong\(config\?\.tone\) : null;/.test(thu10), /\(giong \? `\\n\\n\$\{giong\}` : ""\) \+/.test(thu10)],
+      [true, true, true]);
+  }
   const as14 = fs.readFileSync(path.join(GOC, "src/pages/AutoScripts.tsx"), "utf8");
   kiem("thử AI = máy thật", "màn thử: nói rõ chỉ thử một tin đầu tiên (không lịch sử); hiện 'AI sẽ chuyển cho nhân viên' + bước bán AI chọn",
     [/Thử với một tin đầu tiên của khách, không có lịch sử hội thoại\./.test(as14), /AI sẽ chuyển cho nhân viên: \{testReply\.chuyenNguoi\}/.test(as14),

@@ -3,6 +3,7 @@ import { Router } from "express";
 import { query, queryOne } from "../db.js";
 import { requireAuth } from "../auth.js";
 import { docTaiLieu, TRAN_KY_TU_TAI_LIEU } from "../services/knowledge.js";
+import { docGiong, moTaGiong } from "../services/giong-dieu.js";
 import { AppError, requireString, route } from "../http.js";
 import { chat, chatJson, asRecord, stringArray, DEFAULT_MODELS } from "../services/ai.js";
 import {
@@ -104,7 +105,8 @@ aiRouter.get(
     res.json({
       success: true,
       data: {
-        config: config ?? { kind, system_prompt: "", tone: "friendly", settings: {} },
+        // Chưa có dòng: AI Nội dung không có giọng (content-ai không thêm dòng) — không hiện "Thân thiện" giả (TD-24).
+        config: config ?? { kind, system_prompt: "", tone: kind === "content" ? null : "friendly", settings: {} },
         documents: documents.rows,
         model: DEFAULT_MODELS[kind as keyof typeof DEFAULT_MODELS],
         docDuoc: doc && { daDocKyTu: doc.daDocKyTu, tongKyTu: doc.tongKyTu, tran: doc.tran, biCat: doc.biCat, chuaDoc: doc.chuaDoc },
@@ -135,13 +137,18 @@ aiRouter.put(
      * NULL ở đây nghĩa là "màn hình không đụng tới trường này", khác hẳn với
      * "màn hình muốn xoá trắng nó".
      */
+    // Giọng điệu (TD-24): không gửi = không đụng; "" = BỎ CHỌN (NULL); chỉ nhận 4 giọng có thật — lạ thì 400, không tin giao diện.
+    const giong = docGiong(body.tone);
+    if ("loi" in giong) throw new AppError(giong.loi, 400);
     const updated = await queryOne(
       `INSERT INTO ai_configs (user_id, trang_id, kind, system_prompt, tone, settings)
-       VALUES ($6, $1, $2, COALESCE($3, ''), COALESCE($4, 'friendly'),
+       VALUES ($6, $1, $2, COALESCE($3, ''),
+               -- Dòng mới: AI Nội dung không tự mang giọng (chưa chọn = không có dòng GIỌNG); AI khác giữ mặc định cũ.
+               CASE WHEN $7::boolean THEN $4 WHEN $2 = 'content' THEN NULL ELSE 'friendly' END,
                COALESCE($5::jsonb, '{}'::jsonb))
        ON CONFLICT (trang_id, kind) DO UPDATE SET
          system_prompt = COALESCE($3, ai_configs.system_prompt),
-         tone          = COALESCE($4, ai_configs.tone),
+         tone          = CASE WHEN $7::boolean THEN $4 ELSE ai_configs.tone END,
          settings      = COALESCE($5::jsonb, ai_configs.settings),
          updated_at    = now()
        RETURNING kind, system_prompt, tone, settings, updated_at`,
@@ -149,9 +156,10 @@ aiRouter.put(
         await trangCuaReq(req),
         kind,
         typeof body.systemPrompt === "string" ? body.systemPrompt : null,
-        typeof body.tone === "string" ? body.tone : null,
+        giong.doi ? giong.giaTri : null,
         body.settings === undefined ? null : JSON.stringify(body.settings),
         req.user!.id,
+        giong.doi,
       ]
     );
 
@@ -1115,26 +1123,18 @@ aiRouter.post(
       return;
     }
 
-    const config = await queryOne<{ system_prompt: string }>(
-      "SELECT system_prompt FROM ai_configs WHERE trang_id = $1 AND kind = $2",
+    const config = await queryOne<{ system_prompt: string; tone: string | null }>(
+      "SELECT system_prompt, tone FROM ai_configs WHERE trang_id = $1 AND kind = $2",
       [await trangCuaReq(req), kind]
     );
 
-    const documents = await query<{ filename: string; extracted_text: string | null }>(
-      `SELECT filename, extracted_text FROM ai_documents
-        WHERE trang_id = $1 AND kind = $2 AND extracted_text IS NOT NULL
-        ORDER BY created_at DESC LIMIT 5`,
-      [await trangCuaReq(req), kind]
-    );
+    // Cùng hàm chọn tài liệu với máy thật (knowledge.ts chonTaiLieu — H8; bản cũ 5 × 3.000 riêng ở đây).
+    const tl = await docTaiLieu(await trangCuaReq(req), kind);
+    const knowledge = tl.noiDung ? "\n\nKIẾN THỨC ĐƯỢC PHÉP DÙNG:\n" + tl.noiDung : "";
+    // Giọng điệu chỉ có ở AI Nội dung (và Bán hàng — nhánh trên) — TD-24.
+    const giong = kind === "content" ? moTaGiong(config?.tone) : null;
 
-    const knowledge = documents.rows.length
-      ? "\n\nKIẾN THỨC ĐƯỢC PHÉP DÙNG:\n" +
-        documents.rows
-          .map((doc) => `# ${doc.filename}\n${(doc.extracted_text ?? "").slice(0, 3_000)}`)
-          .join("\n\n")
-      : "";
-
-    // Các AI khác (không trả lời khách): giữ cách thử cũ — hiện không màn hình nào gọi.
+    // Các AI khác (không trả lời khách) — hiện không màn hình nào gọi; tài liệu + giọng đọc đúng như máy thật (H10).
     const result = await chat({
       task: "content",
       viec: "thu_ai",
@@ -1144,6 +1144,7 @@ aiRouter.post(
           role: "system",
           content:
             (config?.system_prompt ?? "Bạn là trợ lý của shop.") +
+            (giong ? `\n\n${giong}` : "") +
             knowledge +
             "\n\n" +
             DAN_KHONG_MARKDOWN,

@@ -915,7 +915,8 @@ export const POST_STATUS_LABELS: Record<PostStatus, string> = {
 export interface AiConfig {
   kind: string;
   system_prompt: string;
-  tone: string;
+  /** null = chưa chọn giọng (AI Nội dung — TD-24). */
+  tone: string | null;
   settings: Record<string, unknown>;
 }
 

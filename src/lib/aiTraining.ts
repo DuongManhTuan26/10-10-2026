@@ -18,6 +18,17 @@ export const AI_TONES: AiTone[] = [
   { id: 'concise', name: 'Ngắn gọn', example: 'Còn hàng ạ. Bạn cần loại nào?' },
 ];
 
+/**
+ * Giọng điệu cho AI Nội dung (TD-24): CÙNG 4 mã với AI_TONES (máy chủ chỉ nhận 4 mã này — giong-dieu.ts), chỉ khác câu ví
+ * dụ — bài đăng, không phải câu trả lời khách.
+ */
+export const AI_TONES_BAI_DANG: AiTone[] = [
+  { id: 'friendly', name: 'Thân thiện', example: 'Cả nhà ơi, hàng mới về rồi nè!' },
+  { id: 'professional', name: 'Chuyên nghiệp', example: 'Sản phẩm mới đã có mặt tại cửa hàng.' },
+  { id: 'enthusiastic', name: 'Nhiệt tình', example: 'Hàng mới vừa cập bến, nhanh tay kẻo hết!' },
+  { id: 'concise', name: 'Ngắn gọn', example: 'Hàng mới về. Số lượng có hạn.' },
+];
+
 /** Năm thông tin AI phải thu thập đủ để lên được đơn hàng. */
 export const REQUIRED_INFO = ['Họ tên', 'Số điện thoại', 'Địa chỉ', 'Sản phẩm', 'Số lượng'];
 
