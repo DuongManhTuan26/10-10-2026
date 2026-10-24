@@ -50,13 +50,15 @@ export const CHUA_CO_TAI_LIEU_BAI_VIET = [
   "- còn hàng / sắp hết / số lượng có hạn / khách đặt nhiều",
   "- phí hay thời gian giao hàng, đổi trả, bảo hành, hoàn tiền",
   "- thành phần, công dụng cụ thể, xuất xứ, giấy chứng nhận, đã kiểm định, đã dùng thử",
+  // H15b: đo thật còn lọt "nhiều người tìm đến…" (lời chứng đám đông không căn cứ).
+  "- lời chứng đám đông hay số người mua / tin dùng / đánh giá / theo dõi (nhiều người tìm đến, hàng nghìn khách, được yêu thích…)",
 ].join("\n");
 
 /** Khối tài liệu của lời dặn viết bài: có tài liệu → nội dung + chỉ cam kết những gì có trong đó; chưa có → nhánh cấm. */
 export function khoiTaiLieuBaiViet(tl: { noiDung: string }): string {
   return coTaiLieu(tl)
     ? "\n\nTHÔNG TIN SẢN PHẨM VÀ VĂN PHONG CỦA SHOP:\n" + tl.noiDung +
-        "\n\nGiá, khuyến mãi, chính sách và cam kết CHỈ được viết khi có trong phần thông tin trên; không có thì không viết."
+        "\n\nGiá, khuyến mãi, chính sách, cam kết và số người mua / đánh giá CHỈ được viết khi có trong phần thông tin trên; không có thì không viết."
     : "\n\n" + CHUA_CO_TAI_LIEU_BAI_VIET;
 }
 

@@ -7564,8 +7564,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     const rong = ca15.khoiTaiLieuBaiViet({ noiDung: " \n " }), co = ca15.khoiTaiLieuBaiViet({ noiDung: "Áo thun cotton 150.000đ. Đổi trả 7 ngày." });
     kiem("viết bài chưa tài liệu", "khối tài liệu viết bài: rỗng → CHUA_CO_TAI_LIEU_BAI_VIET (cấm giá / khan hiếm / đổi trả / bảo hành / kiểm định / dùng thử, không đoán mặt hàng); có → tài liệu + chỉ cam kết những gì có; cùng chỗ quyết định coTaiLieu",
       [rong.includes(ca15.CHUA_CO_TAI_LIEU_BAI_VIET), /THÔNG TIN SẢN PHẨM/.test(rong),
-        ["giá, khuyến mãi", "số lượng có hạn", "đổi trả, bảo hành", "đã kiểm định, đã dùng thử", "KHÔNG đoán cửa hàng bán mặt hàng gì"].every((c) => ca15.CHUA_CO_TAI_LIEU_BAI_VIET.includes(c)),
-        co.includes("Áo thun cotton 150.000đ"), /CHỈ được viết khi có trong phần thông tin trên/.test(co), co.includes("CHƯA NẠP"),
+        ["giá, khuyến mãi", "số lượng có hạn", "đổi trả, bảo hành", "đã kiểm định, đã dùng thử", "KHÔNG đoán cửa hàng bán mặt hàng gì",
+          "lời chứng đám đông hay số người mua / tin dùng / đánh giá / theo dõi"].every((c) => ca15.CHUA_CO_TAI_LIEU_BAI_VIET.includes(c)),
+        co.includes("Áo thun cotton 150.000đ"), /cam kết và số người mua \/ đánh giá CHỈ được viết khi có trong phần thông tin trên/.test(co), co.includes("CHƯA NẠP"),
         kn15.coTaiLieu({ noiDung: "" }), kn15.coTaiLieu({ noiDung: "  \n" }), kn15.coTaiLieu({ noiDung: "x" })],
       [true, false, true, true, true, false, false, false, true]);
     kiem("viết bài chưa tài liệu", "tên Fanpage nguyên văn trong lời dặn viết bài (bài thử viết sai \"Chạm tay vạn điều hay\")",

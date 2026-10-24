@@ -380,3 +380,13 @@ gọi AI, 0 tin Telegram; hàng đợi luôn 0; bot Telegram của bản trùng 
 CHỈ GẮN { "url": "http://localhost:3000" } (70f7f8a); bỏ cấu hình "khoi-nao" khỏi ~/.claude/launch.json (bản zernio-khoi-nao
 có .env trỏ Neon thật, cùng nguy cơ). Bản gốc: ~/.zn-tam/launch.json.goc. Không đụng thư mục zernio-khoi-nao.
 Khi dùng trình duyệt tích hợp: xem danh sách máy chủ xem trước; có máy chủ "zernio" khác cổng 3000 là tắt ngay.
+
+## TD-32 — Lời đọc / chữ trên hình của video có thể bịa cam kết khi tắt "giữ sự thật" (24/10/2026) — CHỜ CHỦ DỰ ÁN
+
+H15 đo thật: AI Nội dung bịa đổi trả / khan hiếm / "đã dùng thử" khi cửa hàng chưa có tài liệu (đã sửa cho bài viết).
+Video dài (video-dai.ts chiaCanh) sinh LỜI ĐỌC tiếng Việt (cũng là phụ đề — khách nghe / đọc) từ ý tưởng chủ shop; câu
+"Only claim what the idea states — never invent prices, numbers, discounts, awards or features" CHỈ có khi bật tuỳ chọn
+giuSuThat (mặc định tắt: video-dai.ts `o.giuSuThat === true`); video-ai.ts (mô tả video) tương tự. Chú thích tại chỗ: "LỰA
+CHỌN của người dùng — không gài cứng (chủ dự án 03/10/2026)" → không tự đổi.
+Đề xuất trình chủ dự án: cửa hàng CHƯA có tài liệu thì lời đọc / chữ trên hình LUÔN cấm bịa giá / khuyến mãi / khan hiếm /
+chứng nhận / lời chứng đám đông; giữ tuỳ chọn cho phần còn lại. 0 đồng (kiểm bằng mã, không chạy video thật).

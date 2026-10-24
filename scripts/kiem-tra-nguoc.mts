@@ -6364,7 +6364,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "viết bài có tài liệu mà không nhắc chỉ cam kết thứ có trong đó",
     tep: "server/services/content-ai.ts",
-    tim: "\"\\n\\nGiá, khuyến mãi, chính sách và cam kết CHỈ được viết khi có trong phần thông tin trên; không có thì không viết.\"",
+    tim: "\"\\n\\nGiá, khuyến mãi, chính sách, cam kết và số người mua / đánh giá CHỈ được viết khi có trong phần thông tin trên; không có thì không viết.\"",
     thay: "\"\"",
   },
   {
@@ -6402,6 +6402,12 @@ const DUC: PhepDuc[] = [
     tep: "server/services/sales-ai.ts",
     tim: "    coTaiLieu(tlBanHang)\n",
     thay: "    knowledgeBlock !== \"\"\n",
+  },
+  {
+    ten: "nhánh cấm bỏ dòng lời chứng đám đông",
+    tep: "server/services/content-ai.ts",
+    tim: "  \"- lời chứng đám đông hay số người mua / tin dùng / đánh giá / theo dõi (nhiều người tìm đến, hàng nghìn khách, được yêu thích…)\",\n",
+    thay: "",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
