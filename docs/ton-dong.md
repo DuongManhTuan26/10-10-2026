@@ -281,19 +281,37 @@ Chờ duyệt nếu AI viết, Bản nháp nếu tự viết; bỏ mốc tự đ
 → "Post updated successfully"; đọc lại trước / sau: nội dung, kênh đích, danh sách ảnh (bài thử KHÔNG có ảnh) giữ nguyên, giờ
 mới đúng, vẫn scheduled; xoá → 404. Lỗi tiềm ẩn tìm ra cùng lúc, đã sửa: bài lịch tự động (báo trước) giữ mốc auto_publish_at;
 hẹn giờ rồi huỷ → về Chờ duyệt với mốc quá hạn → bị đăng ngay. Nay đăng / hẹn giờ / đổi trạng thái tay / huỷ lịch đều bỏ mốc.
-## TD-24 — AI Nội dung chưa có màn chọn giọng điệu (22/10/2026)
+## TD-24 — ĐÃ LÀM (H10, 24/10/2026): AI Nội dung chưa có màn chọn giọng điệu (22/10/2026)
 
 Mục 5 (giọng điệu) làm cho AI Bán hàng: màn Kịch bản chọn giọng → dòng "GIỌNG ĐIỆU" trong lời dặn (sales-ai.ts moTaGiong).
 AI Nội dung: cột ai_configs.tone có, nhưng KHÔNG màn nào cho chọn, nên content-ai đã thôi đọc cột này (đọc mà không dùng
 dễ khiến tưởng có tác dụng). Làm khi có yêu cầu: thêm chọn giọng ở thẻ Hướng dẫn AI của ① và đưa vào lời dặn viết bài.
 
-## TD-25 — Đẩy bài: chưa nhắm theo tệp đã lưu / sở thích / tỉnh thành (22/10/2026)
+ĐÃ LÀM 24/10/2026 (H10): thẻ Hướng dẫn AI của ① có 4 ô giọng (cùng 4 mã của màn Kịch bản, câu ví dụ kiểu bài đăng), bấm lại
+để bỏ chọn; máy chủ chỉ nhận 4 mã ('' = bỏ chọn → NULL, lạ → 400); content-ai thêm dòng "GIỌNG ĐIỆU" ngay sau vai trò — mọi
+đường viết bài (bấm tay + lịch tự đăng) đều qua generatePostContent. Migration 066: bỏ NOT NULL của cột tone + xoá 'friendly'
+mặc định của mọi dòng AI Nội dung (cột có mặc định nên dòng nào cũng mang 'friendly' dù chưa ai từng chọn); thử tự hoàn tác
+trên Neon đạt 7/7 (bản đầu chỉ có UPDATE hỏng vì NOT NULL — phép thử bắt được trước khi gộp).
+
+## TD-25 — ĐÃ LÀM PHẦN TỈNH / SỞ THÍCH (H9, 24/10/2026), CHƯA THỬ THẬT; tệp đã lưu SAU CỜ TẮT: Đẩy bài: chưa nhắm theo tệp đã lưu / sở thích / tỉnh thành (22/10/2026)
 
 Mục 3 (quảng cáo khớp OpenAPI 1.330.1) bỏ khỏi màn mọi ô không gửi đi được: "Dùng tệp đã lưu" (targeting của /v1/ads/boost
 không có trường tệp đối tượng; rawTargeting chỉ ghi "forwarded unchanged" — không có căn cứ dạng dữ liệu), ô "Sở thích" tự
 gõ (cần mã từ GET /v1/ads/interests), ô "Khu vực" tự gõ (tỉnh / thành cần key từ GET /v1/ads/targeting/search?dimension=geo).
 Hiện gửi: Việt Nam + tuổi + giới tính, hoặc để Facebook tự tìm (advantage_audience). Làm khi có yêu cầu: tìm sở thích /
 tỉnh thành qua hai đường đọc trên rồi gửi interests[{id,name}] / regions[{key}] đúng tài liệu. Thử thật cần nối Meta Ads.
+
+ĐÃ LÀM 24/10/2026 (H9, đối chiếu OpenAPI 1.349.0 tải ngày 24/10): ô tìm tỉnh / thành + sở thích (GET /api/ads/tim-nham →
+GET /v1/ads/targeting/search bằng kênh metaads của cửa hàng đang chọn, đường nằm trong chốt phạm vi; tỉnh = geo + region +
+VN, tiếng Việt; máy chủ chỉ giữ đúng loại). Có tỉnh → regions[{key,name}] và bỏ countries ['VN'] (Meta báo trùng vùng); sở
+thích → interests[{id,name}]. Dự báo tiếp cận dùng cùng hàm dungNhamChon. Tỉnh / sở thích / tệp nằm trong dấu vết ý định nên
+đổi nhắm là mã chống trùng mới.
+CÒN LẠI:
+- CHƯA THỬ THẬT: 0 kênh Meta Ads (TD-22). Lần nối đầu tiên: tìm "Hà Nội" + "thời trang", xem dự báo, đẩy bài nhỏ nhất.
+- "Dùng tệp đã lưu": rawTargeting { custom_audiences: [{ id: platformAudienceId }] } + targeting.advantage_audience 0 — tài
+  liệu nhà cung cấp chỉ ghi rawTargeting "forwarded unchanged", custom_audiences là trường của Meta, CHƯA thử. Đặt sau cờ
+  ADS_NHAM_TEP_DA_LUU=1 (tắt mặc định, giao diện không hiện); máy chủ đối chiếu tệp thuộc tài khoản quảng cáo của cửa hàng.
+  Dự báo tiếp cận không có trường tệp → số dự báo không tính tệp. Bật cờ chỉ khi thử thật đầu tiên đạt.
 
 ## TD-26 — Chống gửi lặp: nhà cung cấp chậm hiện tin vừa gửi (23/10/2026) — CHẤP NHẬN
 
@@ -312,3 +330,12 @@ thì máy chủ tự thử lại mỗi 30 giây.
 ĐÃ CÀI 23/10/2026 22:10: tắt nhóm tsx watch cũ (pgid 3242, máy chủ 82201) → launchctl load → máy chủ 4802, health 200;
 kill -9 4802 → launchd bật lại 5535 sau 23 giây, health 200; người canh 1819 + cloudflared 77986 giữ nguyên. Gộp mã xong phải
 `launchctl kickstart -k gui/$(id -u)/vn.quanly.fanpage` (docs/quy-trinh-kiem-duyet.md). Còn lại: máy chủ thật lâu dài (TD-16).
+
+## TD-28 — Màn Kịch bản (③ AI Bán hàng) hiện "Thân thiện" khi cửa hàng chưa có dòng cấu hình (24/10/2026) — CHẤP NHẬN
+
+Tìm ra khi làm H10. Cửa hàng chưa có dòng ai_configs 'sales' thì màn Kịch bản tô sẵn giọng "Thân thiện" (AutoScripts.tsx
+`tone || 'friendly'`), trong khi sales-ai không có dòng thì KHÔNG thêm dòng "GIỌNG ĐIỆU" vào lời dặn — màn nói một đằng, AI
+làm một nẻo cho tới lần bấm Lưu đầu tiên. Hiếm: mọi tài khoản mới đều được chèn sẵn dòng 'sales' giọng 'friendly' (tai-khoan.ts),
+Neon hiện 3/3 dòng sales có 'friendly'. Không sửa vì màn Kịch bản đã chốt; phiên kiểm duyệt đồng ý để nguyên và ghi lại.
+Sửa khi cần: khi chưa có dòng thì không tô ô nào (giống thẻ Hướng dẫn AI của ① sau H10), hoặc sales-ai dùng 'friendly' khi
+chưa có dòng.

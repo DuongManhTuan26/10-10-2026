@@ -7586,10 +7586,76 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     ["2026-10-22T10:00:00.000Z", "400", "400", "400", true]);
   const ad15 = d15("src/pages/Ads.tsx");
   kiem("quảng cáo khớp tài liệu", "màn Quảng cáo: không còn ô không gửi đi được / số giả; mặc định NHẮN TIN; gửi mã + mốc của ý định đẩy; dự báo và tóm tắt theo đúng nhắm chọn sẽ gửi",
-    [["Dùng tệp đã lưu", "Tệp vừa phải", "khoảng 45.000", "khoảng 850.000", "Thêm sở thích", "geoLocations", "genders", "Theo sở thích", "subtype"].filter((c) => ad15.includes(c)),
+    [["Tệp vừa phải", "khoảng 45.000", "khoảng 850.000", "Thêm sở thích", "geoLocations", "genders", "Theo sở thích", "subtype"].filter((c) => ad15.includes(c)),
       /useState<'nhan_tin' \| 'tuong_tac'>\('nhan_tin'\)/.test(ad15), /const yDinh = yDinhDayBai\(yDinhRef\.current \?\? docYDinhLuu\(\), cauHinh, new Date\(\)\.toISOString\(\), \(\) => crypto\.randomUUID\(\)\);\s*yDinhRef\.current = yDinh;\s*luuYDinh\(yDinh\);\s*try \{\s*await api\.ads\.boost\(\{ \.\.\.cauHinh, khoa: yDinh\.khoa, batDau: yDinh\.batDau \}\);\s*yDinhRef\.current = null;\s*luuYDinh\(null\);\s*setIsSuccess\(true\);/.test(ad15), /\.reachEstimate\(nhamChon\)/.test(ad15),
-      /Khách nhắn tin cho cửa hàng/.test(ad15), /Khu vực: <span className="font-bold text-on-surface">Việt Nam<\/span>/.test(ad15)],
+      /Khách nhắn tin cho cửa hàng/.test(ad15), /Đang nhắm: <b className="text-on-surface">cả Việt Nam<\/b>/.test(ad15)],
     [[], true, true, true, true, true]);
+
+  // H9 (TD-25): nhắm tỉnh / sở thích / tệp đã lưu — phiên kiểm duyệt bắt buộc 5 điểm (ý định, phạm vi, cờ tệp, lọc loại, cùng hàm).
+  const TC = { cheDo: "tu_chon", tuoiTu: 25, tuoiDen: 45, gioiTinh: "all" };
+  const HN = { key: "2347", name: "Hà Nội" }, HCM = { key: "2366", name: "Hồ Chí Minh" };
+  const M5 = [{ regions: [HN, HCM], ageMin: 25, ageMax: 45, gender: "all", interests: [{ id: "6003", name: "Thời trang" }] },
+    { countries: ["VN"], ageMin: 25, ageMax: 45, gender: "all" }, { countries: ["VN"], advantage_audience: 1 },
+    "400:Chọn tối đa 25 tỉnh / thành", "400:Chọn tối đa 10 sở thích", "400:Tỉnh / thành không hợp lệ", "400:Sở thích không hợp lệ", "400:Tỉnh / thành bị chọn trùng", "400:Sở thích không hợp lệ"];
+  kiem("nhắm tỉnh / sở thích", "dungNhamChon: có tỉnh → regions[{key,name}] và KHÔNG countries (Meta: locations overlap); không tỉnh → VN; sở thích → interests[{id,name}]; Facebook tự tìm bỏ qua; quá số / mã rỗng / thiếu tên / trùng / không phải mảng → 400",
+    dau([q.dungNhamChon({ ...TC, tinh: [HN, HCM], soThich: [{ id: "6003", name: " Thời trang " }] }), q.dungNhamChon({ ...TC, tinh: [], soThich: [] }),
+      q.dungNhamChon({ cheDo: "facebook_tu_tim", tinh: [HN] }),
+      loi(() => q.dungNhamChon({ ...TC, tinh: Array.from({ length: 26 }, (_, i) => ({ key: `k${i}`, name: "x" })) })),
+      loi(() => q.dungNhamChon({ ...TC, soThich: Array.from({ length: 11 }, (_, i) => ({ id: `${i}`, name: "x" })) })),
+      loi(() => q.dungNhamChon({ ...TC, tinh: [{ key: "", name: "Hà Nội" }] })), loi(() => q.dungNhamChon({ ...TC, soThich: [{ id: "6003" }] })),
+      loi(() => q.dungNhamChon({ ...TC, tinh: [HN, { ...HN }] })), loi(() => q.dungNhamChon({ ...TC, soThich: "thời trang" }))], M5),
+    M5);
+  const pv9 = await import("../server/services/pham-vi-goi.js");
+  const M6 = ["400:Loại tìm không hợp lệ", "400:Vui lòng gõ từ 2 đến 60 ký tự"];
+  kiem("nhắm tỉnh / sở thích", "lệnh tìm: tỉnh = geo + region + VN; sở thích = interest; tiếng Việt; 10 kết quả; loại lạ / gõ < 2 ký tự → 400; thiếu accountId → kiemPhamVi chặn TRƯỚC khi gọi",
+    [q.lenhTimNham({ accountId: "kmeta", adAccountId: "act_1", loai: "tinh", q: " Hà Nội " }), q.lenhTimNham({ accountId: "kmeta", adAccountId: "act_1", loai: "so_thich", q: "thời trang" }).query,
+      ...dau([loi(() => q.lenhTimNham({ accountId: "a", adAccountId: "b", loai: "behavior", q: "abc" })), loi(() => q.lenhTimNham({ accountId: "a", adAccountId: "b", loai: "tinh", q: " h " }))], M6),
+      pv9.DUONG_DANH_SACH.has("/ads/targeting/search"), loi(() => pv9.kiemPhamVi("GET", "/ads/targeting/search", { q: "Hà Nội" }, undefined)).toString().includes("thiếu phạm vi")],
+    [{ path: "/ads/targeting/search", query: { accountId: "kmeta", adAccountId: "act_1", q: "Hà Nội", dimension: "geo", geoType: "region", countryCode: "VN", locale: "vi_VN", limit: 10 } },
+      { accountId: "kmeta", adAccountId: "act_1", q: "thời trang", dimension: "interest", locale: "vi_VN", limit: 10 }, ...M6, true, true]);
+  const KQ = { results: [{ id: "2347", name: "Hà Nội", type: "region", path: ["Việt Nam", "Hà Nội"], audienceSize: 9_000_000 }, { id: "VN", name: "Việt Nam", type: "country" },
+    { id: "111", name: "Hà Nội", type: "city" }, { id: "6003", name: "Hà Nội (sở thích)", type: "interest", audienceSize: -1 }, { id: "", name: "rỗng", type: "region" }, { id: "x y", name: "cách", type: "region" }] };
+  kiem("nhắm tỉnh / sở thích", "kết quả tìm lọc ở MÁY CHỦ đúng loại: tỉnh chỉ region, sở thích chỉ interest; mã sai dạng / rỗng bị bỏ; audienceSize âm → null; rác → []",
+    [q.docKetQuaTimNham(KQ, "tinh"), q.docKetQuaTimNham(KQ, "so_thich"), q.docKetQuaTimNham({ results: "x" }, "tinh"), q.docKetQuaTimNham(null, "so_thich")],
+    [[{ id: "2347", name: "Hà Nội", path: ["Việt Nam", "Hà Nội"], audienceSize: 9_000_000 }], [{ id: "6003", name: "Hà Nội (sở thích)", path: [], audienceSize: null }], [], []]);
+  const TEP = [{ id: "z1", platformAudienceId: "238001" }];
+  const M7 = ["400:Chưa hỗ trợ nhắm theo tệp đã lưu", "400:Tệp đã lưu không thuộc tài khoản quảng cáo của cửa hàng", "400:Tệp đã lưu không thuộc tài khoản quảng cáo của cửa hàng"];
+  kiem("nhắm tỉnh / sở thích", "tệp đã lưu SAU CỜ tắt mặc định: cờ tắt + có tệp → 400; không tệp → không gửi gì; cờ bật: tệp của tài khoản quảng cáo → rawTargeting.custom_audiences, tệp lạ / mã Zernio → 400",
+    [q.CO_TEP_DA_LUU, q.dungTepDaLuu(undefined, TEP), q.dungTepDaLuu("", TEP), ...dau([loi(() => q.dungTepDaLuu("238001", TEP, false))], M7.slice(0, 1)),
+      q.dungTepDaLuu("238001", TEP, true), ...dau([loi(() => q.dungTepDaLuu("999", TEP, true)), loi(() => q.dungTepDaLuu("z1", TEP, true))], M7.slice(1))],
+    [false, undefined, undefined, M7[0], { custom_audiences: [{ id: "238001" }] }, M7[1], M7[2]]);
+  const coRaw = q.lenhDayBai({ accountId: "kmeta", adAccountId: "act_1", platformPostId: "686_122", maBai: 65, nganSachNgay: 100_000, soNgay: 3, mucTieu: "nhan_tin",
+    nhamChon: { countries: ["VN"], ageMin: 25, ageMax: 45, gender: "all" }, rawTargeting: { custom_audiences: [{ id: "238001" }] }, khoa: "khoa-12345678", bayGio: BG }).body as Record<string, unknown>;
+  kiem("nhắm tỉnh / sở thích", "lệnh đẩy có tệp: rawTargeting nguyên văn + targeting.advantage_audience 0 (tài liệu: có raw thì Meta cần targeting_automation); không tệp → không có khoá rawTargeting",
+    [coRaw.rawTargeting, coRaw.targeting, "rawTargeting" in (lenh("nhan_tin").body as Record<string, unknown>)],
+    [{ custom_audiences: [{ id: "238001" }] }, { countries: ["VN"], ageMin: 25, ageMax: 45, gender: "all", advantage_audience: 0 }, false]);
+  const yA = yd.yDinhDayBai(null, { ...CH, nhamChon: { ...TC, tinh: [HN] } }, "2026-10-22T10:00:00.000Z", () => "ma-A");
+  const yA2 = yd.yDinhDayBai(yA, { ...CH, nhamChon: { ...TC, tinh: [HN] } }, "2026-10-22T10:01:00.000Z", () => "ma-B");
+  const yTinh = yd.yDinhDayBai(yA, { ...CH, nhamChon: { ...TC, tinh: [HCM] } }, "2026-10-22T10:02:00.000Z", () => "ma-C");
+  const ySo = yd.yDinhDayBai(yA, { ...CH, nhamChon: { ...TC, tinh: [HN], soThich: [{ id: "6003", name: "Thời trang" }] } }, "2026-10-22T10:02:00.000Z", () => "ma-D");
+  const yTep = yd.yDinhDayBai(yA, { ...CH, nhamChon: { ...TC, tinh: [HN], tepDaLuu: "238001" } }, "2026-10-22T10:02:00.000Z", () => "ma-E");
+  kiem("nhắm tỉnh / sở thích", "ý định đẩy: không đổi nhắm → GIỮ mã; đổi tỉnh / thêm sở thích / chọn tệp → mã MỚI (lỗi một lần rồi đổi tỉnh mà giữ mã cũ thì nhà cung cấp trả kết quả cũ)",
+    [yA2.khoa, yTinh.khoa, ySo.khoa, yTep.khoa], ["ma-A", "ma-C", "ma-D", "ma-E"]);
+  const thanTim = ar15.slice(ar15.indexOf('"/tim-nham",'), ar15.indexOf("\n);\n", ar15.indexOf('"/tim-nham",')));
+  kiem("nhắm tỉnh / sở thích", "đường tìm: kênh quảng cáo của CỬA HÀNG đang chọn (resolveAdAccount) → lệnh tìm → lọc loại ở máy chủ; dự báo và đẩy bài dùng CÙNG dungNhamChon; tệp chỉ ở Tự chọn + đối chiếu danh sách tệp của tài khoản quảng cáo",
+    [/const resolved = await resolveAdAccount\(req\.user!\.id\);[\s\S]*ads\.lenhTimNham\(\{ accountId: resolved\.accountId, adAccountId: resolved\.adAccountId, loai: req\.query\.loai, q: req\.query\.q \}\)[\s\S]*ads\.docKetQuaTimNham\(await ads\.timNham\(lenh\), /.test(thanTim),
+      (ar15.match(/ads\.dungNhamChon\(/g) ?? []).length, /body\.nhamChon\?\.cheDo !== "tu_chon"/.test(thanBoost),
+      /ads\.dungTepDaLuu\(\s*tepChon,[\s\S]{0,200}await ads\.listAudiences\(\{ accountId: resolved\.accountId, adAccountId: resolved\.adAccountId \}\)/.test(thanBoost),
+      /mucTieu, nhamChon, rawTargeting, khoa, bayGio: batDau,/.test(thanBoost),
+      /export const CO_TEP_DA_LUU = process\.env\.ADS_NHAM_TEP_DA_LUU === "1";/.test(as15)],
+    [true, 2, true, true, true, true]);
+  const adRaw = fs.readFileSync(path.join(GOC, "src/pages/Ads.tsx"), "utf8");
+  kiem("nhắm tỉnh / sở thích", "màn đẩy bài: tỉnh / sở thích / tệp nằm TRONG nhamChon (vào dấu vết ý định + dự báo); ô tệp chỉ hiện khi máy chủ bật cờ; tóm tắt xác nhận liệt kê tỉnh + sở thích",
+    [/\.\.\.\(tinh\.length \? \{ tinh: tinh\.map\(\(t\) => \(\{ key: t\.ma, name: t\.ten \}\)\) \} : \{\}\),/.test(adRaw),
+      /\.\.\.\(soThich\.length \? \{ soThich: soThich\.map\(\(s\) => \(\{ id: s\.ma, name: s\.ten \}\)\) \} : \{\}\),/.test(adRaw),
+      /\.\.\.\(nhamTepDaLuu && tepDaLuu \? \{ tepDaLuu \} : \{\}\),/.test(adRaw), /\{nhamTepDaLuu && \(\s*<div>\s*<label[^>]*>Dùng tệp đã lưu/.test(adRaw),
+      /tinh\.length \? tinh\.map\(\(t\) => t\.ten\)\.join\(', '\) : 'Cả Việt Nam'/.test(adRaw), /Sở thích: \$\{soThich\.map\(\(s\) => s\.ten\)\.join\(', '\)\}/.test(adRaw)],
+    [true, true, true, true, true, true]);
+  const on = fs.readFileSync(path.join(GOC, "src/components/ONhamTim.tsx"), "utf8");
+  kiem("nhắm tỉnh / sở thích", "ô tìm: ≥ 2 ký tự, chờ 400 ms, bỏ kết quả lượt cũ về muộn; chỉ chọn từ kết quả (không gửi chữ gõ tay); chọn đủ thì khoá",
+    [/export const SO_KY_TU_TIM = 2;/.test(on), /export const CHO_GO_MS = 400;/.test(on), (on.match(/if \(day === luot\.current\)/g) ?? []).length,
+      /doiChon\(\[\.\.\.chon, \{ ma: k\.id, ten: k\.name \}\]\);/.test(on), /doiChon\(\[\.\.\.chon, \{ ma: q/.test(on), /disabled=\{daDu\}/.test(on)],
+    [true, true, 3, true, false, true]);
 }
 
 // ---------------------------------------------------------------------------

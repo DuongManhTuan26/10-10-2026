@@ -386,8 +386,34 @@ export type MucTieuDayBai = "nhan_tin" | "tuong_tac";
 export const TUOI_NHO_NHAT = 18;
 export const TUOI_LON_NHAT = 65;
 
-/** Nhắm chọn (TargetingSpec) — chỉ Việt Nam. Sai → lỗi kèm câu cho chủ shop. */
-export function dungNhamChon(n: { cheDo?: unknown; tuoiTu?: unknown; tuoiDen?: unknown; gioiTinh?: unknown }): Record<string, unknown> {
+/** H9 (TD-25): số tỉnh / sở thích tối đa mỗi lần đẩy bài. */
+export const TOI_DA_TINH = 25;
+export const TOI_DA_SO_THICH = 10;
+const MA_NHAM = /^[\w:.-]{1,64}$/;
+
+/** Danh sách mục đã chọn {mã, tên} — mã đúng dạng, tên có chữ, không trùng mã, không quá số. Sai → 400. */
+function docMucChon(v: unknown, truongMa: "key" | "id", toiDa: number, ten: string): { ma: string; ten: string }[] {
+  if (v === undefined || v === null) return [];
+  if (!Array.isArray(v)) throw new AppError(`${ten} không hợp lệ`, 400);
+  if (v.length > toiDa) throw new AppError(`Chọn tối đa ${toiDa} ${ten.toLowerCase()}`, 400);
+  const ds = v.map((x) => {
+    const o = (x ?? {}) as Record<string, unknown>;
+    const ma = typeof o[truongMa] === "string" ? (o[truongMa] as string).trim() : "";
+    const nhan = typeof o.name === "string" ? o.name.trim().slice(0, 100) : "";
+    if (!MA_NHAM.test(ma) || !nhan) throw new AppError(`${ten} không hợp lệ — vui lòng chọn lại từ ô tìm`, 400);
+    return { ma, ten: nhan };
+  });
+  if (new Set(ds.map((x) => x.ma)).size !== ds.length) throw new AppError(`${ten} bị chọn trùng`, 400);
+  return ds;
+}
+
+/**
+ * Nhắm chọn (TargetingSpec) — chỉ Việt Nam. Sai → lỗi kèm câu cho chủ shop.
+ * H9 (TD-25): Tự chọn thêm tỉnh / thành (regions[{key}] — tài liệu: key từ targeting/search geoType=region) và sở thích
+ * (interests[{id, name}] — "Each must include id and name"). Có tỉnh thì BỎ countries ['VN']: Meta báo "locations overlap"
+ * khi vừa nhắm nước vừa nhắm vùng trong nước đó. Dự báo tiếp cận dùng CHÍNH hàm này (routes/ads.ts /reach-estimate).
+ */
+export function dungNhamChon(n: { cheDo?: unknown; tuoiTu?: unknown; tuoiDen?: unknown; gioiTinh?: unknown; tinh?: unknown; soThich?: unknown }): Record<string, unknown> {
   if (n.cheDo === "facebook_tu_tim") return { countries: ["VN"], advantage_audience: 1 };
   if (n.cheDo !== "tu_chon") throw new AppError("Cách chọn người xem không hợp lệ", 400);
   const tu = Number(n.tuoiTu), den = Number(n.tuoiDen);
@@ -395,7 +421,79 @@ export function dungNhamChon(n: { cheDo?: unknown; tuoiTu?: unknown; tuoiDen?: u
     throw new AppError(`Độ tuổi phải trong khoảng ${TUOI_NHO_NHAT}–${TUOI_LON_NHAT}, tuổi đầu không lớn hơn tuổi cuối`, 400);
   }
   if (n.gioiTinh !== "all" && n.gioiTinh !== "male" && n.gioiTinh !== "female") throw new AppError("Giới tính không hợp lệ", 400);
-  return { countries: ["VN"], ageMin: tu, ageMax: den, gender: n.gioiTinh };
+  const tinh = docMucChon(n.tinh, "key", TOI_DA_TINH, "Tỉnh / thành");
+  const soThich = docMucChon(n.soThich, "id", TOI_DA_SO_THICH, "Sở thích");
+  return {
+    ...(tinh.length ? { regions: tinh.map((x) => ({ key: x.ma, name: x.ten })) } : { countries: ["VN"] }),
+    ageMin: tu,
+    ageMax: den,
+    gender: n.gioiTinh,
+    ...(soThich.length ? { interests: soThich.map((x) => ({ id: x.ma, name: x.ten })) } : {}),
+  };
+}
+
+/*
+ * TÌM TỈNH / SỞ THÍCH (H9, TD-25) — GET /v1/ads/targeting/search (accountId bắt buộc; dimension geo | interest; geoType
+ * region; countryCode; locale; limit ≤ 100). accountId = kênh metaads của CỬA HÀNG đang chọn (routes/ads.ts), đường nằm
+ * trong DUONG_DANH_SACH (pham-vi-goi.ts) → thiếu accountId là chặn trước khi gọi.
+ */
+export type LoaiTimNham = "tinh" | "so_thich";
+export const SO_KET_QUA_TIM = 10;
+
+export function lenhTimNham(p: { accountId: string; adAccountId: string; loai: unknown; q: unknown }) {
+  if (p.loai !== "tinh" && p.loai !== "so_thich") throw new AppError("Loại tìm không hợp lệ", 400);
+  const q = typeof p.q === "string" ? p.q.trim() : "";
+  if (q.length < 2 || q.length > 60) throw new AppError("Vui lòng gõ từ 2 đến 60 ký tự để tìm", 400);
+  return {
+    path: "/ads/targeting/search",
+    query: {
+      accountId: p.accountId,
+      adAccountId: p.adAccountId,
+      q,
+      ...(p.loai === "tinh" ? { dimension: "geo", geoType: "region", countryCode: "VN" } : { dimension: "interest" }),
+      locale: "vi_VN",
+      limit: SO_KET_QUA_TIM,
+    },
+  };
+}
+
+/** Kết quả tìm: CHỈ giữ đúng loại (region cho tỉnh, interest cho sở thích) — lọc ở máy chủ, không tin nhà cung cấp/giao diện. */
+export function docKetQuaTimNham(raw: unknown, loai: LoaiTimNham): { id: string; name: string; path: string[]; audienceSize: number | null }[] {
+  const ds = Array.isArray((raw as { results?: unknown })?.results) ? ((raw as { results: unknown[] }).results) : [];
+  const can = loai === "tinh" ? "region" : "interest";
+  return ds
+    .map((x) => (x ?? {}) as Record<string, unknown>)
+    .filter((x) => x.type === can && typeof x.id === "string" && MA_NHAM.test(x.id) && typeof x.name === "string" && x.name.trim() !== "")
+    .slice(0, SO_KET_QUA_TIM)
+    .map((x) => ({
+      id: x.id as string,
+      name: (x.name as string).trim(),
+      path: Array.isArray(x.path) ? (x.path as unknown[]).filter((s): s is string => typeof s === "string") : [],
+      audienceSize: typeof x.audienceSize === "number" && Number.isFinite(x.audienceSize) && x.audienceSize >= 0 ? x.audienceSize : null,
+    }));
+}
+
+export async function timNham(lenh: ReturnType<typeof lenhTimNham>): Promise<unknown> {
+  return request(lenh.path, { query: lenh.query });
+}
+
+/*
+ * TỆP ĐÃ LƯU (H9, TD-25) — SAU CỜ, TẮT MẶC ĐỊNH (phiên kiểm duyệt bắt buộc). Lệnh đẩy bài không có trường tệp trong
+ * `targeting`; đường duy nhất là rawTargeting (Meta, "forwarded unchanged") với custom_audiences [{ id }] của Meta — tài liệu
+ * nhà cung cấp không mô tả dạng này, CHƯA thử được (0 kênh Meta Ads). Bật (ADS_NHAM_TEP_DA_LUU=1) chỉ khi thử thật đầu tiên.
+ * Kèm targeting.advantage_audience 0: có rawTargeting thì nhà cung cấp thôi tự thêm mặc định targeting_automation mà Meta bắt.
+ * Dự báo tiếp cận (spec = TargetingSpec) KHÔNG có trường tệp → số dự báo không tính tệp: giao diện phải nói rõ.
+ */
+export const CO_TEP_DA_LUU = process.env.ADS_NHAM_TEP_DA_LUU === "1";
+
+/** Tệp đã chọn → rawTargeting. Không chọn → undefined. Cờ tắt / tệp không thuộc tài khoản quảng cáo của cửa hàng → 400. */
+export function dungTepDaLuu(tep: unknown, tepCuaCuaHang: Record<string, unknown>[], coBat = CO_TEP_DA_LUU): Record<string, unknown> | undefined {
+  if (tep === undefined || tep === null || tep === "") return undefined;
+  if (!coBat) throw new AppError("Chưa hỗ trợ nhắm theo tệp đã lưu", 400);
+  if (typeof tep !== "string" || !MA_NHAM.test(tep) || !tepCuaCuaHang.some((t) => t.platformAudienceId === tep)) {
+    throw new AppError("Tệp đã lưu không thuộc tài khoản quảng cáo của cửa hàng", 400);
+  }
+  return { custom_audiences: [{ id: tep }] };
 }
 
 /**
@@ -423,6 +521,8 @@ export function lenhDayBai(p: {
   soNgay: number;
   mucTieu: MucTieuDayBai;
   nhamChon: Record<string, unknown>;
+  /** Tệp đã lưu (dungTepDaLuu) — chỉ khi cờ bật. */
+  rawTargeting?: Record<string, unknown>;
   khoa: string;
   bayGio: Date;
 }) {
@@ -440,7 +540,9 @@ export function lenhDayBai(p: {
       budgetType: "daily",
       currency: "VND",
       endDate: new Date(p.bayGio.getTime() + p.soNgay * 86_400_000).toISOString(),
-      targeting: p.nhamChon,
+      ...(p.rawTargeting
+        ? { targeting: { ...p.nhamChon, advantage_audience: 0 }, rawTargeting: p.rawTargeting }
+        : { targeting: p.nhamChon }),
     },
     headers: { "Idempotency-Key": p.khoa },
   };

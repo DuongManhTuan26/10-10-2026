@@ -153,8 +153,25 @@ adsRouter.get(
         campaigns: campaigns.campaigns,
         insights,
         audiences,
+        /** H9: ô "Dùng tệp đã lưu" khi đẩy bài — chỉ hiện khi cờ bật (ads.ts CO_TEP_DA_LUU, tắt tới lần thử thật đầu tiên). */
+        nhamTepDaLuu: ads.CO_TEP_DA_LUU,
       },
     });
+  })
+);
+
+/**
+ * H9 (TD-25): tìm tỉnh / thành hoặc sở thích để nhắm khi đẩy bài. Gọi bằng kênh metaads của CỬA HÀNG đang chọn; chỉ trả
+ * đúng loại (lọc ở máy chủ — ads.docKetQuaTimNham).
+ */
+adsRouter.get(
+  "/tim-nham",
+  route(async (req, res) => {
+    const resolved = await resolveAdAccount(req.user!.id);
+    if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
+    const lenh = ads.lenhTimNham({ accountId: resolved.accountId, adAccountId: resolved.adAccountId, loai: req.query.loai, q: req.query.q });
+    const ketQua = ads.docKetQuaTimNham(await ads.timNham(lenh), req.query.loai as ads.LoaiTimNham);
+    res.json({ success: true, data: { ketQua } });
   })
 );
 
@@ -411,6 +428,18 @@ adsRouter.post(
 
     ads.kiemNganSachDayBai(resolved.account, dailyBudget);
 
+    // H9: tệp đã lưu (sau cờ, tắt mặc định) — chỉ ở Tự chọn, tệp phải thuộc ĐÚNG tài khoản quảng cáo của cửa hàng.
+    const tepChon = body.nhamChon?.tepDaLuu;
+    if (tepChon !== undefined && tepChon !== null && tepChon !== "" && body.nhamChon?.cheDo !== "tu_chon") {
+      throw new AppError("Tệp đã lưu chỉ dùng được ở Tự chọn người xem", 400);
+    }
+    const rawTargeting = ads.dungTepDaLuu(
+      tepChon,
+      tepChon === undefined || tepChon === null || tepChon === "" || !ads.CO_TEP_DA_LUU
+        ? []
+        : await ads.listAudiences({ accountId: resolved.accountId, adAccountId: resolved.adAccountId })
+    );
+
     // Kênh metaads (đăng nhập doanh nghiệp) nhận bài bằng MÃ BÀI FACEBOOK, không nhận mã bài của nhà cung cấp (tài liệu).
     // Lấy từ chính bài đã kiểm ở trên — không bao giờ từ trình duyệt.
     const maBaiFb = ads.maBaiFacebook(await zernio.getPost(post.platform_post_ref));
@@ -418,7 +447,7 @@ adsRouter.post(
 
     const lenh = ads.lenhDayBai({
       accountId: resolved.accountId, adAccountId: resolved.adAccountId, platformPostId: maBaiFb, maBai: postId,
-      nganSachNgay: dailyBudget, soNgay: durationDays, mucTieu, nhamChon, khoa, bayGio: batDau,
+      nganSachNgay: dailyBudget, soNgay: durationDays, mucTieu, nhamChon, rawTargeting, khoa, bayGio: batDau,
     });
     let result: unknown;
     try {
@@ -426,7 +455,7 @@ adsRouter.post(
     } catch (error) {
       throw ads.loiLenhGhi(error, "đẩy bài") ?? error;
     }
-    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_day_bai", banGhi: String(postId), hanhDong: "them", sau: { bai: postId, ngan_sach_ngay: dailyBudget, so_ngay: durationDays, muc_tieu: mucTieu, doi_tuong: nhamChon }, nguon: "nguoi_dung" });
+    await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_day_bai", banGhi: String(postId), hanhDong: "them", sau: { bai: postId, ngan_sach_ngay: dailyBudget, so_ngay: durationDays, muc_tieu: mucTieu, doi_tuong: nhamChon, ...(rawTargeting ? { tep_da_luu: tepChon } : {}) }, nguon: "nguoi_dung" });
 
     res.status(201).json({ success: true, data: result });
   })

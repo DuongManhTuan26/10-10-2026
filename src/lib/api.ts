@@ -956,7 +956,22 @@ export interface NhatKyAi {
 /** Nhắm chọn người xem quảng cáo (máy chủ: services/ads.ts dungNhamChon) — chỉ Việt Nam. */
 export type NhamChonQc =
   | { cheDo: "facebook_tu_tim" }
-  | { cheDo: "tu_chon"; tuoiTu: number; tuoiDen: number; gioiTinh: "all" | "male" | "female" };
+  | {
+      cheDo: "tu_chon"; tuoiTu: number; tuoiDen: number; gioiTinh: "all" | "male" | "female";
+      /** H9 (TD-25): tỉnh / thành (key từ tìm kiếm) — có thì máy chủ bỏ "Việt Nam" cả nước. */
+      tinh?: { key: string; name: string }[];
+      soThich?: { id: string; name: string }[];
+      /** Mã tệp phía Meta (platformAudienceId) — chỉ khi máy chủ bật cờ nhamTepDaLuu. */
+      tepDaLuu?: string;
+    };
+
+/** Một kết quả tìm tỉnh / sở thích (GET /api/ads/tim-nham). */
+export interface KetQuaTimNham {
+  id: string;
+  name: string;
+  path: string[];
+  audienceSize: number | null;
+}
 
 export const api = {
   /** Quản trị hệ thống. Máy chủ chặn người không phải quản trị, đây chỉ là lớp gọi. */
@@ -1454,6 +1469,7 @@ export const api = {
           campaigns: Array<Record<string, unknown>>;
           insights: Record<string, unknown> | null;
           audiences: Array<Record<string, unknown>>;
+          nhamTepDaLuu?: boolean;
           /** Mọi tài khoản quảng cáo kênh này vào được, để chủ shop chọn. */
           tatCaTaiKhoan?: Array<{
             id: string; name: string; currency: string; accountStatus: number;
@@ -1517,6 +1533,8 @@ export const api = {
       tepNguon?: string;
       phanTram?: number;
     }) => post<{ data: unknown }>("/ads/audiences", payload),
+    timNham: (loai: "tinh" | "so_thich", q: string) =>
+      get<{ data: { ketQua: KetQuaTimNham[] } }>(`/ads/tim-nham?loai=${loai}&q=${encodeURIComponent(q)}`),
     reachEstimate: (nhamChon: NhamChonQc) =>
       post<{ data: { coDuBao: boolean; thap: number | null; cao: number | null } }>("/ads/reach-estimate", { nhamChon }),
     analyze: () =>

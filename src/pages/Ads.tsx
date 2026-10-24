@@ -11,6 +11,7 @@ import { aiTheoMa, BIEU_DO } from '../lib/bon-ai';
 import { lichChay, ngayNgan, khoangTheoKy, ngayDayDu } from '../lib/ky-ngay';
 import { docChienDich, nhanTrangThaiChienDich } from '../lib/chien-dich';
 import { docYDinhLuu, luuYDinh, yDinhDayBai, type YDinhDayBai } from '../lib/day-bai';
+import ONhamTim, { type MucNham } from '../components/ONhamTim';
 
 /** Nền tảng tài liệu cho phép nhân bản (POST /v1/ads/campaigns/{id}/duplicate — server/services/ads.ts NEN_TANG_NHAN_BAN). */
 const NEN_TANG_NHAN_BAN = ['facebook', 'instagram', 'tiktok', 'linkedin'];
@@ -127,6 +128,8 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
   } | null>(null);
   const [campaigns, setCampaigns] = useState<Array<Record<string, unknown>>>([]);
   const [audiences, setAudiences] = useState<Array<Record<string, unknown>>>([]);
+  /** H9: máy chủ bật ô "Dùng tệp đã lưu" chưa (cờ tắt tới lần thử thật đầu tiên). */
+  const [nhamTepDaLuu, setNhamTepDaLuu] = useState(false);
   const [insights, setInsights] = useState<Record<string, unknown> | null>(null);
   /** Đơn chốt có mã quảng cáo trong cùng kỳ — đếm từ đơn thật của trang (máy chủ: donTuQuangCao). */
   const [donQuangCao, setDonQuangCao] = useState<{ so: number; doanhThu: number; theoNgay: { ngay: string; so: number }[] } | null>(null);
@@ -170,6 +173,7 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
       setDoChuShopChon(overview.data.doChuShopChon ?? false);
       setCampaigns(overview.data.campaigns);
       setAudiences(overview.data.audiences);
+      setNhamTepDaLuu(overview.data.nhamTepDaLuu === true);
       setInsights(overview.data.insights);
       setDonQuangCao(overview.data.donQuangCao ?? null);
       setBoostablePosts(posts.data);
@@ -203,10 +207,14 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [dailyBudget, setDailyBudget] = useState<number>(300000);
   const [duration, setDuration] = useState<number>(5);
-  // Người xem (mục 3): CHỈ những gì gửi đi thật — Việt Nam, tuổi, giới tính; hoặc để Facebook tự tìm.
+  // Người xem (mục 3): CHỈ những gì gửi đi thật — Việt Nam / tỉnh thành, tuổi, giới tính, sở thích; hoặc để Facebook tự tìm.
   const [audienceType, setAudienceType] = useState<'tu_chon' | 'facebook_tu_tim'>('tu_chon');
   const [ageRange, setAgeRange] = useState([25, 45]);
   const [gender, setGender] = useState<'all' | 'male' | 'female'>('all');
+  // H9 (TD-25): tỉnh / sở thích chọn từ ô tìm (mã của Meta); tệp đã lưu chỉ khi máy chủ bật cờ.
+  const [tinh, setTinh] = useState<MucNham[]>([]);
+  const [soThich, setSoThich] = useState<MucNham[]>([]);
+  const [tepDaLuu, setTepDaLuu] = useState('');
   // Mục tiêu đẩy bài: mặc định NHẮN TIN — khách bấm nút nhắn tin thành hội thoại cho AI Bán hàng chốt đơn.
   const [mucTieu, setMucTieu] = useState<'nhan_tin' | 'tuong_tac'>('nhan_tin');
   /** Ý định đẩy bài đang dở (mã chống trùng + mốc) — giữ qua các lần bấm lại cùng cấu hình. */
@@ -214,8 +222,14 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
   const nhamChon = useMemo<NhamChonQc>(
     () => (audienceType === 'facebook_tu_tim'
       ? { cheDo: 'facebook_tu_tim' }
-      : { cheDo: 'tu_chon', tuoiTu: ageRange[0], tuoiDen: ageRange[1], gioiTinh: gender }),
-    [audienceType, ageRange, gender]
+      : {
+          cheDo: 'tu_chon', tuoiTu: ageRange[0], tuoiDen: ageRange[1], gioiTinh: gender,
+          // Nằm TRONG nhamChon → nằm trong dấu vết ý định (lib/day-bai.ts): đổi tỉnh / sở thích / tệp là mã chống trùng mới.
+          ...(tinh.length ? { tinh: tinh.map((t) => ({ key: t.ma, name: t.ten })) } : {}),
+          ...(soThich.length ? { soThich: soThich.map((s) => ({ id: s.ma, name: s.ten })) } : {}),
+          ...(nhamTepDaLuu && tepDaLuu ? { tepDaLuu } : {}),
+        }),
+    [audienceType, ageRange, gender, tinh, soThich, tepDaLuu, nhamTepDaLuu]
   );
 
   const openFlow = () => {
@@ -1317,7 +1331,17 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                         </div>
                         {audienceType === 'tu_chon' && (
                           <div className="sm:pl-8 mt-5 space-y-5 cursor-default" onClick={e => e.stopPropagation()}>
-                            <p className="text-sm text-on-surface-variant">Khu vực: <span className="font-bold text-on-surface">Việt Nam</span></p>
+                            <div>
+                              <ONhamTim
+                                loai="tinh"
+                                nhan="Khu vực"
+                                goiY="Cả Việt Nam — gõ tên tỉnh / thành để thu hẹp (vd. Hà Nội)"
+                                chon={tinh}
+                                doiChon={setTinh}
+                                toiDa={25}
+                              />
+                              {tinh.length === 0 && <p className="text-xs text-on-surface-variant mt-1">Đang nhắm: <b className="text-on-surface">cả Việt Nam</b></p>}
+                            </div>
                             <div>
                               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Độ tuổi</label>
                               <div className="flex items-center gap-2">
@@ -1353,6 +1377,30 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                                 ))}
                               </div>
                             </div>
+                            <ONhamTim
+                              loai="so_thich"
+                              nhan="Sở thích (không bắt buộc)"
+                              goiY="Gõ để tìm sở thích (vd. thời trang, mỹ phẩm)"
+                              chon={soThich}
+                              doiChon={setSoThich}
+                              toiDa={10}
+                            />
+                            {nhamTepDaLuu && (
+                              <div>
+                                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Dùng tệp đã lưu (không bắt buộc)</label>
+                                <select
+                                  value={tepDaLuu}
+                                  onChange={(e) => setTepDaLuu(e.target.value)}
+                                  className="w-full bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
+                                >
+                                  <option value="">Không dùng tệp</option>
+                                  {audiences
+                                    .filter((a) => typeof a.platformAudienceId === 'string' && a.platformAudienceId)
+                                    .map((a) => <option key={String(a.platformAudienceId)} value={String(a.platformAudienceId)}>{String(a.name ?? a.platformAudienceId)}</option>)}
+                                </select>
+                                {tepDaLuu && <p className="text-xs text-on-surface-variant mt-1">Số ước tính bên cạnh chưa tính tệp này (Meta không dự báo theo tệp).</p>}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1445,7 +1493,13 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                       <span className="text-sm font-bold text-on-surface-variant shrink-0">Đối tượng</span>
                       <span className="text-sm font-medium text-on-surface text-right">
                         {audienceType === 'tu_chon'
-                          ? `Việt Nam, ${ageRange[0]}–${ageRange[1] === 65 ? '65+' : ageRange[1]} tuổi, ${gender === 'male' ? 'Nam' : gender === 'female' ? 'Nữ' : 'Nam và nữ'}`
+                          ? [
+                              tinh.length ? tinh.map((t) => t.ten).join(', ') : 'Cả Việt Nam',
+                              `${ageRange[0]}–${ageRange[1] === 65 ? '65+' : ageRange[1]} tuổi`,
+                              gender === 'male' ? 'Nam' : gender === 'female' ? 'Nữ' : 'Nam và nữ',
+                              ...(soThich.length ? [`Sở thích: ${soThich.map((s) => s.ten).join(', ')}`] : []),
+                              ...(nhamTepDaLuu && tepDaLuu ? [`Tệp: ${String(audiences.find((a) => a.platformAudienceId === tepDaLuu)?.name ?? tepDaLuu)}`] : []),
+                            ].join(' · ')
                           : 'Việt Nam — Facebook tự tìm người xem'}
                       </span>
                     </div>
