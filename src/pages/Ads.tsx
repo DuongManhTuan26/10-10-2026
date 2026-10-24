@@ -3,7 +3,7 @@ import HopThoai, { NHAN_O, NUT_CHINH, NUT_PHU, O_NHAP } from '../components/HopT
 import { clsx } from 'clsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import AITrainingModal from '../components/AITrainingModal';
-import { api, ApiError, formatCurrency, type NhamChonQc, type Post } from '../lib/api';
+import { api, ApiError, formatCurrency, type NhamChonQc, type Post, type TaiKhoanQcHien } from '../lib/api';
 import BangLoi from '../components/BangLoi';
 import { hoiNhap, hoiXacNhan } from '../components/HopHoi';
 import { Link } from 'react-router-dom';
@@ -120,12 +120,12 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
    * nằm ở tài khoản kia là trang này trống trơn mà chủ shop không hiểu vì sao.
    */
   const [tatCaTaiKhoan, setTatCaTaiKhoan] = useState<
-    Array<{ id: string; name: string; currency: string; accountStatus: number }>
+    Array<{ id: string; name: string; currency: string; accountStatus: number; nguonTien: string | null }>
   >([]);
   const [doChuShopChon, setDoChuShopChon] = useState(false);
-  const [adAccount, setAdAccount] = useState<{
-    name: string; currency: string; status: number; minDailyBudget?: number;
-  } | null>(null);
+  const [adAccount, setAdAccount] = useState<({
+    adAccountId: string; name: string; currency: string; status: number;
+  } & TaiKhoanQcHien) | null>(null);
   const [campaigns, setCampaigns] = useState<Array<Record<string, unknown>>>([]);
   const [audiences, setAudiences] = useState<Array<Record<string, unknown>>>([]);
   /** H9: máy chủ bật ô "Dùng tệp đã lưu" chưa (cờ tắt tới lần thử thật đầu tiên). */
@@ -206,6 +206,8 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
   // Trạng thái biểu mẫu quảng cáo bài viết
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [dailyBudget, setDailyBudget] = useState<number>(300000);
+  /** H12: dưới mức tối thiểu Meta cho tài khoản này → khoá "Tiếp tục" (máy chủ vẫn chặn). */
+  const duoiToiThieu = !!adAccount?.toiThieuNgay && dailyBudget < adAccount.toiThieuNgay;
   const [duration, setDuration] = useState<number>(5);
   // Người xem (mục 3): CHỈ những gì gửi đi thật — Việt Nam / tỉnh thành, tuổi, giới tính, sở thích; hoặc để Facebook tự tìm.
   const [audienceType, setAudienceType] = useState<'tu_chon' | 'facebook_tu_tim'>('tu_chon');
@@ -663,15 +665,25 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
               >
                 {tatCaTaiKhoan.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} ({t.currency}){t.accountStatus === 1 ? '' : ' — đang tạm dừng'}
+                    {t.name} ({t.currency}){t.nguonTien ? ` · ${t.nguonTien}` : ''}{t.accountStatus === 1 ? '' : ' — đang tạm dừng'}
                   </option>
                 ))}
               </select>
               {!doChuShopChon && tatCaTaiKhoan.length > 1 && (
                 <span className="text-xs text-amber-500">
-                  Hệ thống đang tự chọn. Có {tatCaTaiKhoan.length} tài khoản — chọn đúng cái
-                  đang chạy quảng cáo.
+                  Hệ thống đang tự chọn. Có {tatCaTaiKhoan.length} tài khoản — vui lòng chọn hẳn tài khoản sẽ trả tiền
+                  (chưa chọn thì chưa đẩy bài được).
                 </span>
+              )}
+              {/* H12: chỉ những gì Meta nói thẳng — không suy đoán từ chữ nguồn tiền. */}
+              {adAccount && !adAccount.chayDuoc && (
+                <span className="text-xs text-error">Meta báo tài khoản này đang không chạy được quảng cáo{adAccount.lyDoKhongChay ? `: ${adAccount.lyDoKhongChay}` : '.'}</span>
+              )}
+              {adAccount?.thanhToan === 'thieu' && (
+                <span className="text-xs text-error">Tài khoản này chưa có phương thức thanh toán.</span>
+              )}
+              {adAccount?.thanhToan === 'khong_ro' && (
+                <span className="text-xs text-on-surface-variant">Không đọc được phương thức thanh toán.</span>
               )}
             </div>
           )}
@@ -1216,6 +1228,12 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold">đ</span>
                         </div>
+                        {adAccount?.toiThieuNgay && (
+                          // Tài liệu: mức này tính theo lượt hiển thị — "other billing events have higher minimums".
+                          <p className={clsx('text-xs mb-3', duoiToiThieu ? 'text-error font-bold' : 'text-on-surface-variant')}>
+                            Tối thiểu Meta cho phép: {adAccount.toiThieuNgay.toLocaleString('vi-VN')} đ/ngày (một số mục tiêu đòi cao hơn).
+                          </p>
+                        )}
                         <div className="grid grid-cols-4 gap-2">
                           {[100000, 300000, 500000, 1000000].map(val => (
                             <button 
@@ -1283,6 +1301,7 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                     </button>
                     <button 
                       onClick={() => setCurrentStep(3)}
+                      disabled={duoiToiThieu || dailyBudget <= 0}
                       className={NUT_CHINH}
                     >
                       Tiếp tục <span className="material-symbols-outlined text-[18px]">arrow_forward</span>

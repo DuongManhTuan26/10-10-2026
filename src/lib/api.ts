@@ -965,6 +965,15 @@ export type NhamChonQc =
       tepDaLuu?: string;
     };
 
+/** H12: phần tài khoản quảng cáo Meta nói thẳng (máy chủ ads.taiKhoanChoGiaoDien) — nguồn tiền nguyên văn, không suy đoán. */
+export interface TaiKhoanQcHien {
+  toiThieuNgay: number | null;
+  chayDuoc: boolean;
+  lyDoKhongChay: string | null;
+  thanhToan: "co" | "thieu" | "khong_ro" | null;
+  nguonTien: string | null;
+}
+
 /** Một kết quả tìm tỉnh / sở thích (GET /api/ads/tim-nham). */
 export interface KetQuaTimNham {
   id: string;
@@ -1464,16 +1473,14 @@ export const api = {
             currency: string;
             status: number;
             timezone?: string;
-            minDailyBudget?: number;
-            amountSpent?: string | number;
-          } | null;
+          } & TaiKhoanQcHien | null;
           campaigns: Array<Record<string, unknown>>;
           insights: Record<string, unknown> | null;
           audiences: Array<Record<string, unknown>>;
           nhamTepDaLuu?: boolean;
           /** Mọi tài khoản quảng cáo kênh này vào được, để chủ shop chọn. */
           tatCaTaiKhoan?: Array<{
-            id: string; name: string; currency: string; accountStatus: number;
+            id: string; name: string; currency: string; accountStatus: number; nguonTien: string | null;
           }>;
           /** Đang dùng tài khoản chủ shop chọn, hay hệ thống tự đoán. */
           doChuShopChon?: boolean;

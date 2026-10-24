@@ -102,9 +102,19 @@ export interface AdAccount {
   accountStatus: number;
   businessName?: string;
   timezoneName?: string;
-  minDailyBudget?: number;
-  amountSpent?: string | number;
-  balance?: string | number;
+  /*
+   * H12 (24/10/2026, OpenAPI 1.350.1 GET /v1/ads/accounts — bản cũ đọc minDailyBudget / amountSpent, KHÔNG có trong lược đồ
+   * nên chặn "dưới tối thiểu" chưa bao giờ chạy). Meta only.
+   */
+  /** "impressions-billed minimum; other billing events have higher minimums" — đơn vị lớn của tiền tài khoản. */
+  minimumDailyBudget?: number;
+  /** "Whether the account can create/run ads now". */
+  selectable?: boolean;
+  unusableReason?: string | null;
+  /** ok | missing | unknown — chỉ 'missing' là chắc không có phương thức thanh toán. */
+  billingStatus?: string;
+  /** displayString do Meta ghép — "do not parse it": chỉ hiện nguyên văn. */
+  fundingSourceDetails?: { displayString?: string } | null;
   [key: string]: unknown;
 }
 
@@ -553,17 +563,92 @@ export function lenhDayBai(p: {
  * quảng cáo ("whole currency units"). Khác VND → chặn, KHÔNG tự quy đổi (100.000 trên tài khoản USD là 100.000 USD mỗi
  * ngày). Meta còn có ngân sách tối thiểu theo từng tài khoản.
  */
-export function kiemNganSachDayBai(taiKhoan: { currency?: string; minDailyBudget?: number }, nganSachNgay: number): void {
+export function kiemNganSachDayBai(
+  taiKhoan: Pick<AdAccount, "currency" | "minimumDailyBudget" | "selectable" | "unusableReason" | "billingStatus">,
+  nganSachNgay: number
+): void {
   if (taiKhoan.currency !== "VND") {
     throw new AppError(
       `Tài khoản quảng cáo đang dùng ${taiKhoan.currency || "loại tiền chưa rõ"}, màn này nhập ngân sách theo đồng — chưa hỗ trợ đẩy bài cho tài khoản này.`,
       409
     );
   }
-  const toiThieu = Number(taiKhoan.minDailyBudget ?? 0);
+  // H12: Meta báo tài khoản không chạy được quảng cáo lúc này → không đẩy (nói nguyên văn lý do Meta trả).
+  if (taiKhoan.selectable === false) {
+    throw new AppError(`Tài khoản quảng cáo đang không chạy được quảng cáo${taiKhoan.unusableReason ? `: ${giauNhaCungCap(taiKhoan.unusableReason)}` : "."}`, 409);
+  }
+  // Chỉ 'missing' là chắc chắn thiếu; 'unknown' (khoá không thấy phần thanh toán) KHÔNG chặn.
+  if (taiKhoan.billingStatus === "missing") {
+    throw new AppError("Tài khoản quảng cáo chưa có phương thức thanh toán. Vui lòng thêm phương thức thanh toán trong Meta rồi thử lại.", 409);
+  }
+  const toiThieu = Number(taiKhoan.minimumDailyBudget ?? 0);
   if (toiThieu > 0 && nganSachNgay < toiThieu) {
     throw new AppError(`Ngân sách mỗi ngày phải từ ${toiThieu.toLocaleString("vi-VN")} đ trở lên theo quy định của Meta.`);
   }
+}
+
+/** Phần tiền của tài khoản quảng cáo (GET /v1/ads/accounts/finance) — chỉ gọi ở lệnh đẩy bài. */
+export async function taiChinhTaiKhoan(p: { accountId: string; adAccountId: string }): Promise<{ spendCap?: number | null; amountSpent?: number }> {
+  return request("/ads/accounts/finance", { query: { accountId: p.accountId, adAccountId: p.adAccountId } });
+}
+
+/**
+ * H12: chạm trần chi tiêu của tài khoản (spendCap; null = không trần) → không đẩy. Không dùng `balance` (tài liệu ghi
+ * "Outstanding/prepaid" — hai nghĩa ngược nhau).
+ */
+export function kiemTranChiTieu(tc: { spendCap?: number | null; amountSpent?: number }): void {
+  const tran = tc.spendCap;
+  if (typeof tran === "number" && Number.isFinite(tran) && typeof tc.amountSpent === "number" && tc.amountSpent >= tran) {
+    throw new AppError("Tài khoản quảng cáo đã chạm trần chi tiêu đặt trong Meta. Vui lòng nâng hoặc bỏ trần chi tiêu rồi thử lại.", 409);
+  }
+}
+
+/**
+ * H12: kiểm tài khoản quảng cáo TRƯỚC lệnh đẩy (tốn tiền): lần tiêu tiền không để hệ thống tự đoán tài khoản (nhiều tài
+ * khoản mà chủ shop chưa chọn → 409); tiền tệ / chạy được / thanh toán / tối thiểu; trần chi tiêu (đọc hỏng → KHÔNG đẩy).
+ */
+export async function kiemTaiKhoanTruocKhiDay(
+  r: { accountId: string; adAccountId: string; account: AdAccount; tatCa: AdAccount[]; doChuShopChon: boolean },
+  nganSachNgay: number
+): Promise<void> {
+  if (!r.doChuShopChon && r.tatCa.length > 1) {
+    throw new AppError("Cửa hàng có nhiều tài khoản quảng cáo. Vui lòng chọn tài khoản quảng cáo ở đầu màn Quảng cáo trước khi đẩy bài.", 409);
+  }
+  kiemNganSachDayBai(r.account, nganSachNgay);
+  const taiChinh = await taiChinhTaiKhoan({ accountId: r.accountId, adAccountId: r.adAccountId }).catch(() => {
+    throw new AppError("Chưa đọc được phần tiền của tài khoản quảng cáo nên chưa đẩy bài. Vui lòng thử lại sau ít phút.", 502);
+  });
+  kiemTranChiTieu(taiChinh);
+}
+
+/** H9: tệp đã lưu cho lệnh đẩy (sau cờ, tắt mặc định) — chỉ ở Tự chọn, tệp phải thuộc ĐÚNG tài khoản quảng cáo của cửa hàng. */
+export async function tepDaLuuChoLenh(
+  nhamChon: { tepDaLuu?: unknown; cheDo?: unknown } | undefined,
+  r: { accountId: string; adAccountId: string }
+): Promise<{ tepChon: unknown; rawTargeting: Record<string, unknown> | undefined }> {
+  const tepChon = nhamChon?.tepDaLuu;
+  if (tepChon !== undefined && tepChon !== null && tepChon !== "" && nhamChon?.cheDo !== "tu_chon") {
+    throw new AppError("Tệp đã lưu chỉ dùng được ở Tự chọn người xem", 400);
+  }
+  const rawTargeting = dungTepDaLuu(
+    tepChon,
+    tepChon === undefined || tepChon === null || tepChon === "" || !CO_TEP_DA_LUU
+      ? []
+      : await listAudiences({ accountId: r.accountId, adAccountId: r.adAccountId })
+  );
+  return { tepChon, rawTargeting };
+}
+
+/** Tài khoản quảng cáo cho giao diện: chỉ những gì Meta nói thẳng, nguồn tiền hiện NGUYÊN VĂN (không suy đoán). */
+export function taiKhoanChoGiaoDien(a: AdAccount) {
+  return {
+    toiThieuNgay: typeof a.minimumDailyBudget === "number" && a.minimumDailyBudget > 0 ? a.minimumDailyBudget : null,
+    chayDuoc: a.selectable !== false,
+    lyDoKhongChay: a.selectable === false ? (a.unusableReason ? giauNhaCungCap(a.unusableReason) : null) : null,
+    thanhToan: a.billingStatus === "missing" ? "thieu" : a.billingStatus === "unknown" ? "khong_ro" : a.billingStatus === "ok" ? "co" : null,
+    nguonTien: typeof a.fundingSourceDetails?.displayString === "string" && a.fundingSourceDetails.displayString.trim()
+      ? a.fundingSourceDetails.displayString.trim() : null,
+  };
 }
 
 /** Mã bài Facebook (pageId_postId) trong bài của nhà cung cấp (GET /v1/posts/{id}: platforms[].platformPostId). */

@@ -21,6 +21,7 @@ export const DUONG_DANH_SACH = new Set([
   "/inbox/comments",
   "/ads",
   "/ads/accounts",
+  "/ads/accounts/finance",
   "/ads/campaigns",
   "/ads/tree",
   "/ads/insights",

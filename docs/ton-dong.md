@@ -260,12 +260,17 @@ rồi chia cho số shop đang gửi như nhánh số sống.
 ĐÃ SỬA 23/10 (2ee9f2e): effectiveRateLimit() không nhận tài khoản; nhánh dự phòng tính bậc theo kênh CẢ HỆ THỐNG rồi
 chiaTran(trần, số shop đang gửi), cùng cách với nhánh số sống.
 
-## TD-22 — A4b: quảng cáo theo cửa hàng CHƯA THỬ THẬT (22/10/2026) — CHỜ CHỦ DỰ ÁN
+## TD-22 — ĐÃ THỬ THẬT, ĐẠT (24/10/2026, H11): A4b: quảng cáo theo cửa hàng CHƯA THỬ THẬT (22/10/2026) — CHỜ CHỦ DỰ ÁN
 
 Mã + phép kiểm + đột biến đạt (25afb05, phiên kiểm duyệt cho đạt): resolveAdAccount / lưu tài khoản quảng cáo / số liệu
 quảng cáo đều lấy kênh Meta Ads của CỬA HÀNG đang chọn (kenhQuangCaoCuaCuaHang). Hiện 0 kênh metaads (chưa cửa hàng nào
 nối quảng cáo) nên /api/ads/overview của mọi cửa hàng trả "Chưa kết nối tài khoản quảng cáo". Cách thử khi chủ dự án nối
 quảng cáo cho một cửa hàng: cửa hàng đó thấy tài khoản quảng cáo + chiến dịch; cửa hàng khác vẫn "chưa kết nối".
+ĐẠT 24/10/2026 (H11 nối quảng cáo Meta cho cửa hàng 12): /api/ads/overview cửa hàng 12 → act_1357505662010463 + danh sách
+2 tài khoản; cửa hàng 1 → chưa kết nối. H9 thật (0 đồng): tìm "Hà Nội" → region 3983; "thời trang" → sở thích tiếng Việt;
+dự báo cả nước 41,6–49 triệu → Hà Nội 5,0–5,9 triệu → Hà Nội + Phụ kiện thời trang 2,9–3,4 triệu.
+CÒN: nhánh "nhà cung cấp trả đã nối" (H11b) chưa chạy thật trên giao diện — lần thử, lượt đồng bộ định kỳ đã kéo kênh
+quảng cáo về trước khi bấm lại; có phép kiểm + phép đục; chạy thật ở lần nối quảng cáo cho cửa hàng tiếp theo.
 
 ## TD-23 — ĐÃ LÀM (H6, 24/10/2026): "Đổi lịch / Huỷ lịch" bài ĐÃ giao nhà cung cấp trên màn Nội dung (22/10/2026)
 

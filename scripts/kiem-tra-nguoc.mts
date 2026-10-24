@@ -5235,8 +5235,8 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "đường đẩy bài bỏ kiểm ngân sách / tiền tệ",
-    tep: "server/routes/ads.ts",
-    tim: "    ads.kiemNganSachDayBai(resolved.account, dailyBudget);\n",
+    tep: "server/services/ads.ts",
+    tim: "  kiemNganSachDayBai(r.account, nganSachNgay);\n",
     thay: "",
   },
   {
@@ -6105,8 +6105,8 @@ const DUC: PhepDuc[] = [
   },
   {
     ten: "tệp đã lưu dùng được cả khi Facebook tự tìm",
-    tep: "server/routes/ads.ts",
-    tim: "tepChon !== \"\" && body.nhamChon?.cheDo !== \"tu_chon\") {",
+    tep: "server/services/ads.ts",
+    tim: "tepChon !== \"\" && nhamChon?.cheDo !== \"tu_chon\") {",
     thay: "tepChon !== \"\" && false) {",
   },
   {
@@ -6288,6 +6288,66 @@ const DUC: PhepDuc[] = [
     tep: "server/routes/ads.ts",
     tim: "          \"Cửa hàng này chưa nối quảng cáo Meta. Vào Kết nối kênh, chọn cửa hàng rồi bấm Meta Ads \" +",
     thay: "          \"Chưa kết nối tài khoản quảng cáo. Tài khoản Meta Ads tự có khi bạn \" +",
+  },
+  {
+    ten: "đẩy bài khi hệ thống tự đoán tài khoản quảng cáo",
+    tep: "server/services/ads.ts",
+    tim: "  if (!r.doChuShopChon && r.tatCa.length > 1) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "đẩy bài bỏ kiểm trần chi tiêu",
+    tep: "server/services/ads.ts",
+    tim: "  kiemTranChiTieu(taiChinh);\n}",
+    thay: "  void taiChinh;\n}",
+  },
+  {
+    ten: "không đọc được phần tiền vẫn đẩy",
+    tep: "server/services/ads.ts",
+    tim: "  const taiChinh = await taiChinhTaiKhoan({ accountId: r.accountId, adAccountId: r.adAccountId }).catch(() => {\n    throw new AppError(",
+    thay: "  const taiChinh = await taiChinhTaiKhoan({ accountId: r.accountId, adAccountId: r.adAccountId }).catch(() => {\n    return {}; throw new AppError(",
+  },
+  {
+    ten: "tài khoản Meta báo không chạy được vẫn đẩy",
+    tep: "server/services/ads.ts",
+    tim: "  if (taiKhoan.selectable === false) {",
+    thay: "  if (false) {",
+  },
+  {
+    ten: "billingStatus 'unknown' cũng bị chặn",
+    tep: "server/services/ads.ts",
+    tim: "  if (taiKhoan.billingStatus === \"missing\") {",
+    thay: "  if (taiKhoan.billingStatus !== \"ok\" && taiKhoan.billingStatus !== undefined) {",
+  },
+  {
+    ten: "đọc lại trường tối thiểu sai tên",
+    tep: "server/services/ads.ts",
+    tim: "  const toiThieu = Number(taiKhoan.minimumDailyBudget ?? 0);",
+    thay: "  const toiThieu = Number((taiKhoan as { minDailyBudget?: number }).minDailyBudget ?? 0);",
+  },
+  {
+    ten: "trần chi tiêu null bị coi là 0",
+    tep: "server/services/ads.ts",
+    tim: "  if (typeof tran === \"number\" && Number.isFinite(tran) && typeof tc.amountSpent",
+    thay: "  if (Number.isFinite(Number(tran)) && typeof tc.amountSpent",
+  },
+  {
+    ten: "nguồn tiền bị suy diễn thay vì nguyên văn",
+    tep: "server/services/ads.ts",
+    tim: "      ? a.fundingSourceDetails.displayString.trim() : null,",
+    thay: "      ? (a.fundingSourceDetails.displayString.includes(\"0 ₫\") ? \"Hết tiền\" : a.fundingSourceDetails.displayString.trim()) : null,",
+  },
+  {
+    ten: "bộ chọn tài khoản không ghi nguồn tiền",
+    tep: "src/pages/Ads.tsx",
+    tim: "{t.nguonTien ? ` · ${t.nguonTien}` : ''}",
+    thay: "",
+  },
+  {
+    ten: "dưới tối thiểu vẫn bấm Tiếp tục",
+    tep: "src/pages/Ads.tsx",
+    tim: "                      disabled={duoiToiThieu || dailyBudget <= 0}\n",
+    thay: "",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

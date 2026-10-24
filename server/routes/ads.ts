@@ -136,8 +136,7 @@ adsRouter.get(
           currency: resolved.account.currency,
           status: resolved.account.accountStatus,
           timezone: resolved.account.timezoneName,
-          minDailyBudget: resolved.account.minDailyBudget,
-          amountSpent: resolved.account.amountSpent,
+          ...ads.taiKhoanChoGiaoDien(resolved.account),
         },
         /*
          * Danh sách mọi tài khoản quảng cáo, kèm việc đang dùng cái nào và có
@@ -149,6 +148,8 @@ adsRouter.get(
           name: a.name,
           currency: a.currency,
           accountStatus: a.accountStatus,
+          // H12: nguồn tiền nguyên văn để chủ shop chọn đúng tài khoản (vd. thẻ hay số dư trả trước).
+          nguonTien: ads.taiKhoanChoGiaoDien(a).nguonTien,
         })),
         doChuShopChon: resolved.doChuShopChon,
         campaigns: campaigns.campaigns,
@@ -427,19 +428,9 @@ adsRouter.post(
     const resolved = await resolveAdAccount(req.user!.id);
     if (!resolved) throw new AppError("Chưa kết nối tài khoản quảng cáo", 409);
 
-    ads.kiemNganSachDayBai(resolved.account, dailyBudget);
-
-    // H9: tệp đã lưu (sau cờ, tắt mặc định) — chỉ ở Tự chọn, tệp phải thuộc ĐÚNG tài khoản quảng cáo của cửa hàng.
-    const tepChon = body.nhamChon?.tepDaLuu;
-    if (tepChon !== undefined && tepChon !== null && tepChon !== "" && body.nhamChon?.cheDo !== "tu_chon") {
-      throw new AppError("Tệp đã lưu chỉ dùng được ở Tự chọn người xem", 400);
-    }
-    const rawTargeting = ads.dungTepDaLuu(
-      tepChon,
-      tepChon === undefined || tepChon === null || tepChon === "" || !ads.CO_TEP_DA_LUU
-        ? []
-        : await ads.listAudiences({ accountId: resolved.accountId, adAccountId: resolved.adAccountId })
-    );
+    // Tài khoản quảng cáo (chủ shop đã chọn, chạy được, thanh toán, tối thiểu, trần chi tiêu — H12) rồi tệp đã lưu (H9).
+    await ads.kiemTaiKhoanTruocKhiDay(resolved, dailyBudget);
+    const { tepChon, rawTargeting } = await ads.tepDaLuuChoLenh(body.nhamChon, resolved);
 
     // Kênh metaads (đăng nhập doanh nghiệp) nhận bài bằng MÃ BÀI FACEBOOK, không nhận mã bài của nhà cung cấp (tài liệu).
     // Lấy từ chính bài đã kiểm ở trên — không bao giờ từ trình duyệt.

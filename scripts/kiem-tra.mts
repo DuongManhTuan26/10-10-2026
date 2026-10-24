@@ -7602,17 +7602,56 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       /thử lại/i.test(q.loiLenhGhi(new q.AdsError("x", 0, "CHUA_RO"), "đẩy bài")!.message.replace("trước khi bấm lại", ""))], M3),
     M3);
   kiem("quảng cáo khớp tài liệu", "ngân sách: tài khoản khác VND → 409 (không quy đổi); dưới tối thiểu → 400; đủ → qua; mã bài Facebook đọc từ platforms[] (cả dạng {post})",
-    dau([loi(() => q.kiemNganSachDayBai({ currency: "USD" }, 100_000)), loi(() => q.kiemNganSachDayBai({ currency: "VND", minDailyBudget: 50_000 }, 20_000)),
-      loi(() => q.kiemNganSachDayBai({ currency: "VND", minDailyBudget: 50_000 }, 50_000)) ?? "qua",
+    dau([loi(() => q.kiemNganSachDayBai({ currency: "USD" }, 100_000)), loi(() => q.kiemNganSachDayBai({ currency: "VND", minimumDailyBudget: 50_000 }, 20_000)),
+      loi(() => q.kiemNganSachDayBai({ currency: "VND", minimumDailyBudget: 50_000 }, 50_000)) ?? "qua",
       q.maBaiFacebook({ post: { platforms: [{ platform: "tiktok", platformPostId: "t1" }, { platform: "facebook", platformPostId: "686_9" }] } }),
       q.maBaiFacebook({ platforms: [{ platform: "facebook" }] })], M4),
     M4);
   const ar15 = d15("server/routes/ads.ts"), as15 = d15("server/services/ads.ts");
   const thanBoost = ar15.slice(ar15.indexOf('"/boost",'), ar15.indexOf("\n);\n", ar15.indexOf('"/boost",')));
+  // H12 (24/10/2026, OpenAPI 1.350.1): đọc ĐÚNG trường tài khoản quảng cáo; chặn tiền trước khi đẩy.
+  {
+    const M12 = ["409:Tài khoản quảng cáo đang không chạy được quảng cáo: Hết hạn mức", "409:Tài khoản quảng cáo chưa có phương thức thanh toán", "qua", "qua",
+      "400:Ngân sách mỗi ngày phải từ 26.085 đ", "qua"];
+    const VN = { currency: "VND" };
+    kiem("tài khoản quảng cáo", "kiemNganSachDayBai: selectable false → 409 + lý do Meta; billingStatus missing → 409; unknown / ok → KHÔNG chặn; dưới minimumDailyBudget → 400; đủ → qua",
+      dau([loi(() => q.kiemNganSachDayBai({ ...VN, selectable: false, unusableReason: "Hết hạn mức" }, 100_000)), loi(() => q.kiemNganSachDayBai({ ...VN, billingStatus: "missing" }, 100_000)),
+        loi(() => q.kiemNganSachDayBai({ ...VN, billingStatus: "unknown" }, 100_000)) ?? "qua", loi(() => q.kiemNganSachDayBai({ ...VN, billingStatus: "ok", selectable: true }, 100_000)) ?? "qua",
+        loi(() => q.kiemNganSachDayBai({ ...VN, minimumDailyBudget: 26_085 }, 20_000)), loi(() => q.kiemNganSachDayBai({ ...VN, minimumDailyBudget: 26_085 }, 26_085)) ?? "qua"], M12),
+      M12);
+    const M13 = ["qua", "qua", "409:Tài khoản quảng cáo đã chạm trần chi tiêu", "409:Tài khoản quảng cáo đã chạm trần chi tiêu"];
+    kiem("tài khoản quảng cáo", "trần chi tiêu (finance): spendCap null → không trần; đã chi < trần → qua; đã chi ≥ trần → 409",
+      dau([loi(() => q.kiemTranChiTieu({ spendCap: null, amountSpent: 9e9 })) ?? "qua", loi(() => q.kiemTranChiTieu({ spendCap: 1_000_000, amountSpent: 999_999 })) ?? "qua",
+        loi(() => q.kiemTranChiTieu({ spendCap: 1_000_000, amountSpent: 1_000_000 })), loi(() => q.kiemTranChiTieu({ spendCap: 0, amountSpent: 0 }))], M13),
+      M13);
+    kiem("tài khoản quảng cáo", "cho giao diện: tối thiểu / chạy được / lý do / thanh toán 3 giá trị / nguồn tiền NGUYÊN VĂN (không suy đoán)",
+      [q.taiKhoanChoGiaoDien({ id: "a", name: "", currency: "VND", accountStatus: 1, minimumDailyBudget: 26_085, selectable: true, unusableReason: null, billingStatus: "ok",
+        fundingSourceDetails: { displayString: " Số dư hiện có (0 ₫ (VND)) " } }),
+        q.taiKhoanChoGiaoDien({ id: "b", name: "", currency: "VND", accountStatus: 1, selectable: false, unusableReason: "Zernio: tài khoản bị khoá", billingStatus: "missing" }),
+        q.taiKhoanChoGiaoDien({ id: "c", name: "", currency: "VND", accountStatus: 1, billingStatus: "unknown", fundingSourceDetails: null })],
+      [{ toiThieuNgay: 26_085, chayDuoc: true, lyDoKhongChay: null, thanhToan: "co", nguonTien: "Số dư hiện có (0 ₫ (VND))" },
+        { toiThieuNgay: null, chayDuoc: false, lyDoKhongChay: "hệ thống: tài khoản bị khoá", thanhToan: "thieu", nguonTien: null },
+        { toiThieuNgay: null, chayDuoc: true, lyDoKhongChay: null, thanhToan: "khong_ro", nguonTien: null }]);
+    const pv12 = await import("../server/services/pham-vi-goi.js");
+    const vt12 = (re: RegExp) => thanBoost.search(re);
+    kiem("tài khoản quảng cáo", "đẩy bài: nhiều tài khoản mà chủ shop chưa chọn → 409; kiểm ngân sách → đọc finance (đọc hỏng → 502, không đẩy) → trần → rồi mới đẩy; finance trong chốt phạm vi; không còn minDailyBudget",
+      [vt12(/await ads\.kiemTaiKhoanTruocKhiDay\(resolved, dailyBudget\);/) > 0 && vt12(/await ads\.kiemTaiKhoanTruocKhiDay\(resolved, dailyBudget\);/) < vt12(/await ads\.dayBai\(lenh\)/)
+          && /if \(!r\.doChuShopChon && r\.tatCa\.length > 1\) \{[\s\S]{0,250}\}\s*kiemNganSachDayBai\(r\.account, nganSachNgay\);\s*const taiChinh = await taiChinhTaiKhoan\(/.test(as15)
+          && /kiemTranChiTieu\(taiChinh\);\s*\}/.test(as15),
+        /\.catch\(\(\) => \{\s*throw new AppError\("Chưa đọc được phần tiền của tài khoản quảng cáo nên chưa đẩy bài\./.test(as15),
+        pv12.DUONG_DANH_SACH.has("/ads/accounts/finance"), /minDailyBudget/.test(ar15 + as15 + boChuThich(fs.readFileSync(path.join(GOC, "src/pages/Ads.tsx"), "utf8")))],
+      [true, true, true, false]);
+    const ad12 = fs.readFileSync(path.join(GOC, "src/pages/Ads.tsx"), "utf8");
+    kiem("tài khoản quảng cáo", "màn Quảng cáo: bộ chọn tài khoản ghi nguồn tiền nguyên văn; tối thiểu ghi đúng tài liệu (một số mục tiêu đòi cao hơn); dưới tối thiểu khoá Tiếp tục; Meta từ chối ngân sách → hiện nguyên lý do (đã che tên)",
+      [/\{t\.nguonTien \? ` · \$\{t\.nguonTien\}` : ''\}/.test(ad12), /Tối thiểu Meta cho phép: \{adAccount\.toiThieuNgay\.toLocaleString\('vi-VN'\)\} đ\/ngày \(một số mục tiêu đòi cao hơn\)\./.test(ad12),
+        /onClick=\{\(\) => setCurrentStep\(3\)\}\s*disabled=\{duoiToiThieu \|\| dailyBudget <= 0\}/.test(ad12),
+        q.loiLenhGhi(new q.AdsError("Zernio: daily budget too low for this optimization goal", 400), "đẩy bài")?.message],
+      [true, true, true, "Chưa đẩy bài được: hệ thống: daily budget too low for this optimization goal"]);
+  }
   const vt = (re: RegExp) => thanBoost.search(re);
   kiem("quảng cáo khớp tài liệu", "đường đẩy bài: nhắm chọn do máy chủ dựng; bắt buộc mã chống bấm trùng; bài đã kiểm chủ + cửa hàng → chốt cửa ra → tài khoản → ngân sách → mã bài Facebook từ CHÍNH bài đó → đẩy; lỗi qua loiLenhGhi; không chuyển body.targeting",
     [/const nhamChon = ads\.dungNhamChon\(body\.nhamChon \?\? \{\}\);/.test(thanBoost), /if \(!khoa\) throw new AppError\("Thiếu mã chống bấm trùng", 400\);/.test(thanBoost),
-      [vt(/WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3/), vt(/await chanCuaRa\(/), vt(/resolveAdAccount\(/), vt(/ads\.kiemNganSachDayBai\(resolved\.account, dailyBudget\);/),
+      [vt(/WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3/), vt(/await chanCuaRa\(/), vt(/resolveAdAccount\(/), vt(/await ads\.kiemTaiKhoanTruocKhiDay\(resolved, dailyBudget\);/),
         vt(/ads\.maBaiFacebook\(await zernio\.getPost\(post\.platform_post_ref\)\)/), vt(/await ads\.dayBai\(lenh\)/)].every((x, i, a) => x > 0 && (i === 0 || x > a[i - 1])),
       /throw ads\.loiLenhGhi\(error, "đẩy bài"\) \?\? error;/.test(thanBoost) && /const batDau = ads\.docMocDayBai\(body\.batDau, new Date\(\)\);/.test(thanBoost) && /khoa, bayGio: batDau,/.test(thanBoost),
       /body\.targeting|body\.postId\b(?!\))/.test(thanBoost.replace("Number(body.postId)", "")),
@@ -7712,8 +7751,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const thanTim = ar15.slice(ar15.indexOf('"/tim-nham",'), ar15.indexOf("\n);\n", ar15.indexOf('"/tim-nham",')));
   kiem("nhắm tỉnh / sở thích", "đường tìm: kênh quảng cáo của CỬA HÀNG đang chọn (resolveAdAccount) → lệnh tìm → lọc loại ở máy chủ; dự báo và đẩy bài dùng CÙNG dungNhamChon; tệp chỉ ở Tự chọn + đối chiếu danh sách tệp của tài khoản quảng cáo",
     [/const resolved = await resolveAdAccount\(req\.user!\.id\);[\s\S]*ads\.lenhTimNham\(\{ accountId: resolved\.accountId, adAccountId: resolved\.adAccountId, loai: req\.query\.loai, q: req\.query\.q \}\)[\s\S]*ads\.docKetQuaTimNham\(await ads\.timNham\(lenh\), /.test(thanTim),
-      (ar15.match(/ads\.dungNhamChon\(/g) ?? []).length, /body\.nhamChon\?\.cheDo !== "tu_chon"/.test(thanBoost),
-      /ads\.dungTepDaLuu\(\s*tepChon,[\s\S]{0,200}await ads\.listAudiences\(\{ accountId: resolved\.accountId, adAccountId: resolved\.adAccountId \}\)/.test(thanBoost),
+      (ar15.match(/ads\.dungNhamChon\(/g) ?? []).length,
+      /const \{ tepChon, rawTargeting \} = await ads\.tepDaLuuChoLenh\(body\.nhamChon, resolved\);/.test(thanBoost) && /nhamChon\?\.cheDo !== "tu_chon"\) \{/.test(as15),
+      /const rawTargeting = dungTepDaLuu\(\s*tepChon,[\s\S]{0,200}await listAudiences\(\{ accountId: r\.accountId, adAccountId: r\.adAccountId \}\)/.test(as15),
       /mucTieu, nhamChon, rawTargeting, khoa, bayGio: batDau,/.test(thanBoost),
       /export const CO_TEP_DA_LUU = process\.env\.ADS_NHAM_TEP_DA_LUU === "1";/.test(as15)],
     [true, 2, true, true, true, true]);
