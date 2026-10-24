@@ -7539,6 +7539,9 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /const kenh = await kenhQuangCaoCuaCuaHang\(req\.user!\.id, await trangHienTai\(\)\);[\s\S]{0,900}UPDATE social_accounts SET ad_account_ref = \$1, updated_at = now\(\) WHERE id = \$2",\s*\[ma, kenh\.id\]/.test(ar11),
         /row\.ad_account_ref\s*\? accounts\.find\(\(a\) => a\.id === row\.ad_account_ref\)/.test(ar11)],
       [true, true, true]);
+    kiem("nối quảng cáo", "màn Quảng cáo khi cửa hàng chưa nối: chỉ đúng đường nối mới (không còn \"tự có khi kết nối Facebook\")",
+      [/Cửa hàng này chưa nối quảng cáo Meta\. Vào Kết nối kênh, chọn cửa hàng rồi bấm Meta Ads/.test(ar11), /tự có khi|Meta Ads tự/.test(ar11)],
+      [true, false]);
     kiem("nối quảng cáo", "migration 067: pending_connections thêm loai + trang_id",
       fs.readFileSync(path.join(GOC, "server/migrations/067_noi_quang_cao.sql"), "utf8").split("\n").filter((d) => d.trim() && !d.trim().startsWith("--")),
       ["ALTER TABLE pending_connections ADD COLUMN IF NOT EXISTS loai TEXT;", "ALTER TABLE pending_connections ADD COLUMN IF NOT EXISTS trang_id BIGINT;"]);

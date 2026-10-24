@@ -6284,6 +6284,12 @@ const DUC: PhepDuc[] = [
     thay: "          AND (trang_id = $3 OR TRUE)`,\n      [p.userId, p.profileId, p.trangId]",
   },
   {
+    ten: "màn Quảng cáo lại chỉ đường nối sai (tự có khi kết nối Facebook)",
+    tep: "server/routes/ads.ts",
+    tim: "          \"Cửa hàng này chưa nối quảng cáo Meta. Vào Kết nối kênh, chọn cửa hàng rồi bấm Meta Ads \" +",
+    thay: "          \"Chưa kết nối tài khoản quảng cáo. Tài khoản Meta Ads tự có khi bạn \" +",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

@@ -85,8 +85,9 @@ adsRouter.get(
           audiences: [],
         },
         message:
-          "Chưa kết nối tài khoản quảng cáo. Tài khoản Meta Ads tự có khi bạn " +
-          "kết nối Facebook với quyền quảng cáo — vào mục Kết nối kênh.",
+          // H11: quảng cáo Meta nối riêng cho từng cửa hàng (bản cũ bảo nó đi kèm kết nối Facebook — sai tài liệu).
+          "Cửa hàng này chưa nối quảng cáo Meta. Vào Kết nối kênh, chọn cửa hàng rồi bấm Meta Ads " +
+          "(cửa hàng cần nối Fanpage trước).",
       });
       return;
     }
