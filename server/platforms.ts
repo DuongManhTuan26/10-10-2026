@@ -169,9 +169,9 @@ export const socialChannels: PlatformChannel[] = [
 ];
 
 export const adChannels: PlatformChannel[] = [
-  { id: 'fb_ads', name: 'Meta Ads', platformKey: null, canPost: false, canDm: false, canComment: false, capabilityNote: "Tự động có khi bạn kết nối Facebook. Không kết nối riêng.", icon: 'campaign', connectionType: 'oauth_simple',
-    warnings: ['Chỉ hỗ trợ quyền quản lý quảng cáo. Nếu bạn muốn đăng nội dung thông thường, hãy kết nối ở mục Mạng xã hội.'],
-    instructions: ['Đăng nhập và cấp quyền truy cập trình quản lý Meta Ads.'],
+  { id: 'fb_ads', name: 'Meta Ads', platformKey: "metaads", canPost: false, canDm: false, canComment: false, capabilityNote: "Nối riêng cho từng cửa hàng, sau khi cửa hàng đã nối Fanpage. Dùng để đẩy bài và xem số liệu quảng cáo.", icon: 'campaign', connectionType: 'oauth_simple',
+    warnings: ['Đăng nhập bằng tài khoản Facebook đang quản lý Fanpage của cửa hàng và tài khoản quảng cáo.'],
+    instructions: ['Đăng nhập Facebook và cấp quyền quản lý quảng cáo.', 'Hệ thống tự gắn quảng cáo vào đúng Fanpage của cửa hàng.'],
     requestedPermissions: [
     { icon: 'campaign', name: 'ads_management', desc: 'Đọc và quản lý tài khoản quảng cáo, chiến dịch Meta Ads.' }
   ] },

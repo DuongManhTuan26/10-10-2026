@@ -1937,8 +1937,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "nhận diện chủ shop ở đường quay về bằng profileId công khai",
     tep: "server/routes/connections.ts",
-    tim: "`SELECT user_id FROM pending_connections\n            WHERE connect_state = $1 AND expires_at > now()`,\n          [maBiMat]",
-    thay: "`SELECT id AS user_id FROM users WHERE profile_ref = $1`,\n          [profileId]",
+    tim: "`SELECT user_id, loai, trang_id FROM pending_connections\n            WHERE connect_state = $1 AND expires_at > now()`,\n          [maBiMat]",
+    thay: "`SELECT id AS user_id, NULL::text AS loai, NULL::bigint AS trang_id FROM users WHERE profile_ref = $1`,\n          [profileId]",
   },
   /*
    * Bảy chỗ nói sai với chủ shop. Đục lại đúng lỗ cũ.
@@ -2232,7 +2232,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "nối kênh không bắt chọn cửa hàng — kênh rơi vào hồ sơ mặc định",
     tep: "server/routes/connections.ts",
-    tim: "    const canChonTrang = !adChannels.some((c) => c.id === channel.id);",
+    tim: "    const canChonTrang = laQuangCao || !adChannels.some((c) => c.id === channel.id);",
     thay: "    const canChonTrang = false;",
   },
   {
@@ -3117,8 +3117,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "giao diện bỏ Facebook khỏi 'phải chọn cửa hàng' (gửi thiếu cửa hàng, máy chủ báo lỗi)",
     tep: "src/pages/Connections.tsx",
-    tim: "    !!p && !catalog.ads.some((c) => c.id === p.id);",
-    thay: "    !!p && p.platformKey !== 'facebook' && !catalog.ads.some((c) => c.id === p.id);",
+    tim: "    !!p && (p.id === 'fb_ads' || !catalog.ads.some((c) => c.id === p.id));",
+    thay: "    !!p && p.platformKey !== 'facebook' && (p.id === 'fb_ads' || !catalog.ads.some((c) => c.id === p.id));",
   },
   {
     ten: "cho nối một Fanpage đang chạy ở cửa hàng khác",
@@ -6150,6 +6150,90 @@ const DUC: PhepDuc[] = [
     tep: "server/routes/ai.ts",
     tim: "(config?.system_prompt?.trim() || \"Bạn là trợ lý của shop.\")",
     thay: "(config?.system_prompt ?? \"Bạn là trợ lý của shop.\")",
+  },
+  {
+    ten: "Meta Ads lại không nối được (platformKey null)",
+    tep: "server/platforms.ts",
+    tim: "id: 'fb_ads', name: 'Meta Ads', platformKey: \"metaads\"",
+    thay: "id: 'fb_ads', name: 'Meta Ads', platformKey: null",
+  },
+  {
+    ten: "nối quảng cáo thoát chốt phạm vi",
+    tep: "server/services/pham-vi-goi.ts",
+    tim: "  \"/connect/facebook/ads\",\n",
+    thay: "",
+  },
+  {
+    ten: "nối quảng cáo không bắt chọn cửa hàng",
+    tep: "server/routes/connections.ts",
+    tim: "const canChonTrang = laQuangCao || !adChannels.some",
+    thay: "const canChonTrang = !adChannels.some",
+  },
+  {
+    ten: "cửa hàng chưa có Fanpage vẫn được đưa đi cấp quyền quảng cáo",
+    tep: "server/routes/connections.ts",
+    tim: "        if (!(await fanpageCuaCuaHang(req.user!.id, trangId))) {",
+    thay: "        if (false) {",
+  },
+  {
+    ten: "phiên mới giữ temp_token cũ (báo nhầm lỗi sau khi nối)",
+    tep: "server/routes/connections.ts",
+    tim: "         temp_token    = NULL,\n",
+    thay: "",
+  },
+  {
+    ten: "quay về không cần chọn mà không xoá phiên",
+    tep: "server/routes/connections.ts",
+    tim: "        await query(\"DELETE FROM pending_connections WHERE connect_state = $1\", [req.query.state]);",
+    thay: "        void req.query.state;",
+  },
+  {
+    ten: "lượt quảng cáo đi nhầm nhánh chọn Fanpage thường",
+    tep: "server/routes/connections.ts",
+    tim: "    if (owner.loai === \"quang_cao\") {",
+    thay: "    if (owner.loai === \"khong_bao_gio\") {",
+  },
+  {
+    ten: "quảng cáo chọn Fanpage đầu tiên thay vì Fanpage của cửa hàng",
+    tep: "server/routes/connections.ts",
+    tim: "pageId: fanpage.page_id, tempToken: p.tempToken,",
+    thay: "pageId: trang[0]?.id ?? fanpage.page_id, tempToken: p.tempToken,",
+  },
+  {
+    ten: "token không quản lý Fanpage của cửa hàng vẫn chọn",
+    tep: "server/routes/connections.ts",
+    tim: "    if (!trang.some((t) => t.id === fanpage.page_id)) {",
+    thay: "    if (trang.length === 0) {",
+  },
+  {
+    ten: "hồ sơ quay về khác hồ sơ cửa hàng vẫn nhận",
+    tep: "server/routes/connections.ts",
+    tim: " || p.profileId !== fanpage.profile_ref) {",
+    thay: ") {",
+  },
+  {
+    ten: "lượt quảng cáo xong không xoá khoá tạm Facebook",
+    tep: "server/routes/connections.ts",
+    tim: "    // Dùng xong là xoá (khoá tạm của Facebook không giữ lâu hơn cần thiết).\n    await query(\"DELETE FROM pending_connections WHERE user_id = $1\", [p.userId]);",
+    thay: "    // Dùng xong là xoá (khoá tạm của Facebook không giữ lâu hơn cần thiết).\n    void p.userId;",
+  },
+  {
+    ten: "ô Meta Ads không theo cửa hàng",
+    tep: "src/pages/Connections.tsx",
+    tim: "const liveAdChannels = theoCuaHang(catalog.ads).map(",
+    thay: "const liveAdChannels = catalog.ads.map(",
+  },
+  {
+    ten: "bảng kênh cửa hàng kéo quảng cáo của cửa hàng khác",
+    tep: "src/pages/Connections.tsx",
+    tim: "(a.platform === 'metaads' && a.trang_id == null)",
+    thay: "a.platform === 'metaads'",
+  },
+  {
+    ten: "giao diện không bắt chọn cửa hàng khi nối quảng cáo",
+    tep: "src/pages/Connections.tsx",
+    tim: "!!p && (p.id === 'fb_ads' || !catalog.ads.some((c) => c.id === p.id));",
+    thay: "!!p && !catalog.ads.some((c) => c.id === p.id);",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

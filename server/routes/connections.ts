@@ -152,6 +152,50 @@ function backToApp(params: { ok: boolean; message?: string }): string {
   return url.toString();
 }
 
+/** Fanpage đang nối của một cửa hàng (page_id Facebook). Chưa có → null. */
+async function fanpageCuaCuaHang(userId: number, trangId: number): Promise<{ page_id: string; profile_ref: string } | null> {
+  return queryOne(
+    `SELECT page_id, profile_ref FROM social_accounts
+      WHERE user_id = $1 AND trang_id = $2 AND platform = 'facebook' AND connected = TRUE AND go_luc IS NULL
+        AND page_id IS NOT NULL
+      ORDER BY created_at LIMIT 1`,
+    [userId, trangId]
+  );
+}
+
+/**
+ * Chặng quay về của lượt nối QUẢNG CÁO (H11; phiên kiểm duyệt bắt buộc). Tài liệu "Connecting Meta Ads only": máy chủ tự
+ * POST select-page — tài khoản metaads sinh kèm; select-page "updates the existing Facebook account in place". Chọn ĐÚNG
+ * Fanpage đang nối của cửa hàng (đọc từ social_accounts, không nhận từ giao diện); token vừa cấp không quản lý Fanpage đó →
+ * báo, KHÔNG chọn trang khác (chọn trang khác là đổi Fanpage của cửa hàng). Hồ sơ quay về phải là hồ sơ của cửa hàng.
+ * Trả URL đưa trình duyệt về màn Kết nối.
+ */
+async function noiQuangCaoXong(p: {
+  userId: number; trangId: number | null; profileId?: string; step?: string; tempToken?: string;
+  userProfile: Record<string, unknown>; connectToken: string | null;
+}): Promise<string> {
+  try {
+    const fanpage = p.trangId == null ? null : await fanpageCuaCuaHang(p.userId, p.trangId);
+    if (!fanpage) return backToApp({ ok: false, message: "Cửa hàng này chưa nối Fanpage. Vui lòng nối Fanpage trước, rồi mới nối quảng cáo." });
+    if (p.step !== "select_page" || !p.tempToken || p.profileId !== fanpage.profile_ref) {
+      return backToApp({ ok: false, message: "Lượt cấp quyền quảng cáo không khớp cửa hàng. Vui lòng bấm nối quảng cáo lại." });
+    }
+    const trang = await zernio.listFacebookPages({ profileId: p.profileId, tempToken: p.tempToken, connectToken: p.connectToken });
+    if (!trang.some((t) => t.id === fanpage.page_id)) {
+      return backToApp({ ok: false, message: "Tài khoản Facebook vừa đăng nhập không quản lý Fanpage của cửa hàng. Vui lòng đăng nhập đúng tài khoản quản lý Fanpage đó." });
+    }
+    await zernio.selectFacebookPage({ profileId: p.profileId, pageId: fanpage.page_id, tempToken: p.tempToken,
+      userProfile: p.userProfile, connectToken: p.connectToken });
+    return backToApp({ ok: true });
+  } catch (error) {
+    console.error("[nối quảng cáo]", error instanceof Error ? error.message : error);
+    return backToApp({ ok: false, message: "Chưa nối được quảng cáo — nhà cung cấp báo lỗi. Vui lòng thử lại sau ít phút." });
+  } finally {
+    // Dùng xong là xoá (khoá tạm của Facebook không giữ lâu hơn cần thiết).
+    await query("DELETE FROM pending_connections WHERE user_id = $1", [p.userId]);
+  }
+}
+
 /**
  * Nơi Zernio đẩy trình duyệt về sau khi khách cấp quyền trên Facebook.
  *
@@ -170,6 +214,10 @@ connectionsPublicRouter.get(
 
     // Nền tảng không cần chọn gì thêm thì Zernio tạo kênh luôn và trả accountId.
     if (q.accountId && !q.step) {
+      // Xoá phiên của lượt này (H11): không để lại gì cho màn hình đọc nhầm.
+      if (typeof req.query.state === "string" && req.query.state) {
+        await query("DELETE FROM pending_connections WHERE connect_state = $1", [req.query.state]);
+      }
       res.redirect(backToApp({ ok: true }));
       return;
     }
@@ -221,8 +269,8 @@ connectionsPublicRouter.get(
      */
     const maBiMat = typeof req.query.state === "string" ? req.query.state : "";
     const owner = maBiMat
-      ? await queryOne<{ user_id: number }>(
-          `SELECT user_id FROM pending_connections
+      ? await queryOne<{ user_id: number; loai: string | null; trang_id: number | null }>(
+          `SELECT user_id, loai, trang_id FROM pending_connections
             WHERE connect_state = $1 AND expires_at > now()`,
           [maBiMat]
         )
@@ -236,6 +284,13 @@ connectionsPublicRouter.get(
           message: "Phiên cấp quyền không hợp lệ hoặc đã hết hạn. Vui lòng bấm kết nối lại.",
         })
       );
+      return;
+    }
+
+    // H11: lượt nối QUẢNG CÁO — máy chủ tự chọn ĐÚNG Fanpage của cửa hàng (không hiện bộ chọn), rồi xoá phiên.
+    if (owner.loai === "quang_cao") {
+      res.redirect(await noiQuangCaoXong({ userId: owner.user_id, trangId: owner.trang_id, profileId: q.profileId, step: q.step,
+        tempToken: q.tempToken, userProfile, connectToken: q.connect_token ?? null }));
       return;
     }
 
@@ -467,16 +522,26 @@ connectionsRouter.post(
      * mặc định rồi rơi vào trang nào không ai thấy (đã xảy ra: trang cũ rỗng, bị ẩn khỏi bảng).
      * Mỗi cửa hàng một hộp: mọi kênh (kể cả Facebook) vào đúng hộp đó; trừ tài khoản quảng cáo (dùng chung).
      */
-    // Mọi kênh — KỂ CẢ Facebook — vào đúng hộp của cửa hàng đã chọn (mỗi cửa hàng một Fanpage). Trừ tài khoản quảng cáo.
-    const canChonTrang = !adChannels.some((c) => c.id === channel.id);
-    const noiLai = await hoSoNoiLai(req.user!.id, (req.body as { noiLai?: unknown })?.noiLai, channel.platformKey);
+    // Mọi kênh — KỂ CẢ Facebook và quảng cáo Meta (H11: A4b, mỗi cửa hàng một kết nối quảng cáo) — vào đúng hộp của cửa
+    // hàng đã chọn (mỗi cửa hàng một Fanpage). Các tài khoản quảng cáo khác chưa nối được (platformKey null, đã chặn ở trên).
+    const laQuangCao = channel.id === "fb_ads";
+    const canChonTrang = laQuangCao || !adChannels.some((c) => c.id === channel.id);
+    const noiLai = laQuangCao ? null : await hoSoNoiLai(req.user!.id, (req.body as { noiLai?: unknown })?.noiLai, channel.platformKey);
     let profileId = noiLai ?? hoSoMacDinh;
+    let trangQuangCao: number | null = null;
     if (canChonTrang && !noiLai) {
       const trangId = Number((req.body as { trangId?: unknown })?.trangId);
       if (!Number.isInteger(trangId) || trangId <= 0) {
         throw new AppError("Chọn cửa hàng cho kênh này trước khi kết nối", 400);
       }
       profileId = (await hoSoCuaCuaHang(req.user!.id, trangId, channel.platformKey, channel.name)).profile_ref;
+      if (laQuangCao) {
+        // Đẩy bài cần Fanpage của cửa hàng (tài liệu: boost "IS Page-specific") — chặn TRƯỚC khi đưa khách đi cấp quyền.
+        if (!(await fanpageCuaCuaHang(req.user!.id, trangId))) {
+          throw new AppError("Cửa hàng này chưa nối Fanpage. Vui lòng nối Fanpage cho cửa hàng trước, rồi mới nối quảng cáo.", 409);
+        }
+        trangQuangCao = trangId;
+      }
     }
 
     /*
@@ -499,20 +564,31 @@ connectionsRouter.post(
      * Ghi mã TRƯỚC khi đưa khách đi, để lúc quay về còn có cái mà đối chiếu.
      */
     const maBiMat = crypto.randomBytes(24).toString("base64url");
+    // Lượt MỚI xoá sạch dữ liệu của lượt trước (H11, 24/10/2026: bản cũ chỉ làm mới mã + hạn, giữ temp_token Facebook của
+    // lượt cũ → nối TikTok xong quay về, màn hình đọc nhầm phiên Facebook cũ của hồ sơ khác → báo "Phiên cấp quyền không
+    // thuộc về tài khoản này" dù TikTok đã nối thành công).
     await query(
-      `INSERT INTO pending_connections (user_id, connect_state, created_at, expires_at)
-       VALUES ($1, $2, now(), now() + interval '15 minutes')
+      `INSERT INTO pending_connections (user_id, connect_state, loai, trang_id, created_at, expires_at)
+       VALUES ($1, $2, $3, $4, now(), now() + interval '15 minutes')
        ON CONFLICT (user_id) DO UPDATE SET
          connect_state = EXCLUDED.connect_state,
+         loai          = EXCLUDED.loai,
+         trang_id      = EXCLUDED.trang_id,
+         platform      = NULL,
+         profile_id    = NULL,
+         temp_token    = NULL,
+         user_profile  = NULL,
+         connect_token = NULL,
+         step          = NULL,
          created_at    = now(),
          expires_at    = now() + interval '15 minutes'`,
-      [req.user!.id, maBiMat]
+      [req.user!.id, maBiMat, laQuangCao ? "quang_cao" : null, trangQuangCao]
     );
 
-    const url = await zernio.getConnectUrl(channel.platformKey, profileId, {
-      headless: true,
-      redirectUrl: `${env.appUrl}/api/connections/oauth/callback?state=${maBiMat}`,
-    });
+    const redirectUrl = `${env.appUrl}/api/connections/oauth/callback?state=${maBiMat}`;
+    const url = laQuangCao
+      ? await zernio.getConnectAdsUrl(profileId, { redirectUrl })
+      : await zernio.getConnectUrl(channel.platformKey, profileId, { headless: true, redirectUrl });
     res.json({ success: true, url });
   })
 );

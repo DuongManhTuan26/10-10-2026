@@ -27,6 +27,7 @@ export const DUONG_DANH_SACH = new Set([
   "/ads/audiences",
   "/ads/targeting/search",
   "/connect/facebook/select-page",
+  "/connect/facebook/ads",
   "/connect/telegram",
   "/profiles",
   "/usage",

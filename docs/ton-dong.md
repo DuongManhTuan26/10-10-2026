@@ -345,3 +345,12 @@ chưa có dòng.
 Phiên kiểm duyệt nêu khi duyệt H9. GET /api/ads/tim-nham gọi resolveAdAccount → ads.listAdAccounts (GET /v1/ads/accounts)
 TRƯỚC lệnh tìm, nên mỗi lần gõ (sau 400 ms) là 2 lượt gọi nhà cung cấp. Chưa đo được (0 kênh Meta Ads). Làm khi thấy chậm
 hoặc chạm hạn mức: nhớ ngắn (vd. 5 phút) tài khoản quảng cáo theo kênh, xoá khi chủ shop đổi tài khoản quảng cáo.
+
+## TD-30 — Nối quảng cáo: hai cửa hàng cùng một người Facebook thấy tài khoản quảng cáo của nhau (24/10/2026) — GHI LẠI
+
+Phiên kiểm duyệt nêu khi duyệt H11. Tài liệu ("Scoping sync to specific ad accounts"): mặc định nhà cung cấp đồng bộ MỌI
+act_* mà khoá Meta thấy. Một người quản lý hai Fanpage / hai cửa hàng → danh sách tài khoản quảng cáo của cửa hàng B có cả
+tài khoản cửa hàng A đang dùng. Hiện chặn được phần chính: lựa chọn tài khoản quảng cáo lưu trên kênh quảng cáo CỦA CỬA
+HÀNG (kenhQuangCaoCuaCuaHang + ad_account_ref), nên B không dùng lựa chọn của A; nhưng B vẫn CHỌN được tài khoản của A nếu
+tự chọn. Làm khi có cửa hàng thứ hai chạy quảng cáo: gửi adAccountId (danh sách cho phép) lúc nối — tài liệu "latest call
+wins", cần thiết kế riêng cho lượt nối lại.

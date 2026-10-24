@@ -182,8 +182,9 @@ export default function Connections() {
   /** Kênh này có phải chọn trang bán hàng khi nối không (Facebook: Fanpage tự thành trang; quảng cáo: dùng chung). */
   // Mọi kênh — KỂ CẢ Facebook — vào đúng một cửa hàng (mỗi cửa hàng một Fanpage, chủ dự án 17/10/2026); chỉ tài khoản
   // quảng cáo dùng chung. Phải KHỚP điều kiện canChonTrang bên máy chủ (connect-url) — lệch là gửi thiếu cửa hàng (đã xảy ra).
+  // H11: quảng cáo Meta nay cũng vào đúng một cửa hàng (A4b) — khớp laQuangCao bên máy chủ.
   const canChonTrang = (p: Platform | null) =>
-    !!p && !catalog.ads.some((c) => c.id === p.id);
+    !!p && (p.id === 'fb_ads' || !catalog.ads.some((c) => c.id === p.id));
   const [trangChonNoi, setTrangChonNoi] = useState<number | null>(null);
   /** "Nối lại" một kênh đang có: đi vào đúng hồ sơ của kênh, giữ nguyên trang — KHÔNG hỏi chọn trang. */
   const [noiLaiKenh, setNoiLaiKenh] = useState<SocialAccount | null>(null);
@@ -410,7 +411,7 @@ export default function Connections() {
    * không gắn trang nào nên luôn hiện. Tình trạng chung và lưới cổng kết nối vẫn tính trên mọi kênh của tài khoản.
    */
   const kenhCuaTrang = trangDangChon
-    ? accounts.filter((a) => a.platform === 'metaads'
+    ? accounts.filter((a) => (a.platform === 'metaads' && a.trang_id == null)
       || (trangDangChon.id != null ? a.trang_id === trangDangChon.id : trangDangChon.kenh.some((k) => k.id === a.id)))
     : accounts;
   const soKenhHong = accounts.filter((a) => a.needs_reconnection || !a.connected).length;
@@ -443,7 +444,11 @@ export default function Connections() {
   const theoCuaHang = (ds: Platform[]) =>
     ds.map((c) => ({ ...c, connected: !!chDangNoi && !!c.platformKey && chDangNoi.nenTang.includes(c.platformKey) }));
   const liveSocialChannels = theoCuaHang(catalog.social);
-  const liveAdChannels = catalog.ads;
+  // H11: ô Meta Ads cũng theo cửa hàng đang chọn; cửa hàng chưa có Fanpage → chưa nối được (đẩy bài cần Fanpage).
+  const liveAdChannels = theoCuaHang(catalog.ads).map((c) =>
+    c.id === 'fb_ads' && !c.connected && chDangNoi && !chDangNoi.nenTang.includes('facebook')
+      ? { ...c, connectable: false, capabilityNote: 'Cửa hàng này chưa nối Fanpage. Vui lòng nối Fanpage trước, rồi mới nối quảng cáo.' }
+      : c);
   const adChannelIds = new Set(catalog.ads.map((c) => c.id));
   const liveCommChannels = theoCuaHang(catalog.communication);
 
@@ -1163,7 +1168,7 @@ export default function Connections() {
         <div className={clsx('space-y-5 transition-shadow', dangHuongDan && 'rounded-2xl p-3 -mx-3 ring-2 ring-primary shadow-[0_0_34px_-12px_var(--color-primary)]')}>
           {([
             ['Mạng xã hội', 'share', liveSocialChannels, ''],
-            ['Tài khoản quảng cáo', 'campaign', liveAdChannels, 'Quảng cáo Meta chạy qua kết nối Facebook.'],
+            ['Tài khoản quảng cáo', 'campaign', liveAdChannels, 'Quảng cáo Meta nối riêng cho từng cửa hàng, sau khi đã nối Fanpage.'],
             ['Tin nhắn và điện thoại', 'forum', liveCommChannels, 'Nhắn tin hoặc gọi cho khách sau khi AI đã lấy được số điện thoại.'],
           ] as [string, string, Platform[], string][]).map(([ten, icon, ds, ghiChu]) => {
             // Đã kết nối đứng đầu nhóm — thấy ngay mình đang có gì.
@@ -1197,11 +1202,11 @@ export default function Connections() {
                       onClick={() => {
                         if (!c.connected) {
                           // Chưa chọn cửa hàng (nhiều cửa hàng) thì chưa nối được — kênh phải vào một hộp cụ thể.
-                          if (c.connectable && chDangNoi && !chDangNoi.hopRieng && !adChannelIds.has(c.id)) {
+                          if (c.connectable && chDangNoi && !chDangNoi.hopRieng && (c.id === 'fb_ads' || !adChannelIds.has(c.id))) {
                             setErrorMessage(`Cửa hàng "${chDangNoi.ten}" dùng chung hộp với cửa hàng khác — xoá nó và tạo cửa hàng mới để nối kênh.`);
                             return;
                           }
-                          if (c.connectable && !chDangNoi && !adChannelIds.has(c.id)) {
+                          if (c.connectable && !chDangNoi && (c.id === 'fb_ads' || !adChannelIds.has(c.id))) {
                             setErrorMessage('Chọn cửa hàng ở đầu khung "Kết nối kênh cho cửa hàng" trước, rồi bấm nền tảng muốn nối.');
                             return;
                           }
@@ -1228,8 +1233,8 @@ export default function Connections() {
                         {/* Điện thoại ô hẹp: tên XUỐNG DÒNG, không cắt; màn rộng một dòng (đã đo vừa mọi tên). */}
                         <span className="block text-[13px] sm:text-sm font-bold leading-tight sm:truncate">{c.name}</span>
                         <span className={clsx('flex items-center gap-0.5 sm:gap-1.5 text-[11px] whitespace-nowrap', c.connected ? 'font-bold text-thanh-cong' : 'text-on-surface-variant')}>
-                          {/* Meta Ads không nối riêng — có sẵn qua kết nối Facebook (platforms.ts), không phải "sắp có". */}
-                          {c.connected ? 'Đã kết nối' : c.connectable ? 'Kết nối' : c.id === 'fb_ads' ? 'Đi kèm Facebook' : 'Sắp có'}
+                          {/* Meta Ads chưa nối được vì cửa hàng chưa có Fanpage (H11) — không phải "sắp có". */}
+                          {c.connected ? 'Đã kết nối' : c.connectable ? 'Kết nối' : c.id === 'fb_ads' ? 'Nối Fanpage trước' : 'Sắp có'}
                           {/* Nhãn phụ thành biểu tượng nhỏ (rê chuột để đọc) — giữ một dòng, không đè chữ. */}
                           {c.publishOnly && (
                             <span className="inline-flex" title="Chỉ đăng bài — không có tin nhắn / bình luận cho AI bán hàng">

@@ -2468,10 +2468,10 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const maKetNoiGoc = fs.readFileSync(path.join(GOC, "src/pages/Connections.tsx"), "utf8");
   // Giao diện và máy chủ phải KHỚP điều kiện "kênh nào phải vào cửa hàng" — 17/10/2026 giao diện còn loại Facebook theo
   // luật cũ → nối Facebook gửi thiếu cửa hàng, máy chủ báo "Chọn cửa hàng…" dù đã chọn (chủ dự án bắt được).
-  kiem("cửa hàng", "giao diện cũng bắt Facebook vào cửa hàng (khớp máy chủ)",
-    /const canChonTrang = \(p: Platform \| null\) =>\n\s*!!p && !catalog\.ads\.some\(\(c\) => c\.id === p\.id\);/.test(maKetNoiGoc), true);
-  kiem("cửa hàng", "nối kênh (kể cả Facebook, trừ quảng cáo) bắt buộc chọn cửa hàng",
-    /const canChonTrang = !adChannels\.some\(\(c\) => c\.id === channel\.id\);/.test(maRouteKetNoi)
+  kiem("cửa hàng", "giao diện cũng bắt Facebook + quảng cáo Meta vào cửa hàng (khớp máy chủ, H11)",
+    /const canChonTrang = \(p: Platform \| null\) =>\n\s*!!p && \(p\.id === 'fb_ads' \|\| !catalog\.ads\.some\(\(c\) => c\.id === p\.id\)\);/.test(maKetNoiGoc), true);
+  kiem("cửa hàng", "nối kênh (kể cả Facebook và quảng cáo Meta — H11) bắt buộc chọn cửa hàng",
+    /const laQuangCao = channel\.id === "fb_ads";\s*const canChonTrang = laQuangCao \|\| !adChannels\.some\(\(c\) => c\.id === channel\.id\);/.test(maRouteKetNoi)
       && /Chọn cửa hàng cho kênh này trước khi kết nối/.test(maRouteKetNoi), true);
   kiem("cửa hàng", "nối kênh: ngăn đã có thì chặn, không lén nối sang hộp khác; cửa hàng dùng chung hộp không nhận kênh",
     /if \(t\.da_co\) \{/.test(maTrangSv) && /if \(!t\.hop_rieng\) \{/.test(maTrangSv)
@@ -7481,6 +7481,54 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     kiem("vai trò trống", "không còn `system_prompt ??` ở máy chủ; đủ 5 chỗ `system_prompt?.trim() ||` (content-ai, decide, gợi ý trả lời, phân tích quảng cáo, Thử AI)",
       [tepMay.filter((t) => /system_prompt \?\?/.test(nd(t))), tepMay.flatMap((t) => (nd(t).match(/system_prompt\?\.trim\(\) \|\|/g) ?? []).map(() => t)).sort()],
       [[], ["routes/ads.ts", "routes/ai.ts", "services/content-ai.ts", "services/sales-ai.ts", "services/sales-ai.ts"]]);
+  }
+  // H11 (24/10/2026): NỐI QUẢNG CÁO META theo cửa hàng — tài liệu "Connecting Meta Ads only" (metaads chỉ sinh qua
+  // /connect/facebook/ads + select-page); phiên kiểm duyệt bắt buộc 5 điểm. Kèm lỗi phiên cũ che câu báo nối thành công.
+  {
+    const kn = fs.readFileSync(path.join(GOC, "server/routes/connections.ts"), "utf8");
+    const zn = fs.readFileSync(path.join(GOC, "server/services/zernio.ts"), "utf8");
+    const pl = fs.readFileSync(path.join(GOC, "server/platforms.ts"), "utf8");
+    const ui = fs.readFileSync(path.join(GOC, "src/pages/Connections.tsx"), "utf8");
+    const pv11 = await import("../server/services/pham-vi-goi.js");
+    const loi11 = (f: () => unknown) => { try { f(); return null; } catch (e) { return (e as Error).message; } };
+    const ham = kn.slice(kn.indexOf("async function noiQuangCaoXong("), kn.indexOf("\n}\n", kn.indexOf("async function noiQuangCaoXong(")));
+    const curl = kn.slice(kn.indexOf('"/connect-url",'), kn.indexOf("\n);\n", kn.indexOf('"/connect-url",')));
+    kiem("nối quảng cáo", "Meta Ads nối được (platformKey metaads), bỏ chữ sai \"Tự động có khi kết nối Facebook\"; /connect/facebook/ads trong chốt phạm vi, thiếu profileId → chặn",
+      [/id: 'fb_ads', name: 'Meta Ads', platformKey: "metaads"/.test(pl), /Tự động có khi|Đi kèm Facebook|chạy qua kết nối Facebook/.test(pl + ui),
+        pv11.DUONG_DANH_SACH.has("/connect/facebook/ads"), (loi11(() => pv11.kiemPhamVi("GET", "/connect/facebook/ads", {}, undefined)) ?? "").includes("thiếu phạm vi"),
+        /request<[^>]*>\("\/connect\/facebook\/ads", \{\s*query: \{ profileId, headless: "true", redirect_url: options\.redirectUrl \},/.test(zn)],
+      [true, false, true, true, true]);
+    const vt = (re: RegExp) => curl.search(re);
+    kiem("nối quảng cáo", "/connect-url: quảng cáo vào hồ sơ CỬA HÀNG (bắt chọn cửa hàng), chặn cửa hàng chưa có Fanpage TRƯỚC khi ghi phiên; phiên ghi loai + trang_id; gọi /connect/facebook/ads; không 'nối lại' cho quảng cáo",
+      [/const noiLai = laQuangCao \? null : await hoSoNoiLai\(/.test(curl),
+        vt(/profileId = \(await hoSoCuaCuaHang\(req\.user!\.id, trangId, channel\.platformKey, channel\.name\)\)\.profile_ref;/) < vt(/if \(!\(await fanpageCuaCuaHang\(req\.user!\.id, trangId\)\)\)/)
+          && vt(/if \(!\(await fanpageCuaCuaHang\(req\.user!\.id, trangId\)\)\)/) < vt(/INSERT INTO pending_connections/),
+        /\[req\.user!\.id, maBiMat, laQuangCao \? "quang_cao" : null, trangQuangCao\]/.test(curl),
+        /laQuangCao\s*\? await zernio\.getConnectAdsUrl\(profileId, \{ redirectUrl \}\)/.test(curl)],
+      [true, true, true, true]);
+    kiem("nối quảng cáo", "lượt nối MỚI xoá sạch dữ liệu lượt trước (temp_token / profile / step cũ → NULL); quay về không cần chọn thì xoá phiên — hết báo nhầm \"Phiên cấp quyền không thuộc về tài khoản này\"",
+      [["platform", "profile_id", "temp_token", "user_profile", "connect_token", "step"].every((c) => new RegExp(`\\n\\s*${c}\\s*= NULL,`).test(curl)),
+        /if \(q\.accountId && !q\.step\) \{[\s\S]{0,300}DELETE FROM pending_connections WHERE connect_state = \$1/.test(kn)],
+      [true, true]);
+    kiem("nối quảng cáo", "quay về lượt quảng cáo: máy chủ tự chọn ĐÚNG Fanpage của cửa hàng (đọc DB, không từ giao diện); hồ sơ phải là hồ sơ cửa hàng; token không quản lý Fanpage đó → báo, không chọn trang khác; luôn xoá phiên",
+      [/if \(owner\.loai === "quang_cao"\) \{/.test(kn) && kn.indexOf('if (owner.loai === "quang_cao")') < kn.indexOf("INSERT INTO pending_connections\n         (user_id, platform, profile_id"),
+        /p\.profileId !== fanpage\.profile_ref/.test(ham), /if \(!trang\.some\(\(t\) => t\.id === fanpage\.page_id\)\) \{/.test(ham),
+        /selectFacebookPage\(\{ profileId: p\.profileId, pageId: fanpage\.page_id,/.test(ham), /finally \{[\s\S]*DELETE FROM pending_connections WHERE user_id = \$1/.test(ham),
+        /AND platform = 'facebook' AND connected = TRUE AND go_luc IS NULL/.test(kn)],
+      [true, true, true, true, true, true]);
+    kiem("nối quảng cáo", "màn Kết nối: ô Meta Ads theo cửa hàng đang chọn; cửa hàng chưa có Fanpage → chưa nối được + lý do; bảng kênh của cửa hàng không kéo quảng cáo của cửa hàng khác",
+      [/const liveAdChannels = theoCuaHang\(catalog\.ads\)\.map\(/.test(ui), /!chDangNoi\.nenTang\.includes\('facebook'\)\s*\? \{ \.\.\.c, connectable: false,/.test(ui),
+        /\(a\.platform === 'metaads' && a\.trang_id == null\)/.test(ui)],
+      [true, true, true]);
+    const ar11 = fs.readFileSync(path.join(GOC, "server/routes/ads.ts"), "utf8");
+    kiem("nối quảng cáo", "A4b: tài khoản quảng cáo chọn / đọc theo kênh quảng cáo CỦA CỬA HÀNG đang chọn (cửa hàng B không dùng lựa chọn của A)",
+      [/const row = await kenhQuangCaoCuaCuaHang\(userId, await trangHienTai\(\)\);/.test(ar11),
+        /const kenh = await kenhQuangCaoCuaCuaHang\(req\.user!\.id, await trangHienTai\(\)\);[\s\S]{0,900}UPDATE social_accounts SET ad_account_ref = \$1, updated_at = now\(\) WHERE id = \$2",\s*\[ma, kenh\.id\]/.test(ar11),
+        /row\.ad_account_ref\s*\? accounts\.find\(\(a\) => a\.id === row\.ad_account_ref\)/.test(ar11)],
+      [true, true, true]);
+    kiem("nối quảng cáo", "migration 067: pending_connections thêm loai + trang_id",
+      fs.readFileSync(path.join(GOC, "server/migrations/067_noi_quang_cao.sql"), "utf8").split("\n").filter((d) => d.trim() && !d.trim().startsWith("--")),
+      ["ALTER TABLE pending_connections ADD COLUMN IF NOT EXISTS loai TEXT;", "ALTER TABLE pending_connections ADD COLUMN IF NOT EXISTS trang_id BIGINT;"]);
   }
   const as14 = fs.readFileSync(path.join(GOC, "src/pages/AutoScripts.tsx"), "utf8");
   kiem("thử AI = máy thật", "màn thử: nói rõ chỉ thử một tin đầu tiên (không lịch sử); hiện 'AI sẽ chuyển cho nhân viên' + bước bán AI chọn",
