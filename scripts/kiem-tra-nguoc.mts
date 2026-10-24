@@ -6134,6 +6134,24 @@ const DUC: PhepDuc[] = [
     thay: ".then(({ data }) => { setKetQua(data.ketQua); })",
   },
   {
+    ten: "phân tích quảng cáo: vai trò trống không rơi về mặc định",
+    tep: "server/routes/ads.ts",
+    tim: "(config?.system_prompt?.trim() ||",
+    thay: "(config?.system_prompt ??",
+  },
+  {
+    ten: "gợi ý trả lời: vai trò trống không rơi về mặc định",
+    tep: "server/services/sales-ai.ts",
+    tim: "(config?.system_prompt?.trim() || \"Bạn là nhân viên bán hàng của shop.\")",
+    thay: "(config?.system_prompt ?? \"Bạn là nhân viên bán hàng của shop.\")",
+  },
+  {
+    ten: "Thử AI nhánh khác: vai trò trống không rơi về mặc định",
+    tep: "server/routes/ai.ts",
+    tim: "(config?.system_prompt?.trim() || \"Bạn là trợ lý của shop.\")",
+    thay: "(config?.system_prompt ?? \"Bạn là trợ lý của shop.\")",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

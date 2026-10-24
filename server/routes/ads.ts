@@ -597,7 +597,7 @@ adsRouter.post(
         {
           role: "system",
           content:
-            (config?.system_prompt ??
+            (config?.system_prompt?.trim() ||
               "Bạn là chuyên gia quảng cáo Facebook, phân tích bằng tiếng Việt.") +
             knowledge +
             "\n\nChỉ dựa vào số liệu được cung cấp, tuyệt đối không bịa số. " +

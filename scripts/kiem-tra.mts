@@ -7473,6 +7473,15 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /const giong = kind === "content" \? moTaGiong\(config\?\.tone\) : null;/.test(thu10), /\(giong \? `\\n\\n\$\{giong\}` : ""\) \+/.test(thu10)],
       [true, true, true]);
   }
+  // Dọn cuối (24/10/2026): vai trò để TRỐNG ("" — mặc định của tài khoản mới) phải rơi về câu vai mặc định ở MỌI chỗ gọi AI;
+  // `system_prompt ?? …` không rơi với "" → AI nhận lời dặn mở đầu trống (Phân tích quảng cáo, Gợi ý trả lời, Thử AI).
+  {
+    const tepMay = fs.readdirSync(path.join(GOC, "server"), { recursive: true }).map(String).filter((t) => /\.ts$/.test(t));
+    const nd = (t: string) => fs.readFileSync(path.join(GOC, "server", t), "utf8");
+    kiem("vai trò trống", "không còn `system_prompt ??` ở máy chủ; đủ 5 chỗ `system_prompt?.trim() ||` (content-ai, decide, gợi ý trả lời, phân tích quảng cáo, Thử AI)",
+      [tepMay.filter((t) => /system_prompt \?\?/.test(nd(t))), tepMay.flatMap((t) => (nd(t).match(/system_prompt\?\.trim\(\) \|\|/g) ?? []).map(() => t)).sort()],
+      [[], ["routes/ads.ts", "routes/ai.ts", "services/content-ai.ts", "services/sales-ai.ts", "services/sales-ai.ts"]]);
+  }
   const as14 = fs.readFileSync(path.join(GOC, "src/pages/AutoScripts.tsx"), "utf8");
   kiem("thử AI = máy thật", "màn thử: nói rõ chỉ thử một tin đầu tiên (không lịch sử); hiện 'AI sẽ chuyển cho nhân viên' + bước bán AI chọn",
     [/Thử với một tin đầu tiên của khách, không có lịch sử hội thoại\./.test(as14), /AI sẽ chuyển cho nhân viên: \{testReply\.chuyenNguoi\}/.test(as14),

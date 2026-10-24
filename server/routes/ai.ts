@@ -1143,7 +1143,7 @@ aiRouter.post(
         {
           role: "system",
           content:
-            (config?.system_prompt ?? "Bạn là trợ lý của shop.") +
+            (config?.system_prompt?.trim() || "Bạn là trợ lý của shop.") +
             (giong ? `\n\n${giong}` : "") +
             knowledge +
             "\n\n" +

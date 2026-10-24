@@ -1318,7 +1318,7 @@ export async function suggestReply(conversationId: string): Promise<string> {
       {
         role: "system",
         content:
-          (config?.system_prompt ?? "Bạn là nhân viên bán hàng của shop.") +
+          (config?.system_prompt?.trim() || "Bạn là nhân viên bán hàng của shop.") +
           "\n\nSoạn MỘT câu trả lời tiếp theo cho khách. Chỉ trả về nội dung tin nhắn, " +
           "không thêm lời dẫn hay giải thích.\n\n" +
           DAN_KHONG_MARKDOWN,

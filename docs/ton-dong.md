@@ -339,3 +339,9 @@ làm một nẻo cho tới lần bấm Lưu đầu tiên. Hiếm: mọi tài kho
 Neon hiện 3/3 dòng sales có 'friendly'. Không sửa vì màn Kịch bản đã chốt; phiên kiểm duyệt đồng ý để nguyên và ghi lại.
 Sửa khi cần: khi chưa có dòng thì không tô ô nào (giống thẻ Hướng dẫn AI của ① sau H10), hoặc sales-ai dùng 'friendly' khi
 chưa có dòng.
+
+## TD-29 — Ô tìm tỉnh / sở thích: mỗi lần tìm gọi thêm một lượt danh sách tài khoản quảng cáo (24/10/2026) — GHI LẠI
+
+Phiên kiểm duyệt nêu khi duyệt H9. GET /api/ads/tim-nham gọi resolveAdAccount → ads.listAdAccounts (GET /v1/ads/accounts)
+TRƯỚC lệnh tìm, nên mỗi lần gõ (sau 400 ms) là 2 lượt gọi nhà cung cấp. Chưa đo được (0 kênh Meta Ads). Làm khi thấy chậm
+hoặc chạm hạn mức: nhớ ngắn (vd. 5 phút) tài khoản quảng cáo theo kênh, xoá khi chủ shop đổi tài khoản quảng cáo.
