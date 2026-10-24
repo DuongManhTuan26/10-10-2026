@@ -6236,6 +6236,24 @@ const DUC: PhepDuc[] = [
     thay: "!!p && !catalog.ads.some((c) => c.id === p.id);",
   },
   {
+    ten: "nối quảng cáo xong không kéo kênh về (metaads không vào DB)",
+    tep: "server/routes/connections.ts",
+    tim: "    await syncAccountsForUser(p.userId, p.profileId).catch((e) => {",
+    thay: "    void Promise.resolve().catch((e) => {",
+  },
+  {
+    ten: "metaads chưa về vẫn báo xong (giao diện đối chiếu → báo lỗi nhầm)",
+    tep: "server/routes/connections.ts",
+    tim: "    return daCo\n      ? backToApp({ ok: true })",
+    thay: "    return true\n      ? backToApp({ ok: true })",
+  },
+  {
+    ten: "giao diện coi 'chờ đồng bộ' là lượt thường",
+    tep: "src/pages/Connections.tsx",
+    tim: "    if (ket_qua === 'cho-dong-bo') {",
+    thay: "    if (ket_qua === 'khong-bao-gio') {",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

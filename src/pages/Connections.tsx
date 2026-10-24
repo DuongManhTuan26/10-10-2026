@@ -716,6 +716,12 @@ export default function Connections() {
       setErrorMessage(params.get('message') ?? 'Cấp quyền chưa hoàn tất. Vui lòng thử lại.');
       return;
     }
+    // H11: nối xong phía nhà cung cấp, kênh quảng cáo chưa về kịp — báo chờ (không phải lỗi), bỏ phép đối chiếu số kênh.
+    if (ket_qua === 'cho-dong-bo') {
+      docDangNoi();
+      setVuaNoiXong(params.get('message') ?? 'Đang đồng bộ, vui lòng chờ một lát rồi bấm Đồng bộ.');
+      return;
+    }
     setVuaQuayVe(ket_qua);
   }, []);
 

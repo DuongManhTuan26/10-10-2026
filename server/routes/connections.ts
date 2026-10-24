@@ -144,10 +144,11 @@ connectionsRouter.get(
  * Chuyển thẳng trang trong cùng một thẻ thì không bao giờ bị chặn, và đó cũng
  * là cách mọi luồng cấp quyền trên web vẫn làm.
  */
-function backToApp(params: { ok: boolean; message?: string }): string {
+function backToApp(params: { ok: boolean; message?: string; choDongBo?: boolean }): string {
   // Màn Kết nối kênh ở /ket-noi (đường /connections cũ vẫn chuyển hướng, giữ tham số).
   const url = new URL(`${env.appUrl}/ket-noi`);
-  url.searchParams.set("connect", params.ok ? "select" : "error");
+  // cho-dong-bo (H11): đã nối xong phía nhà cung cấp, kênh chưa về kịp — báo chờ, KHÔNG báo lỗi.
+  url.searchParams.set("connect", !params.ok ? "error" : params.choDongBo ? "cho-dong-bo" : "select");
   if (params.message) url.searchParams.set("message", params.message);
   return url.toString();
 }
@@ -186,7 +187,19 @@ async function noiQuangCaoXong(p: {
     }
     await zernio.selectFacebookPage({ profileId: p.profileId, pageId: fanpage.page_id, tempToken: p.tempToken,
       userProfile: p.userProfile, connectToken: p.connectToken });
-    return backToApp({ ok: true });
+    // Kéo kênh về NGAY (như luồng Facebook thường) để metaads vào DB + gắn cửa hàng theo hồ sơ (kenhQuangCaoCuaCuaHang
+    // thấy). Tài liệu: metaads đồng bộ bất đồng bộ ("initial_sync_completed") → chưa thấy thì báo chờ, không báo lỗi.
+    await syncAccountsForUser(p.userId, p.profileId).catch((e) => {
+      // Đã nối xong phía nhà cung cấp — đồng bộ hỏng thì báo chờ (bên dưới), không biến thành "chưa nối được".
+      console.error("[nối quảng cáo] đồng bộ sau khi nối:", e instanceof Error ? e.message : e);
+    });
+    const daCo = await queryOne(
+      "SELECT 1 FROM social_accounts WHERE user_id = $1 AND profile_ref = $2 AND platform = 'metaads' AND go_luc IS NULL",
+      [p.userId, p.profileId]
+    );
+    return daCo
+      ? backToApp({ ok: true })
+      : backToApp({ ok: true, choDongBo: true, message: "Đang đồng bộ tài khoản quảng cáo, vui lòng chờ một lát rồi bấm Đồng bộ." });
   } catch (error) {
     console.error("[nối quảng cáo]", error instanceof Error ? error.message : error);
     return backToApp({ ok: false, message: "Chưa nối được quảng cáo — nhà cung cấp báo lỗi. Vui lòng thử lại sau ít phút." });

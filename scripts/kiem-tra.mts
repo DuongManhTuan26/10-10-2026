@@ -7516,6 +7516,11 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /selectFacebookPage\(\{ profileId: p\.profileId, pageId: fanpage\.page_id,/.test(ham), /finally \{[\s\S]*DELETE FROM pending_connections WHERE user_id = \$1/.test(ham),
         /AND platform = 'facebook' AND connected = TRUE AND go_luc IS NULL/.test(kn)],
       [true, true, true, true, true, true]);
+    kiem("nối quảng cáo", "sau select-page: kéo kênh về NGAY (syncAccountsForUser, hỏng không thành 'chưa nối'); metaads chưa về → báo CHỜ (connect=cho-dong-bo), giao diện hiện câu chờ, không đối chiếu số kênh, không báo lỗi",
+      [/selectFacebookPage\([\s\S]{0,700}?await syncAccountsForUser\(p\.userId, p\.profileId\)\.catch\(/.test(ham),
+        /platform = 'metaads' AND go_luc IS NULL",\s*\[p\.userId, p\.profileId\]/.test(ham), /return daCo\s*\? backToApp\(\{ ok: true \}\)\s*: backToApp\(\{ ok: true, choDongBo: true, message: "Đang đồng bộ tài khoản quảng cáo/.test(ham),
+        /params\.choDongBo \? "cho-dong-bo" : "select"/.test(kn), /if \(ket_qua === 'cho-dong-bo'\) \{\s*docDangNoi\(\);\s*setVuaNoiXong\(/.test(ui)],
+      [true, true, true, true, true]);
     kiem("nối quảng cáo", "màn Kết nối: ô Meta Ads theo cửa hàng đang chọn; cửa hàng chưa có Fanpage → chưa nối được + lý do; bảng kênh của cửa hàng không kéo quảng cáo của cửa hàng khác",
       [/const liveAdChannels = theoCuaHang\(catalog\.ads\)\.map\(/.test(ui), /!chDangNoi\.nenTang\.includes\('facebook'\)\s*\? \{ \.\.\.c, connectable: false,/.test(ui),
         /\(a\.platform === 'metaads' && a\.trang_id == null\)/.test(ui)],
