@@ -362,3 +362,19 @@ wins", cần thiết kế riêng cho lượt nối lại.
 Thử thật 24/10/2026 05:10 (cửa hàng 12): tài khoản Facebook của hồ sơ ĐÃ có quyền quảng cáo → GET /v1/connect/facebook/ads
 tạo metaads NGAY, không qua bước cấp quyền nào — nên KHÔNG có điểm nào hỏi chủ shop "dùng tài khoản quảng cáo nào". Kênh
 quảng cáo thấy mọi act_* của người Facebook đó; allowlist adAccountId càng cần khi có cửa hàng thứ hai.
+
+## TD-31 — ĐÃ CHẶN GỐC (24/10/2026): hai máy chủ chạy song song ≈ 14 phút (08:30:52 → 08:44–08:45 UTC = 15:30–15:45 giờ VN)
+
+Mốc có căn cứ: bắt đầu 08:30:52 UTC (startedAt của máy chủ xem trước; ps cùng lúc soi: tuổi tiến trình 13:25); tắt giữa
+08:44:17 (lúc soi) và 08:45:15 UTC (giờ tệp ~/.zn-tam/launch.json.goc lưu ngay sau khi tắt). Commit 70f7f8a ghi
+"05:20–05:45" là SAI (phiên viết code dùng nhầm một mốc giờ cũ) — mốc đúng là ở đây.
+Nguyên nhân: khung trình duyệt của ứng dụng Claude đang ẩn; phiên viết code mở lại trang → ứng dụng TỰ bật cấu hình
+"zernio" trong ~/.claude/launch.json (npm run dev, tsx watch). Cổng 3000 đang do LaunchAgent giữ nên bản này chạy ở 3001,
+nối Neon thật, chạy worker + bot Telegram song song; tsx watch tự nạp lại khi gộp H12. Phát hiện qua dòng nhật ký
+"WebSocket server error: Port 24678 is already in use" lúc khởi động lại sau gộp; lsof + preview_list chỉ ra tiến trình.
+Hậu quả: KHÔNG có — đọc Neon 60–90 phút quanh sự cố: 0 tin gửi khách, 0 bài tạo / đăng, 0 lượt tự động, 0 lượt ④, 0 lượt
+gọi AI, 0 tin Telegram; hàng đợi luôn 0; bot Telegram của bản trùng tự nhường ("Có tiến trình khác đang nhận tin…").
+Đã làm: tắt bản trùng (preview_stop); cấu hình "zernio" ở ~/.claude/launch.json và .claude/launch.json của repo đổi thành
+CHỈ GẮN { "url": "http://localhost:3000" } (70f7f8a); bỏ cấu hình "khoi-nao" khỏi ~/.claude/launch.json (bản zernio-khoi-nao
+có .env trỏ Neon thật, cùng nguy cơ). Bản gốc: ~/.zn-tam/launch.json.goc. Không đụng thư mục zernio-khoi-nao.
+Khi dùng trình duyệt tích hợp: xem danh sách máy chủ xem trước; có máy chủ "zernio" khác cổng 3000 là tắt ngay.
