@@ -354,3 +354,6 @@ tài khoản cửa hàng A đang dùng. Hiện chặn được phần chính: l�
 HÀNG (kenhQuangCaoCuaCuaHang + ad_account_ref), nên B không dùng lựa chọn của A; nhưng B vẫn CHỌN được tài khoản của A nếu
 tự chọn. Làm khi có cửa hàng thứ hai chạy quảng cáo: gửi adAccountId (danh sách cho phép) lúc nối — tài liệu "latest call
 wins", cần thiết kế riêng cho lượt nối lại.
+Thử thật 24/10/2026 05:10 (cửa hàng 12): tài khoản Facebook của hồ sơ ĐÃ có quyền quảng cáo → GET /v1/connect/facebook/ads
+tạo metaads NGAY, không qua bước cấp quyền nào — nên KHÔNG có điểm nào hỏi chủ shop "dùng tài khoản quảng cáo nào". Kênh
+quảng cáo thấy mọi act_* của người Facebook đó; allowlist adAccountId càng cần khi có cửa hàng thứ hai.

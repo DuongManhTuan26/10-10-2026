@@ -393,17 +393,16 @@ export async function getConnectUrl(
  * "alongside the Facebook account" sau select-page (tài liệu "Connecting Meta Ads only"). Không dùng loginMode=business
  * (cần cấu hình riêng phía nhà cung cấp và bộ chọn Trang do họ dựng).
  */
-export async function getConnectAdsUrl(profileId: string, options: { redirectUrl: string }): Promise<string> {
+export async function getConnectAdsUrl(profileId: string, options: { redirectUrl: string }): Promise<{ url: string } | { daNoi: true }> {
   const data = await request<{ url?: string; authUrl?: string; alreadyConnected?: boolean }>("/connect/facebook/ads", {
     query: { profileId, headless: "true", redirect_url: options.redirectUrl },
   });
-  // Tài liệu: hồ sơ đã có kết nối quảng cáo đang chạy → trả alreadyConnected, không có authUrl.
-  if (data.alreadyConnected && !(data.url ?? data.authUrl)) {
-    throw new ZernioError("Cửa hàng này đã có kết nối quảng cáo. Vui lòng tải lại trang để thấy.", 409, "already_connected");
-  }
+  // alreadyConnected, không authUrl = ĐÃ NỐI (thử thật 24/10/2026 05:10: tài khoản Facebook của hồ sơ đã có quyền quảng cáo
+  // → nhà cung cấp tạo metaads NGAY trong lời gọi này, không cần cấp quyền lại). Là thành công, không phải lỗi.
+  if (data.alreadyConnected && !(data.url ?? data.authUrl)) return { daNoi: true };
   const url = data.url ?? data.authUrl;
   if (!url) throw new ZernioError("Zernio không trả về URL kết nối quảng cáo", 502, "missing_connect_url");
-  return url;
+  return { url };
 }
 
 /** Một Trang Facebook mà khách có quyền quản lý. */

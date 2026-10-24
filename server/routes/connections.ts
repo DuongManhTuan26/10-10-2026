@@ -194,8 +194,9 @@ async function noiQuangCaoXong(p: {
       console.error("[nối quảng cáo] đồng bộ sau khi nối:", e instanceof Error ? e.message : e);
     });
     const daCo = await queryOne(
-      "SELECT 1 FROM social_accounts WHERE user_id = $1 AND profile_ref = $2 AND platform = 'metaads' AND go_luc IS NULL",
-      [p.userId, p.profileId]
+      `SELECT 1 FROM social_accounts WHERE user_id = $1 AND profile_ref = $2 AND platform = 'metaads' AND go_luc IS NULL
+          AND trang_id = $3`,
+      [p.userId, p.profileId, p.trangId]
     );
     return daCo
       ? backToApp({ ok: true })
@@ -599,9 +600,27 @@ connectionsRouter.post(
     );
 
     const redirectUrl = `${env.appUrl}/api/connections/oauth/callback?state=${maBiMat}`;
-    const url = laQuangCao
-      ? await zernio.getConnectAdsUrl(profileId, { redirectUrl })
-      : await zernio.getConnectUrl(channel.platformKey, profileId, { headless: true, redirectUrl });
+    if (laQuangCao) {
+      const kq = await zernio.getConnectAdsUrl(profileId, { redirectUrl });
+      if ("daNoi" in kq) {
+        // Nhà cung cấp đã nối ngay (không cần cấp quyền) → xoá phiên, kéo kênh về, báo xong / chờ — không báo lỗi.
+        await query("DELETE FROM pending_connections WHERE user_id = $1", [req.user!.id]);
+        await syncAccountsForUser(req.user!.id, profileId).catch((e) => {
+          console.error("[nối quảng cáo] đồng bộ sau khi nối:", e instanceof Error ? e.message : e);
+        });
+        // Chỉ coi là xong khi kênh quảng cáo nằm ĐÚNG hồ sơ của cửa hàng VÀ đã gắn đúng cửa hàng đó.
+        const daCo = await queryOne(
+          `SELECT 1 FROM social_accounts WHERE user_id = $1 AND profile_ref = $2 AND platform = 'metaads' AND go_luc IS NULL
+              AND trang_id = $3`,
+          [req.user!.id, profileId, trangQuangCao]
+        );
+        res.json({ success: true, daNoi: true, choDongBo: !daCo });
+        return;
+      }
+      res.json({ success: true, url: kq.url });
+      return;
+    }
+    const url = await zernio.getConnectUrl(channel.platformKey, profileId, { headless: true, redirectUrl });
     res.json({ success: true, url });
   })
 );

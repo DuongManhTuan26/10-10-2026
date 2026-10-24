@@ -1093,7 +1093,8 @@ export const api = {
     /** trangId: trang bán hàng chủ shop đã chọn — bắt buộc với kênh không phải Facebook / quảng cáo. */
     /** noiLai: mã kênh đang có cần nối lại — đi vào đúng hồ sơ của kênh đó, giữ nguyên trang. */
     connectUrl: (platform: string, trangId?: number, noiLai?: string) =>
-      post<{ url: string }>("/connections/connect-url", { platform, trangId, noiLai }),
+      // daNoi (H11): quảng cáo Meta nối ngay phía nhà cung cấp, không cần đi cấp quyền — không có url.
+      post<{ url?: string; daNoi?: boolean; choDongBo?: boolean }>("/connections/connect-url", { platform, trangId, noiLai }),
     /** Trang bán hàng của tài khoản (kể cả trang chưa có kênh). */
     dsTrang: () =>
       get<{ data: Array<{ id: number; ten: string; soKenh: number; nenTang: string[]; hopRieng: boolean }> }>("/connections/trang"),

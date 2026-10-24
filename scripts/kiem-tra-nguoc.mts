@@ -6254,6 +6254,36 @@ const DUC: PhepDuc[] = [
     thay: "    if (ket_qua === 'khong-bao-gio') {",
   },
   {
+    ten: "'đã nối' của nhà cung cấp lại bị coi là lỗi",
+    tep: "server/services/zernio.ts",
+    tim: "  if (data.alreadyConnected && !(data.url ?? data.authUrl)) return { daNoi: true };",
+    thay: "  if (data.alreadyConnected && !(data.url ?? data.authUrl)) throw new ZernioError(\"đã có\", 409, \"already_connected\");",
+  },
+  {
+    ten: "nối ngay xong không kéo kênh quảng cáo về",
+    tep: "server/routes/connections.ts",
+    tim: "        await syncAccountsForUser(req.user!.id, profileId).catch((e) => {\n          console.error(\"[nối quảng cáo] đồng bộ sau khi nối:\"",
+    thay: "        await Promise.resolve().catch((e) => {\n          console.error(\"[nối quảng cáo] đồng bộ sau khi nối:\"",
+  },
+  {
+    ten: "giao diện chuyển trang tới url rỗng khi đã nối ngay",
+    tep: "src/pages/Connections.tsx",
+    tim: "      if (daNoi || !url) {",
+    thay: "      if (false) {",
+  },
+  {
+    ten: "nối ngay: kênh quảng cáo gắn sai cửa hàng vẫn báo xong",
+    tep: "server/routes/connections.ts",
+    tim: "              AND trang_id = $3`,\n          [req.user!.id, profileId, trangQuangCao]",
+    thay: "              AND (trang_id = $3 OR TRUE)`,\n          [req.user!.id, profileId, trangQuangCao]",
+  },
+  {
+    ten: "quay về: kênh quảng cáo gắn sai cửa hàng vẫn báo xong",
+    tep: "server/routes/connections.ts",
+    tim: "          AND trang_id = $3`,\n      [p.userId, p.profileId, p.trangId]",
+    thay: "          AND (trang_id = $3 OR TRUE)`,\n      [p.userId, p.profileId, p.trangId]",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

@@ -7504,8 +7504,16 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         vt(/profileId = \(await hoSoCuaCuaHang\(req\.user!\.id, trangId, channel\.platformKey, channel\.name\)\)\.profile_ref;/) < vt(/if \(!\(await fanpageCuaCuaHang\(req\.user!\.id, trangId\)\)\)/)
           && vt(/if \(!\(await fanpageCuaCuaHang\(req\.user!\.id, trangId\)\)\)/) < vt(/INSERT INTO pending_connections/),
         /\[req\.user!\.id, maBiMat, laQuangCao \? "quang_cao" : null, trangQuangCao\]/.test(curl),
-        /laQuangCao\s*\? await zernio\.getConnectAdsUrl\(profileId, \{ redirectUrl \}\)/.test(curl)],
+        /if \(laQuangCao\) \{\s*const kq = await zernio\.getConnectAdsUrl\(profileId, \{ redirectUrl \}\);/.test(curl)],
       [true, true, true, true]);
+    const ui11 = fs.readFileSync(path.join(GOC, "src/pages/Connections.tsx"), "utf8");
+    kiem("nối quảng cáo", "nhà cung cấp trả 'đã nối' (alreadyConnected, không authUrl — thử thật 24/10 05:10) = THÀNH CÔNG: xoá phiên, kéo kênh về, báo xong / chờ; giao diện không chuyển trang, báo đã nối; chữ hộp nối đúng cho quảng cáo",
+      [/if \(data\.alreadyConnected && !\(data\.url \?\? data\.authUrl\)\) return \{ daNoi: true \};/.test(zn),
+        /if \("daNoi" in kq\) \{\s*[\s\S]{0,200}DELETE FROM pending_connections WHERE user_id = \$1[\s\S]{0,120}await syncAccountsForUser\(req\.user!\.id, profileId\)\.catch\(/.test(curl),
+        /platform = 'metaads' AND go_luc IS NULL\n\s*AND trang_id = \$3`,\s*\[req\.user!\.id, profileId, trangQuangCao\]\s*\);\s*res\.json\(\{ success: true, daNoi: true, choDongBo: !daCo \}\);/.test(curl),
+        /if \(daNoi \|\| !url\) \{\s*const ketQua = await api\.connections\.sync\(\);/.test(ui11),
+        /selectedPlatform\?\.id === 'fb_ads'\s*\? <>Kết nối vào cửa hàng <b>\{tenCuaHangNoi\}<\/b> — đẩy bài và số liệu quảng cáo/.test(ui11)],
+      [true, true, true, true, true]);
     kiem("nối quảng cáo", "lượt nối MỚI xoá sạch dữ liệu lượt trước (temp_token / profile / step cũ → NULL); quay về không cần chọn thì xoá phiên — hết báo nhầm \"Phiên cấp quyền không thuộc về tài khoản này\"",
       [["platform", "profile_id", "temp_token", "user_profile", "connect_token", "step"].every((c) => new RegExp(`\\n\\s*${c}\\s*= NULL,`).test(curl)),
         /if \(q\.accountId && !q\.step\) \{[\s\S]{0,300}DELETE FROM pending_connections WHERE connect_state = \$1/.test(kn)],
@@ -7518,7 +7526,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       [true, true, true, true, true, true]);
     kiem("nối quảng cáo", "sau select-page: kéo kênh về NGAY (syncAccountsForUser, hỏng không thành 'chưa nối'); metaads chưa về → báo CHỜ (connect=cho-dong-bo), giao diện hiện câu chờ, không đối chiếu số kênh, không báo lỗi",
       [/selectFacebookPage\([\s\S]{0,700}?await syncAccountsForUser\(p\.userId, p\.profileId\)\.catch\(/.test(ham),
-        /platform = 'metaads' AND go_luc IS NULL",\s*\[p\.userId, p\.profileId\]/.test(ham), /return daCo\s*\? backToApp\(\{ ok: true \}\)\s*: backToApp\(\{ ok: true, choDongBo: true, message: "Đang đồng bộ tài khoản quảng cáo/.test(ham),
+        /platform = 'metaads' AND go_luc IS NULL\n\s*AND trang_id = \$3`,\s*\[p\.userId, p\.profileId, p\.trangId\]/.test(ham), /return daCo\s*\? backToApp\(\{ ok: true \}\)\s*: backToApp\(\{ ok: true, choDongBo: true, message: "Đang đồng bộ tài khoản quảng cáo/.test(ham),
         /params\.choDongBo \? "cho-dong-bo" : "select"/.test(kn), /if \(ket_qua === 'cho-dong-bo'\) \{\s*docDangNoi\(\);\s*setVuaNoiXong\(/.test(ui)],
       [true, true, true, true, true]);
     kiem("nối quảng cáo", "màn Kết nối: ô Meta Ads theo cửa hàng đang chọn; cửa hàng chưa có Fanpage → chưa nối được + lý do; bảng kênh của cửa hàng không kéo quảng cáo của cửa hàng khác",

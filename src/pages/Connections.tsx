@@ -199,7 +199,9 @@ export default function Connections() {
     <div className="mb-6 flex items-start gap-2.5 p-3 rounded-lg border border-thong-tin/40 bg-thong-tin/10">
       <span className="material-symbols-outlined text-thong-tin text-[20px] shrink-0">storefront</span>
       <p className="text-sm text-on-surface leading-relaxed">
-        Kết nối vào cửa hàng <b>{tenCuaHangNoi}</b> — bộ não AI của cửa hàng này sẽ trả lời khách và đăng bài trên kênh.
+        {selectedPlatform?.id === 'fb_ads'
+          ? <>Kết nối vào cửa hàng <b>{tenCuaHangNoi}</b> — đẩy bài và số liệu quảng cáo của cửa hàng này chạy qua tài khoản quảng cáo này.</>
+          : <>Kết nối vào cửa hàng <b>{tenCuaHangNoi}</b> — bộ não AI của cửa hàng này sẽ trả lời khách và đăng bài trên kênh.</>}
       </p>
     </div>
   ) : null;
@@ -597,11 +599,24 @@ export default function Connections() {
     setErrorMessage('');
 
     try {
-      const { url } = await api.connections.connectUrl(
+      const { url, daNoi, choDongBo } = await api.connections.connectUrl(
         selectedPlatform.platformKey!,
         phaiChonTrang() ? trangChonNoi ?? undefined : undefined,
         noiLaiKenh?.id
       );
+      // H11: quảng cáo Meta nối ngay (tài khoản Facebook đã có quyền quảng cáo) — không chuyển trang, kéo kênh về rồi báo.
+      if (daNoi || !url) {
+        const ketQua = await api.connections.sync();
+        setAccounts(ketQua.data);
+        await load();
+        await reloadActivePages();
+        setIsLoggingIn(false);
+        setConnectStep(0);
+        setVuaNoiXong(choDongBo
+          ? 'Đã nối quảng cáo Meta. Đang đồng bộ tài khoản quảng cáo, vui lòng chờ một lát rồi bấm Đồng bộ.'
+          : `Đã nối quảng cáo Meta${tenCuaHangNoi ? ` cho cửa hàng ${tenCuaHangNoi}` : ''}. Đẩy bài và số liệu quảng cáo của cửa hàng này chạy qua tài khoản này.`);
+        return;
+      }
       /*
        * Nhớ đang nối nền tảng nào (trang sẽ tải lại hẳn khi quay về). Quay về mà không có kênh mới thì báo rõ — đã xảy
        * ra 12/10/2026: chủ dự án nối YouTube, lượt quay về rơi đúng lúc máy chủ mất kết nối cơ sở dữ liệu, màn hình
