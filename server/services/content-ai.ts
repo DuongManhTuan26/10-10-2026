@@ -8,7 +8,7 @@
  */
 
 import { query, queryOne } from "../db.js";
-import { docTaiLieu } from "./knowledge.js";
+import { coTaiLieu, docTaiLieu } from "./knowledge.js";
 import { moTaGiong } from "./giong-dieu.js";
 import { chatJson, asRecord, stringArray } from "./ai.js";
 import { boMarkdown, DAN_KHONG_MARKDOWN } from "./text.js";
@@ -35,6 +35,47 @@ export interface GeneratedContent {
  * trùng nội dung trong 24 giờ, còn Facebook thì coi việc đăng lặp là dấu hiệu
  * của tài khoản máy.
  */
+/*
+ * H15 (24/10/2026): AI Nội dung BỊA cam kết khi cửa hàng chưa có tài liệu — đo thật (cửa hàng 12, 0 tài liệu): "mỗi sản phẩm
+ * được team tự tay dùng thử", "hỗ trợ đổi trả nếu lỗi do nhà sản xuất", "mẫu hot có hạn vì khách đặt liên tục", đoán shop
+ * bán "đồ gia dụng" từ tên Fanpage. AI Bán hàng đã có nhánh tương đương (CHUA_CO_TAI_LIEU, mục C). Cùng chỗ quyết định
+ * coTaiLieu (knowledge.ts).
+ */
+export const CHUA_CO_TAI_LIEU_BAI_VIET = [
+  "CỬA HÀNG CHƯA NẠP TÀI LIỆU SẢN PHẨM NÀO.",
+  "Chỉ viết đúng theo chủ đề chủ shop đưa ra; KHÔNG đoán cửa hàng bán mặt hàng gì ngoài chủ đề đó (kể cả đoán từ tên Fanpage).",
+  "Được viết: giới thiệu chung, câu chuyện, lợi ích thường thấy của loại hàng trong chủ đề, mời khách nhắn tin để được tư vấn.",
+  "TUYỆT ĐỐI KHÔNG viết (không có tài liệu thì mọi câu loại này đều là bịa):",
+  "- giá, khuyến mãi, chiết khấu, quà tặng, ưu đãi",
+  "- còn hàng / sắp hết / số lượng có hạn / khách đặt nhiều",
+  "- phí hay thời gian giao hàng, đổi trả, bảo hành, hoàn tiền",
+  "- thành phần, công dụng cụ thể, xuất xứ, giấy chứng nhận, đã kiểm định, đã dùng thử",
+].join("\n");
+
+/** Khối tài liệu của lời dặn viết bài: có tài liệu → nội dung + chỉ cam kết những gì có trong đó; chưa có → nhánh cấm. */
+export function khoiTaiLieuBaiViet(tl: { noiDung: string }): string {
+  return coTaiLieu(tl)
+    ? "\n\nTHÔNG TIN SẢN PHẨM VÀ VĂN PHONG CỦA SHOP:\n" + tl.noiDung +
+        "\n\nGiá, khuyến mãi, chính sách và cam kết CHỈ được viết khi có trong phần thông tin trên; không có thì không viết."
+    : "\n\n" + CHUA_CO_TAI_LIEU_BAI_VIET;
+}
+
+/** Tên Fanpage của cửa hàng (nguyên văn, ưu tiên Facebook đang nối) — để AI viết đúng tên riêng. Không có → null. */
+export async function tenFanpageCuaCuaHang(trangId: number | null): Promise<string | null> {
+  if (trangId == null) return null;
+  const r = await queryOne<{ ten: string }>(
+    `SELECT coalesce(nullif(display_name, ''), username) AS ten FROM social_accounts
+      WHERE trang_id = $1 AND connected = TRUE AND go_luc IS NULL AND platform <> 'metaads'
+      ORDER BY (platform = 'facebook') DESC, created_at LIMIT 1`,
+    [trangId]
+  );
+  return r?.ten?.trim() || null;
+}
+
+export function dongTenFanpage(ten: string): string {
+  return `Tên Fanpage của cửa hàng: "${ten}" — khi nhắc tên thì viết đúng nguyên văn như vậy.`;
+}
+
 export async function generatePostContent(params: {
   userId: number;
   /*
@@ -68,8 +109,9 @@ export async function generatePostContent(params: {
   const giong = moTaGiong(config?.tone);
 
   // Mọi tài liệu có chữ vừa trần 24.000 ký tự, cắt ở ranh giới dòng (knowledge.ts chonTaiLieu — H8; bản cũ 5 × 3.000).
-  const tl = await docTaiLieu(params.trangId, "content");
-  const knowledge = tl.noiDung ? "\n\nTHÔNG TIN SẢN PHẨM VÀ VĂN PHONG CỦA SHOP:\n" + tl.noiDung : "";
+  // Chưa có tài liệu → nhánh cấm cam kết (H15); tên Fanpage đúng dạng để AI không tự viết thường / sai tên.
+  const knowledge = khoiTaiLieuBaiViet(await docTaiLieu(params.trangId, "content"));
+  const tenFanpage = await tenFanpageCuaCuaHang(params.trangId);
 
   const khongLap = params.tranhLap?.length
     ? "\n\nCÁC BÀI SHOP VỪA ĐĂNG — PHẢI VIẾT KHÁC HẲN, khác cả câu mở đầu:\n" +
@@ -80,6 +122,7 @@ export async function generatePostContent(params: {
     config?.system_prompt?.trim() ||
       "Bạn là người viết nội dung mạng xã hội cho shop bán hàng tại Việt Nam.",
     ...(giong ? [giong] : []),
+    ...(tenFanpage ? [dongTenFanpage(tenFanpage)] : []),
     GOAL_INSTRUCTIONS[goal] ?? GOAL_INSTRUCTIONS.sales,
     "Viết tiếng Việt tự nhiên, tránh sáo rỗng, không lạm dụng biểu tượng cảm xúc.",
     DAN_KHONG_MARKDOWN,

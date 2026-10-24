@@ -1582,7 +1582,7 @@ kiem("tự chủ", "chỉ cứu khi BẬT, không cứu khi tắt",
 kiem("chưa có tài liệu", "có chế độ riêng khi shop chưa nạp tài liệu",
   /const CHUA_CO_TAI_LIEU = \[/.test(nguonSales), true);
 kiem("chưa có tài liệu", "chọn đúng nhánh theo việc có tài liệu hay không",
-  /knowledgeBlock\.trim\(\)\s*\n?\s*\? `KIẾN THỨC ĐƯỢC PHÉP DÙNG[\s\S]{0,120}?: CHUA_CO_TAI_LIEU/.test(
+  /coTaiLieu\(tlBanHang\)\s*\n?\s*\? `KIẾN THỨC ĐƯỢC PHÉP DÙNG[\s\S]{0,120}?: CHUA_CO_TAI_LIEU/.test(
     nguonSales
   ), true);
 kiem("chưa có tài liệu", "vẫn bắt AI nói chuyện, cấm im lặng",
@@ -7555,6 +7555,40 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /chữ thường/.test(tx.DAN_KHONG_MARKDOWN), (mau14.match(/Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu/g) ?? []).length, /Viết bằng chữ thường/.test(mau14)],
       [true, false, 4, false]);
   }
+  // H15 (24/10/2026): AI Nội dung bịa cam kết khi cửa hàng chưa có tài liệu — nhánh "chưa nạp" + tên Fanpage đúng dạng.
+  {
+    const ca15 = await import("../server/services/content-ai.js");
+    const kn15 = await import("../server/services/knowledge.js");
+    const ct15 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/content-ai.ts"), "utf8"));
+    const sa15 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/sales-ai.ts"), "utf8"));
+    const rong = ca15.khoiTaiLieuBaiViet({ noiDung: " \n " }), co = ca15.khoiTaiLieuBaiViet({ noiDung: "Áo thun cotton 150.000đ. Đổi trả 7 ngày." });
+    kiem("viết bài chưa tài liệu", "khối tài liệu viết bài: rỗng → CHUA_CO_TAI_LIEU_BAI_VIET (cấm giá / khan hiếm / đổi trả / bảo hành / kiểm định / dùng thử, không đoán mặt hàng); có → tài liệu + chỉ cam kết những gì có; cùng chỗ quyết định coTaiLieu",
+      [rong.includes(ca15.CHUA_CO_TAI_LIEU_BAI_VIET), /THÔNG TIN SẢN PHẨM/.test(rong),
+        ["giá, khuyến mãi", "số lượng có hạn", "đổi trả, bảo hành", "đã kiểm định, đã dùng thử", "KHÔNG đoán cửa hàng bán mặt hàng gì"].every((c) => ca15.CHUA_CO_TAI_LIEU_BAI_VIET.includes(c)),
+        co.includes("Áo thun cotton 150.000đ"), /CHỈ được viết khi có trong phần thông tin trên/.test(co), co.includes("CHƯA NẠP"),
+        kn15.coTaiLieu({ noiDung: "" }), kn15.coTaiLieu({ noiDung: "  \n" }), kn15.coTaiLieu({ noiDung: "x" })],
+      [true, false, true, true, true, false, false, false, true]);
+    kiem("viết bài chưa tài liệu", "tên Fanpage nguyên văn trong lời dặn viết bài (bài thử viết sai \"Chạm tay vạn điều hay\")",
+      [ca15.dongTenFanpage("Chạm Tay Vạn Điều Hay"), /\.\.\.\(tenFanpage \? \[dongTenFanpage\(tenFanpage\)\] : \[\]\),/.test(ct15),
+        /WHERE trang_id = \$1 AND connected = TRUE AND go_luc IS NULL AND platform <> 'metaads'/.test(ct15)],
+      ['Tên Fanpage của cửa hàng: "Chạm Tay Vạn Điều Hay" — khi nhắc tên thì viết đúng nguyên văn như vậy.', true, true]);
+    // QUÉT mọi chỗ đọc tài liệu ở máy chủ: chỗ nào sinh chữ cho KHÁCH phải đi qua coTaiLieu / khối có nhánh rỗng; chỗ khác
+    // phải được xếp loại ở đây (thêm chỗ đọc mới mà chưa xếp loại → hỏng).
+    const XEP: Record<string, string> = {
+      "services/content-ai.ts": "khách — viết bài: khoiTaiLieuBaiViet",
+      "services/sales-ai.ts": "khách — bán hàng: coTaiLieu → CHUA_CO_TAI_LIEU; + bộ xác nhận giá (không sinh chữ)",
+      "routes/ai.ts": "Thử AI (content dùng khoiTaiLieuBaiViet) + hiện số ký tự đọc được (không sinh chữ)",
+      "routes/ads.ts": "AI phân tích quảng cáo — chủ shop đọc, không gửi khách",
+      "services/knowledge.ts": "định nghĩa (loadKnowledge)",
+    };
+    const tep15 = fs.readdirSync(path.join(GOC, "server"), { recursive: true }).map(String).filter((t) => /\.ts$/.test(t))
+      .filter((t) => /(?<!function )\b(docTaiLieu|loadKnowledge)\(/.test(boChuThich(fs.readFileSync(path.join(GOC, "server", t), "utf8"))));
+    const ai15 = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8"));
+    kiem("viết bài chưa tài liệu", "quét chỗ đọc tài liệu: mọi chỗ đã xếp loại; sinh chữ cho khách đều có nhánh rỗng (viết bài, bán hàng, Thử AI nội dung)",
+      [tep15.filter((t) => !XEP[t]).sort(), /coTaiLieu\(tlBanHang\)/.test(sa15), /khoiTaiLieuBaiViet\(/.test(ct15),
+        /const knowledge = kind === "content" \? khoiTaiLieuBaiViet\(tl\) :/.test(ai15)],
+      [[], true, true, true]);
+  }
   const as14 = fs.readFileSync(path.join(GOC, "src/pages/AutoScripts.tsx"), "utf8");
   kiem("thử AI = máy thật", "màn thử: nói rõ chỉ thử một tin đầu tiên (không lịch sử); hiện 'AI sẽ chuyển cho nhân viên' + bước bán AI chọn",
     [/Thử với một tin đầu tiên của khách, không có lịch sử hội thoại\./.test(as14), /AI sẽ chuyển cho nhân viên: \{testReply\.chuyenNguoi\}/.test(as14),
@@ -8226,7 +8260,7 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   const sa8 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/sales-ai.ts"), "utf8"));
   const ct8 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/content-ai.ts"), "utf8"));
   kiem("H8 tài liệu", "AI bán hàng, AI nội dung, AI quảng cáo (loadKnowledge) và bộ xác nhận giá cùng đi qua docTaiLieu",
-    [/const knowledgeBlock = \(await docTaiLieu\(trangId, "sales"\)\)\.noiDung;/.test(sa8), /const tl = await docTaiLieu\(params\.trangId, "content"\);/.test(ct8),
+    [/const tlBanHang = await docTaiLieu\(trangId, "sales"\);\s*const knowledgeBlock = tlBanHang\.noiDung;/.test(sa8), /const knowledge = khoiTaiLieuBaiViet\(await docTaiLieu\(params\.trangId, "content"\)\);/.test(ct8),
       /const kq = await docTaiLieu\(trangId, kind\);/.test(boChuThich(fs.readFileSync(path.join(GOC, "server/services/knowledge.ts"), "utf8")))],
     [true, true, true]);
   const atm = boChuThich(fs.readFileSync(path.join(GOC, "src/components/AITrainingModal.tsx"), "utf8"));

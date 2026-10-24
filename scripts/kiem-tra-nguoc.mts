@@ -5146,8 +5146,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "chưa có tài liệu lại gán chuỗi giữ chỗ (AI nhận 'kiến thức: chưa có')",
     tep: "server/services/sales-ai.ts",
-    tim: "  const knowledgeBlock = (await docTaiLieu(trangId, \"sales\")).noiDung;",
-    thay: "  const knowledgeBlock = (await docTaiLieu(trangId, \"sales\")).noiDung || \"(Chưa có kiến thức.)\";",
+    tim: "  const tlBanHang = await docTaiLieu(trangId, \"sales\");",
+    thay: "  const tlGoc = await docTaiLieu(trangId, \"sales\");\n  const tlBanHang = { ...tlGoc, noiDung: tlGoc.noiDung || \"(Chưa có kiến thức.)\" };",
   },
   {
     ten: "tài liệu không chữ vẫn tính là có kiến thức",
@@ -5992,8 +5992,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "AI Nội dung bỏ qua giọng đã chọn khi viết bài",
     tep: "server/services/content-ai.ts",
-    tim: "    ...(giong ? [giong] : []),\n    GOAL_INSTRUCTIONS",
-    thay: "    GOAL_INSTRUCTIONS",
+    tim: "    ...(giong ? [giong] : []),\n    ...(tenFanpage",
+    thay: "    ...(tenFanpage",
   },
   {
     ten: "Thử AI bỏ giọng của AI Nội dung",
@@ -6004,8 +6004,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "Thử AI quay lại đọc tài liệu kiểu cũ 5 × 3.000",
     tep: "server/routes/ai.ts",
-    tim: "    const tl = await docTaiLieu(await trangCuaReq(req), kind);\n    const knowledge",
-    thay: "    const tl = { noiDung: (await query<{ extracted_text: string }>(\"SELECT extracted_text FROM ai_documents WHERE trang_id = $1 AND kind = $2 ORDER BY created_at DESC LIMIT 5\", [await trangCuaReq(req), kind])).rows.map((r) => r.extracted_text.slice(0, 3_000)).join(\"\\n\\n\") };\n    const knowledge",
+    tim: "    const tl = await docTaiLieu(await trangCuaReq(req), kind);\n    // AI Nội dung: cùng khối",
+    thay: "    const tl = { noiDung: (await query<{ extracted_text: string }>(\"SELECT extracted_text FROM ai_documents WHERE trang_id = $1 AND kind = $2 ORDER BY created_at DESC LIMIT 5\", [await trangCuaReq(req), kind])).rows.map((r) => r.extracted_text.slice(0, 3_000)).join(\"\\n\\n\") };\n    // AI Nội dung: cùng khối",
   },
   {
     ten: "ô giọng bấm lại không bỏ chọn được",
@@ -6354,6 +6354,54 @@ const DUC: PhepDuc[] = [
     tep: "server/services/text.ts",
     tim: "  \"Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu và tên riêng đúng chính tả tiếng Việt. TUYỆT ĐỐI KHÔNG dùng markdown: \" +",
     thay: "  \"Viết bằng chữ thường như nhắn tin bình thường. TUYỆT ĐỐI KHÔNG dùng markdown: \" +",
+  },
+  {
+    ten: "viết bài chưa tài liệu không có nhánh cấm cam kết",
+    tep: "server/services/content-ai.ts",
+    tim: "    : \"\\n\\n\" + CHUA_CO_TAI_LIEU_BAI_VIET;",
+    thay: "    : \"\";",
+  },
+  {
+    ten: "viết bài có tài liệu mà không nhắc chỉ cam kết thứ có trong đó",
+    tep: "server/services/content-ai.ts",
+    tim: "\"\\n\\nGiá, khuyến mãi, chính sách và cam kết CHỈ được viết khi có trong phần thông tin trên; không có thì không viết.\"",
+    thay: "\"\"",
+  },
+  {
+    ten: "nhánh cấm bỏ dòng khan hiếm",
+    tep: "server/services/content-ai.ts",
+    tim: "  \"- còn hàng / sắp hết / số lượng có hạn / khách đặt nhiều\",\n",
+    thay: "",
+  },
+  {
+    ten: "nhánh cấm cho đoán mặt hàng từ tên Fanpage",
+    tep: "server/services/content-ai.ts",
+    tim: "  \"Chỉ viết đúng theo chủ đề chủ shop đưa ra; KHÔNG đoán cửa hàng bán mặt hàng gì ngoài chủ đề đó (kể cả đoán từ tên Fanpage).\",\n",
+    thay: "",
+  },
+  {
+    ten: "lời dặn viết bài không có tên Fanpage",
+    tep: "server/services/content-ai.ts",
+    tim: "    ...(tenFanpage ? [dongTenFanpage(tenFanpage)] : []),\n",
+    thay: "",
+  },
+  {
+    ten: "tài liệu toàn khoảng trắng bị coi là có tài liệu",
+    tep: "server/services/knowledge.ts",
+    tim: "  return tl.noiDung.trim() !== \"\";",
+    thay: "  return tl.noiDung !== \"\";",
+  },
+  {
+    ten: "Thử AI nội dung không đi cùng khối với máy viết bài",
+    tep: "server/routes/ai.ts",
+    tim: "const knowledge = kind === \"content\" ? khoiTaiLieuBaiViet(tl) : tl.noiDung",
+    thay: "const knowledge = tl.noiDung",
+  },
+  {
+    ten: "bán hàng bỏ chỗ quyết định chung",
+    tep: "server/services/sales-ai.ts",
+    tim: "    coTaiLieu(tlBanHang)\n",
+    thay: "    knowledgeBlock !== \"\"\n",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

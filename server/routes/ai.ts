@@ -9,7 +9,7 @@ import { chat, chatJson, asRecord, stringArray, DEFAULT_MODELS } from "../servic
 import {
   dungLoiDanBanHang, extractOrderInfo, GOI_AI_BAN_HANG, kiemQuyetDinh, suggestReply, tinHoiThoaiBanHang, type SalesDecision,
 } from "../services/sales-ai.js";
-import { generatePostContent } from "../services/content-ai.js";
+import { generatePostContent, khoiTaiLieuBaiViet } from "../services/content-ai.js";
 import { GHI_LUAT, luatCuaCuaHang } from "../services/luat-chuyen-nguoi.js";
 import { trangHienTai } from "../services/ngu-canh-trang.js";
 
@@ -1130,7 +1130,8 @@ aiRouter.post(
 
     // Cùng hàm chọn tài liệu với máy thật (knowledge.ts chonTaiLieu — H8; bản cũ 5 × 3.000 riêng ở đây).
     const tl = await docTaiLieu(await trangCuaReq(req), kind);
-    const knowledge = tl.noiDung ? "\n\nKIẾN THỨC ĐƯỢC PHÉP DÙNG:\n" + tl.noiDung : "";
+    // AI Nội dung: cùng khối tài liệu với máy viết bài thật (có nhánh "chưa nạp tài liệu" — H15).
+    const knowledge = kind === "content" ? khoiTaiLieuBaiViet(tl) : tl.noiDung ? "\n\nKIẾN THỨC ĐƯỢC PHÉP DÙNG:\n" + tl.noiDung : "";
     // Giọng điệu chỉ có ở AI Nội dung (và Bán hàng — nhánh trên) — TD-24.
     const giong = kind === "content" ? moTaGiong(config?.tone) : null;
 

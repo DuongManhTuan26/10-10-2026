@@ -1,5 +1,5 @@
 import { query, queryOne, transaction } from "../db.js";
-import { docTaiLieu } from "./knowledge.js";
+import { docTaiLieu, coTaiLieu } from "./knowledge.js";
 import { moTaGiong } from "./giong-dieu.js";
 import { chat, chatJson, asRecord, optionalString } from "./ai.js";
 import { docCacBuoc, moTaCacBuoc, maCacBuoc } from "./sales-stages.js";
@@ -792,7 +792,8 @@ export async function dungLoiDanBanHang(
    * dặn lộ ra; Fanpage thật của cửa hàng 47 / 370 đều chưa có tài liệu bán hàng).
    */
   // Mọi tài liệu có chữ, mới nhất trước, vừa trần 40.000 ký tự, cắt ở ranh giới dòng (knowledge.ts chonTaiLieu — H8).
-  const knowledgeBlock = (await docTaiLieu(trangId, "sales")).noiDung;
+  const tlBanHang = await docTaiLieu(trangId, "sales");
+  const knowledgeBlock = tlBanHang.noiDung;
 
   const activeRules = rules
     .filter((rule) => rule.enabled && RULE_DESCRIPTIONS[rule.rule_key])
@@ -820,7 +821,7 @@ export async function dungLoiDanBanHang(
      * Ranh giới: nói chuyện thoải mái được, bịa giá và bịa công dụng thì không.
      * Một con số sai nói với khách thật là mất uy tín shop, không lấy lại được.
      */
-    knowledgeBlock.trim()
+    coTaiLieu(tlBanHang)
       ? `KIẾN THỨC ĐƯỢC PHÉP DÙNG (chỉ dựa vào đây, tuyệt đối không bịa):\n${knowledgeBlock}`
       : CHUA_CO_TAI_LIEU,
     "",

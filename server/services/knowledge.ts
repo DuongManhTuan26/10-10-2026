@@ -128,6 +128,14 @@ export async function docTaiLieu(trangId: number | null, kind: string): Promise<
   return chonTaiLieu(docs.rows, tran);
 }
 
+/**
+ * Cửa hàng CÓ tài liệu (chữ thật) cho AI này không — MỘT chỗ quyết định cho mọi AI sinh chữ cho khách: rỗng → lời dặn đi
+ * nhánh "chưa nạp tài liệu" (bán hàng: CHUA_CO_TAI_LIEU; viết bài: CHUA_CO_TAI_LIEU_BAI_VIET — H15, 24/10/2026).
+ */
+export function coTaiLieu(tl: { noiDung: string }): boolean {
+  return tl.noiDung.trim() !== "";
+}
+
 export async function loadKnowledge(
   trangId: number | null,
   kind: string
