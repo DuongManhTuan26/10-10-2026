@@ -1,0 +1,34 @@
+# Memory Index
+
+- [Fanpage AI System project](project_fanpage_ai_system.md) — internal AI sales/marketing tool for their own Facebook Fanpages; scope + tech decisions locked in 2026-08-10.
+- [Architecture simplicity feedback](feedback_architecture_simplicity.md) — prefers minimal-dependency, single-process designs over "textbook" scalable ones; apply proactively.
+- [Zernio SaaS project](project_zernio_saas.md) — commercial AI sales SaaS on React/Express/Gemini via Zernio API; taken over 2026-08-17 from an abandoned AI Studio session. Separate from Fanpage AI System.
+- [Verify before claiming](feedback_verify_before_claiming.md) — work sequentially, run it before calling it done; user was burned badly by an AI that faked completion.
+- [Giao diện chính/phụ](feedback_giao_dien_chinh_phu.md) — dòng chính ngắn gọn, chi tiết chỉ hiện khi bấm; ba cấp có kẻ dòng, cỡ chữ tách bạch; màu theo nghĩa (âm đỏ, ổn xanh lá, cảnh báo cam)
+- [Chọn mô hình AI](feedback_chon_mo_hinh_ai.md) — chỉ bỏ mô hình hạng bét/đã ngừng/bản cũ; giữ mô hình nổi tiếng, tốt
+- [Xử lý triệt để](feedback_xu_ly_triet_de.md) — lỗi phải có căn cứ là yêu cầu của chủ dự án; phán đoán thì HỎI trước, không tự sửa/tiêu tiền; không thể thì ghi sổ tồn đọng
+- [Nghiên cứu trước](feedback_nghien_cuu_truoc.md) — đọc tài liệu chính thức trước khi làm; dùng OpenRouter trước khi nghĩ API riêng; tài liệu đã rõ thì làm theo, không đòi thử tốn tiền
+- [Không đổi cài đặt khi thử](feedback_khong_doi_cai_dat_khi_thu.md) — đọc trạng thái gốc qua API trước khi bấm thử, thử xong trả đúng như cũ
+- [Admin tự đặt mật khẩu](feedback_admin_tu_dat_mat_khau.md) — mật khẩu admin BẮT BUỘC tự gõ (19/10: để trống không cho lưu); sửa lỗi thì sửa MỌI chỗ cùng loại
+- [Bỏ admin con, tài khoản mới = bản sao](feedback_dong_nhat_hai_tang_quan_ly.md) — 18/10: bỏ chủ chuỗi/tài khoản con; mọi tài khoản mới = bản sao 100% phần dùng thường của admin tổng; không 'đang xem'; không confirm/prompt
+- [Coi AI là học trò yếu](feedback_coi_ai_la_hoc_tro_yeu.md) — giả định mô hình hay sai, cầm tay chỉ việc kiểm soát điểm yếu; không ép/tìm mô hình hoàn hảo bằng chạy thử tốn tiền
+- [Bảo mật để cuối](feedback_bao_mat_de_cuoi.md) — Zernio: rà logic 4 AI & mục đích trước; bảo mật dồn về giai đoạn triển khai
+- [Bộ não 4 AI](feedback_bo_nao_4_ai.md) — viết bài/quảng cáo/bán hàng/điều hành là MỘT khối liền mạch, 1 khối/trang; không tách AI nào ra chỗ khác
+- [Khối não AI](project_khoi_nao_ai.md) — Zernio: 4 AI liền mạch gắn 1-1 mỗi chuỗi/trang, không tách rời; chỉ prompt/dữ liệu thay đổi
+- [Thứ tự theo trình tự](feedback_thu_tu_theo_trinh_tu.md) — thẻ/bước xếp theo trình tự làm việc: Hướng dẫn AI → Đang làm → Kết quả → Nhật ký
+- [Từng bước, kiểm duyệt](feedback_tung_buoc_kiem_duyet.md) — làm xong một giai đoạn cho hoàn hảo + kiểm duyệt rồi mới sang giai đoạn sau, không gộp
+- [Không tự đổi điều đã thống nhất](feedback_khong_tu_doi_da_thong_nhat.md) — đã chốt màu/thứ tự/bước nào thì cấm tự đổi; muốn đổi phải hỏi và chỉ rõ cũ→mới
+- [Nền là bản em](project_nen_la_ban_em.md) — 12/10: nền = zernio (cổng 3000); bản làm lại chỉ lấy giao diện; không bật bản làm lại (.env trỏ Neon thật)
+- [Thẻ đúng chất liệu khung-muc](feedback_the_trong_suot_sang.md) — thẻ trong suốt thấy lưới kẻ vuông, viền màu; chỉ đổi MÀU, không đổi chất liệu; không làm một màn một kiểu
+- [Phương pháp thiết kế (được khen)](feedback_phuong_phap_thiet_ke.md) — chất liệu khung-muc · màu xanh-đỏ-tím-vàng theo AI · bố cục theo ưu tiên · điểm nhấn có nghiên cứu · kiểm 1440/375 + kiem-tra
+- [Tên gọi: Cửa hàng](project_ten_goi_cua_hang.md) — đơn vị có bộ não gọi "Cửa hàng" (không "trang bán hàng"); Facebook gọi "Fanpage"; chỉ đổi chữ hiện cho khách
+- [Hai phiên viết & duyệt](feedback_hai_phien_viet_va_duyet.md) — Zernio 18/10: một phiên viết code, một phiên kiểm duyệt; bàn tới thống nhất rồi mới làm; mọi kết luận dựa trên chứng cứ
+- [Kênh như nhân viên](feedback_kenh_nhu_nhan_vien.md) — 19/10: chuyển kênh = ra đi người không, quay về người không; data khách + việc ở lại cửa hàng; suy luật từ mô hình kinh doanh, không từ dữ liệu nền tảng
+- [Kênh là nhân viên](project_kenh_la_nhan_vien.md) — 19/10: dữ liệu/việc thuộc CỬA HÀNG; chuyển kênh "ra đi người không, quay về cũng người không"; suy từ kinh doanh, không từ mô hình dữ liệu Facebook
+- [Không preview máy chủ chính](feedback_khong_preview_may_chu_chinh.md) — Zernio: cổng 3000 = LaunchAgent; KHÔNG preview_start; 24/10 app TỰ bật npm run dev khi mở lại khung trình duyệt → launch.json nay chỉ gắn url; dùng trình duyệt thì preview_list, thấy bản khác 3000 là stop
+- [Không hỏi vặt](feedback_khong_hoi_vat.md) — 22/10: hai phiên tự phản biện, tự xử lý tới khi hoàn thiện rồi mới báo; chỉ hỏi khi tiêu tiền / không hoàn tác / đổi điều đã chốt, gom câu hỏi
+- [Máy chủ chạy LaunchAgent](feedback_bat_may_chu_tach_phien.md) — từ 23/10 22:10 cổng 3000 chạy launchd (không watch): gộp xong BẮT BUỘC launchctl kickstart -k …/vn.quanly.fanpage; kịch bản tạm ~/.zn-tam
+- [Đề xuất có phương án](feedback_de_xuat_co_phuong_an.md) — 23–24/10: MỌI việc trình chủ dự án (cả danh sách việc chờ) phải có đề xuất + nguyên nhân + căn cứ + hệ quả + tiền; cấm liệt kê trơn
+- [Tổng quan là mẫu](feedback_tong_quan_la_mau.md) — 23/10: màn hệ thống học theo Tổng quan (màu đa dạng, sợi nối sáng, nút màu miền); thanh 4 bước một màu theo AI; khối não làm sau cùng
+- [Quyết định 23/10](project_quyet_dinh_23_10.md) — Tổng quan là mẫu thiết kế; thanh bước một màu theo AI; khối não sau cùng; H2–H10
+- [Khuôn trình việc](feedback_khuon_trinh_viec.md) — 24/10: mọi mục trình chủ dự án = đề xuất + nguyên nhân + căn cứ + hệ quả + tiền; không liệt kê trơn
