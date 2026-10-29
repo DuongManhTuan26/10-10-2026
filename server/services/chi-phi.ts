@@ -20,6 +20,7 @@ import { DAU_THANG_VN } from "../moc-thoi-gian.js";
 import { banGhi, optionalString } from "./ai.js";
 import { VIEC, nhomCua, tenViec, type Viec } from "./so-ai.js";
 import { escapeHtml } from "./telegram.js";
+import { docSuCoAi } from "./su-co-ai.js";
 
 /** Trang nạp tiền / thanh toán của từng bên — mở thẳng, không phải tự tìm. */
 export const LINK_NAP = {
@@ -574,8 +575,23 @@ export const usdVN = (n: number) =>
 export const usdVNDu = (n: number) =>
   `${n.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 10 })} USD`;
 
-export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBao, doiChieu: DoiChieuTong | null = null): CanhBao[] {
+export function danhGia(
+  ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBao, doiChieu: DoiChieuTong | null = null,
+  suCoAi: { batDau: string; chiTiet: string } | null = null
+): CanhBao[] {
   const ds: CanhBao[] = [];
+  // H19: nhà cung cấp AI đang chặn (ngân sách workspace / hết tiền) — số dư có thể còn nên các cảnh báo dưới không thấy.
+  if (suCoAi) {
+    ds.push({
+      ma: "ai_bi_chan",
+      mucDo: "nguy_cap",
+      noiDung: `AI đang bị nhà cung cấp chặn từ ${new Date(suCoAi.batDau).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}` +
+        ` (hết ngân sách / hết tiền). Mọi tính năng AI đang dừng. Chi tiết: ${suCoAi.chiTiet}`,
+      tomTat: "AI đang bị chặn — nâng ngân sách / nạp thêm ở nhà cung cấp AI",
+      link: LINK_NAP.openrouter,
+      giaTriBao: suCoAi.batDau,
+    });
+  }
   if (kenh.ok && kenh.conHoatDong === false) {
     ds.push({
       ma: "kenh_tam_dung",
@@ -678,14 +694,14 @@ export function danhGia(ai: TinhHinhAI, kenh: TinhHinhKenh, nguong: NguongCanhBa
 
 /** Toàn bộ sao kê cho màn hình quản trị. */
 export async function saoKe(soNgay: number) {
-  const [ai, kenh, nguong, so] = await Promise.all([docOpenRouter(), docNhaCungCapKenh(), docNguong(), soChiPhiApp(soNgay)]);
+  const [ai, kenh, nguong, so, suCoAi] = await Promise.all([docOpenRouter(), docNhaCungCapKenh(), docNguong(), soChiPhiApp(soNgay), docSuCoAi()]);
   const doiChieu = await doiChieuTong(ai);
   return {
     luc: new Date().toISOString(),
     ai,
     kenh,
     nguong,
-    canhBao: danhGia(ai, kenh, nguong, doiChieu),
+    canhBao: danhGia(ai, kenh, nguong, doiChieu, suCoAi),
     so,
     doiChieu,
     linkNap: LINK_NAP,
@@ -722,9 +738,9 @@ export function quyetDinhGui(
 export async function runDueCanhBaoChiPhi(
   gui: (adminId: number, noiDung: string) => Promise<boolean>
 ): Promise<number> {
-  const [ai, kenh, nguong] = await Promise.all([docOpenRouter(), docNhaCungCapKenh(), docNguong()]);
+  const [ai, kenh, nguong, suCoAi] = await Promise.all([docOpenRouter(), docNhaCungCapKenh(), docNguong(), docSuCoAi().catch(() => null)]);
   const doiChieu = await doiChieuTong(ai).catch(() => null);
-  const canBao = danhGia(ai, kenh, nguong, doiChieu).filter((c) => c.mucDo !== "luu_y");
+  const canBao = danhGia(ai, kenh, nguong, doiChieu, suCoAi).filter((c) => c.mucDo !== "luu_y");
   if (!canBao.length) return 0;
 
   const daGui = banGhi((await queryOne<{ gia_tri: unknown }>(

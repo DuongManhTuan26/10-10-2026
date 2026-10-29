@@ -6,6 +6,9 @@ import { dangKyDiaChiWebhook } from "./server/services/zernio.js";
 import { damBaoNguoiCanh, laDiaChiNoiBo, NHAT_KY_DUONG_HAM } from "./server/services/duong-ham.js";
 import { donDuLieuHetHan } from "./server/auth.js";
 import { startWorker, stopWorker, recoverStuckEvents } from "./server/worker.js";
+import { datBaoHetTienAi } from "./server/services/loi-ncc.js";
+import { datKhiAiThanhCong } from "./server/services/so-ai.js";
+import { aiChayLaiNeuCoSuCo, baoHetTienAi } from "./server/services/su-co-ai.js";
 import { tatEm, HAN_TAT_MS } from "./server/tat-may.js";
 import {
   startTelegramPolling,
@@ -110,6 +113,9 @@ async function main() {
     }
   })();
 
+  // H19: chỉ máy chủ thật mới ghi sự cố "AI bị chặn" + báo quản trị (bộ kiểm tra / kịch bản không đăng ký).
+  datBaoHetTienAi((chiTiet) => void baoHetTienAi(chiTiet).catch((e) => console.error("[AI bị chặn] Không ghi được sự cố:", e)));
+  datKhiAiThanhCong(() => void aiChayLaiNeuCoSuCo().catch(() => {}));
   startWorker();
 
   // Vòng lặp nhận lệnh /start của Telegram. Chạy song song, không chờ: đây là

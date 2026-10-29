@@ -117,6 +117,19 @@ export async function ghiLuotAi(l: LuotAi): Promise<void> {
       trangId,
     ]
   ).catch((error) => console.error("[sổ AI] Không ghi được lượt AI:", error));
+  // H19: lượt AI THÀNH CÔNG → nếu đang có sự cố "AI bị chặn" thì xoá + báo "AI đã chạy lại" (máy chủ đăng ký).
+  if (!l.loi) {
+    try {
+      khiAiThanhCong?.();
+    } catch {
+      /* không làm hỏng việc ghi sổ */
+    }
+  }
+}
+
+let khiAiThanhCong: (() => void) | null = null;
+export function datKhiAiThanhCong(fn: (() => void) | null): void {
+  khiAiThanhCong = fn;
 }
 
 // ---------------------------------------------------------------------------

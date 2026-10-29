@@ -455,8 +455,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "báo nguyên văn lỗi hết tiền của nhà cung cấp cho khách",
     tep: "server/services/loi-ncc.ts",
-    tim: "  if (laHetTienAi(status, m)) return LOI_HET_TIEN_AI;",
-    thay: "",
+    tim: "    return LOI_HET_TIEN_AI;\n  }\n  const sach",
+    thay: "  }\n  const sach",
   },
   {
     ten: "lỗi video lúc hỏi trạng thái không qua bộ làm sạch",
@@ -737,8 +737,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "soát hằng giờ bỏ qua đối chiếu",
     tep: "server/services/chi-phi.ts",
-    tim: "  const canBao = danhGia(ai, kenh, nguong, doiChieu).filter",
-    thay: "  const canBao = danhGia(ai, kenh, nguong).filter",
+    tim: "  const canBao = danhGia(ai, kenh, nguong, doiChieu, suCoAi).filter",
+    thay: "  const canBao = danhGia(ai, kenh, nguong, null, suCoAi).filter",
   },
   {
     ten: "dòng chính lại cắt câu ở dấu chấm",
@@ -6438,6 +6438,48 @@ const DUC: PhepDuc[] = [
     tep: "src/pages/Ads.tsx",
     tim: "                      onClick={() => setCurrentStep(4)}\n                      disabled={chanNhanTinChiChu}",
     thay: "                      onClick={() => setCurrentStep(4)}",
+  },
+  {
+    ten: "hết tiền AI không báo ai (bỏ gọi hàm báo)",
+    tep: "server/services/loi-ncc.ts",
+    tim: "      baoHetTienAi?.(`${status} ${m}`);",
+    thay: "      void status;",
+  },
+  {
+    ten: "báo hết tiền cho cả lỗi 429 rate limit",
+    tep: "server/services/loi-ncc.ts",
+    tim: "  if (laHetTienAi(status, m)) {",
+    thay: "  if (laHetTienAi(status, m) || status === 429) {",
+  },
+  {
+    ten: "báo AI bị chặn không chống lặp (mỗi lỗi một tin)",
+    tep: "server/services/su-co-ai.ts",
+    tim: "      OR (cai_dat_he_thong.gia_tri ->> 'baoLuc')::timestamptz <= $1::timestamptz - make_interval(secs => $3::double precision / 1000)",
+    thay: "      OR TRUE",
+  },
+  {
+    ten: "tin AI bị chặn gửi kind thường (người dùng thường cũng nhận)",
+    tep: "server/services/su-co-ai.ts",
+    tim: "sendTelegramMessage(a.id, noiDung, \"chi_phi\")",
+    thay: "sendTelegramMessage(a.id, noiDung, \"general\")",
+  },
+  {
+    ten: "Chi phí hệ thống không hiện sự cố AI bị chặn",
+    tep: "server/services/chi-phi.ts",
+    tim: "  if (suCoAi) {\n    ds.push({\n      ma: \"ai_bi_chan\",",
+    thay: "  if (false) {\n    ds.push({\n      ma: \"ai_bi_chan\",",
+  },
+  {
+    ten: "AI chạy lại không xoá sự cố",
+    tep: "server/services/so-ai.ts",
+    tim: "      khiAiThanhCong?.();",
+    thay: "      void khiAiThanhCong;",
+  },
+  {
+    ten: "bộ kiểm tra / kịch bản cũng ghi sự cố thật (đăng ký sẵn trong mô-đun)",
+    tep: "server/services/loi-ncc.ts",
+    tim: "let baoHetTienAi: ((chiTiet: string) => void) | null = null;",
+    thay: "let baoHetTienAi: ((chiTiet: string) => void) | null = (c) => void import(\"./su-co-ai.js\").then((s) => s.baoHetTienAi(c));",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

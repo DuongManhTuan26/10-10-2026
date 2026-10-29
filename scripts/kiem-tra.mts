@@ -4685,7 +4685,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     danhGia(aiDu, { ok: true, conHoatDong: true }, NGUONG_MAC_DINH, dcThu("dang_cho", 0.003)).length, 0);
   const nguonCP3 = fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8");
   kiem("cảnh báo", "soát chi phí hằng giờ có xét đối chiếu sổ",
-    /const doiChieu = await doiChieuTong\(ai\)\.catch\(\(\) => null\);\s*const canBao = danhGia\(ai, kenh, nguong, doiChieu\)/.test(nguonCP3), true);
+    /const doiChieu = await doiChieuTong\(ai\)\.catch\(\(\) => null\);\s*const canBao = danhGia\(ai, kenh, nguong, doiChieu, suCoAi\)/.test(nguonCP3), true);
   kiem("sổ AI", "số trang lạ (Infinity, 1e20) không làm nổ truy vấn",
     /const trang = Number\.isFinite\(trangTho\) \? Math\.min\(100_000, Math\.max\(1, Math\.floor\(trangTho\)\)\) : 1;/.test(nguonCP3), true);
   const nguonKhoi3 = fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8");
@@ -7554,6 +7554,60 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       [/^Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu và tên riêng đúng chính tả tiếng Việt\. TUYỆT ĐỐI KHÔNG dùng markdown:/.test(tx.DAN_KHONG_MARKDOWN),
         /chữ thường/.test(tx.DAN_KHONG_MARKDOWN), (mau14.match(/Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu/g) ?? []).length, /Viết bằng chữ thường/.test(mau14)],
       [true, false, 4, false]);
+  }
+  // H19 (30/10/2026): AI bị chặn (ngân sách workspace / hết tiền) → ghi sự cố + báo quản trị; chạy lại → xoá + báo.
+  {
+    const ln = await import("../server/services/loi-ncc.js");
+    const sc = await import("../server/services/su-co-ai.js");
+    const cp19 = await import("../server/services/chi-phi.js");
+    kiem("AI bị chặn", "laHetTienAi: 402 hết tín dụng, 403 ngân sách workspace (câu đo thật 30/10) → có; 429 rate limit / 400 / 500 → KHÔNG",
+      [ln.laHetTienAi(402, "Insufficient credits. Add more using https://x"), ln.laHetTienAi(402, ""),
+        ln.laHetTienAi(403, "Workspace lifetime budget of $22.00 exceeded. Contact your org admin. $22.58 of $22.00 used; does not reset."),
+        ln.laHetTienAi(429, "Rate limit exceeded: free-models-per-day"), ln.laHetTienAi(400, "Model not found"), ln.laHetTienAi(500, "Internal error")],
+      [true, true, true, false, false, false]);
+    const nhan: string[] = [];
+    ln.datBaoHetTienAi((c) => nhan.push(c));
+    const cau1 = ln.loiNhaCungCap(403, "Workspace lifetime budget of $22.00 exceeded.");
+    const cau2 = ln.loiNhaCungCap(429, "Rate limit exceeded");
+    ln.datBaoHetTienAi(() => { throw new Error("hỏng"); });
+    const cau3 = ln.loiNhaCungCap(402, "Insufficient credits");
+    ln.datBaoHetTienAi(null);
+    kiem("AI bị chặn", "loiNhaCungCap gọi hàm báo CHỈ khi hết tiền / ngân sách (kèm mã + câu); hàm báo hỏng không đổi câu lỗi; mô-đun KHÔNG đăng ký sẵn (bộ kiểm tra / kịch bản không ghi sự cố thật)",
+      [nhan, cau1 === ln.LOI_HET_TIEN_AI, cau2.includes("Rate limit"), cau3 === ln.LOI_HET_TIEN_AI,
+        /let baoHetTienAi: \(\(chiTiet: string\) => void\) \| null = null;/.test(fs.readFileSync(path.join(GOC, "server/services/loi-ncc.ts"), "utf8")),
+        /let khiAiThanhCong: \(\(\) => void\) \| null = null;/.test(fs.readFileSync(path.join(GOC, "server/services/so-ai.ts"), "utf8"))],
+      [["403 Workspace lifetime budget of $22.00 exceeded."], true, true, true, true, true]);
+    kiem("AI bị chặn", "chi tiết cho quản trị: bỏ đường dẫn, gộp khoảng trắng, ≤ 200 ký tự, giữ số tiền; câu báo + câu chạy lại",
+      [sc.locChiTietLoi("402 Insufficient credits.  Add more using https://openrouter.ai/settings/credits now"), sc.locChiTietLoi("x".repeat(300)).length,
+        sc.cauBaoAiBiChan("403 $22.58 of $22.00").includes("Chi tiết: 403 $22.58 of $22.00"), /Mọi việc AI .* đang dừng/.test(sc.cauBaoAiBiChan("")),
+        sc.cauAiChayLai("2026-10-29T19:00:00Z").startsWith("✅ <b>AI đã chạy lại</b> (bị chặn từ ")],
+      ["402 Insufficient credits. Add more using now", 200, true, true, true]);
+    kiem("AI bị chặn", "chống lặp 1 giờ bằng MỘT câu có điều kiện (giữ batDau; RETURNING); sự cố ghi TRƯỚC khi gửi — gửi hỏng vẫn còn sự cố",
+      [/ON CONFLICT \(khoa\) DO UPDATE/.test(sc.GHI_SU_CO_AI), /WHERE \(cai_dat_he_thong\.gia_tri ->> 'baoLuc'\) IS NULL\s*OR \(cai_dat_he_thong\.gia_tri ->> 'baoLuc'\)::timestamptz <= \$1::timestamptz - make_interval/.test(sc.GHI_SU_CO_AI),
+        /RETURNING TRUE AS ok/.test(sc.GHI_SU_CO_AI), !/'batDau', \$1::text\)\s*,?\s*updated_at/.test(sc.GHI_SU_CO_AI.split("DO UPDATE")[1] ?? ""), sc.BAO_LAI_SAU_MS],
+      [true, true, true, true, 3_600_000]);
+    const ma19 = (x: { ma: string }[]) => x.map((c) => c.ma);
+    const aiOn19 = { ok: true, conLaiUsd: 7.42, tuanNayUsd: 0.5, homNayUsd: 0.05 } as never, kenhOn19 = { ok: true, conHoatDong: true } as never;
+    kiem("AI bị chặn", "Chi phí hệ thống: có sự cố → cảnh báo 'ai_bi_chan' nguy cấp (dù số dư còn 7,42 USD); không sự cố → không",
+      [ma19(cp19.danhGia(aiOn19, kenhOn19, cp19.NGUONG_MAC_DINH, null, { batDau: "2026-10-29T19:00:00Z", chiTiet: "403 budget" })).includes("ai_bi_chan"),
+        cp19.danhGia(aiOn19, kenhOn19, cp19.NGUONG_MAC_DINH, null, { batDau: "2026-10-29T19:00:00Z", chiTiet: "403 budget" }).find((c) => c.ma === "ai_bi_chan")?.mucDo,
+        ma19(cp19.danhGia(aiOn19, kenhOn19, cp19.NGUONG_MAC_DINH)).includes("ai_bi_chan")],
+      [true, "nguy_cap", false]);
+    const sv19 = fs.readFileSync(path.join(GOC, "server.ts"), "utf8"), sa19 = fs.readFileSync(path.join(GOC, "server/services/so-ai.ts"), "utf8");
+    kiem("AI bị chặn", "chỉ máy chủ đăng ký hàm báo + hàm chạy lại; ghi sổ AI thành công (không lỗi) mới gọi chạy lại; tin gửi kind chi_phi (chỉ quản trị)",
+      [/datBaoHetTienAi\(\(chiTiet\) => void baoHetTienAi\(chiTiet\)/.test(sv19), /datKhiAiThanhCong\(\(\) => void aiChayLaiNeuCoSuCo\(\)/.test(sv19),
+        /if \(!l\.loi\) \{\s*try \{\s*khiAiThanhCong\?\.\(\);/.test(sa19),
+        /sendTelegramMessage\(a\.id, noiDung, "chi_phi"\)/.test(fs.readFileSync(path.join(GOC, "server/services/su-co-ai.ts"), "utf8"))],
+      [true, true, true, true]);
+    // QUÉT mọi tệp máy chủ gọi lệnh TẠO của nhà cung cấp AI (chat / images / videos / audio — bỏ danh mục mô hình) → phải dùng loiNhaCungCap.
+    const tep19 = fs.readdirSync(path.join(GOC, "server"), { recursive: true }).map(String).filter((t) => /\.ts$/.test(t));
+    const goiTao = tep19.filter((t) => {
+      const n = boChuThich(fs.readFileSync(path.join(GOC, "server", t), "utf8"));
+      return /fetch\([^)]*(chat\/completions|\/images`|\/images"|\/videos`|\/videos"|\/audio\/)/.test(n);
+    });
+    kiem("AI bị chặn", "mọi tệp gọi lệnh TẠO của nhà cung cấp AI đều dịch lỗi qua loiNhaCungCap (lỗi hết tiền không lọt khỏi chốt báo)",
+      [goiTao.filter((t) => !/loiNhaCungCap\(/.test(fs.readFileSync(path.join(GOC, "server", t), "utf8"))).sort(), goiTao.length >= 4],
+      [[], true]);
   }
   // H17 (30/10/2026): nhắn tin + bài chỉ chữ → Meta 1487212 — chặn trước mọi lệnh Meta; mục tiêu khác / không rõ: không chặn.
   {
