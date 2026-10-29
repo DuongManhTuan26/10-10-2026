@@ -6476,10 +6476,12 @@ const DUC: PhepDuc[] = [
     thay: "      void khiAiThanhCong;",
   },
   {
+    // 30/10/2026: bản đầu của lỗ này nạp su-co-ai THẬT → lượt đục ghi sự cố giả lên Neon + soát chi phí gửi Telegram giả cho
+    // chủ dự án (TD-35). Lỗ đục KHÔNG BAO GIỜ được chạm CSDL / Telegram thật: chỉ đổi giá trị khởi tạo, không làm gì.
     ten: "bộ kiểm tra / kịch bản cũng ghi sự cố thật (đăng ký sẵn trong mô-đun)",
     tep: "server/services/loi-ncc.ts",
     tim: "let baoHetTienAi: ((chiTiet: string) => void) | null = null;",
-    thay: "let baoHetTienAi: ((chiTiet: string) => void) | null = (c) => void import(\"./su-co-ai.js\").then((s) => s.baoHetTienAi(c));",
+    thay: "let baoHetTienAi: ((chiTiet: string) => void) | null = (c) => { (globalThis as { __daDangKySan?: string }).__daDangKySan = c; };",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

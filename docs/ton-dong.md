@@ -398,3 +398,12 @@ Ads API error (400; code 100, subcode 1487212): Vui lòng chỉ định file ph�
 dịch, 0 đồng (khoa f6bcd7ce-f64e-4311-8330-d0e91d3edfc4). H17 chặn trước đúng trường hợp đó (nhắn tin + bài chắc chắn chỉ
 chữ). Mục tiêu khác KHÔNG chặn: tài liệu nhà cung cấp có "a genuine text-only ad" → chưa có chứng cứ. Thử khi chủ dự án
 cho (tốn tiền thật). Đối chiếu Neon 30/10: số ảnh / video trong app khớp nhà cung cấp 11/11 bài đã đăng.
+
+## TD-35 — ĐÃ XỬ LÝ (30/10/2026): lỗ đục ngược ghi sự cố GIẢ lên Neon → chủ dự án nhận một tin Telegram giả "AI bị chặn"
+
+Lúc làm H19, một lỗ đục ngược (scripts/kiem-tra-nguoc.mts, "đăng ký sẵn trong mô-đun") thay hàm báo bằng bản nạp su-co-ai
+THẬT. Lượt đục 20:01:15Z chạy kiem-tra.mts → loiNhaCungCap(403, "…$11.00 exceeded…") → ghi dòng 'su_co_ai' giả lên Neon. Sau
+khi gộp H19 + khởi động lại, soát chi phí 20:09:28Z thấy dòng đó → gửi 1 tin Telegram "AI đang bị chặn" (kind chi_phi) cho
+user 5 — SAI (AI vẫn chạy). Đã: xoá đúng dòng giả (khớp chi tiết "$11.00" + batDau 20:01:15.201Z); telegram_logs 1 giờ:
+chỉ đúng 1 tin đó; viết lại lỗ đục để không chạm CSDL / Telegram. Luật: lỗ đục chỉ được đổi mã thuần, không bao giờ được
+nạp đường ghi dữ liệu thật hay gửi tin thật.
