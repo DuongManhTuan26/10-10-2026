@@ -411,3 +411,14 @@ CHẶN GỐC (593eb1d): kiem-tra-nguoc chạy bộ kiểm tra với khoá giả 
 nhà cung cấp giả, SMTP_PASS rỗng) + chặn tĩnh lỗ đục có import( / require(. Thêm biến môi trường dẫn ra ngoài → thêm vào
 MOI_TRUONG_CO_LAP. Hai lượt đục cùng chạy lỗ cũ (của phiên viết 20:01Z, của phiên kiểm duyệt 20:05–20:08Z) — chỉ lượt 20:01
 sinh dòng giả; lượt sau gặp dòng đã có nên không đổi, không gửi.
+
+## TD-34 — Lượt AI không có mã nhà cung cấp: nằm mãi ở "đang chờ" của đối soát tổng (30/10/2026) — GHI LẠI
+
+Đối chiếu từng lượt (so-ai.ts doiChieuLuotAi) chỉ tra lượt có ma_ncc; đối soát tổng (chi-phi.ts doiChieuTong) tính "đang chờ"
+= mọi lượt doi_chieu_at IS NULL. Lượt không có ma_ncc thì không bao giờ được đối chiếu → nằm mãi trong "đang chờ" (soLuotCho
+không bao giờ về 0, phần lệch bị che bởi khoản chờ). Neon 30/10: 24 lượt / 1,6368 USD — 18 lượt cũ 30/09–01/10 (content 6,
+extract 1, video 11, image 1; trước khi có cột viec) + 5 lượt tao_anh 03/10–29/10 (0,1077 USD, gồm 363 hôm nay: gemini-3.1-
+flash-lite-image qua /images không trả `id`). Tiền vẫn đúng theo bảng giá (363: ước tính 0,03368 = nhà cung cấp +0,0337 theo
+/credits) — chỉ trạng thái đối soát sai.
+Sửa khi làm: (a) lượt không ma_ncc → đánh dấu "đối chiếu theo bảng giá" (doi_chieu_at = created_at, cost_ncc NULL) để không
+tính chờ; hoặc (b) nhánh ảnh lấy mã lượt từ phần khác của phản hồi nếu nhà cung cấp có. Đọc tài liệu /images trước.
