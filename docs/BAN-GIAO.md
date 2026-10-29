@@ -64,6 +64,9 @@ Công nghệ: React 19 + Vite + TypeScript (src/), Express ESM chạy bằng `ts
    `TEP="tệp1|tệp2" npx tsx scripts/kiem-tra-nguoc.mts` (đục lỗ ngược) "Mọi chốt chặn đều có phép kiểm thật đứng sau" —
    TEP = các tệp trong diff. KHÔNG chạy hai lượt kiem-tra-nguoc cùng lúc (khoá `$TMPDIR/kiem-tra-nguoc.khoa`). Lượt bị ngắt
    giữa chừng → kiểm tệp có kẹt lỗ đục không (chạy lại kiem-tra phải đạt).
+   - kiem-tra-nguoc chạy bộ kiểm tra trong MÔI TRƯỜNG CÔ LẬP (khoá giả — `MOI_TRUONG_CO_LAP`, TD-35). Thêm biến môi trường
+     nào dẫn ra ngoài (CSDL, nhà cung cấp, AI, Telegram, email…) thì PHẢI thêm vào `MOI_TRUONG_CO_LAP`. Lỗ đục không được
+     nạp mô-đun lúc chạy (`import(` / `require(` — bị chặn tự động).
    - Mỗi tính năng mới: thêm phép kiểm (scripts/kiem-tra.mts) + lỗ đục (scripts/kiem-tra-nguoc.mts, chèn trước dòng
      `ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)"`). Lỗ cũ "không đáng tin" vì mã đổi →
      TRỎ LẠI cho đúng ý, không xoá.

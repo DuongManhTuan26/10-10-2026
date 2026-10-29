@@ -407,3 +407,7 @@ khi gộp H19 + khởi động lại, soát chi phí 20:09:28Z thấy dòng đó
 user 5 — SAI (AI vẫn chạy). Đã: xoá đúng dòng giả (khớp chi tiết "$11.00" + batDau 20:01:15.201Z); telegram_logs 1 giờ:
 chỉ đúng 1 tin đó; viết lại lỗ đục để không chạm CSDL / Telegram. Luật: lỗ đục chỉ được đổi mã thuần, không bao giờ được
 nạp đường ghi dữ liệu thật hay gửi tin thật.
+CHẶN GỐC (593eb1d): kiem-tra-nguoc chạy bộ kiểm tra với khoá giả (MOI_TRUONG_CO_LAP: CSDL .invalid, không khoá AI / Telegram,
+nhà cung cấp giả, SMTP_PASS rỗng) + chặn tĩnh lỗ đục có import( / require(. Thêm biến môi trường dẫn ra ngoài → thêm vào
+MOI_TRUONG_CO_LAP. Hai lượt đục cùng chạy lỗ cũ (của phiên viết 20:01Z, của phiên kiểm duyệt 20:05–20:08Z) — chỉ lượt 20:01
+sinh dòng giả; lượt sau gặp dòng đã có nên không đổi, không gửi.
