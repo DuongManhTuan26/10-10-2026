@@ -6343,7 +6343,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   const ad = doc1("server/routes/ads.ts");
   kiem("A1 bài theo cửa hàng", "đẩy quảng cáo: danh sách + đẩy theo mã bài chỉ bài của cửa hàng đang chọn; số liệu kênh / sức khoẻ / báo cáo theo cửa hàng; Gói + quản trị theo tài khoản",
     [/WHERE user_id = \$1 AND trang_id = \$2 AND status = 'published' AND platform_post_ref IS NOT NULL/.test(ad),
-      /"SELECT platform_post_ref, target_account_ids, trang_id FROM posts WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3",\s*\[postId, req\.user!\.id, trangDangChon\]/.test(ad),
+      /"SELECT platform_post_ref, target_account_ids, trang_id, media FROM posts WHERE id = \$1 AND user_id = \$2 AND trang_id = \$3",\s*\[postId, req\.user!\.id, trangDangChon\]/.test(ad),
       // Số liệu bài: CHỌN theo kênh đích của bài, GHI theo cửa hàng CỦA BÀI (kênh rời đi thì bài cũ vẫn của cửa hàng cũ).
       /AND \$2 = ANY\(target_account_ids\)`,\s*\[k\.user_id, k\.id\]/.test(doc1("server/services/so-lieu-kenh.ts"))
         && /\[homNay, k\.id, b\._id, k\.user_id, p\?\.trang_id \?\? k\.trang_id,/.test(doc1("server/services/so-lieu-kenh.ts")),
@@ -7554,6 +7554,30 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       [/^Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu và tên riêng đúng chính tả tiếng Việt\. TUYỆT ĐỐI KHÔNG dùng markdown:/.test(tx.DAN_KHONG_MARKDOWN),
         /chữ thường/.test(tx.DAN_KHONG_MARKDOWN), (mau14.match(/Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu/g) ?? []).length, /Viết bằng chữ thường/.test(mau14)],
       [true, false, 4, false]);
+  }
+  // H17 (30/10/2026): nhắn tin + bài chỉ chữ → Meta 1487212 — chặn trước mọi lệnh Meta; mục tiêu khác / không rõ: không chặn.
+  {
+    const q17 = await import("../server/services/ads.js");
+    const loi17 = (f: () => unknown) => { try { f(); return "qua"; } catch (e) { return `${(e as { status?: number }).status}:${(e as Error).message.slice(0, 40)}`; } };
+    kiem("bài nhắn tin cần ảnh", "baiCoPhuongTien: ảnh / video / chuỗi URL → true; [] → false; không phải mảng, mục không url → null (không rõ)",
+      [q17.baiCoPhuongTien([{ url: "https://x/a.webp", type: "image" }]), q17.baiCoPhuongTien([{ url: "https://x/v.mp4", type: "video" }]), q17.baiCoPhuongTien(["https://x/a.jpg"]),
+        q17.baiCoPhuongTien([]), q17.baiCoPhuongTien(null), q17.baiCoPhuongTien("x"), q17.baiCoPhuongTien([{ type: "image" }, {}])],
+      [true, true, true, false, null, null, null]);
+    kiem("bài nhắn tin cần ảnh", "kiemBaiChoMucTieu: CHỈ nhắn tin + chắc chắn chỉ chữ → 400; nhắn tin + có ảnh / không rõ → qua; tương tác + chỉ chữ → qua (không suy rộng)",
+      [loi17(() => q17.kiemBaiChoMucTieu("nhan_tin", false)), loi17(() => q17.kiemBaiChoMucTieu("nhan_tin", true)), loi17(() => q17.kiemBaiChoMucTieu("nhan_tin", null)),
+        loi17(() => q17.kiemBaiChoMucTieu("tuong_tac", false))],
+      ["400:Quảng cáo nhắn tin cần bài có ảnh hoặc v", "qua", "qua", "qua"]);
+    const ar17 = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/ads.ts"), "utf8"));
+    const b17 = ar17.slice(ar17.indexOf('"/boost",'), ar17.indexOf("\n);\n", ar17.indexOf('"/boost",')));
+    const v17 = (re: RegExp) => b17.search(re);
+    const ui17 = fs.readFileSync(path.join(GOC, "src/pages/Ads.tsx"), "utf8");
+    kiem("bài nhắn tin cần ảnh", "đẩy bài: kiểm ngay sau khi đọc bài, TRƯỚC chốt cửa ra / tài khoản / mọi lệnh nhà cung cấp; danh sách bài trả coPhuongTien (không gửi nguyên media); giao diện khoá nhắn tin cho bài chỉ chữ + khoá Tiếp tục",
+      [v17(/ads\.kiemBaiChoMucTieu\(mucTieu, ads\.baiCoPhuongTien\(post\.media\)\);/) > 0
+        && v17(/ads\.kiemBaiChoMucTieu\(/) < v17(/await chanCuaRa\(/) && v17(/ads\.kiemBaiChoMucTieu\(/) < v17(/resolveAdAccount\(/),
+        /data: rows\.rows\.map\(\(\{ media, \.\.\.bai \}\) => \(\{ \.\.\.bai, coPhuongTien: ads\.baiCoPhuongTien\(media\) \}\)\),/.test(ar17),
+        /const khoa = m\.id === 'nhan_tin' && baiChonChiChu;/.test(ui17) && /disabled=\{khoa\}/.test(ui17),
+        /onClick=\{\(\) => setCurrentStep\(4\)\}\s*disabled=\{chanNhanTinChiChu\}/.test(ui17), /hasImage: post\.coPhuongTien === true,/.test(ui17)],
+      [true, true, true, true, true]);
   }
   // H15 (24/10/2026): AI Nội dung bịa cam kết khi cửa hàng chưa có tài liệu — nhánh "chưa nạp" + tên Fanpage đúng dạng.
   {

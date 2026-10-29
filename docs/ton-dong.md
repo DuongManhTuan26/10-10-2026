@@ -390,3 +390,11 @@ giuSuThat (mặc định tắt: video-dai.ts `o.giuSuThat === true`); video-ai.t
 CHỌN của người dùng — không gài cứng (chủ dự án 03/10/2026)" → không tự đổi.
 Đề xuất trình chủ dự án: cửa hàng CHƯA có tài liệu thì lời đọc / chữ trên hình LUÔN cấm bịa giá / khuyến mãi / khan hiếm /
 chứng nhận / lời chứng đám đông; giữ tuỳ chọn cho phần còn lại. 0 đồng (kiểm bằng mã, không chạy video thật).
+
+## TD-33 — Đẩy bài chỉ có chữ: mục tiêu "tương tác" Meta có nhận không? (30/10/2026) — CHỜ THỬ
+
+Lần đẩy thật đầu tiên (chủ dự án duyệt 30.000 đ): bài 74 (cửa hàng 12, chỉ có chữ), mục tiêu NHẮN TIN → Meta từ chối "Meta
+Ads API error (400; code 100, subcode 1487212): Vui lòng chỉ định file phương tiện sẽ chạy cùng quảng cáo này." — 0 chiến
+dịch, 0 đồng (khoa f6bcd7ce-f64e-4311-8330-d0e91d3edfc4). H17 chặn trước đúng trường hợp đó (nhắn tin + bài chắc chắn chỉ
+chữ). Mục tiêu khác KHÔNG chặn: tài liệu nhà cung cấp có "a genuine text-only ad" → chưa có chứng cứ. Thử khi chủ dự án
+cho (tốn tiền thật). Đối chiếu Neon 30/10: số ảnh / video trong app khớp nhà cung cấp 11/11 bài đã đăng.

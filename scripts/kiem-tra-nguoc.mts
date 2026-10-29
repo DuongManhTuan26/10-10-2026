@@ -3849,8 +3849,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "đẩy quảng cáo theo mã bài không kiểm cửa hàng",
     tep: "server/routes/ads.ts",
-    tim: "\"SELECT platform_post_ref, target_account_ids, trang_id FROM posts WHERE id = $1 AND user_id = $2 AND trang_id = $3\",",
-    thay: "\"SELECT platform_post_ref, target_account_ids, trang_id FROM posts WHERE id = $1 AND user_id = $2 AND $3::bigint IS NOT NULL\",",
+    tim: "\"SELECT platform_post_ref, target_account_ids, trang_id, media FROM posts WHERE id = $1 AND user_id = $2 AND trang_id = $3\",",
+    thay: "\"SELECT platform_post_ref, target_account_ids, trang_id, media FROM posts WHERE id = $1 AND user_id = $2 AND $3::bigint IS NOT NULL\",",
   },
   {
     ten: "bảng lịch tự đăng hiện mọi kênh của tài khoản",
@@ -6408,6 +6408,36 @@ const DUC: PhepDuc[] = [
     tep: "server/services/content-ai.ts",
     tim: "  \"- lời chứng đám đông hay số người mua / tin dùng / đánh giá / theo dõi (nhiều người tìm đến, hàng nghìn khách, được yêu thích…)\",\n",
     thay: "",
+  },
+  {
+    ten: "đẩy bài nhắn tin bỏ chặn bài chỉ chữ",
+    tep: "server/routes/ads.ts",
+    tim: "    ads.kiemBaiChoMucTieu(mucTieu, ads.baiCoPhuongTien(post.media));\n",
+    thay: "",
+  },
+  {
+    ten: "chặn bài chỉ chữ cho MỌI mục tiêu (suy rộng quá chứng cứ)",
+    tep: "server/services/ads.ts",
+    tim: "  if (mucTieu === \"nhan_tin\" && coPhuongTien === false) throw",
+    thay: "  if (coPhuongTien === false) throw",
+  },
+  {
+    ten: "dữ liệu ảnh lạ bị coi là chỉ chữ (chặn nhầm)",
+    tep: "server/services/ads.ts",
+    tim: "  return toMediaItems(media).length > 0 ? true : null;",
+    thay: "  return toMediaItems(media).length > 0;",
+  },
+  {
+    ten: "giao diện cho chọn nhắn tin với bài chỉ chữ",
+    tep: "src/pages/Ads.tsx",
+    tim: "                      const khoa = m.id === 'nhan_tin' && baiChonChiChu;",
+    thay: "                      const khoa = false;",
+  },
+  {
+    ten: "giao diện cho Tiếp tục khi nhắn tin + bài chỉ chữ",
+    tep: "src/pages/Ads.tsx",
+    tim: "                      onClick={() => setCurrentStep(4)}\n                      disabled={chanNhanTinChiChu}",
+    thay: "                      onClick={() => setCurrentStep(4)}",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

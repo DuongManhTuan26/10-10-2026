@@ -1498,7 +1498,8 @@ export const api = {
     chonTaiKhoanQuangCao: (adAccountId: string) =>
       put<{ data: { adAccountId: string } }>("/ads/tai-khoan-quang-cao", { adAccountId }),
     boostablePosts: () =>
-      get<{ data: Post[] }>("/ads/boostable-posts"),
+      // H17: coPhuongTien — bài có ảnh / video (null = không rõ).
+      get<{ data: Array<Post & { coPhuongTien?: boolean | null }> }>("/ads/boostable-posts"),
     /** Tạm dừng / chạy lại MỘT chiến dịch (mã + nền tảng của chiến dịch, theo tài liệu nhà cung cấp). */
     doiTrangThaiChienDich: (id: string, platform: string, status: "active" | "paused") =>
       post<{ data: { updated?: number; skipped?: number; message?: string } }>(

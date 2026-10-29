@@ -2,6 +2,7 @@ import { env } from "../env.js";
 import { kiemPhamVi } from "./pham-vi-goi.js";
 import { AppError } from "../http.js";
 import { giauNhaCungCap } from "./text.js";
+import { toMediaItems } from "./publish.js";
 
 /**
  * Cổng gọi phần quảng cáo của Zernio.
@@ -649,6 +650,26 @@ export function taiKhoanChoGiaoDien(a: AdAccount) {
     nguonTien: typeof a.fundingSourceDetails?.displayString === "string" && a.fundingSourceDetails.displayString.trim()
       ? a.fundingSourceDetails.displayString.trim() : null,
   };
+}
+
+/*
+ * H17 (30/10/2026): đẩy bài CHỈ CÓ CHỮ với mục tiêu NHẮN TIN → Meta từ chối "(400; code 100, subcode 1487212): Vui lòng chỉ
+ * định file phương tiện sẽ chạy cùng quảng cáo này" (bài 74, cửa hàng 12). Chứng cứ CHỈ cho mục tiêu nhắn tin — tài liệu có
+ * "a genuine text-only ad", nên mục tiêu khác KHÔNG chặn (để Meta trả lời; TD-33).
+ */
+/** Bài có ảnh / video không — đọc bằng CHÍNH toMediaItems của khâu đăng bài. true / false; dữ liệu lạ → null (không rõ). */
+export function baiCoPhuongTien(media: unknown): boolean | null {
+  if (!Array.isArray(media)) return null;
+  if (media.length === 0) return false;
+  return toMediaItems(media).length > 0 ? true : null;
+}
+
+export const LOI_NHAN_TIN_CAN_ANH =
+  "Quảng cáo nhắn tin cần bài có ảnh hoặc video (Meta không nhận bài chỉ có chữ cho mục tiêu này). Vui lòng chọn bài có ảnh / video, hoặc đăng bài mới kèm ảnh.";
+
+/** Chặn TRƯỚC mọi lệnh gọi Meta: chỉ khi mục tiêu nhắn tin và CHẮC bài không có ảnh / video (không rõ → không chặn). */
+export function kiemBaiChoMucTieu(mucTieu: MucTieuDayBai, coPhuongTien: boolean | null): void {
+  if (mucTieu === "nhan_tin" && coPhuongTien === false) throw new AppError(LOI_NHAN_TIN_CAN_ANH, 400);
 }
 
 /** Mã bài Facebook (pageId_postId) trong bài của nhà cung cấp (GET /v1/posts/{id}: platforms[].platformPostId). */

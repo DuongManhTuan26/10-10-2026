@@ -133,7 +133,7 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
   const [insights, setInsights] = useState<Record<string, unknown> | null>(null);
   /** Đơn chốt có mã quảng cáo trong cùng kỳ — đếm từ đơn thật của trang (máy chủ: donTuQuangCao). */
   const [donQuangCao, setDonQuangCao] = useState<{ so: number; doanhThu: number; theoNgay: { ngay: string; so: number }[] } | null>(null);
-  const [boostablePosts, setBoostablePosts] = useState<Post[]>([]);
+  const [boostablePosts, setBoostablePosts] = useState<Array<Post & { coPhuongTien?: boolean | null }>>([]);
   const [notice, setNotice] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -219,6 +219,9 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
   const [tepDaLuu, setTepDaLuu] = useState('');
   // Mục tiêu đẩy bài: mặc định NHẮN TIN — khách bấm nút nhắn tin thành hội thoại cho AI Bán hàng chốt đơn.
   const [mucTieu, setMucTieu] = useState<'nhan_tin' | 'tuong_tac'>('nhan_tin');
+  /** H17: bài đang chọn chỉ có chữ (máy chủ báo chắc chắn) → không chạy được quảng cáo nhắn tin. */
+  const baiChonChiChu = boostablePosts.find((p) => String(p.id) === selectedPostId)?.coPhuongTien === false;
+  const chanNhanTinChiChu = baiChonChiChu && mucTieu === 'nhan_tin';
   /** Ý định đẩy bài đang dở (mã chống trùng + mốc) — giữ qua các lần bấm lại cùng cấu hình. */
   const yDinhRef = useRef<YDinhDayBai | null>(null);
   const nhamChon = useMemo<NhamChonQc>(
@@ -600,7 +603,9 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
   /** Bài đã đăng -> hình dạng thẻ chọn bài để quảng cáo. */
   const displayPosts = boostablePosts.map((post) => ({
     id: String(post.id),
-    hasImage: Array.isArray(post.media) && post.media.length > 0,
+    // H17: máy chủ báo có ảnh / video (bản cũ đọc post.media — máy chủ không gửi trường này nên luôn "chữ").
+    hasImage: post.coPhuongTien === true,
+    chiChu: post.coPhuongTien === false,
     content: post.content,
     date: post.published_at ? new Date(post.published_at).toLocaleDateString('vi-VN') : '',
     stats: {
@@ -1181,6 +1186,9 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                           <p className="text-sm text-on-surface font-medium line-clamp-2 leading-snug mb-2 group-hover:text-primary transition-colors">
                             {post.content}
                           </p>
+                          {post.chiChu && (
+                            <p className="text-xs text-amber-500 mb-2">Bài chỉ có chữ: dùng được cho mục tiêu Tăng tương tác, không dùng được cho quảng cáo nhắn tin.</p>
+                          )}
                           <div className="mt-auto flex items-center justify-between text-xs text-on-surface-variant font-medium">
                             <span>{post.date}</span>
                             <div className="flex gap-3">
@@ -1317,21 +1325,29 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                     {([
                       { id: 'nhan_tin', ten: 'Khách nhắn tin cho cửa hàng', mo: 'Quảng cáo có nút nhắn tin; khách bấm vào là AI Bán hàng tư vấn và chốt đơn. Khuyên dùng.' },
                       { id: 'tuong_tac', ten: 'Tăng tương tác bài', mo: 'Thêm lượt thích, bình luận, chia sẻ cho bài.' },
-                    ] as const).map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setMucTieu(m.id)}
-                        className={clsx(
-                          'text-left p-4 rounded-2xl border transition-colors',
-                          mucTieu === m.id ? 'border-primary bg-primary/5' : 'border-outline-variant bg-surface-container hover:border-primary/50'
-                        )}
-                      >
-                        <span className="block font-bold text-on-surface">{m.ten}</span>
-                        <span className="block text-sm text-on-surface-variant mt-1">{m.mo}</span>
-                      </button>
-                    ))}
+                    ] as const).map((m) => {
+                      // H17: bài chỉ chữ → Meta không nhận quảng cáo nhắn tin (1487212) — khoá ô này, nói lý do.
+                      const khoa = m.id === 'nhan_tin' && baiChonChiChu;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          disabled={khoa}
+                          onClick={() => setMucTieu(m.id)}
+                          className={clsx(
+                            'text-left p-4 rounded-2xl border transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                            mucTieu === m.id && !khoa ? 'border-primary bg-primary/5' : 'border-outline-variant bg-surface-container hover:border-primary/50'
+                          )}
+                        >
+                          <span className="block font-bold text-on-surface">{m.ten}</span>
+                          <span className="block text-sm text-on-surface-variant mt-1">{khoa ? 'Bài đã chọn chỉ có chữ — Meta không nhận quảng cáo nhắn tin cho bài này. Chọn bài có ảnh / video ở bước 1.' : m.mo}</span>
+                        </button>
+                      );
+                    })}
                   </div>
+                  {chanNhanTinChiChu && (
+                    <p className="text-sm text-error font-bold -mt-5 mb-6">Bài đã chọn chỉ có chữ: chọn "Tăng tương tác bài", hoặc quay lại bước 1 chọn bài có ảnh / video.</p>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                     <div className="md:col-span-2 space-y-4">
@@ -1465,6 +1481,7 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
                     </button>
                     <button 
                       onClick={() => setCurrentStep(4)}
+                      disabled={chanNhanTinChiChu}
                       className={NUT_CHINH}
                     >
                       Tiếp tục <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
