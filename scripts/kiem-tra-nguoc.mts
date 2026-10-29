@@ -7813,9 +7813,25 @@ const DUC: PhepDuc[] = [
   },
 ];
 
+/*
+ * CÔ LẬP (TD-35, 30/10/2026): mã bị đục chạy THẬT bên trong bộ kiểm tra. Một lỗ đục từng nạp đường ghi CSDL thật → sự cố
+ * giả trên Neon → chủ dự án nhận Telegram giả. Từ nay bộ kiểm tra chạy với khoá GIẢ: CSDL trỏ tên miền không tồn tại
+ * (.invalid), không khoá Telegram / AI, khoá nhà cung cấp giả — mọi tác dụng phụ đều hỏng vô hại. (dotenv không ghi đè biến
+ * đã có, đã đo: env.ts đọc đúng giá trị giả.) Bộ kiểm tra đạt đủ với khoá giả (1405/1405, 30/10).
+ */
+export const MOI_TRUONG_CO_LAP: Record<string, string> = {
+  DATABASE_URL: "postgresql://gia:gia@khong-ton-tai.invalid:5432/gia",
+  ZERNIO_API_KEY: "gia",
+  ZERNIO_WEBHOOK_SECRET: "gia",
+  OPENROUTER_API_KEY: "",
+  TELEGRAM_BOT_TOKEN: "",
+  TELEGRAM_POLLING: "false",
+  SMTP_PASS: "",
+};
+
 function chayKiemTra(): boolean {
   try {
-    execSync("npx tsx scripts/kiem-tra.mts", { cwd: GOC, stdio: "pipe" });
+    execSync("npx tsx scripts/kiem-tra.mts", { cwd: GOC, stdio: "pipe", env: { ...process.env, ...MOI_TRUONG_CO_LAP } });
     return true; // đạt hết
   } catch {
     return false; // có điểm hỏng
@@ -7833,6 +7849,18 @@ function traLai(): void {
 // Không cần trả lại khi thoát: mọi lỗ đều đục trên bản sao, bản sao bị xoá cả.
 
 console.log("Kiểm tra ngược: đục lỗ rồi xem bộ kiểm tra có kêu không.\n");
+
+/*
+ * Chặn tĩnh (TD-35): lỗ đục KHÔNG được nạp mô-đun lúc chạy (import( / require() — đúng cơ chế đã gây sự cố giả. Các lệnh
+ * khác (query / fetch / gửi tin) có trong lỗ đục hợp lệ ở đường mã bộ kiểm tra không chạy; môi trường CÔ LẬP phía trên
+ * làm chúng vô hại. Có lỗ vi phạm → dừng ngay, không đục gì.
+ */
+export const MAU_CAM_TRONG_LO_DUC = /\bimport\s*\(|\brequire\s*\(/;
+const loDucCam = DUC.filter((d) => MAU_CAM_TRONG_LO_DUC.test(d.thay));
+if (loDucCam.length) {
+  console.error(`  ✗ Lỗ đục nạp mô-đun lúc chạy (cấm — TD-35): ${loDucCam.map((d) => d.ten).join("; ")}`);
+  process.exit(1);
+}
 
 if (!chayKiemTra()) {
   console.error("Mã đang HỎNG sẵn — sửa cho bộ kiểm tra đạt hết rồi hãy chạy phép thử ngược.");

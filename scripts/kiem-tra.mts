@@ -7555,6 +7555,24 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /chữ thường/.test(tx.DAN_KHONG_MARKDOWN), (mau14.match(/Viết văn bản thuần như nhắn tin bình thường, viết hoa đầu câu/g) ?? []).length, /Viết bằng chữ thường/.test(mau14)],
       [true, false, 4, false]);
   }
+  // TD-35 (30/10/2026): kiểm tra ngược chạy bộ kiểm tra trong môi trường CÔ LẬP (khoá giả) — lỗ đục không chạm được thật.
+  {
+    const ktn = fs.readFileSync(path.join(GOC, "scripts/kiem-tra-nguoc.mts"), "utf8");
+    const khoi = ktn.slice(ktn.indexOf("export const MOI_TRUONG_CO_LAP"), ktn.indexOf("};", ktn.indexOf("export const MOI_TRUONG_CO_LAP")));
+    kiem("kiểm tra ngược cô lập", "mọi lần chạy bộ kiểm tra trong kiểm tra ngược dùng khoá giả: CSDL .invalid, không Telegram / AI, nhà cung cấp giả",
+      [(ktn.match(/execSync\(/g) ?? []).length, /execSync\("npx tsx scripts\/kiem-tra\.mts", \{ cwd: GOC, stdio: "pipe", env: \{ \.\.\.process\.env, \.\.\.MOI_TRUONG_CO_LAP \} \}\)/.test(ktn),
+        /DATABASE_URL: "postgresql:\/\/gia:gia@khong-ton-tai\.invalid:5432\/gia"/.test(khoi), /OPENROUTER_API_KEY: ""/.test(khoi), /TELEGRAM_BOT_TOKEN: ""/.test(khoi),
+        /ZERNIO_API_KEY: "gia"/.test(khoi)],
+      [1, true, true, true, true, true]);
+    const mauCam = /export const MAU_CAM_TRONG_LO_DUC = (\/.*\/);/.exec(ktn)?.[1];
+    // eslint-disable-next-line no-eval
+    const reCam = mauCam ? new RegExp(mauCam.slice(1, -1)) : null;
+    kiem("kiểm tra ngược cô lập", "chặn tĩnh: lỗ đục có import( / require( → dừng trước khi đục; lỗ đục hiện có không vi phạm",
+      [reCam?.test('let x = (c) => void import("./su-co-ai.js")'), reCam?.test("const m = require('x')"), reCam?.test("await query(\"SELECT 1\")"),
+        /const loDucCam = DUC\.filter\(\(d\) => MAU_CAM_TRONG_LO_DUC\.test\(d\.thay\)\);\s*if \(loDucCam\.length\) \{[\s\S]{0,200}process\.exit\(1\);/.test(ktn),
+        ktn.indexOf("const loDucCam") < ktn.indexOf("for (const d of CHON)")],
+      [true, true, false, true, true]);
+  }
   // H19 (30/10/2026): AI bị chặn (ngân sách workspace / hết tiền) → ghi sự cố + báo quản trị; chạy lại → xoá + báo.
   {
     const ln = await import("../server/services/loi-ncc.js");
