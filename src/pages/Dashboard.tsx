@@ -246,7 +246,7 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
         )}
 
         {/* 2. BỘ NÃO 4 AI — TRUNG TÂM của Tổng quan: ngay đầu trang, tràn hết bề ngang (chủ dự án 30/10/2026). */}
-        <div className="xl:-mx-5">{boNao}</div>
+        <div className="xl:-mx-8">{boNao}</div>
 
         {/*
           3. SỐ CHÍNH CỦA KỲ — 4 Ô GỌN một hàng (chủ dự án 30/10/2026: thu hẹp mục phụ). Biểu đồ theo ngày ở "Xu hướng 7

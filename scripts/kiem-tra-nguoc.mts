@@ -6634,14 +6634,16 @@ const DUC: PhepDuc[] = [
   {
     ten: "khối não: bỏ khung số thật của màn 'Kết quả bán hàng' (lộ tên + SĐT khách mẫu)",
     tep: "src/components/KhoiNaoVanPhong.tsx",
-    tim: "      <ManHinh x={1678} y={380} w={178} h={142} mau={BAN_HANG.hex}>",
-    thay: "      <ManHinh x={1678} y={380} w={178} h={40} mau={BAN_HANG.hex}>",
+    // 30/10/2026: khung ③ gộp, khoét người — trỏ lại: khung hẹp lại không phủ màn 'Thông tin khách'.
+    tim: "      <ManHinh x={1502} y={378} w={358} h={146} mau={BAN_HANG.hex} khoet={NHAN_VIEN.ban_hang}>",
+    thay: "      <ManHinh x={1502} y={378} w={170} h={146} mau={BAN_HANG.hex} khoet={NHAN_VIEN.ban_hang}>",
   },
   {
     ten: "khối não: khung số lệch khỏi màn ROAS (lộ số mẫu)",
     tep: "src/components/KhoiNaoVanPhong.tsx",
-    tim: "      <ManHinh x={1058} y={380} w={144} h={126} mau={QUANG_CAO.hex}>",
-    thay: "      <ManHinh x={1120} y={380} w={144} h={126} mau={QUANG_CAO.hex}>",
+    // 30/10/2026: khung ② gộp (chi tiêu + tỉ lệ nhấp) — trỏ lại: khung hẹp lại không phủ màn ROAS.
+    tim: "      <ManHinh x={776} y={378} w={428} h={132} mau={QUANG_CAO.hex} khoet={NHAN_VIEN.quang_cao}>",
+    thay: "      <ManHinh x={776} y={378} w={260} h={132} mau={QUANG_CAO.hex} khoet={NHAN_VIEN.quang_cao}>",
   },
   {
     ten: "khối não: thẻ màn hẹp dùng ảnh trần (lộ toàn bộ số mẫu)",
@@ -6658,7 +6660,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "tổng quan: khối não không còn tràn ngang (nhỏ lại)",
     tep: "src/pages/Dashboard.tsx",
-    tim: '        <div className="xl:-mx-5">{boNao}</div>',
+    tim: '        <div className="xl:-mx-8">{boNao}</div>',
     thay: '        <div>{boNao}</div>',
   },
   {
@@ -6666,6 +6668,18 @@ const DUC: PhepDuc[] = [
     tep: "src/pages/Dashboard.tsx",
     tim: '        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">',
     thay: '        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">',
+  },
+  {
+    ten: "khối não: khung ① che đầu nhân viên (bỏ khoét)",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: " mau={NOI_DUNG.hex} khoet={NHAN_VIEN.noi_dung}>",
+    thay: " mau={NOI_DUNG.hex}>",
+  },
+  {
+    ten: "khối não: khoét ③ lệch khỏi đầu nhân viên",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "  ban_hang: { cx: 1666, cy: 482 },",
+    thay: "  ban_hang: { cx: 1766, cy: 482 },",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

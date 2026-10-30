@@ -7634,6 +7634,16 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     const che = (r: number[]) => khung.some(([x, y, w, h]) => x <= r[0] && y <= r[1] && x + w >= r[0] + r[2] && y + h >= r[1] + r[3]);
     kiem("khối não văn phòng", "mọi màn hình có số / chữ giả trong ảnh đều bị một khung số thật che kín (đo theo toạ độ ảnh)",
       MAN_GIA.filter(([, ...r]) => !che(r)).map(([ten]) => ten), []);
+    // 3 nhân viên nữ (chủ dự án 30/10: không che đầu, sau này làm chuyển động): khung nào phủ lên tâm đầu thì PHẢI khoét đúng
+    // người đó (khoet={NHAN_VIEN.<khâu>}); toạ độ tâm đầu khoá theo số đo.
+    const nv = Object.fromEntries([...kn.matchAll(/(noi_dung|quang_cao|ban_hang): \{ cx: (\d+), cy: (\d+) \}/g)].map((m) => [m[1], [Number(m[2]), Number(m[3])]]));
+    const khungDu = [...kn.matchAll(/<ManHinh x=\{(\d+)\} y=\{(\d+)\} w=\{(\d+)\} h=\{(\d+)\} mau=\{[^}]+\}( khoet=\{NHAN_VIEN\.(\w+)\})?>/g)]
+      .map((m) => ({ r: m.slice(1, 5).map(Number), khoet: m[6] ?? null }));
+    const cheDau = Object.entries(nv).flatMap(([k, [cx, cy]]) =>
+      khungDu.filter(({ r: [x, y, w, h] }) => x <= cx && cx <= x + w && y <= cy && cy <= y + h).filter((f) => f.khoet !== k).map(() => k));
+    kiem("khối não văn phòng", "đầu 3 nhân viên không bị che: khung phủ tâm đầu đều khoét đúng người; toạ độ tâm đầu như số đo",
+      [cheDau, nv, khungDu.filter((f) => f.khoet).length],
+      [[], { noi_dung: [316, 470], quang_cao: [983, 470], ban_hang: [1666, 482] }, 3]);
     const theHep = kn.slice(kn.indexOf("export function KhoiNaoThe"));
     kiem("khối não văn phòng", "thẻ màn hẹp dùng CẢNH ĐÃ ĐÈ SỐ (KhoiNaoAnh thu khung), không dùng ảnh trần làm nền",
       [/<KhoiNaoAnh s=\{s\} tenCuaHang=\{tenCuaHang\} khung=\{cat\} \/>/.test(theHep), /backgroundImage/.test(kn)], [true, false]);
@@ -7654,7 +7664,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     const viTri = (x: string) => db.indexOf(x);
     kiem("tổng quan khối não trung tâm", "thứ tự: dải khách chờ → KHỐI NÃO (tràn ngang) → 4 ô số gọn → xu hướng 7 ngày",
       [viTri("1. CẦN XỬ LÝ NGAY") > 0 && viTri("1. CẦN XỬ LÝ NGAY") < viTri("{boNao}"),
-        /<div className="xl:-mx-5">\{boNao\}<\/div>/.test(db),
+        /<div className="xl:-mx-8">\{boNao\}<\/div>/.test(db),
         viTri("{boNao}") < viTri("3. SỐ CHÍNH CỦA KỲ") && viTri("3. SỐ CHÍNH CỦA KỲ") < viTri("4. XU HƯỚNG 7 NGÀY"),
         (db.match(/\{boNao\}/g) ?? []).length],
       [true, true, true, 1]);

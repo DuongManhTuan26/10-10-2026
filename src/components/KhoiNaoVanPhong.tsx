@@ -68,29 +68,44 @@ export function useSoLieuKhoiNao(trangId: number | null | undefined): SoLieuKhoi
   return { bao, suc, hoiThoai, loi };
 }
 
-/** Một màn hình đè lên ảnh: kính tối viền màu AI, phát sáng nhẹ (giống màn hình trong ảnh). */
-function ManHinh({ x, y, w, h, mau, children }: { x: number; y: number; w: number; h: number; mau: string; children: ReactNode }) {
+/**
+ * Vị trí 3 NHÂN VIÊN NỮ trong ảnh (tâm đầu, px ảnh — đo 30/10/2026). Khung số của ①②③ KHOÉT hình đầu + vai đúng chỗ
+ * này (viền mềm) để người ngồi TRƯỚC màn hình luôn lộ ra — chủ dự án: không che đầu, sau này làm chuyển động cho họ.
+ */
+export const NHAN_VIEN: Record<'noi_dung' | 'quang_cao' | 'ban_hang', { cx: number; cy: number }> = {
+  noi_dung: { cx: 316, cy: 470 },
+  quang_cao: { cx: 983, cy: 470 },
+  ban_hang: { cx: 1666, cy: 482 },
+};
+
+/** Một màn hình đè lên ảnh: kính tối viền màu AI, phát sáng nhẹ. `khoet` = tâm đầu nhân viên (px ảnh) → khoét đầu + vai. */
+function ManHinh({ x, y, w, h, mau, khoet, children }: { x: number; y: number; w: number; h: number; mau: string; khoet?: { cx: number; cy: number }; children: ReactNode }) {
+  const mask = khoet
+    ? `radial-gradient(ellipse ${p(31)} ${p(44)} at ${p(khoet.cx - x)} ${p(khoet.cy - y)}, transparent 78%, #000 100%), ` +
+      `radial-gradient(ellipse ${p(50)} ${p(36)} at ${p(khoet.cx - x)} ${p(khoet.cy - y + 46)}, transparent 78%, #000 100%)`
+    : undefined;
   return (
     <div
       className="absolute overflow-hidden pointer-events-none flex flex-col"
       style={{
         ...hop(x, y, w, h),
-        background: 'linear-gradient(180deg, rgba(10,22,36,0.97) 0%, rgba(5,12,22,0.97) 100%)',
-        border: `1px solid ${mau}aa`,
-        borderRadius: p(9),
-        boxShadow: `0 0 ${p(12)} ${mau}55, inset 0 0 ${p(16)} ${mau}22`,
-        padding: `${p(9)} ${p(11)}`,
+        background: 'linear-gradient(180deg, rgba(10,22,36,0.96) 0%, rgba(5,12,22,0.96) 100%)',
+        border: `1px solid ${mau}bb`,
+        borderRadius: p(10),
+        boxShadow: `0 0 ${p(14)} ${mau}66, inset 0 0 ${p(18)} ${mau}26`,
+        padding: `${p(8)} ${p(12)}`,
         color: '#E8EDF2',
+        ...(mask ? { WebkitMaskImage: mask, maskImage: mask, WebkitMaskComposite: 'source-in', maskComposite: 'intersect' } : {}),
       }}
     >
       {children}
     </div>
   );
 }
-const tieuDe = (chu: string, phu?: string) => (
-  <div className="flex items-baseline justify-between gap-1 whitespace-nowrap" style={{ fontSize: p(15), fontWeight: 700 }}>
+const tieuDe = (chu: string, phu?: string, mau?: string) => (
+  <div className="flex items-baseline justify-between gap-1 whitespace-nowrap" style={{ fontSize: p(21), fontWeight: 800, color: mau }}>
     <span className="truncate">{chu}</span>
-    {phu && <span style={{ fontSize: p(11), fontWeight: 500, opacity: 0.6 }}>{phu}</span>}
+    {phu && <span style={{ fontSize: p(16), fontWeight: 500, opacity: 0.6, color: '#E8EDF2' }}>{phu}</span>}
   </div>
 );
 
@@ -100,7 +115,7 @@ function Cot({ giaTri, mau }: { giaTri: number[]; mau: string }) {
   if (max <= 0) {
     return (
       <div className="flex-1 flex flex-col justify-end">
-        <div style={{ fontSize: p(11), opacity: 0.55 }}>Chưa có số trong kỳ</div>
+        <div style={{ fontSize: p(15), opacity: 0.55 }}>Chưa có số trong kỳ</div>
         <div style={{ height: '1px', background: `${mau}55`, marginTop: p(4) }} />
       </div>
     );
@@ -114,11 +129,12 @@ function Cot({ giaTri, mau }: { giaTri: number[]; mau: string }) {
   );
 }
 
-function HangSo({ ten, giaTri, mau }: { ten: string; giaTri: string; mau?: string }) {
+/** Một con số: nhãn nhỏ trên, số to dưới. `co` = cỡ số (px ảnh). */
+function HangSo({ ten, giaTri, mau, co = 34, coNhan = 17 }: { ten: string; giaTri: string; mau?: string; co?: number; coNhan?: number }) {
   return (
     <div className="min-w-0">
-      <div className="truncate" style={{ fontSize: p(11), opacity: 0.65 }}>{ten}</div>
-      <div className="truncate" style={{ fontSize: p(20), fontWeight: 800, color: mau ?? '#FFFFFF', lineHeight: 1.15 }}>{giaTri}</div>
+      <div className="truncate" style={{ fontSize: p(coNhan), opacity: 0.7, lineHeight: 1.2 }}>{ten}</div>
+      <div className="truncate" style={{ fontSize: p(co), fontWeight: 800, color: mau ?? '#FFFFFF', lineHeight: 1.1 }}>{giaTri}</div>
     </div>
   );
 }
@@ -206,107 +222,111 @@ function Canh({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
         Đổi cửa hàng
       </Link>
 
-      {/* ④ ĐIỀU HÀNH — trái: doanh thu tháng + cột theo ngày */}
-      <ManHinh x={524} y={100} w={204} h={166} mau="#38bdf8">
-        {tieuDe('Doanh thu tháng này')}
-        <div style={{ fontSize: p(30), fontWeight: 800, lineHeight: 1.15, marginTop: p(4) }}>{v(vnd(t.doanhThu))}</div>
-        <div style={{ fontSize: p(12), color: '#4ade80', marginBottom: p(6) }}>{v(`${so(t.don)} đơn`)}</div>
+      {/* ④ ĐIỀU HÀNH — trái: doanh thu tháng + cột theo ngày (chữ to, đọc được ở 1440) */}
+      <ManHinh x={522} y={98} w={208} h={170} mau="#38bdf8">
+        {tieuDe('Doanh thu')}
+        <div style={{ fontSize: p(42), fontWeight: 800, lineHeight: 1.1, marginTop: p(4) }}>{v(vnd(t.doanhThu))}</div>
+        <div style={{ fontSize: p(16), color: '#4ade80', marginBottom: p(4) }}>{v(`${so(t.don)} đơn · tháng này`)}</div>
         <Cot giaTri={t.doanhThuNgay} mau="#38bdf8" />
       </ManHinh>
       {/* ④ — giữa trái: đơn / hội thoại mới / tỉ lệ chốt */}
-      <ManHinh x={730} y={100} w={122} h={166} mau="#38bdf8">
+      <ManHinh x={732} y={98} w={124} h={170} mau="#38bdf8">
         <div className="flex flex-col justify-between h-full">
-          <HangSo ten="Đơn hàng" giaTri={v(so(t.don))} />
-          <HangSo ten="Hội thoại mới" giaTri={v(so(t.hoiThoaiMoi))} />
-          <HangSo ten="Tỉ lệ chốt" giaTri={v(phanTram(t.tiLeChot))} />
+          <HangSo ten="Đơn hàng" giaTri={v(so(t.don))} co={28} coNhan={15} />
+          <HangSo ten="Hội thoại mới" giaTri={v(so(t.hoiThoaiMoi))} co={28} coNhan={15} />
+          <HangSo ten="Tỉ lệ chốt" giaTri={v(phanTram(t.tiLeChot))} co={28} coNhan={15} />
         </div>
       </ManHinh>
       {/* ④ — phải: sức khoẻ 3 AI (mức do code chấm, không phải % bịa) */}
-      <ManHinh x={1172} y={100} w={280} h={166} mau="#38bdf8">
+      <ManHinh x={1168} y={98} w={288} h={170} mau="#38bdf8">
         {tieuDe('Sức khoẻ 3 AI', '7 ngày')}
-        <div className="flex flex-col justify-around flex-1" style={{ marginTop: p(4) }}>
+        <div className="flex flex-col justify-around flex-1" style={{ marginTop: p(2) }}>
           {[NOI_DUNG, QUANG_CAO, BAN_HANG].map((a) => {
             const c = chiSo(a.khau as ChiSoSucKhoe['khau']);
             const muc = c?.muc ?? 'chua_du';
             return (
               <div key={a.ma} className="flex items-center" style={{ gap: p(8) }}>
-                <span className="flex items-center justify-center shrink-0 rounded-full font-bold" style={{ width: p(24), height: p(24), fontSize: p(13), color: '#0b0f14', background: a.hex }}>{a.so}</span>
-                <span className="shrink-0 truncate" style={{ fontSize: p(12.5), width: p(86) }}>{a.ten}</span>
-                <span className="flex-1 rounded-full overflow-hidden" style={{ height: p(8), background: 'rgba(255,255,255,0.08)' }}>
+                <span className="flex items-center justify-center shrink-0 rounded-full font-bold" style={{ width: p(28), height: p(28), fontSize: p(16), color: '#0b0f14', background: a.hex }}>{a.so}</span>
+                <span className="shrink-0 truncate" style={{ fontSize: p(16), width: p(118) }}>{a.ten}</span>
+                <span className="flex-1 rounded-full overflow-hidden" style={{ height: p(10), background: 'rgba(255,255,255,0.08)' }}>
                   <span className="block h-full rounded-full" style={{ width: `${DAI_THANH[muc]}%`, background: a.hex, boxShadow: `0 0 ${p(6)} ${a.hex}` }} />
                 </span>
-                <span className="shrink-0 text-right truncate" style={{ fontSize: p(12.5), fontWeight: 700, width: p(62) }} title={c?.ten}>
+                <span className="shrink-0 text-right truncate" style={{ fontSize: p(16), fontWeight: 800, width: p(44) }} title={c ? `${c.ten}: ${CHU_MUC[muc]}` : undefined}>
                   {s.suc ? (muc === 'chua_du' ? '—' : giaTriChiSo(c)) : '…'}
                 </span>
               </div>
             );
           })}
-          <div style={{ fontSize: p(10.5), opacity: 0.55 }}>
-            {s.suc ? [NOI_DUNG, QUANG_CAO, BAN_HANG].map((a) => CHU_MUC[chiSo(a.khau as ChiSoSucKhoe['khau'])?.muc ?? 'chua_du']).join(' · ') : 'Đang chấm…'}
-          </div>
         </div>
       </ManHinh>
-      {/* ④ — dưới quả địa cầu: việc cần xử lý */}
-      <div className="absolute pointer-events-none flex items-center justify-center" style={hop(880, 236, 240, 30)}>
-        <span className="rounded-full font-bold whitespace-nowrap" style={{ fontSize: p(13), padding: `${p(3)} ${p(12)}`, color: '#facc15', background: 'rgba(10,8,2,0.85)', border: '1px solid rgba(250,204,21,0.6)', boxShadow: `0 0 ${p(10)} rgba(250,204,21,0.4)` }}>
+      {/* ④ — đỉnh quả địa cầu (không che người điều hành): việc cần xử lý */}
+      <div className="absolute pointer-events-none flex items-center justify-center" style={hop(870, 92, 260, 34)}>
+        <span className="rounded-full font-bold whitespace-nowrap" style={{ fontSize: p(17), padding: `${p(3)} ${p(14)}`, color: '#facc15', background: 'rgba(10,8,2,0.88)', border: '1px solid rgba(250,204,21,0.7)', boxShadow: `0 0 ${p(12)} rgba(250,204,21,0.45)` }}>
           {t.viecCan === null ? 'Đang chấm…' : t.viecCan > 0 ? `${t.viecCan} việc cần xử lý trước` : 'Không có việc gấp'}
         </span>
       </div>
 
-      {/* ① NỘI DUNG — màn giữa: số bài tháng này */}
-      <ManHinh x={228} y={380} w={248} h={126} mau={NOI_DUNG.hex}>
-        {tieuDe('Bài đăng tháng này')}
-        <div className="grid grid-cols-2 flex-1 content-center" style={{ gap: `${p(4)} ${p(10)}` }}>
+      {/* ① NỘI DUNG — trải hết dãy màn hình, khoét chỗ nhân viên ngồi: số bên trái / bên phải người. */}
+      <ManHinh x={140} y={378} w={462} h={134} mau={NOI_DUNG.hex} khoet={NHAN_VIEN.noi_dung}>
+        {tieuDe('Bài đăng tháng này', undefined, NOI_DUNG.hex)}
+        <div className="grid flex-1 items-end" style={{ gridTemplateColumns: '28% 16% 1fr 1fr 1fr', columnGap: p(6) }}>
           <HangSo ten="Đã đăng" giaTri={v(so(t.baiDang))} mau={NOI_DUNG.hex} />
-          <HangSo ten="AI viết" giaTri={v(so(t.baiAi))} />
-          <HangSo ten="Hiển thị" giaTri={v(so(t.hienThiBai))} />
-          <HangSo ten="Tương tác" giaTri={v(so(t.tuongTac))} />
+          <span />
+          <HangSo ten="AI viết" giaTri={v(so(t.baiAi))} co={30} coNhan={15} />
+          <HangSo ten="Hiển thị" giaTri={v(so(t.hienThiBai))} co={30} coNhan={15} />
+          <HangSo ten="Tương tác" giaTri={v(so(t.tuongTac))} co={30} coNhan={15} />
         </div>
       </ManHinh>
 
-      {/* ② QUẢNG CÁO — chi tiêu + tỉ lệ nhấp (app chưa đo ROAS → không hiện ROAS) */}
-      <ManHinh x={864} y={380} w={190} h={126} mau={QUANG_CAO.hex}>
-        {tieuDe('Chi quảng cáo')}
-        <div style={{ fontSize: p(30), fontWeight: 800, lineHeight: 1.2, marginTop: p(4) }}>{v(vnd(t.chiQc))}</div>
-        <div className="mt-auto" style={{ fontSize: p(11.5), opacity: 0.75 }}>{v(`${so(t.hienThiQc)} hiển thị · ${so(t.nhapQc)} nhấp`)}</div>
-      </ManHinh>
-      <ManHinh x={1058} y={380} w={144} h={126} mau={QUANG_CAO.hex}>
-        {tieuDe('Tỉ lệ nhấp')}
-        <div style={{ fontSize: p(30), fontWeight: 800, lineHeight: 1.2, marginTop: p(4) }}>{v(phanTram(t.ctr))}</div>
-        <div className="mt-auto" style={{ fontSize: p(11.5), opacity: 0.75 }}>{v(`${so(t.soQc)} quảng cáo`)}</div>
+      {/* ② QUẢNG CÁO — chi tiêu (trái người) + tỉ lệ nhấp (phải người); app chưa đo ROAS → không hiện ROAS. */}
+      <ManHinh x={776} y={378} w={428} h={132} mau={QUANG_CAO.hex} khoet={NHAN_VIEN.quang_cao}>
+        {tieuDe('Quảng cáo tháng này', undefined, QUANG_CAO.hex)}
+        <div className="grid flex-1 items-end" style={{ gridTemplateColumns: '38% 1fr 40%', columnGap: p(8) }}>
+          <div className="min-w-0">
+            <HangSo ten="Chi quảng cáo" giaTri={v(vnd(t.chiQc))} co={36} />
+            <div className="truncate" style={{ fontSize: p(15), opacity: 0.7 }}>{v(`${so(t.hienThiQc)} hiển thị`)}</div>
+          </div>
+          <span />
+          <div className="min-w-0">
+            <HangSo ten="Tỉ lệ nhấp" giaTri={v(phanTram(t.ctr))} co={36} />
+            <div className="truncate" style={{ fontSize: p(15), opacity: 0.7 }}>{v(`${so(t.nhapQc)} nhấp · ${so(t.soQc)} QC`)}</div>
+          </div>
+        </div>
       </ManHinh>
 
-      {/* ③ BÁN HÀNG — hội thoại gần nhất thật / tin AI trả lời / kết quả bán */}
-      <ManHinh x={1334} y={380} w={162} h={190} mau={BAN_HANG.hex}>
-        {tieuDe('Hội thoại')}
-        <div className="flex flex-col flex-1" style={{ gap: p(6), marginTop: p(6) }}>
+      {/* ③ BÁN HÀNG — hội thoại thật (màn trái, phủ hết danh sách mẫu) + số bán (khoét chỗ nhân viên). */}
+      <ManHinh x={1334} y={378} w={164} h={200} mau={BAN_HANG.hex}>
+        {tieuDe('Hội thoại', undefined, BAN_HANG.hex)}
+        <div className="flex flex-col flex-1" style={{ gap: p(7), marginTop: p(6) }}>
           {s.hoiThoai.length === 0 ? (
-            <div style={{ fontSize: p(11.5), opacity: 0.6 }}>{dang ? '…' : 'Chưa có hội thoại'}</div>
+            <div style={{ fontSize: p(16), opacity: 0.6 }}>{dang ? '…' : 'Chưa có hội thoại'}</div>
           ) : (
-            s.hoiThoai.map((h) => (
-              <div key={h.id} className="flex items-center min-w-0" style={{ gap: p(6) }}>
-                <span className="flex items-center justify-center shrink-0 rounded-full font-bold" style={{ width: p(22), height: p(22), fontSize: p(11), background: `${BAN_HANG.hex}33`, color: BAN_HANG.hex }}>
+            s.hoiThoai.slice(0, 3).map((h) => (
+              <div key={h.id} className="flex items-center min-w-0" style={{ gap: p(7) }}>
+                <span className="flex items-center justify-center shrink-0 rounded-full font-bold" style={{ width: p(28), height: p(28), fontSize: p(15), background: `${BAN_HANG.hex}33`, color: BAN_HANG.hex }}>
                   {(h.customer_name || '?').trim().charAt(0).toUpperCase()}
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate font-bold" style={{ fontSize: p(11.5) }}>{h.customer_name || 'Khách chưa có tên'}</span>
-                  <span className="block truncate" style={{ fontSize: p(10), opacity: 0.6 }}>{h.last_message ?? ''}</span>
+                  <span className="block truncate font-bold" style={{ fontSize: p(16) }}>{h.customer_name || 'Khách chưa có tên'}</span>
+                  <span className="block truncate" style={{ fontSize: p(13), opacity: 0.6 }}>{h.last_message ?? ''}</span>
                 </span>
               </div>
             ))
           )}
         </div>
       </ManHinh>
-      <ManHinh x={1500} y={380} w={174} h={130} mau={BAN_HANG.hex}>
-        {tieuDe('AI trả lời', 'tháng này')}
-        <div style={{ fontSize: p(30), fontWeight: 800, lineHeight: 1.2, marginTop: p(4) }}>{v(so(t.tinAi))}</div>
-        <div className="mt-auto" style={{ fontSize: p(11.5), opacity: 0.75 }}>{v(`${so(t.hoiThoaiMoi)} hội thoại mới`)}</div>
-      </ManHinh>
-      <ManHinh x={1678} y={380} w={178} h={142} mau={BAN_HANG.hex}>
-        {tieuDe('Kết quả bán hàng')}
-        <div className="flex flex-col justify-around flex-1">
-          <HangSo ten="Đơn hàng" giaTri={v(so(t.don))} mau={BAN_HANG.hex} />
-          <HangSo ten="Doanh thu" giaTri={v(vnd(t.doanhThu))} />
+      <ManHinh x={1502} y={378} w={358} h={146} mau={BAN_HANG.hex} khoet={NHAN_VIEN.ban_hang}>
+        {tieuDe('Bán hàng tháng này', undefined, BAN_HANG.hex)}
+        <div className="grid flex-1 items-end" style={{ gridTemplateColumns: '36% 1fr 40%', columnGap: p(8) }}>
+          <div className="flex flex-col justify-end h-full" style={{ gap: p(4) }}>
+            <HangSo ten="AI trả lời" giaTri={v(so(t.tinAi))} co={32} />
+            <div className="truncate" style={{ fontSize: p(15), opacity: 0.7 }}>{v(`${so(t.hoiThoaiMoi)} hội thoại mới`)}</div>
+          </div>
+          <span />
+          <div className="flex flex-col justify-end h-full" style={{ gap: p(4) }}>
+            <HangSo ten="Đơn hàng" giaTri={v(so(t.don))} mau={BAN_HANG.hex} co={30} />
+            <HangSo ten="Doanh thu" giaTri={v(vnd(t.doanhThu))} co={26} />
+          </div>
         </div>
       </ManHinh>
     </div>
