@@ -1146,8 +1146,7 @@ kiem("sửa bài", "gỡ bài phải hỏi trước vì mất hết tương tác
 kiem("phong cách ảnh", "luật an toàn tách khỏi phong cách",
   /Ở đây CHỈ có luật an toàn/.test(nguonVeAnh), true);
 kiem("phong cách ảnh", "phong cách đứng trước, luật an toàn đứng cuối",
-  // 30/10/2026: giữa đề bài và luật có thể chen khối "chưa có tài liệu" (ap.them) — luật an toàn vẫn đứng CUỐI.
-  /const moTa =\s*`\$\{phongCach\}\\n\\n\$\{deBai\}\$\{ap\.them \? `\\n\\n\$\{ap\.them\}` : ""\}\\n\\n` \+\s*`\$\{anhMau \? luatAnhTuMau\(chu, ap\.luat\) : luatAnh\(chu, ap\.luat\)\}`;/.test(
+  /const moTa = `\$\{phongCach\}[\s\S]{0,40}\$\{deBai\}[\s\S]{0,40}\$\{anhMau \? luatAnhTuMau\(chu, params\.luat\) : luatAnh\(chu, params\.luat\)\}`/.test(
     nguonVeAnh
   ), true);
 kiem("phong cách ảnh", "có phong cách mặc định hướng tới ảnh có chiều sâu",
@@ -1197,7 +1196,7 @@ kiem("ảnh mẫu", "chế độ ảnh mẫu không xoá sạch chữ thật c�
 kiem("ảnh mẫu", "chế độ ảnh mẫu giữ đúng chủ thể và bố cục",
   /Giữ đúng chủ thể và bố cục chính của ảnh mẫu/.test(nguonVeAnh), true);
 kiem("ảnh mẫu", "chọn đúng bộ luật theo từng chế độ",
-  /\$\{anhMau \? luatAnhTuMau\(chu, ap\.luat\) : luatAnh\(chu, ap\.luat\)\}/.test(nguonVeAnh), true);
+  /\$\{anhMau \? luatAnhTuMau\(chu, params\.luat\) : luatAnh\(chu, params\.luat\)\}/.test(nguonVeAnh), true);
 kiem("ảnh mẫu", "địa chỉ ảnh mẫu được hoàn về địa chỉ thật trước khi gửi model",
   /params\.anhMau \? hoanDiaChiKho\(params\.anhMau\)/.test(nguonVeAnh), true);
 kiem("ảnh mẫu", "chặn địa chỉ ảnh mẫu lạ, không cho gửi đi bất kỳ đâu",
@@ -2746,7 +2745,6 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const napLaiTheoTrang: Array<[string, RegExp]> = [
     ["src/pages/AutoScripts.tsx", /Không tải được cấu hình AI[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
     ["src/components/XuongAi.tsx", /phong cách mặc định[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
-    ["src/components/XuongAi.tsx", /\.catch\(\(\) => setCoTaiLieuNoiDung\(null\)\);\s*\}, \[activeAccountId, activeTrangId\]\);/],
     ["src/pages/Content.tsx", /dùng mặc định an toàn[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
     ["src/components/AutoPilotPanel.tsx", /Không tải được lịch tự động[\s\S]{0,900}?\}, \[activeAccountId, activeTrangId\]\);/],
     ["src/components/AITrainingModal.tsx", /Không tải được cấu hình AI[\s\S]{0,900}?\}, \[kind, activeAccountId, activeTrangId\]\);/],
@@ -7616,43 +7614,6 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         ktn.indexOf("const loDucCam") < ktn.indexOf("for (const d of CHON)")],
       [true, true, false, true, true]);
   }
-  // ẢNH THEO BÀI MẶC ĐỊNH (30/10/2026, chủ dự án duyệt): cửa hàng chưa tài liệu → theo bài chỉ vẽ cảnh chung, ép trống chữ
-  // + cấm nhãn hiệu; một chỗ chặn chung taoAnhChoBai phủ cả bấm Đăng, lịch tự đăng, ảnh thay video; giao diện nói rõ.
-  {
-    const ia = await import("../server/services/image-ai.js");
-    const l = (theoBai: boolean, coTL: boolean, chu: "khong" | "theo_noi_dung" = "theo_noi_dung", luat = { chanNhanHieuGia: false, chanNguoiThat: true }) =>
-      ia.luatTheoTaiLieu({ theoBai, coTaiLieu: coTL, chu, luat });
-    kiem("ảnh chưa tài liệu", "luatTheoTaiLieu: theo bài + chưa tài liệu → ép trống chữ + cấm nhãn hiệu (giữ luật khác) + khối cảnh chung; có tài liệu / tạo riêng / ảnh mẫu → giữ y lựa chọn",
-      [l(true, false), l(true, true), l(false, false), l(false, false, "khong")],
-      [{ chu: "khong", luat: { chanNhanHieuGia: true, chanNguoiThat: true }, them: ia.ANH_CHUA_CO_TAI_LIEU },
-        { chu: "theo_noi_dung", luat: { chanNhanHieuGia: false, chanNguoiThat: true }, them: "" },
-        { chu: "theo_noi_dung", luat: { chanNhanHieuGia: false, chanNguoiThat: true }, them: "" },
-        { chu: "khong", luat: { chanNhanHieuGia: false, chanNguoiThat: true }, them: "" }]);
-    kiem("ảnh chưa tài liệu", "khối cảnh chung: không vẽ sản phẩm cụ thể / bao bì / nhãn hiệu / giá / chứng nhận",
-      [/KHÔNG vẽ sản phẩm cụ thể, bao bì, nhãn hiệu, giá hay giấy chứng nhận/.test(ia.ANH_CHUA_CO_TAI_LIEU)], [true]);
-    const ia2 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/image-ai.ts"), "utf8"));
-    const than = ia2.slice(ia2.indexOf("export async function taoAnhChoBai"));
-    kiem("ảnh chưa tài liệu", "taoAnhChoBai: theo bài = không mô tả riêng + không ảnh mẫu; đọc tài liệu 'content' (trangId null → rỗng = chưa có) TRƯỚC khi dựng lời nhắc",
-      [/theoBai: !tuMoTa && !anhMau,\s*coTaiLieu: !tuMoTa && !anhMau \? coTaiLieu\(await docTaiLieu\(params\.trangId, "content"\)\) : true,/.test(than),
-        than.indexOf("luatTheoTaiLieu(") > 0 && than.indexOf("luatTheoTaiLieu(") < than.indexOf("const moTa ="),
-        (await (await import("../server/services/knowledge.js")).docTaiLieu(null, "content")).noiDung],
-      [true, true, ""]);
-    const rAi = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/ai.ts"), "utf8"));
-    const ap1 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/autopilot.ts"), "utf8"));
-    kiem("ảnh chưa tài liệu", "cả 3 nơi gọi taoAnhChoBai truyền cửa hàng (bấm Đăng, lịch tự đăng, ảnh thay video)",
-      [/taoAnhChoBai\(\{\s*userId: req\.user!\.id,\s*trangId: await trangCuaReq\(req\),/.test(rAi),
-        /const anh = await taoAnhChoBai\(\{\s*userId,\s*trangId,/.test(ap1), /return taoAnhChoBai\(\{\s*userId: p\.userId,\s*trangId: p\.trangId,/.test(ap1),
-        (rAi.match(/taoAnhChoBai\(/g) ?? []).length + (ap1.match(/taoAnhChoBai\(/g) ?? []).length],
-      [true, true, true, 3]);
-    const xa = fs.readFileSync(path.join(GOC, "src/components/XuongAi.tsx"), "utf8");
-    const cm = fs.readFileSync(path.join(GOC, "src/components/ChonMoHinhAnh.tsx"), "utf8");
-    kiem("ảnh chưa tài liệu", "giao diện: trạng thái tài liệu lấy từ /ai/configs/content (coTaiLieu cùng hàm máy chủ); theo bài + chưa tài liệu → dòng báo dưới nút chữ; chưa chọn mô hình → tự chọn rẻ nhất (không bị chặn Đăng)",
-      [/docDuoc: doc && \{[^}]*coTaiLieu: coTaiLieu\(doc\) \}/.test(rAi),
-        /\.config\('content'\)\s*\.then\(\(\{ data \}\) => setCoTaiLieuNoiDung\(data\.docDuoc \? data\.docDuoc\.coTaiLieu : null\)\)/.test(xa),
-        /\{!anhRieng && coTaiLieuNoiDung === false && \(\s*<p[^>]*>\s*Cửa hàng chưa có tài liệu: ảnh chỉ vẽ cảnh chung, không chữ, không nhãn hiệu\./.test(xa),
-        /if \(!dung\.some\(\(m\) => m\.id === giaTri\.model\) && dung\[0\]\) onDoi\(\{ model: dung\[0\]\.id \}\);/.test(cm)],
-      [true, true, true, true]);
-  }
   // TD-34 (30/10/2026): lượt KHÔNG có mã nhà cung cấp (vẽ ảnh — /images không trả id; sổ cũ) không bao giờ đối chiếu được →
   // không được nằm mãi ở "đang chờ"; tính riêng "theo bảng giá" như đã chốt; cùng cách tong-quan.ts.
   {
@@ -7846,7 +7807,6 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       "routes/ai.ts": "Thử AI (content dùng khoiTaiLieuBaiViet) + hiện số ký tự đọc được (không sinh chữ)",
       "routes/ads.ts": "AI phân tích quảng cáo — chủ shop đọc, không gửi khách",
       "services/knowledge.ts": "định nghĩa (loadKnowledge)",
-      "services/image-ai.ts": "ảnh theo bài cho khách: coTaiLieu → ANH_CHUA_CO_TAI_LIEU (chưa tài liệu chỉ vẽ cảnh chung)",
     };
     const tep15 = fs.readdirSync(path.join(GOC, "server"), { recursive: true }).map(String).filter((t) => /\.ts$/.test(t))
       .filter((t) => /(?<!function )\b(docTaiLieu|loadKnowledge)\(/.test(boChuThich(fs.readFileSync(path.join(GOC, "server", t), "utf8"))));

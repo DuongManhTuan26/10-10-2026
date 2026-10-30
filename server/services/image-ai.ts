@@ -23,7 +23,6 @@ import { hoanDiaChiKho } from "./media-proxy.js";
 import { ghiLuotAi } from "./so-ai.js";
 import * as zernio from "./zernio.js";
 import { chanNeuTaiKhoanKhoa } from "./tai-khoan-mo.js";
-import { coTaiLieu, docTaiLieu } from "./knowledge.js";
 
 /**
  * Mô hình vẽ khung mở đầu / ảnh mẫu nhân vật của VIDEO DÀI (việc nội bộ, khung-video.ts).
@@ -170,29 +169,6 @@ function luatThem(luat: LuatNoiDung, tuMau = false): string {
   ].filter(Boolean).join(" ");
 }
 
-/**
- * ẢNH THEO BÀI KHI CỬA HÀNG CHƯA CÓ TÀI LIỆU (chủ dự án duyệt 30/10/2026, cùng ý H15 "chưa tài liệu thì không bịa"): đo
- * thật — lượt 363 vẽ cà phê / sổ / chậu cây cho một Fanpage chưa ai biết bán gì. Chỉ vẽ cảnh chung; chữ / nhãn / giá trên
- * ảnh lúc này đều là bịa → ép trống chữ + cấm nhãn hiệu bất kể nút chọn (giao diện nói rõ dưới hai nút).
- */
-export const ANH_CHUA_CO_TAI_LIEU =
-  "CỬA HÀNG CHƯA CÓ TÀI LIỆU SẢN PHẨM: chỉ vẽ cảnh chung / không khí hợp với chủ đề bài; KHÔNG vẽ sản phẩm cụ thể, bao bì, " +
-  "nhãn hiệu, giá hay giấy chứng nhận.";
-
-/**
- * Luật cho một lượt vẽ: CHỈ nhánh theo bài (không mô tả riêng, không ảnh mẫu) + chưa có tài liệu mới ép; còn lại giữ lựa
- * chọn của người dùng.
- */
-export function luatTheoTaiLieu(p: {
-  theoBai: boolean;
-  coTaiLieu: boolean;
-  chu: ChuTrongAnh;
-  luat: LuatNoiDung | undefined;
-}): { chu: ChuTrongAnh; luat: LuatNoiDung; them: string } {
-  if (!p.theoBai || p.coTaiLieu) return { chu: p.chu, luat: p.luat ?? {}, them: "" };
-  return { chu: "khong", luat: { ...(p.luat ?? {}), chanNhanHieuGia: true }, them: ANH_CHUA_CO_TAI_LIEU };
-}
-
 export function luatAnh(chu: ChuTrongAnh, luat: LuatNoiDung = {}): string {
   const chuLuat =
     chu === "khong"
@@ -328,17 +304,8 @@ export async function taoAnhChoBai(params: {
     throw new AppError(`${model.ten} không nhận ảnh mẫu. Chọn mô hình khác để vẽ lại từ ảnh mẫu.`, 400);
   }
 
-  // Theo bài = không mô tả riêng, không ảnh mẫu. Cửa hàng không xác định (trangId null) → docTaiLieu rỗng → coi như CHƯA có.
-  const ap = luatTheoTaiLieu({
-    theoBai: !tuMoTa && !anhMau,
-    coTaiLieu: !tuMoTa && !anhMau ? coTaiLieu(await docTaiLieu(params.trangId, "content")) : true,
-    chu: params.chuTrongAnh === "khong" ? "khong" : "theo_noi_dung",
-    luat: params.luat,
-  });
-  const chu = ap.chu;
-  const moTa =
-    `${phongCach}\n\n${deBai}${ap.them ? `\n\n${ap.them}` : ""}\n\n` +
-    `${anhMau ? luatAnhTuMau(chu, ap.luat) : luatAnh(chu, ap.luat)}`;
+  const chu: ChuTrongAnh = params.chuTrongAnh === "khong" ? "khong" : "theo_noi_dung";
+  const moTa = `${phongCach}\n\n${deBai}\n\n${anhMau ? luatAnhTuMau(chu, params.luat) : luatAnh(chu, params.luat)}`;
 
   // Lưới tiền (mục f): tài khoản đang khoá thì không gửi yêu cầu trả phí. Đặt NGOÀI khối try bên dưới — khối đó đổi
   // mọi lỗi thành 502 "không gọi được dịch vụ", sẽ nuốt mất lỗi khoá.

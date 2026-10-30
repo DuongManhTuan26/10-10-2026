@@ -193,16 +193,6 @@ export function XuongAi({
 
   // Phong cách vẽ ảnh đã lưu của Trang (cũng dùng cho ảnh lịch tự đăng). Đổi Trang thì nạp lại.
   const { activeAccountId, activeTrangId } = useActivePage();
-  // Cửa hàng có tài liệu Nội dung không (CÙNG hàm máy chủ dùng) — chưa có thì ảnh theo bài chỉ vẽ cảnh chung (image-ai.ts
-  // luatTheoTaiLieu); báo rõ dưới hai nút để chủ shop không bật mà không thấy tác dụng. null = chưa biết → không báo.
-  const [coTaiLieuNoiDung, setCoTaiLieuNoiDung] = useState<boolean | null>(null);
-  useEffect(() => {
-    setCoTaiLieuNoiDung(null);
-    api.ai
-      .config('content')
-      .then(({ data }) => setCoTaiLieuNoiDung(data.docDuoc ? data.docDuoc.coTaiLieu : null))
-      .catch(() => setCoTaiLieuNoiDung(null));
-  }, [activeAccountId, activeTrangId]);
   useEffect(() => {
     api.ai
       .imageStyle()
@@ -494,11 +484,6 @@ export function XuongAi({
             </button>
           ))}
         </div>
-        {!anhRieng && coTaiLieuNoiDung === false && (
-          <p className="text-xs text-amber-400 leading-relaxed">
-            Cửa hàng chưa có tài liệu: ảnh chỉ vẽ cảnh chung, không chữ, không nhãn hiệu.
-          </p>
-        )}
         <details className="bg-surface-container rounded-xl px-4 py-3 border border-outline-variant">
           <summary className="cursor-pointer text-xs font-bold text-on-surface">
             Tuỳ chỉnh thêm <span className="font-normal text-on-surface-variant">— phong cách ảnh, giới hạn nội dung</span>
