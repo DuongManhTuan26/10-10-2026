@@ -291,16 +291,23 @@
 .nv {
     --len: 0%; --lech: 0%; --nghieng: 0deg;
     transform-origin: 50% 100%;
-    animation: nv-tho 5s ease-in-out infinite;
+    animation: nv-tho 6s ease-in-out infinite;
 }
 .nv-nhan { animation: nv-nhan 2.4s ease-in-out infinite; }
 .nv-xong { animation: nv-xong 2.8s ease-in-out infinite; }
 .nv-ban_giao, .nv-bao_cao { animation: nv-chuyen 3s ease-in-out infinite; }
 .nv-canh_bao { animation: nv-canh 1.6s ease-in-out infinite; }
 /* ④ không có khung che phía sau → chỉ thở rất nhẹ (không lộ người gốc). */
-.nv-nhe { animation: nv-tho-nhe 6s ease-in-out infinite; }
-@keyframes nv-tho { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-0.8%) scale(1.008); } }
-@keyframes nv-tho-nhe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.006); } }
+.nv-nhe { animation: nv-tho-nhe 4s ease-in-out infinite; }
+/* Chờ việc (31/10: chủ dự án thấy "đứng im như ảnh tĩnh" → rõ hơn): thở + nghiêng đầu nhìn quanh, chậm, tự nhiên. */
+@keyframes nv-tho {
+    0%, 100% { transform: translateY(0) rotate(0) scale(1); }
+    25% { transform: translateY(-1.4%) rotate(-1.4deg) scale(1.01); }
+    50% { transform: translateY(-2.2%) rotate(0) scale(1.016); }
+    75% { transform: translateY(-1.2%) rotate(1.2deg) scale(1.01); }
+}
+/* ④: chỉ PHÓNG (≥ 1, gốc đáy) — ảnh luôn phủ kín người gốc nên không lộ bóng đôi dù không có khung che. */
+@keyframes nv-tho-nhe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 /* Nhận việc: quay nhìn sang rồi trở lại. */
 @keyframes nv-nhan { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-2.4deg) translateY(-1%); } 62% { transform: rotate(1deg); } }
 /* Hoàn thành: gật đầu hai nhịp. */

@@ -22,7 +22,7 @@ import AnToanTaiKhoan from '../components/AnToanTaiKhoan';
 import Dashboard from './Dashboard';
 import { KetQuaDieuHanh, DangLamDieuHanh } from './DieuHanh';
 import { useActivePage } from '../lib/ActivePage';
-import { KhoiNaoHaiTang, KhoiNaoThe, useSoLieuKhoiNao } from '../components/KhoiNaoVanPhong';
+import { KhoiNaoHaiTang, KhoiNaoThe, NutXemThu, useSoLieuKhoiNao } from '../components/KhoiNaoVanPhong';
 
 export function NoiDungAi() {
   return (
@@ -163,6 +163,8 @@ function TongQuanBoNao() {
           <Link to="/ket-noi" className="text-xs font-bold text-on-surface-variant hover:text-on-surface rounded-lg border border-outline-variant px-3 py-1.5">
             Đổi cửa hàng
           </Link>
+          <NutXemThu s={s} />
+          {s.xemThu && <p className="w-full text-xs font-bold text-[#fb923c]">Đang xem thử — việc mẫu, không phải việc thật của cửa hàng</p>}
         </div>
         <KhoiNaoThe s={s} tenCuaHang={trangDangChon.ten} />
       </div>

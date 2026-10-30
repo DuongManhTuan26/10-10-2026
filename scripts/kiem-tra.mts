@@ -7701,6 +7701,22 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       [nhanh.length, nhanh.filter((n) => !/trang_id = \$1/.test(n) || !/> now\(\) - interval '10 minutes'/.test(n)).length,
         /\b(INSERT|UPDATE|DELETE)\b/.test(cau.slice(cau.indexOf("export const CAU_HOAT_DONG"))), /m\.content|customer_name|phone|address|last_message\b/.test(cau)],
       [11, 0, false, false]);
+    // Công tắc xem thử (31/10/2026, chủ dự án): mặc định TẮT, không lưu; bật = vòng việc MẪU có nhãn "Thử"; tắt = chỉ việc thật.
+    const vong = Array.from({ length: 10 }, (_, b) => (["noi_dung", "quang_cao", "ban_hang", "dieu_hanh"] as const)
+      .map((ai) => hd.trangThaiNv(hd.kichBanThu(b, T), ai, T).tt));
+    kiem("chuyển động khối não", "vòng xem thử: bước 0 = ③ nhận việc; lặp sau 10 bước; một vòng đủ 6 trạng thái; lượt chấm sáng cả 3 đường lên ④",
+      [vong[0][2], JSON.stringify(hd.kichBanThu(10, T)) === JSON.stringify(hd.kichBanThu(0, T)), [...new Set(vong.flat())].sort(),
+        [...hd.luongDang(hd.kichBanThu(7, T), T)].filter((x) => x.endsWith(">dieu_hanh")).length],
+      ["nhan", true, ["ban_giao", "bao_cao", "canh_bao", "cho", "nhan", "xong"], 3]);
+    const trangKn = fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8");
+    kiem("chuyển động khối não", "công tắc xem thử: mặc định tắt, không lưu; nhãn ghi 'Thử ·' + dòng 'việc mẫu'; dọn hẹn giờ; có ở màn rộng + màn hẹp",
+      [/const \[xemThu, datXemThu\] = useState\(false\);/.test(kn), /localStorage|sessionStorage/.test(kn),
+        /const chu = `\$\{s\.xemThu \? 'Thử · ' : ''\}/.test(kn), (kn.match(/Đang xem thử — việc mẫu, không phải việc thật của cửa hàng/g) ?? []).length,
+        /hd: xemThu \? kichBanThu\(buocThu, Date\.now\(\)\) : hd/.test(kn), /return \(\) => window\.clearInterval\(dem\);\s*\}, \[xemThu\]\);/.test(kn),
+        /<NutXemThu s=\{s\} \/>/.test(kn), /<NutXemThu s=\{s\} \/>/.test(trangKn) && /Đang xem thử — việc mẫu, không phải việc thật của cửa hàng/.test(trangKn)],
+      [true, false, true, 1, true, true, true, true]);
+    kiem("chuyển động khối não", "④ (không khung che) chỉ PHÓNG ≥ 1 — không dịch / xoay (không lộ người gốc)",
+      [/@keyframes nv-tho-nhe \{ 0%, 100% \{ transform: scale\(1\); \} 50% \{ transform: scale\(1\.0\d+\); \} \}/.test(css)], [true]);
     const khung = [...css.matchAll(/@keyframes (nv-[\w-]+|luong-[\w-]+) \{([\s\S]*?)\}\s*\n/g)];
     kiem("chuyển động khối não", "hiệu ứng chỉ transform / opacity (không vẽ lại); giảm chuyển động → tắt hết",
       [khung.length >= 9, khung.filter(([, , than]) => /(filter|box-shadow|left|top|width|height|background)\s*:/.test(than)).map(([, ten]) => ten),

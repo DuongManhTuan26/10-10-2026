@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } fro
 import { Link } from 'react-router-dom';
 import { api, type BaoCaoDieuHanh, type ChiSoSucKhoe, type Conversation, type MaNhanVien, type SucKhoeTrang } from '../lib/api';
 import { BON_AI } from '../lib/bon-ai';
-import { GIU_VIEC_S, luongDang, trangThaiNv, type HoatDongKhoiNao, type TrangThaiNv } from '../lib/hoat-dong-khoi-nao';
+import { BUOC_THU_MS, GIU_VIEC_S, kichBanThu, luongDang, trangThaiNv, type HoatDongKhoiNao, type TrangThaiNv } from '../lib/hoat-dong-khoi-nao';
 
 /*
  * KHỐI NÃO "4 VĂN PHÒNG" (chủ dự án 30/10/2026 — ảnh mẫu, đồng ý dùng chính ảnh làm nền cảnh, 0 đ).
@@ -54,6 +54,9 @@ export interface SoLieuKhoiNao {
   suc: SucKhoeTrang | null;
   hoiThoai: Conversation[];
   hd: HoatDongKhoiNao | null;
+  /** Công tắc "Xem thử chuyển động": bật = chạy việc MẪU (nhãn "Thử"); tắt = chỉ việc thật. Mặc định tắt, không lưu. */
+  xemThu: boolean;
+  datXemThu: (bat: boolean) => void;
 }
 
 /** Hỏi việc mới mỗi 20 giây — chỉ khi thẻ trình duyệt đang hiện (ẩn thẻ = không hỏi, không tốn máy chủ). */
@@ -61,6 +64,8 @@ export const HOI_MOI_MS = 20_000;
 
 /** Đọc số thật cho khối não của cửa hàng đang chọn (3 lời gọi sẵn có, chỉ đọc). */
 export function useSoLieuKhoiNao(trangId: number | null | undefined): SoLieuKhoiNao & { loi: string } {
+  const [xemThu, datXemThu] = useState(false);
+  const [buocThu, setBuocThu] = useState(0);
   const [bao, setBao] = useState<BaoCaoDieuHanh | null>(null);
   const [suc, setSuc] = useState<SucKhoeTrang | null>(null);
   const [hoiThoai, setHoiThoai] = useState<Conversation[]>([]);
@@ -88,7 +93,32 @@ export function useSoLieuKhoiNao(trangId: number | null | undefined): SoLieuKhoi
     document.addEventListener('visibilitychange', hoi);
     return () => { huy = true; window.clearInterval(dem); document.removeEventListener('visibilitychange', hoi); };
   }, [trangId]);
-  return { bao, suc, hoiThoai, hd, loi };
+  useEffect(() => {
+    if (!xemThu) return;
+    setBuocThu(0);
+    const dem = window.setInterval(() => setBuocThu((b) => b + 1), BUOC_THU_MS);
+    return () => window.clearInterval(dem);
+  }, [xemThu]);
+  return { bao, suc, hoiThoai, hd: xemThu ? kichBanThu(buocThu, Date.now()) : hd, xemThu, datXemThu, loi };
+}
+
+/** Công tắc xem thử — đặt ở đầu khối não (màn rộng + màn hẹp). */
+export function NutXemThu({ s }: { s: SoLieuKhoiNao }) {
+  return (
+    <button
+      type="button"
+      onClick={() => s.datXemThu(!s.xemThu)}
+      aria-pressed={s.xemThu}
+      title={s.xemThu ? 'Đang chạy việc MẪU để xem chuyển động — bấm để tắt, nhân viên chỉ chuyển động theo việc thật' : 'Chạy một vòng việc mẫu để xem nhân viên chuyển động (không ghi gì, không tốn tiền)'}
+      className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold hover:brightness-125"
+      style={s.xemThu
+        ? { color: '#0b0f14', background: '#fb923c', boxShadow: '0 0 12px rgba(251,146,60,0.6)' }
+        : { color: '#FFD978', border: '1.5px solid rgba(245,196,81,0.6)', background: 'rgba(8,10,14,0.92)' }}
+    >
+      <span className="material-symbols-outlined text-[20px]">{s.xemThu ? 'stop_circle' : 'play_circle'}</span>
+      {s.xemThu ? 'Đang xem thử · Tắt' : 'Xem thử chuyển động'}
+    </button>
+  );
 }
 
 /**
@@ -375,7 +405,7 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
         const { tt, su, giay } = trangThaiNv(s.hd, k, bayGio);
         const mau = mauTT(tt, AI_THEO_KHAU[k].hex);
         const den = su?.luong_den && su.luong_den !== k ? AI_THEO_KHAU[su.luong_den].ten.replace(/^AI /, '') : null;
-        const chu = `${CHU_TT[tt]}${su ? ` · ${su.chu}` : ''}${den ? ` → ${den}` : ''}${tt === 'canh_bao' && giay > GIU_VIEC_S ? ` · ${Math.round(giay / 60)} phút trước` : ''}`;
+        const chu = `${s.xemThu ? 'Thử · ' : ''}${CHU_TT[tt]}${su ? ` · ${su.chu}` : ''}${den ? ` → ${den}` : ''}${tt === 'canh_bao' && giay > GIU_VIEC_S ? ` · ${Math.round(giay / 60)} phút trước` : ''}`;
         // Bàn giao / báo cáo: nghiêng về phía văn phòng nhận (phải = văn phòng kế; lên = Điều hành).
         const huong = (tt === 'ban_giao' || tt === 'bao_cao') && su?.luong_den
           ? su.luong_den === 'dieu_hanh' ? { '--len': '-1.6%' } : { '--nghieng': '2deg', '--lech': '1.4%' }
@@ -466,13 +496,20 @@ export function KhoiNaoHaiTang({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang
             </span>
             <span>
               <span className="block text-xl font-extrabold text-white leading-tight">Bộ não AI</span>
-              <span className="block text-sm text-on-surface-variant">cửa hàng <b className="text-on-surface">{tenCuaHang}</b> · 4 AI làm việc liền mạch</span>
+              <span className="block text-sm text-on-surface-variant">
+                {s.xemThu
+                  ? <b className="text-[#fb923c]">Đang xem thử — việc mẫu, không phải việc thật của cửa hàng</b>
+                  : <>cửa hàng <b className="text-on-surface">{tenCuaHang}</b> · 4 AI làm việc liền mạch</>}
+              </span>
             </span>
           </h3>
+          <span className="flex items-center gap-2">
+            <NutXemThu s={s} />
           <Link to="/ket-noi" className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white hover:brightness-125" style={{ border: '1.5px solid #F5C451', background: 'rgba(8,10,14,0.92)', boxShadow: '0 0 10px rgba(245,196,81,0.4)' }}>
             <span className="material-symbols-outlined text-[20px]">storefront</span>
             Đổi cửa hàng
           </Link>
+          </span>
         </div>
         {tang(KHUNG_HAI_TANG.dieu_hanh, DIEU_HANH.hex)}
         <div className="relative grid grid-cols-3 gap-4">

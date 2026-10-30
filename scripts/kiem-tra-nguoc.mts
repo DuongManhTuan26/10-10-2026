@@ -6764,6 +6764,42 @@ const DUC: PhepDuc[] = [
     thay: "    .nv-hao, .nv-cham, .luong-ngang, .luong-len { animation: none !important; }",
   },
   {
+    ten: "khối não: công tắc xem thử bật sẵn (việc mẫu hiện như thật)",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "  const [xemThu, datXemThu] = useState(false);",
+    thay: "  const [xemThu, datXemThu] = useState(true);",
+  },
+  {
+    ten: "khối não: xem thử không ghi 'Thử' trên nhãn",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "const chu = `${s.xemThu ? 'Thử · ' : ''}",
+    thay: "const chu = `",
+  },
+  {
+    ten: "khối não: tắt xem thử không dọn hẹn giờ",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "    return () => window.clearInterval(dem);\n  }, [xemThu]);",
+    thay: "  }, [xemThu]);",
+  },
+  {
+    ten: "khối não: màn hẹp không có công tắc xem thử",
+    tep: "src/pages/KhoiNao.tsx",
+    tim: "          <NutXemThu s={s} />\n",
+    thay: "",
+  },
+  {
+    ten: "khối não: ④ dịch lên (lộ người gốc phía sau)",
+    tep: "src/index.css",
+    tim: "@keyframes nv-tho-nhe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }",
+    thay: "@keyframes nv-tho-nhe { 0%, 100% { transform: scale(1); } 50% { transform: translateY(-3%); } }",
+  },
+  {
+    ten: "khối não: vòng xem thử thiếu lượt chấm (đường lên ④ không bao giờ sáng)",
+    tep: "src/lib/hoat-dong-khoi-nao.ts",
+    tim: "  { ai: 'dieu_hanh', loai: 'xong', chu: 'Chấm điểm 3 AI xong', luong_tu: 'ba_ai', luong_den: 'dieu_hanh' },\n",
+    thay: "",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

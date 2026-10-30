@@ -38,3 +38,33 @@ export function luongDang(hd: HoatDongKhoiNao | null, bayGio: number): Set<strin
   }
   return ra;
 }
+
+/*
+ * XEM THỬ CHUYỂN ĐỘNG (31/10/2026, chủ dự án: "cho công tắc lúc nào muốn chuyển động thử thì bật lên, tắt đi thì chỉ chạy theo
+ * việc thật"). Chuỗi việc MẪU một vòng làm việc liền mạch của 4 AI — chỉ dùng khi công tắc bật (mặc định tắt, không lưu),
+ * nhãn ghi rõ "Thử". Không gọi máy chủ, không ghi gì.
+ */
+export const BUOC_THU_MS = 3500;
+const GIAN_CACH_THU_S = 31;
+const KICH_BAN_THU: Omit<SuKienKhoiNao, 'tuoi'>[] = [
+  { ai: 'ban_hang', loai: 'nhan', chu: 'Khách nhắn tin', luong_tu: null, luong_den: null },
+  { ai: 'ban_hang', loai: 'xong', chu: 'Đã trả lời khách', luong_tu: null, luong_den: null },
+  { ai: 'noi_dung', loai: 'xong', chu: 'Viết xong nội dung', luong_tu: null, luong_den: null },
+  { ai: 'noi_dung', loai: 'ban_giao', chu: 'Đã đăng bài', luong_tu: 'noi_dung', luong_den: 'quang_cao' },
+  { ai: 'quang_cao', loai: 'xong', chu: 'Đã đẩy bài quảng cáo', luong_tu: null, luong_den: null },
+  { ai: 'quang_cao', loai: 'ban_giao', chu: 'Khách từ quảng cáo', luong_tu: 'quang_cao', luong_den: 'ban_hang' },
+  { ai: 'ban_hang', loai: 'bao_cao', chu: 'Chốt đơn mới', luong_tu: 'ban_hang', luong_den: 'dieu_hanh' },
+  { ai: 'dieu_hanh', loai: 'xong', chu: 'Chấm điểm 3 AI xong', luong_tu: 'ba_ai', luong_den: 'dieu_hanh' },
+  { ai: 'ban_hang', loai: 'canh_bao', chu: 'Cần người tiếp khách', luong_tu: null, luong_den: null },
+  { ai: 'dieu_hanh', loai: 'bao_cao', chu: 'Có đề xuất chờ duyệt', luong_tu: null, luong_den: null },
+];
+
+/** Bước thứ `buoc` của vòng thử: việc của bước đó vừa xảy ra (0 giây), các bước trước lùi mỗi bước 31 giây. */
+export function kichBanThu(buoc: number, bayGio: number): HoatDongKhoiNao {
+  const suKien: SuKienKhoiNao[] = [];
+  for (let lui = 0; lui < KICH_BAN_THU.length; lui++) {
+    const i = (((buoc - lui) % KICH_BAN_THU.length) + KICH_BAN_THU.length) % KICH_BAN_THU.length;
+    suKien.push({ ...KICH_BAN_THU[i], tuoi: lui * GIAN_CACH_THU_S });
+  }
+  return { suKien, nhanLuc: bayGio };
+}
