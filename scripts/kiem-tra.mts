@@ -8533,8 +8533,9 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     kiem("thanh trên + khối não ánh kim", "thanh trên dùng .thanh-tren (vạch đáy vàng ánh kim); khung số khối não .vien-anh-kim viền vàng; không còn màu riêng AI ở khung / tiêu đề / số / đường nối",
       [/<nav className="thanh-tren fixed top-0 /.test(tn), /\.thanh-tren::after \{[\s\S]{0,260}background: linear-gradient\(90deg, #6A430B 0%, #F5C451 12%/.test(css),
         /className="vien-anh-kim absolute overflow-hidden pointer-events-none flex flex-col"/.test(kn31), /\['--vien-anh-kim' as string\]: VANG,/.test(kn31),
-        (kn31.match(/(NOI_DUNG|QUANG_CAO|BAN_HANG|DIEU_HANH)\.hex|#38bdf8/g) ?? []).length],
-      [true, true, true, true, 0]);
+        (kn31.match(/(NOI_DUNG|QUANG_CAO|BAN_HANG|DIEU_HANH)\.hex|#38bdf8/g) ?? []).length,
+        /'vien-anh-kim relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant nen-app /.test(fs.readFileSync(path.join(GOC, "src/components/HopThoai.tsx"), "utf8"))],
+      [true, true, true, true, 0, true]);
   }
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");

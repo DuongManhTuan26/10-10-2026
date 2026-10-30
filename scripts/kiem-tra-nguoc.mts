@@ -6921,6 +6921,12 @@ const DUC: PhepDuc[] = [
     thay: "tieuDe('Bài đăng tháng này', undefined, NOI_DUNG.hex)",
   },
   {
+    ten: "hộp thoại: khung mất viền vàng ánh kim",
+    tep: "src/components/HopThoai.tsx",
+    tim: "'vien-anh-kim relative flex flex-col",
+    thay: "'relative flex flex-col",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

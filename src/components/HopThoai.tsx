@@ -76,8 +76,8 @@ export default function HopThoai({
         role="dialog"
         aria-modal="true"
         className={clsx(
-          // Quầng sáng theo màu MIỀN đang mở (index.css .mien-*), không ghi cứng xanh ngọc.
-          'relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant nen-app shadow-[0_0_40px_color-mix(in_srgb,var(--color-primary)_12%,transparent)]',
+          // 31/10/2026: khung hộp thoại = viền vàng ÁNH KIM như thẻ (.vien-anh-kim) + quầng vàng; nút trong hộp vẫn xanh ngọc.
+          'vien-anh-kim relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant nen-app shadow-[0_0_40px_color-mix(in_srgb,var(--vien-mac-dinh)_18%,transparent)]',
           CO[co]
         )}
       >
