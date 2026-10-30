@@ -421,7 +421,7 @@ nhà cung cấp giả, SMTP_PASS rỗng) + chặn tĩnh lỗ đục có import( 
 MOI_TRUONG_CO_LAP. Hai lượt đục cùng chạy lỗ cũ (của phiên viết 20:01Z, của phiên kiểm duyệt 20:05–20:08Z) — chỉ lượt 20:01
 sinh dòng giả; lượt sau gặp dòng đã có nên không đổi, không gửi.
 
-## TD-34 — Lượt AI không có mã nhà cung cấp: nằm mãi ở "đang chờ" của đối soát tổng (30/10/2026) — GHI LẠI
+## TD-34 — ĐÃ SỬA (30/10/2026): Lượt AI không có mã nhà cung cấp nằm mãi ở "đang chờ" của đối soát tổng
 
 Đối chiếu từng lượt (so-ai.ts doiChieuLuotAi) chỉ tra lượt có ma_ncc; đối soát tổng (chi-phi.ts doiChieuTong) tính "đang chờ"
 = mọi lượt doi_chieu_at IS NULL. Lượt không có ma_ncc thì không bao giờ được đối chiếu → nằm mãi trong "đang chờ" (soLuotCho
@@ -431,6 +431,11 @@ flash-lite-image qua /images không trả `id`). Tiền vẫn đúng theo bảng
 /credits) — chỉ trạng thái đối soát sai.
 Sửa khi làm: (a) lượt không ma_ncc → đánh dấu "đối chiếu theo bảng giá" (doi_chieu_at = created_at, cost_ncc NULL) để không
 tính chờ; hoặc (b) nhánh ảnh lấy mã lượt từ phần khác của phản hồi nếu nhà cung cấp có. Đọc tài liệu /images trước.
+Đã sửa (30/10/2026, hướng a): tài liệu OpenRouter "Generate an image" (openrouter.ai/docs/api/api-reference/images/
+generate-an-image.md) — phản hồi chỉ có created / data / usage, KHÔNG có id, không header → không đối chiếu từng lượt được.
+doiChieuTong: "đang chờ" chỉ lượt CÓ ma_ncc chưa đối chiếu; lượt không mã tính riêng "theo bảng giá" (trừ vào chênh như đã
+chốt), cùng cách tong-quan.ts. Không đổi dữ liệu. Neon 30/10 sau mốc 01/10: cũ "chờ 5 lượt / 0,1077 USD" mãi → mới 0 chờ,
+5 lượt theo bảng giá hiện rõ trên màn Chi phí.
 
 ## TD-36 — ĐÃ SỬA (30/10/2026): Facebook chặn Fanpage gửi tin → AI vẫn tốn lượt + gửi thêm tin chắc chắn hỏng
 

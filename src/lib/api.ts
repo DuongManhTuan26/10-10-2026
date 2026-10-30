@@ -531,7 +531,7 @@ export interface SaoKeChiPhi {
     ngoaiSoTruocMocUsd: number;
     mocLuc: string;
     /** lechUsd: phần lệch thật, đã trừ các lượt đang chờ nhà cung cấp chốt. */
-    sauMoc: { nhaCungCapUsd: number; soDaChotUsd: number; soChoUsd: number; soLuotCho: number; chenhUsd: number; lechUsd: number; chiNgoaiSoUsd: number };
+    sauMoc: { nhaCungCapUsd: number; soDaChotUsd: number; soChoUsd: number; soLuotCho: number; soTheoBangGiaUsd: number; soLuotTheoBangGia: number; chenhUsd: number; lechUsd: number; chiNgoaiSoUsd: number };
     /** Khoản chi ngoài app đã đối chiếu có căn cứ (vd. nghiên cứu AI Điều hành 05–09/10). */
     chiNgoaiSo: { ma: string; usd: number; tu: string; den: string; lyDo: string; canCu: string }[];
   } | null;

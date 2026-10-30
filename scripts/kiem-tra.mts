@@ -4708,7 +4708,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("cảnh báo", "câu đầy đủ (gửi Telegram) cũng viết số kiểu Việt", cbs.some((c) => /\d\.\d\d USD/.test(c.noiDung)), false);
   const dcThu = (trangThai: "khop" | "dang_cho" | "lech", chenhUsd: number) => ({
     trangThai, nhaCungCapUsd: 1, soAppUsd: 1, ngoaiSoTruocMocUsd: 0, mocLuc: "2026-10-01T00:00:00Z",
-    sauMoc: { nhaCungCapUsd: 0, soDaChotUsd: 0, soChoUsd: 0, soLuotCho: 0, chenhUsd, lechUsd: chenhUsd, chiNgoaiSoUsd: 0 },
+    sauMoc: { nhaCungCapUsd: 0, soDaChotUsd: 0, soChoUsd: 0, soLuotCho: 0, soTheoBangGiaUsd: 0, soLuotTheoBangGia: 0, chenhUsd, lechUsd: chenhUsd, chiNgoaiSoUsd: 0 },
     chiNgoaiSo: [],
   });
   const aiDu = { ...aiCB, conLaiUsd: 7, tuanNayUsd: 1 };
@@ -7198,7 +7198,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("B1 chi ngoài app", "061 ghi đúng 2 khoản cộng = khoản lệch 8,0733096 (có căn cứ, khoảng thời gian chạy thật); đối chiếu trừ khoản sau mốc; màn hình hiện từng khoản",
     [soTrong061, soTrong061.reduce((a, b) => a + b, 0).toFixed(7), /'tu', '2026-10-05T15:28:12Z', 'den', '2026-10-09T09:34:31Z'/.test(m61),
       /ON CONFLICT \(khoa\) DO NOTHING;/.test(m61), !/DELETE FROM|DROP TABLE|DROP COLUMN|UPDATE /i.test(m61),
-      /const ngoai = chiNgoaiSoSauMoc\(dsNgoai, moc\.luc\);[\s\S]{0,200}const chenh = nccSau - ngoai - chot;/.test(cp10),
+      /const ngoai = chiNgoaiSoSauMoc\(dsNgoai, moc\.luc\);[\s\S]{0,200}const chenh = nccSau - ngoai - chot - bangGia;/.test(cp10),
       /\.\.\.dc\.chiNgoaiSo\.map\(\(c\) => \[\s*`Đã đối chiếu: chi ngoài app — \$\{c\.lyDo\}/.test(cph)],
     [[7.890923, 0.1823866], "8.0733096", true, true, true, true, true]);
   // B2 — chặn lặp theo mã + giá trị.
@@ -7612,6 +7612,23 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /const loDucCam = DUC\.filter\(\(d\) => MAU_CAM_TRONG_LO_DUC\.test\(d\.thay\)\);\s*if \(loDucCam\.length\) \{[\s\S]{0,200}process\.exit\(1\);/.test(ktn),
         ktn.indexOf("const loDucCam") < ktn.indexOf("for (const d of CHON)")],
       [true, true, false, true, true]);
+  }
+  // TD-34 (30/10/2026): lượt KHÔNG có mã nhà cung cấp (vẽ ảnh — /images không trả id; sổ cũ) không bao giờ đối chiếu được →
+  // không được nằm mãi ở "đang chờ"; tính riêng "theo bảng giá" như đã chốt; cùng cách tong-quan.ts.
+  {
+    const cp34 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/chi-phi.ts"), "utf8"));
+    const ui34 = fs.readFileSync(path.join(GOC, "src/components/ChiPhiHeThong.tsx"), "utf8");
+    kiem("đối soát tổng", "'đang chờ' chỉ lượt CÓ mã chưa đối chiếu; lượt không mã tính riêng 'theo bảng giá' và trừ vào chênh như đã chốt",
+      [/FILTER \(WHERE a\.doi_chieu_at IS NULL AND a\.ma_ncc IS NOT NULL\), 0\)::text AS cho,/.test(cp34),
+        /count\(\*\) FILTER \(WHERE a\.doi_chieu_at IS NULL AND a\.ma_ncc IS NOT NULL\)::int AS lan_cho,/.test(cp34),
+        /FILTER \(WHERE a\.doi_chieu_at IS NULL AND a\.ma_ncc IS NULL\), 0\)::text AS bang_gia,/.test(cp34),
+        /const chenh = nccSau - ngoai - chot - bangGia;/.test(cp34), /soTheoBangGiaUsd: bangGia, soLuotTheoBangGia: sau\?\.lan_bang_gia \?\? 0,/.test(cp34),
+        /FILTER \(WHERE a\.ma_ncc IS NOT NULL AND a\.doi_chieu_at IS NULL\)::int AS chua_chot/.test(fs.readFileSync(path.join(GOC, "server/services/tong-quan.ts"), "utf8"))],
+      [true, true, true, true, true, true]);
+    kiem("đối soát tổng", "màn Chi phí: 'sổ ghi' gồm cả phần theo bảng giá; có lượt theo bảng giá thì hiện rõ số lượt + số tiền",
+      [/dc\.sauMoc\.soDaChotUsd \+ dc\.sauMoc\.soChoUsd \+ dc\.sauMoc\.soTheoBangGiaUsd\]/.test(ui34),
+        /\.\.\.\(dc\.sauMoc\.soLuotTheoBangGia > 0\s*\? \[\[`Trong đó \$\{dc\.sauMoc\.soLuotTheoBangGia\} lượt tính theo bảng giá/.test(ui34)],
+      [true, true]);
   }
   // TD-36 (30/10/2026): Facebook chặn Fanpage gửi tin (#2022 / 10-1893063) → ngắt AI kênh 24 giờ trước khi trả về; AI Bán
   // hàng không gọi mô hình khi kênh đang ngắt; báo Telegram một lần mỗi lần ngắt.

@@ -287,7 +287,11 @@ export default function ChiPhiHeThong() {
                     `Đã đối chiếu: chi ngoài app — ${c.lyDo} (${ngayVN(c.tu)}${ngayVN(c.den) !== ngayVN(c.tu) ? `–${ngayVN(c.den)}` : ''})`,
                     c.usd,
                   ]),
-                  [`Từ ${ngayVN(dc.mocLuc)}: sổ ghi`, dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd],
+                  [`Từ ${ngayVN(dc.mocLuc)}: sổ ghi`, dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd + dc.sauMoc.soTheoBangGiaUsd],
+                  // Lượt nhà cung cấp không trả mã (vẽ ảnh…): không đối chiếu từng lượt được — tính theo bảng giá, hiện rõ (TD-34).
+                  ...(dc.sauMoc.soLuotTheoBangGia > 0
+                    ? [[`Trong đó ${dc.sauMoc.soLuotTheoBangGia} lượt tính theo bảng giá (nhà cung cấp không trả mã lượt)`, dc.sauMoc.soTheoBangGiaUsd]]
+                    : []),
                 ] as [string, number][]
               ).map(([k, v]) => hang(3, { khoa: `dc-${k}`, nhan: k, giaTri: chiDu(v), mauGiaTri: mauChi(v) }))}
 

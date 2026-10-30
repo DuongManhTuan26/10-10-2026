@@ -4769,8 +4769,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "B1: đối chiếu không trừ chi ngoài app (lại báo lệch 8,07)",
     tep: "server/services/chi-phi.ts",
-    tim: "  const chenh = nccSau - ngoai - chot;",
-    thay: "  const chenh = nccSau - chot;",
+    // 30/10/2026 (TD-34): công thức thêm "- bangGia" — trỏ lại đúng dòng, cùng ý (bỏ trừ chi ngoài app).
+    tim: "  const chenh = nccSau - ngoai - chot - bangGia;",
+    thay: "  const chenh = nccSau - chot - bangGia;",
   },
   {
     ten: "B1: trừ cả khoản chi ngoài app trước mốc (trừ hai lần)",
@@ -6579,6 +6580,24 @@ const DUC: PhepDuc[] = [
     tep: "server/routes/ads.ts",
     tim: "      truoc: { ngan_sach: chon.truoc, loai_ngan_sach: \"daily\", chien_dich: req.params.id },\n",
     thay: "",
+  },
+  {
+    ten: "đối soát tổng: lượt không mã lại nằm ở 'đang chờ'",
+    tep: "server/services/chi-phi.ts",
+    tim: "FILTER (WHERE a.doi_chieu_at IS NULL AND a.ma_ncc IS NOT NULL), 0)::text AS cho,",
+    thay: "FILTER (WHERE a.doi_chieu_at IS NULL), 0)::text AS cho,",
+  },
+  {
+    ten: "đối soát tổng: không trừ phần theo bảng giá khỏi chênh (báo lệch giả)",
+    tep: "server/services/chi-phi.ts",
+    tim: "  const chenh = nccSau - ngoai - chot - bangGia;",
+    thay: "  const chenh = nccSau - ngoai - chot;",
+  },
+  {
+    ten: "màn Chi phí: 'sổ ghi' thiếu phần theo bảng giá",
+    tep: "src/components/ChiPhiHeThong.tsx",
+    tim: "dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd + dc.sauMoc.soTheoBangGiaUsd]",
+    thay: "dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd]",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

@@ -395,6 +395,9 @@ export interface DoiChieuTong {
     soDaChotUsd: number;
     soChoUsd: number;
     soLuotCho: number;
+    /** Lượt KHÔNG có mã nhà cung cấp (không đối chiếu được từng lượt) — tiền theo bảng giá / usage.cost, tính như đã chốt (TD-34). */
+    soTheoBangGiaUsd: number;
+    soLuotTheoBangGia: number;
     chenhUsd: number;
     /** Phần chênh KHÔNG giải thích được bằng các lượt đang chờ chốt — đây mới là số lệch thật. */
     lechUsd: number;
@@ -513,10 +516,18 @@ export async function doiChieuTong(ai: TinhHinhAI): Promise<DoiChieuTong | null>
   if (!moc) return null;
   const [tat, sau] = await Promise.all([
     queryOne<{ usd: string }>(`SELECT coalesce(sum(${TIEN}), 0)::text AS usd FROM ai_usage a`),
-    queryOne<{ chot: string; cho: string; lan_cho: number }>(
+    /*
+     * TD-34 (30/10/2026): "đang chờ" CHỈ là lượt CÓ mã nhà cung cấp chưa đối chiếu (so-ai.ts doiChieuLuotAi chỉ tra lượt có
+     * ma_ncc). Lượt KHÔNG có mã (vẽ ảnh: tài liệu POST /api/v1/images không trả id; sổ cũ 30/09–01/10) không bao giờ được
+     * đối chiếu → tính riêng "theo bảng giá" như phần đã chốt, không nằm mãi ở "đang chờ" che phần lệch thật. Cùng cách với
+     * tong-quan.ts (chua_chot chỉ đếm ma_ncc IS NOT NULL).
+     */
+    queryOne<{ chot: string; cho: string; lan_cho: number; bang_gia: string; lan_bang_gia: number }>(
       `SELECT coalesce(sum(${TIEN}) FILTER (WHERE a.doi_chieu_at IS NOT NULL), 0)::text AS chot,
-              coalesce(sum(${TIEN}) FILTER (WHERE a.doi_chieu_at IS NULL), 0)::text AS cho,
-              count(*) FILTER (WHERE a.doi_chieu_at IS NULL)::int AS lan_cho
+              coalesce(sum(${TIEN}) FILTER (WHERE a.doi_chieu_at IS NULL AND a.ma_ncc IS NOT NULL), 0)::text AS cho,
+              count(*) FILTER (WHERE a.doi_chieu_at IS NULL AND a.ma_ncc IS NOT NULL)::int AS lan_cho,
+              coalesce(sum(${TIEN}) FILTER (WHERE a.doi_chieu_at IS NULL AND a.ma_ncc IS NULL), 0)::text AS bang_gia,
+              count(*) FILTER (WHERE a.doi_chieu_at IS NULL AND a.ma_ncc IS NULL)::int AS lan_bang_gia
          FROM ai_usage a WHERE a.created_at >= $1`,
       [moc.luc]
     ),
@@ -524,10 +535,11 @@ export async function doiChieuTong(ai: TinhHinhAI): Promise<DoiChieuTong | null>
   const nccSau = ai.khoaDaTieuUsd - moc.nccUsd;
   const chot = Number(sau?.chot ?? 0);
   const cho = Number(sau?.cho ?? 0);
+  const bangGia = Number(sau?.bang_gia ?? 0);
   const dsNgoai = await docChiNgoaiSo();
   const ngoai = chiNgoaiSoSauMoc(dsNgoai, moc.luc);
   // Phần nhà cung cấp trừ cho việc NGOÀI app đã đối chiếu có căn cứ — không phải lọt sổ.
-  const chenh = nccSau - ngoai - chot;
+  const chenh = nccSau - ngoai - chot - bangGia;
   return {
     trangThai: trangThaiTong(chenh, cho),
     nhaCungCapUsd: ai.khoaDaTieuUsd,
@@ -535,7 +547,8 @@ export async function doiChieuTong(ai: TinhHinhAI): Promise<DoiChieuTong | null>
     ngoaiSoTruocMocUsd: moc.nccUsd - moc.soUsd,
     mocLuc: moc.luc,
     sauMoc: {
-      nhaCungCapUsd: nccSau, soDaChotUsd: chot, soChoUsd: cho, soLuotCho: sau?.lan_cho ?? 0, chenhUsd: chenh,
+      nhaCungCapUsd: nccSau, soDaChotUsd: chot, soChoUsd: cho, soLuotCho: sau?.lan_cho ?? 0,
+      soTheoBangGiaUsd: bangGia, soLuotTheoBangGia: sau?.lan_bang_gia ?? 0, chenhUsd: chenh,
       lechUsd: phanLech(chenh, cho), chiNgoaiSoUsd: ngoai,
     },
     chiNgoaiSo: dsNgoai,
