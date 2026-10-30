@@ -6754,8 +6754,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "khối não: hiệu ứng cảnh báo dùng filter (vẽ lại mỗi khung hình)",
     tep: "src/index.css",
-    tim: "@keyframes nv-canh { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.4%); } }",
-    thay: "@keyframes nv-canh { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.4%); filter: drop-shadow(0 0 6px #fb923c); } }",
+    tim: "@keyframes nv-canh { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-7%) rotate(-4deg); } 50% { transform: translateY(-3%) rotate(0); } 75% { transform: translateY(-7%) rotate(4deg); } }",
+    thay: "@keyframes nv-canh { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-7%) rotate(-4deg); filter: drop-shadow(0 0 6px #fb923c); } 50% { transform: translateY(-3%) rotate(0); } 75% { transform: translateY(-7%) rotate(4deg); } }",
   },
   {
     ten: "khối não: giảm chuyển động không tắt nhân viên",
@@ -6790,7 +6790,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "khối não: ④ dịch lên (lộ người gốc phía sau)",
     tep: "src/index.css",
-    tim: "@keyframes nv-tho-nhe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }",
+    tim: "@keyframes nv-tho-nhe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }",
     thay: "@keyframes nv-tho-nhe { 0%, 100% { transform: scale(1); } 50% { transform: translateY(-3%); } }",
   },
   {

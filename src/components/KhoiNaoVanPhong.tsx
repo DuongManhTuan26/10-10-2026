@@ -408,7 +408,7 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
         const chu = `${s.xemThu ? 'Thử · ' : ''}${CHU_TT[tt]}${su ? ` · ${su.chu}` : ''}${den ? ` → ${den}` : ''}${tt === 'canh_bao' && giay > GIU_VIEC_S ? ` · ${Math.round(giay / 60)} phút trước` : ''}`;
         // Bàn giao / báo cáo: nghiêng về phía văn phòng nhận (phải = văn phòng kế; lên = Điều hành).
         const huong = (tt === 'ban_giao' || tt === 'bao_cao') && su?.luong_den
-          ? su.luong_den === 'dieu_hanh' ? { '--len': '-1.6%' } : { '--nghieng': '2deg', '--lech': '1.4%' }
+          ? su.luong_den === 'dieu_hanh' ? { '--len': '-8%' } : { '--nghieng': '7deg', '--lech': '6%' }
           : {};
         return (
           <Fragment key={k}>
