@@ -3,6 +3,17 @@
 Chỉ là ĐỀ XUẤT, chưa làm gì. Chủ dự án hướng dẫn rồi mới làm (chốt 23/10). Mỗi mục: hiện trạng (đọc từ mã) → các
 phương án → căn cứ → hệ quả → tiền.
 
+## QUYẾT ĐỊNH 30/10/2026 (chủ dự án, cách A) — làm khi tới khối não
+
+Cửa hàng PHẢI được huấn luyện (vai trò + mục đích + tài liệu) thì AI mới biết bán gì / tạo gì. Chưa huấn luyện là trạng
+thái mặc định — KHÔNG vá từng đầu ra (bài / ảnh / video) cho ca "chưa tài liệu" (đó là vá ngọn). Khi làm khối não:
+1. Thêm chốt gốc: cửa hàng chưa huấn luyện thì AI không tự chạy (viết bài / tự đăng / trả lời khách) — cách hiện cụ thể
+   trình khi thiết kế khối não.
+2. Cùng lượt đó GỠ hai nhánh "chưa tài liệu" còn lại (lúc ấy không bao giờ chạy nữa): content-ai.ts
+   CHUA_CO_TAI_LIEU_BAI_VIET / khoiTaiLieuBaiViet (H15, 24/10) và sales-ai.ts CHUA_CO_TAI_LIEU. Giữ tới lúc đó vì cửa hàng
+   chưa huấn luyện hiện vẫn chạy AI thật (370: 0 tài liệu).
+Đã làm 30/10: gỡ nhánh "chưa tài liệu" của ảnh (0338842); bác "video chưa tài liệu cấm bịa" + "video không vẽ chữ".
+
 ## 0. Hiện trạng một khối não (mỗi cửa hàng một khối, 4 AI)
 
 | | ① Nội dung | ② Quảng cáo | ③ Bán hàng | ④ Điều hành |

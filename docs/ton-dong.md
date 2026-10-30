@@ -17,7 +17,9 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
 
 ---
 
-## TD-01 — Chữ AI vẽ trong video quảng cáo thử (dự án #9): "ORDER", "ORDEED", chữ li ti
+## TD-01 — ĐÓNG (30/10/2026): Chữ AI vẽ trong video quảng cáo thử (dự án #9): "ORDER", "ORDEED", chữ li ti
+
+30/10/2026: chủ dự án bác thêm câu "không vẽ chữ" — chữ trong video là lựa chọn người dùng (nút "Không có chữ" đã có).
 
 - **Loại:** CHỜ CHỦ DỰ ÁN XÁC ĐỊNH — **chưa phải lỗi.**
 - **Hiện tượng:** cảnh 5 (giây ≈33,4–38,9) bong bóng có chữ "Order"/"ORDER"; cảnh 7 "ORDEED";
@@ -212,6 +214,11 @@ thật), xem auto_pilot_runs có 2 dòng (mỗi cửa hàng một) và mỗi c�
 Lỗi tìm ra khi thử: khối Tự động hoá liệt kê lượt của MỌI cửa hàng (GET /ai/auto-pilot lọc theo tài khoản) — đã sửa (H5).
 ## TD-16 — Webhook / người canh đường hầm: phần chưa kiểm thật + bản ân hạn chờ áp dụng (19/10/2026)
 
+30/10/2026: ân hạn ĐÃ CHẠY — tiến trình scripts/tunnel-watchdog.mjs (pid 935) khởi động 24/10 11:39, sau commit ân hạn
+ad79353 (19/10 13:59), tệp không đổi từ đó. Webhook qua đường hầm có sự kiện thật (webhook_events 583–588: post.scheduled /
+post.published / ad.status_changed / webhook.test 29–30/10). Còn chưa kiểm: Telegram "máy chủ tắt" (cần tắt máy chủ ≥ 5
+phút) và LÂU DÀI máy chủ thật + tên miền cố định (chủ dự án quyết).
+
 Điều tra: máy chủ chạy dưới khung xem trước bị app tắt 11:28–12:44 → người canh dựng lại ~30 đường hầm → Cloudflare chặn
 → webhook chết tới 13:21. Đã sửa: máy chủ chạy độc lập bằng scripts/mo-app.sh; người canh mới (0435d64) không dựng lại khi
 máy chủ tắt, chống chồng lượt, báo Telegram quản trị; đã áp dụng 13:53 (đường hầm thông 13:54).
@@ -405,7 +412,10 @@ CHỈ GẮN { "url": "http://localhost:3000" } (70f7f8a); bỏ cấu hình "khoi
 có .env trỏ Neon thật, cùng nguy cơ). Bản gốc: ~/.zn-tam/launch.json.goc. Không đụng thư mục zernio-khoi-nao.
 Khi dùng trình duyệt tích hợp: xem danh sách máy chủ xem trước; có máy chủ "zernio" khác cổng 3000 là tắt ngay.
 
-## TD-32 — Lời đọc / chữ trên hình của video có thể bịa cam kết khi tắt "giữ sự thật" (24/10/2026) — CHỜ CHỦ DỰ ÁN
+## TD-32 — ĐÓNG (30/10/2026, chủ dự án bác): Lời đọc / chữ trên hình của video có thể bịa cam kết khi tắt "giữ sự thật" (24/10/2026)
+
+30/10/2026: chủ dự án bác — cửa hàng chưa huấn luyện là mặc định, không vá đầu ra; video theo bài / theo prompt đã có định
+hướng, tuỳ chọn "Giữ sự thật" giữ nguyên. Gốc (bắt buộc huấn luyện) làm ở khối não — docs/de-xuat-khoi-nao.md.
 
 H15 đo thật: AI Nội dung bịa đổi trả / khan hiếm / "đã dùng thử" khi cửa hàng chưa có tài liệu (đã sửa cho bài viết).
 Video dài (video-dai.ts chiaCanh) sinh LỜI ĐỌC tiếng Việt (cũng là phụ đề — khách nghe / đọc) từ ý tưởng chủ shop; câu
