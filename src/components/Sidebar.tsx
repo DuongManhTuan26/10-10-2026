@@ -125,8 +125,8 @@ export default function Sidebar({
             ...(isActive
               ? {
                   // Kính vàng SẪM (ảnh mẫu): nền nâu vàng tối, vệt sáng mỏng phía trên, viền vàng sáng sắc nét.
-                  background: `linear-gradient(180deg, rgba(255,226,150,0.10) 0%, rgba(255,226,150,0) 50%) padding-box, linear-gradient(100deg, rgba(122,84,20,0.72) 0%, rgba(82,56,14,0.66) 45%, rgba(46,32,9,0.72) 100%) padding-box, ${VANG.vienSang} border-box`,
-                  boxShadow: `0 0 12px ${MAU_HE_THONG}b3, 0 0 30px ${MAU_HE_THONG}4d, inset 0 0 18px ${MAU_HE_THONG}40, inset 0 1px 0 rgba(255,244,214,0.45)`,
+                  background: `linear-gradient(180deg, rgba(255,226,150,0.08) 0%, rgba(255,226,150,0) 45%) padding-box, linear-gradient(100deg, rgba(70,48,12,0.85) 0%, rgba(34,24,8,0.88) 55%, rgba(22,16,6,0.9) 100%) padding-box, ${VANG.vienSang} border-box`,
+                  boxShadow: `0 0 10px ${MAU_HE_THONG}cc, 0 0 28px ${MAU_HE_THONG}59, inset 0 0 14px ${MAU_HE_THONG}59, inset 0 1px 0 rgba(255,244,214,0.4)`,
                 }
               : {}),
           })}
@@ -182,23 +182,52 @@ export default function Sidebar({
       />
     )}
     <aside
-      className={`w-72 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] p-2 transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`w-72 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] pl-2 pr-3 pt-2 pb-7 transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
+      style={{ perspective: '1100px', perspectiveOrigin: '0% 50%' }}
     >
-      {/* KHUNG KIM LOẠI VÀNG: vành ngoài vát cạnh (dải sáng – tối như kim loại đánh bóng) + quầng sáng vàng. */}
+      {/* BÓNG PHẢN CHIẾU dưới chân khung (ảnh mẫu: sàn bóng phản ánh viền vàng): một vạch vàng mờ dần + quầng loang. */}
+      <div aria-hidden className="absolute left-3 right-7 bottom-0 h-7 pointer-events-none" style={{ perspective: '1100px', perspectiveOrigin: '0% 0%' }}>
+        <div
+          className="absolute inset-x-0 top-0 h-full rounded-b-[26px]"
+          style={{
+            transform: 'rotateY(12deg)',
+            transformOrigin: '0% 50%',
+            borderLeft: '2px solid rgba(255,205,100,0.55)',
+            borderRight: '2px solid rgba(255,205,100,0.35)',
+            background: 'linear-gradient(180deg, rgba(255,190,70,0.16) 0%, rgba(255,170,50,0.03) 60%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(180deg, rgba(0,0,0,0.75), transparent 85%)',
+            maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.75), transparent 85%)',
+            filter: 'blur(2.5px)',
+          }}
+        />
+      </div>
+      {/*
+        KHUNG KIM LOẠI VÀNG NGHIÊNG 3D (chủ dự án 30/10/2026, ảnh mẫu): xoay quanh mép trái — mép phải lùi xa (thấp + hẹp hơn)
+        như tấm kính đặt chéo; vàng bóng gương = dải sáng – tối tương phản mạnh + vệt loé; ống neon vàng cam bao ngoài.
+      */}
       <div
         className="relative h-full rounded-[26px] p-[5px]"
         style={{
           background: VANG.khung,
-          boxShadow: '0 0 0 1px rgba(255,236,180,0.55), 0 0 16px rgba(245,196,81,0.55), 0 0 44px rgba(245,170,50,0.22), inset 0 1px 1px rgba(255,250,225,0.8), inset 0 -1px 2px rgba(60,35,5,0.8)',
+          transform: 'rotateY(12deg)',
+          transformOrigin: '0% 50%',
+          boxShadow: '0 0 0 1px rgba(255,236,180,0.85), 0 0 6px rgba(255,190,60,0.9), 0 0 18px rgba(255,170,40,0.6), 0 0 46px rgba(255,150,30,0.28), inset 0 1px 1px rgba(255,252,235,0.95), inset 0 -1px 2px rgba(60,35,5,0.9)',
         }}
       >
+        {/* Vệt loé gương trên viền: góc trên trái + dọc mép trái. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 rounded-[26px] pointer-events-none"
+          style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 7%), linear-gradient(90deg, rgba(255,250,220,0.55) 0%, rgba(255,250,220,0) 2.2%)', mixBlendMode: 'screen' }}
+        />
         {/* Rãnh tối + chỉ vàng mảnh bên trong (vát hai lớp như ảnh mẫu). */}
-        <div className="relative h-full rounded-[21px] p-[2px]" style={{ background: 'linear-gradient(160deg, #1A1206, #0A0805 40%, #140E05)' }}>
+        <div className="relative h-full rounded-[21px] p-[2px]" style={{ background: 'linear-gradient(160deg, #1A1206, #0A0805 40%, #140E05)', boxShadow: 'inset 0 0 0 1px rgba(255,200,90,0.35)' }}>
           <div
             className="relative h-full rounded-[19px] overflow-hidden flex flex-col"
             style={{
               background: 'linear-gradient(180deg, #0E1015 0%, #090B0F 45%, #07080B 100%)',
-              boxShadow: 'inset 0 0 0 1px rgba(255,214,120,0.45), inset 0 0 6px rgba(245,196,81,0.18), inset 0 0 30px rgba(0,0,0,0.85)',
+              // Ống neon vàng thứ hai bên trong (ảnh mẫu có hai đường viền sáng song song).
+              boxShadow: 'inset 0 0 0 1.5px rgba(255,205,100,0.75), inset 0 0 8px rgba(255,180,60,0.35), inset 0 0 34px rgba(0,0,0,0.85)',
             }}
           >
             {/* Ánh kính: vệt sáng chéo rất nhẹ ở nửa trên. */}
@@ -318,6 +347,6 @@ const VANG = {
   chinh: '#F5C451',
   sang: '#FFD978',
   // Kim loại đánh bóng: dải sáng – tối xen kẽ theo đường chéo.
-  khung: 'linear-gradient(155deg, #7A4F10 0%, #F5C451 10%, #FFF1C1 17%, #D39A33 28%, #6E4710 42%, #C88E2A 55%, #FFE8A8 66%, #E0AA40 76%, #7C5213 88%, #F1C65A 100%)',
+  khung: 'linear-gradient(158deg, #5E3A08 0%, #FFE08A 6%, #FFFBEA 10%, #F2B841 16%, #7A4D0C 27%, #C98A22 38%, #FFF3C9 47%, #E8A935 55%, #5C3707 66%, #D99A2E 77%, #FFEBB0 86%, #B97818 93%, #6A430B 100%)',
   vienSang: 'linear-gradient(95deg, #FFF1C1 0%, #F5C451 25%, #B98023 60%, #F5C451 85%, #FFE3A0 100%)',
 };
