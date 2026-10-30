@@ -17,6 +17,58 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
 
 ---
 
+## CHỐT 30/10/2026 — VIỆC NGHIỆP VỤ DỒN VỀ ĐỢT KHỐI NÃO
+
+Chủ dự án 30/10/2026: chốt mọi vấn đề chuyên môn nghiệp vụ còn mở, lưu ở đây, xử lý CÙNG khối não
+(docs/de-xuat-khoi-nao.md). Từ giờ phiên viết code làm GIAO DIỆN theo chỉ đạo chủ dự án; phiên kiểm duyệt dừng tới khi có
+lệnh. Danh sách này là điểm vào duy nhất khi mở lại phần nghiệp vụ — mỗi dòng trỏ tới mục chi tiết.
+
+**A. Gốc: huấn luyện cửa hàng (làm đầu tiên khi tới khối não)**
+1. Chốt gốc "cửa hàng chưa huấn luyện (vai trò + mục đích + tài liệu) thì AI không tự chạy" + gỡ cùng lượt hai nhánh vá
+   ngọn còn lại: content-ai.ts CHUA_CO_TAI_LIEU_BAI_VIET / khoiTaiLieuBaiViet (H15) và sales-ai.ts CHUA_CO_TAI_LIEU —
+   quyết định cách A, de-xuat-khoi-nao.md mục "QUYẾT ĐỊNH 30/10". Hiện cả cửa hàng 1 (47) và 12 (370) đều 0 tài liệu,
+   vai trò AI để trống → AI thật đang chạy ở trạng thái chưa huấn luyện.
+2. Ba khoảng hở khối não chưa làm (de-xuat-khoi-nao.md mục 1–3): bảng giá / tài liệu phải tải riêng cho từng AI; vai trò
+   là chữ tự do; ④ Duyệt chỉ đổi trạng thái, không ai nhận việc, không đo lại.
+3. Hệ quả cần nhớ khi làm A1: lúc chưa tài liệu, khối H15 bỏ cả giá / khuyến mãi chủ shop TỰ ghi trong chủ đề — sẽ hết khi
+   gỡ nhánh ở A1 (không sửa riêng).
+
+**B. Mã đã xong, CHƯA THẤY CHẠY THẬT (chờ dịp, không tự gây ra)**
+1. TD-36 / TD-36b — Meta chặn gửi tin (#2022). TD-36 ĐÃ CHẠY THẬT 2026-10-30T12:16Z (phiên kiểm duyệt đọc Neon): 2 tin
+   khách → đúng 1 lượt AI (ai_usage 365, 0,00689 USD) → gửi lỗi (send_attempts 208) → kênh 6ad369a7 ngắt tới
+   2026-10-31T12:16:50Z, lý do nguyên văn Meta → Telegram kenh_bi_chan (telegram_logs 334) → lượt gửi sau bị HÀNG RÀO 6
+   chặn (209, 210: blocked ai_paused, không gọi nhà cung cấp). CÒN CHƯA THẤY: dòng cam + câu báo khi NGƯỜI THẬT gửi tay
+   trong hộp thư app (TD-36b). Chủ dự án xác nhận 30/10: gửi tay trong Meta vẫn được, chỉ đường API bị chặn. Lý do Meta
+   chặn: Business Suite không ghi, không có nút kháng nghị.
+2. TD-13 — sửa ngân sách nhóm quảng cáo (ABO) trong app: chưa PUT thật (tiêu tiền thật).
+3. H19 — Telegram khi AI hết ngân sách / hết tiền + "AI đã chạy lại": chưa gặp lần chặn thật sau khi gộp (13460bf).
+4. H7 — ④ chấm mỗi ngày: ĐÃ CÓ lượt thật đầu tiên (dieu_hanh_hang_ngay ngày 30/10, cửa hàng 370, "khong_van_de",
+   0 USD). CHƯA thấy nhánh tốn tiền (có vấn đề → gọi AI → đề xuất + Telegram) và nhánh chạm trần 1 USD/ngày.
+5. TD-14 — khoá tài khoản có kênh thật (3 phần). TD-18 — hội thoại "chỉ xem" (chờ lần chuyển kênh thật).
+6. TD-16 — Telegram "máy chủ tắt" (cần tắt máy chủ ≥ 5 phút) + máy chủ thật lâu dài / tên miền cố định.
+7. TD-25 — tệp đã lưu (rawTargeting.custom_audiences) sau cờ ADS_NHAM_TEP_DA_LUU tắt: thử ở lần đẩy có tiền tiếp theo.
+8. TD-33 — mục tiêu "tương tác" + bài chỉ chữ: Meta nhận không (tốn tiền thật).
+
+**C. Đang đo / chờ mốc**
+1. TD-10 — số Meta chốt sau bao lâu: chụp QC 75 ngày 30/10 vào ~/.zn-tam/td10/ (đã có 08:08Z, 10:03Z); chụp lại sau
+   19:49Z 30/10 và các ngày 31/10, 01/11, 02/11.
+2. QC 75 (bài 75, chiến dịch 52561208489312, VISA *8686, 30.000 đ × 1 ngày tới 2026-10-30T19:49Z): đọc số cuối (chi,
+   hiển thị, tin nhắn) — lần đọc 10:03Z: chi 23.322 đ, 292 hiển thị, 1 cuộc trò chuyện.
+3. 7 bảng *_truoc_057…060: giữ tới ~06/11/2026 → đếm + so bảng chính → hỏi chủ dự án trước khi xoá (không hoàn tác).
+
+**D. Chờ chủ dự án quyết (không phải lỗi)**
+1. Tên sản phẩm chính thức (đang tạm "Quản lý Fanpage").
+2. Khoá OpenRouter riêng cho việc ngoài app — chỉ phòng lần sau (đối soát 30/10 khớp tuyệt đối, 9,2 USD ngoài app đã
+   giải thích hết).
+3. Ngân sách workspace OpenRouter: trần trọn đời đã chạm 22 USD ngày 29/10, chủ dự án nâng (số mới chưa ghi) — xem lại
+   trước khi chạy đo / thử tốn AI.
+
+**E. Đã chấp nhận / giới hạn (không làm, ghi để khỏi đề xuất lại)**
+TD-02, TD-07, TD-19 (hoãn có chủ ý), TD-26, TD-28, TD-29, TD-30 (allowlist sẽ XOÁ chiến dịch đã đồng bộ).
+Đã bác 30/10: video chưa tài liệu cấm bịa (TD-32), video "không vẽ chữ" (TD-01), nhánh "chưa tài liệu" của ảnh (gỡ 0338842).
+
+---
+
 ## TD-01 — ĐÓNG (30/10/2026): Chữ AI vẽ trong video quảng cáo thử (dự án #9): "ORDER", "ORDEED", chữ li ti
 
 30/10/2026: chủ dự án bác thêm câu "không vẽ chữ" — chữ trong video là lựa chọn người dùng (nút "Không có chữ" đã có).
