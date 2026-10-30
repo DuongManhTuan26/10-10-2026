@@ -5763,8 +5763,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "thanh 4 bước quay lại mỗi bước một màu",
     tep: "src/components/KhuonAi.tsx",
-    tim: "? { background: motAi.hex, borderColor: motAi.hex, color: '#0b1417' }",
-    thay: "? { background: ['#60a5fa', '#f472b6'][i % 2], borderColor: motAi.hex, color: '#0b1417' }",
+    // 31/10/2026: thanh 4 bước dùng màu chung (mau) — trỏ lại.
+    tim: "? { background: mau, borderColor: mau, color: '#0b1417' }",
+    thay: "? { background: ['#60a5fa', '#f472b6'][i % 2], borderColor: mau, color: '#0b1417' }",
   },
   {
     ten: "trang hệ thống lại nút trắng",
@@ -6829,8 +6830,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "viền vàng: thẻ màu thương hiệu vẫn viền xanh ngọc",
     tep: "src/lib/bon-ai.ts",
-    tim: "{ '--nhan': mau, '--vien-the': VIEN_HE_THONG }",
-    thay: "{ '--nhan': mau }",
+    // 31/10/2026: bienThe đưa cả màu AI về màu chung — trỏ lại.
+    tim: "{ '--nhan': MAU_THUONG_HIEU, '--vien-the': VIEN_HE_THONG }",
+    thay: "{ '--nhan': MAU_THUONG_HIEU }",
   },
   {
     ten: "viền vàng: lưới ô vuông nền bị đổi",

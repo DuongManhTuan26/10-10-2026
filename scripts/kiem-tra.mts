@@ -8508,8 +8508,13 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
       [true, true, true, true, 2, true, true, JSON.stringify({ "--nhan": "#22d3ee", "--vien-the": "#F5C451" }), JSON.stringify({ "--nhan": "#22d3ee", "--vien-the": "#F5C451" })]);
     kiem("viền vàng gold", "viền ánh kim: thẻ + khung vẽ vòng kim loại nhiều dải (::before khoét giữa), viền phẳng ẩn; màu cảnh báo vẫn giữ nghĩa",
       [/\.the, \.khung-muc \{ border-color: transparent !important; \}/.test(css), /\.the::before, \.khung-muc::before \{[\s\S]{0,200}background: linear-gradient\(135deg,\s*color-mix\(in srgb, var\(--vien-anh-kim\)/.test(css),
-        /mask-composite: exclude;/.test(css), /--vien-anh-kim: var\(--vien-cua-the\);/.test(css), JSON.stringify(ba.bienThe("var(--color-canh-bao)"))],
-      [true, true, true, true, JSON.stringify({ "--nhan": "var(--color-canh-bao)" })]);
+        /mask-composite: exclude;/.test(css), /--vien-anh-kim: var\(--vien-cua-the\);/.test(css), JSON.stringify(ba.bienThe("var(--color-canh-bao)")),
+        /display|visibility|opacity/.test(css.slice(css.indexOf(".the::before, .khung-muc::before {"), css.indexOf("}", css.indexOf(".the::before, .khung-muc::before {"))))],
+      [true, true, true, true, JSON.stringify({ "--nhan": "var(--color-canh-bao)" }), false]);
+    kiem("viền vàng gold", "4 AI chung màu: tiêu đề mọi trang một màu thương hiệu; khung mang màu AI (lá / đỏ / tím / vàng) → dải đầu xanh ngọc + viền vàng",
+      [/const mauTieuDe = MAU_THUONG_HIEU;/.test(boChuThich(fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8"))),
+        /\.khung-muc:is\(\.mau-la, \.mau-do, \.mau-tim, \.mau-vang\) \{ --mau: #22d3ee; --mau-vien: var\(--vien-mac-dinh\); \}/.test(css)],
+      [true, true]);
     kiem("viền vàng gold", "nút / chữ giữ nguyên xanh ngọc (chỉ đổi viền); nền = tông 4 'Xanh đá dầu' chủ dự án chọn (lưới 4,3%)",
       [/--color-primary: #00e5ff;/.test(css), ba.MAU_THUONG_HIEU, /--color-background: #0a1a20;/.test(css), nenApp.replace(/\s+/g, " ").trim()],
       [true, "#22d3ee", true,
