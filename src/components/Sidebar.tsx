@@ -113,12 +113,12 @@ export default function Sidebar({
           to={item.path}
           end={item.path === '/'}
           className={({ isActive }) => clsx(
-            "relative flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] transition-all duration-300 group shrink-0 cursor-pointer h-[43px] [@media(max-height:860px)]:h-[38px]",
+            "relative flex items-center gap-2 pl-2.5 pr-1.5 rounded-[13px] transition-all duration-300 group shrink-0 cursor-pointer h-[43px] [@media(max-height:860px)]:h-[38px]",
             !isActive && "hover:bg-[#F5C451]/[0.06]"
           )}
           style={({ isActive }) => ({
             fontFamily: "'Be Vietnam Pro', sans-serif",
-            fontSize: '15px',
+            fontSize: '14.5px',
             fontWeight: isActive ? 700 : 500,
             letterSpacing: '0.1px',
             color: isActive ? '#FFFFFF' : '#E8EDF2',
@@ -127,7 +127,7 @@ export default function Sidebar({
               ? {
                   // Kính vàng SẪM (ảnh mẫu): nền nâu vàng tối, vệt sáng mỏng phía trên, viền vàng sáng sắc nét.
                   background: `linear-gradient(180deg, rgba(255,226,150,0.08) 0%, rgba(255,226,150,0) 45%) padding-box, linear-gradient(100deg, rgba(70,48,12,0.85) 0%, rgba(34,24,8,0.88) 55%, rgba(22,16,6,0.9) 100%) padding-box, ${VANG.vienSang} border-box`,
-                  boxShadow: `0 0 10px ${MAU_HE_THONG}cc, 0 0 28px ${MAU_HE_THONG}59, inset 0 0 14px ${MAU_HE_THONG}59, inset 0 1px 0 rgba(255,244,214,0.4)`,
+                  boxShadow: `0 0 7px ${MAU_HE_THONG}cc, 0 0 16px ${MAU_HE_THONG}4d, inset 0 0 14px ${MAU_HE_THONG}59, inset 0 1px 0 rgba(255,244,214,0.4)`,
                 }
               : {}),
           })}
@@ -246,7 +246,7 @@ export default function Sidebar({
       </div>
 
       {/* LỚP NỘI DUNG — PHẲNG (không xoay): nằm gọn trong mặt kính của khung nghiêng. */}
-      <div className="relative z-10 h-full flex flex-col" style={{ padding: '38px 50px 66px 30px' }}>
+      <div className="relative z-10 h-full flex flex-col" style={{ padding: '38px 60px 66px 28px' }}>
         {/* Brand Header: lục giác viền vàng + khối lập phương; tên + "AI 5.0 PLATFORM". */}
         <div className="flex items-center gap-2.5 px-1 shrink-0">
           <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center" style={{ filter: 'drop-shadow(0 0 8px rgba(34,211,238,0.45))' }}>
@@ -310,7 +310,7 @@ export default function Sidebar({
           <div className="flex flex-col" style={{ gap: '2px' }}>
             {SUPPORT_URL ? (
             <a
-              className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] hover:bg-white/5 hover:text-white transition-colors group shrink-0"
+              className="flex items-center gap-2 pl-2.5 pr-1.5 rounded-[13px] hover:bg-white/5 hover:text-white transition-colors group shrink-0"
               href={SUPPORT_URL}
               {...(IS_EXTERNAL_SUPPORT ? { target: '_blank', rel: 'noreferrer' } : {})}
               style={kieuChan}
@@ -325,7 +325,7 @@ export default function Sidebar({
               // Chưa có đường hỗ trợ: mục mờ, không bấm, không nhận Tab/Enter (không phải nút, không phải liên kết).
               <div
                 aria-disabled="true"
-                className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] shrink-0 cursor-default select-none"
+                className="flex items-center gap-2 pl-2.5 pr-1.5 rounded-[13px] shrink-0 cursor-default select-none"
                 style={{ ...kieuChan, color: 'rgba(232,237,242,0.3)' }}
               >
                 <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
@@ -336,7 +336,7 @@ export default function Sidebar({
               </div>
             )}
             <button
-              className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors group shrink-0 w-full text-left"
+              className="flex items-center gap-2 pl-2.5 pr-1.5 rounded-[13px] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors group shrink-0 w-full text-left"
               onClick={onLogout}
               style={kieuChan}
             >
