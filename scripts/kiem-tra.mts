@@ -7616,6 +7616,37 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         ktn.indexOf("const loDucCam") < ktn.indexOf("for (const d of CHON)")],
       [true, true, false, true, true]);
   }
+  // KHỐI NÃO "4 VĂN PHÒNG" (30/10/2026, chủ dự án duyệt dùng ảnh mẫu làm nền): mọi màn hình CÓ SỐ trong ảnh phải bị một
+  // khung số thật che kín (số mẫu 12.5tr / 92% / ROAS / tên + SĐT khách mẫu không bao giờ lộ, kể cả thẻ màn hẹp).
+  {
+    const kn = fs.readFileSync(path.join(GOC, "src/components/KhoiNaoVanPhong.tsx"), "utf8");
+    // Màn hình có số / chữ giả trong ảnh 1975×660 (đo 30/10/2026): [x, y, w, h].
+    const MAN_GIA: [string, number, number, number, number][] = [
+      ["④ tổng quan hôm nay", 530, 105, 190, 155], ["④ đơn / khách mới / tỉ lệ chốt", 735, 105, 112, 155],
+      ["④ hiệu suất 3 AI", 1178, 105, 268, 155], ["① tạo bài viết", 232, 385, 238, 115],
+      ["② chi phí quảng cáo", 868, 385, 182, 115], ["② ROAS", 1062, 385, 136, 115],
+      ["③ hội thoại khách", 1338, 385, 154, 180], ["③ chat AI", 1504, 385, 166, 120], ["③ thông tin khách + SĐT", 1684, 385, 168, 130],
+      ["đầu khối 'cửa hàng 12'", 145, 45, 300, 65],
+    ];
+    const khung = [...kn.matchAll(/<ManHinh x=\{(\d+)\} y=\{(\d+)\} w=\{(\d+)\} h=\{(\d+)\}/g)].map((m) => m.slice(1, 5).map(Number));
+    const dau = /hop\((\d+), (\d+), (\d+), (\d+)\), gap: p\(14\)/.exec(kn)?.slice(1, 5).map(Number);
+    if (dau) khung.push(dau);
+    const che = (r: number[]) => khung.some(([x, y, w, h]) => x <= r[0] && y <= r[1] && x + w >= r[0] + r[2] && y + h >= r[1] + r[3]);
+    kiem("khối não văn phòng", "mọi màn hình có số / chữ giả trong ảnh đều bị một khung số thật che kín (đo theo toạ độ ảnh)",
+      MAN_GIA.filter(([, ...r]) => !che(r)).map(([ten]) => ten), []);
+    const theHep = kn.slice(kn.indexOf("export function KhoiNaoThe"));
+    kiem("khối não văn phòng", "thẻ màn hẹp dùng CẢNH ĐÃ ĐÈ SỐ (KhoiNaoAnh thu khung), không dùng ảnh trần làm nền",
+      [/<KhoiNaoAnh s=\{s\} tenCuaHang=\{tenCuaHang\} khung=\{cat\} \/>/.test(theHep), /backgroundImage/.test(kn)], [true, false]);
+    kiem("khối não văn phòng", "không ghi cứng số / tên mẫu của ảnh; không hiện ROAS (app chưa đo); số từ báo cáo điều hành + sức khoẻ + hộp thư",
+      [/12[.,]5|92%|88%|85%|ROAS|Nguyễn Thị Mai|2[.,]8 tr|4[.,]6/.test(kn.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\bp\([\d.]+\)/g, "")),
+        /api\.dieuHanh\.baoCao\('thang_nay'\)/.test(kn), /api\.dieuHanh\.sucKhoe\(\)/.test(kn), /api\.inbox\.conversations\(\{ soDong: 4 \}\)/.test(kn)],
+      [false, true, true, true]);
+    kiem("khối não văn phòng", "Tổng quan dùng khối văn phòng: màn rộng cảnh lớn, màn hẹp 4 thẻ; ảnh nền có trong public/",
+      [/<KhoiNaoAnh s=\{s\} tenCuaHang=\{trangDangChon\.ten\} \/>/.test(fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8")),
+        /<KhoiNaoThe s=\{s\} tenCuaHang=\{trangDangChon\.ten\} \/>/.test(fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8")),
+        fs.existsSync(path.join(GOC, "public/giao-dien/khoi-nao.webp"))],
+      [true, true, true]);
+  }
   // TD-34 (30/10/2026): lượt KHÔNG có mã nhà cung cấp (vẽ ảnh — /images không trả id; sổ cũ) không bao giờ đối chiếu được →
   // không được nằm mãi ở "đang chờ"; tính riêng "theo bảng giá" như đã chốt; cùng cách tong-quan.ts.
   {

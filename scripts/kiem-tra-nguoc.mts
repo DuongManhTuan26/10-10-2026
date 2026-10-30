@@ -6632,6 +6632,30 @@ const DUC: PhepDuc[] = [
     thay: "  const lyDo = `Bị chặn (${params.loi.slice(0, 200)})`;",
   },
   {
+    ten: "khối não: bỏ khung số thật của màn 'Kết quả bán hàng' (lộ tên + SĐT khách mẫu)",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "      <ManHinh x={1678} y={380} w={178} h={142} mau={BAN_HANG.hex}>",
+    thay: "      <ManHinh x={1678} y={380} w={178} h={40} mau={BAN_HANG.hex}>",
+  },
+  {
+    ten: "khối não: khung số lệch khỏi màn ROAS (lộ số mẫu)",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "      <ManHinh x={1058} y={380} w={144} h={126} mau={QUANG_CAO.hex}>",
+    thay: "      <ManHinh x={1120} y={380} w={144} h={126} mau={QUANG_CAO.hex}>",
+  },
+  {
+    ten: "khối não: thẻ màn hẹp dùng ảnh trần (lộ toàn bộ số mẫu)",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "      <KhoiNaoAnh s={s} tenCuaHang={tenCuaHang} khung={cat} />",
+    thay: "      <div style={{ backgroundImage: `url(${ANH})`, aspectRatio: `${cat[2]} / ${cat[3]}` }} />",
+  },
+  {
+    ten: "khối não: đầu khối không che 'cửa hàng 12' của ảnh",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "hop(52, 34, 430, 84), gap: p(14)",
+    thay: "hop(52, 34, 200, 84), gap: p(14)",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",
