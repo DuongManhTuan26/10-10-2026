@@ -130,6 +130,12 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
   USD / token vào → trần 40.000 ký tự ≈ 0,03 USD mỗi tin, chỉ khi shop có chừng đó tài liệu.
 ## TD-10 — Số quảng cáo của Meta chốt sau bao lâu: chưa xác minh
 
+30/10/2026 — ĐANG ĐO (0 đ): chụp GET /v1/ads/campaigns/52561208489312/analytics (QC 75, ngày 30/10) nhiều lần vào
+~/.zn-tam/td10/*.json (kịch bản ~/.zn-tam/td10-chup.mts). Ngày tính theo múi giờ của TÀI KHOẢN QUẢNG CÁO: act_867161792911070
+= Asia/Jakarta (UTC+7, trùng giờ Việt Nam; act_1357505662010463 = Asia/Ho_Chi_Minh). Lần 1 2026-10-30T08:08Z (đồng bộ
+07:41Z): spend 14.702 đ, impressions 182, reach 141, clicks 4, conversions 1. Chụp lại sau 19:49Z (QC kết thúc) và các ngày
+31/10, 01/11, 02/11; số ngày 30/10 không đổi từ lúc nào thì nâng hạng số quảng cáo đã qua mốc đó.
+
 - **Loại:** GIỚI HẠN (tạm thời).
 - **Hiện tượng:** tài liệu chính thức tìm được (09/10/2026) chỉ nói về cửa sổ quy công, không nói số hiển thị / nhấp /
   tiền chi chốt sau bao lâu. Sổ bằng chứng tạm xếp số quảng cáo hạng C ("chưa xác minh độ chốt") — không chặn đề xuất,
@@ -362,7 +368,16 @@ Phiên kiểm duyệt nêu khi duyệt H9. GET /api/ads/tim-nham gọi resolveAd
 TRƯỚC lệnh tìm, nên mỗi lần gõ (sau 400 ms) là 2 lượt gọi nhà cung cấp. Chưa đo được (0 kênh Meta Ads). Làm khi thấy chậm
 hoặc chạm hạn mức: nhớ ngắn (vd. 5 phút) tài khoản quảng cáo theo kênh, xoá khi chủ shop đổi tài khoản quảng cáo.
 
-## TD-30 — Nối quảng cáo: hai cửa hàng cùng một người Facebook thấy tài khoản quảng cáo của nhau (24/10/2026) — GHI LẠI
+## TD-30 — Nối quảng cáo: hai cửa hàng cùng một người Facebook thấy tài khoản quảng cáo của nhau (24/10/2026) — CHẤP NHẬN (30/10/2026)
+
+30/10/2026 — CHẤP NHẬN, KHÔNG làm allowlist. Căn cứ: tài liệu GET /v1/connect/{platform}/ads, adAccountIds: "Persisted
+server-side; the latest call wins. De-scoped ad accounts have their synced ads, campaigns, ad sets and keywords removed." →
+thu hẹp phạm vi XOÁ chiến dịch đã đồng bộ (370 và 47 cùng dùng act_867161792911070, QC 75 chạy trên đó). Điều kiện xảy ra:
+MỘT người Facebook nối Fanpage cho nhiều tài khoản app — hiện là cùng một chủ; nhưng nhân viên / đại lý quản nhiều Business
+Manager nối cho HAI tài khoản app KHÁC chủ thì token thấy tài khoản quảng cáo của cả hai. Chặn hiện có: lựa chọn tài khoản
+lưu theo kênh quảng cáo của CỬA HÀNG (ad_account_ref); mọi lệnh tiêu tiền (đẩy bài, sửa ngân sách, đổi trạng thái, nhân
+bản) kiểm chiến dịch / nhóm thuộc tài khoản đang chọn. MỞ LẠI khi: có tài khoản app thứ hai do người khác sở hữu dùng chung
+người Facebook; hoặc nhà cung cấp cho allowlist không xoá dữ liệu.
 
 Phiên kiểm duyệt nêu khi duyệt H11. Tài liệu ("Scoping sync to specific ad accounts"): mặc định nhà cung cấp đồng bộ MỌI
 act_* mà khoá Meta thấy. Một người quản lý hai Fanpage / hai cửa hàng → danh sách tài khoản quảng cáo của cửa hàng B có cả
