@@ -8502,10 +8502,10 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
         /::-webkit-scrollbar-thumb \{\s*background: rgba\(245, 196, 81, 0\.1\);/.test(css),
         JSON.stringify(ba.bienThe(ba.MAU_THUONG_HIEU)), JSON.stringify(ba.bienThe("#4ade80"))],
       [true, true, true, true, 2, true, true, JSON.stringify({ "--nhan": "#22d3ee", "--vien-the": "#F5C451" }), JSON.stringify({ "--nhan": "#4ade80" })]);
-    kiem("viền vàng gold", "nút / chữ giữ nguyên xanh ngọc (chỉ đổi viền); nền lưới ô vuông y nguyên",
-      [/--color-primary: #00e5ff;/.test(css), ba.MAU_THUONG_HIEU, /--color-background: #050c0e;/.test(css), nenApp.replace(/\s+/g, " ").trim()],
+    kiem("viền vàng gold", "nút / chữ giữ nguyên xanh ngọc (chỉ đổi viền); nền lưới ô vuông y nguyên (31/10: nền + quầng xanh đá đậm, sáng hơn chút theo chủ dự án)",
+      [/--color-primary: #00e5ff;/.test(css), ba.MAU_THUONG_HIEU, /--color-background: #071418;/.test(css), nenApp.replace(/\s+/g, " ").trim()],
       [true, "#22d3ee", true,
-        ".nen-app { background-color: var(--color-background); background-image: radial-gradient(640px 420px at 90% -8%, rgb(0 229 255 / 0.07), transparent 70%), radial-gradient(560px 420px at 30% 108%, rgb(0 229 255 / 0.05), transparent 70%), linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px); background-size: auto, auto, 24px 24px, 24px 24px; }"]);
+        ".nen-app { background-color: var(--color-background); background-image: radial-gradient(640px 420px at 90% -8%, rgb(0 229 255 / 0.11), transparent 70%), radial-gradient(560px 420px at 30% 108%, rgb(0 229 255 / 0.08), transparent 70%), linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px); background-size: auto, auto, 24px 24px, 24px 24px; }"]);
   }
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");
