@@ -16,6 +16,7 @@ import { trangHienTai } from "../services/ngu-canh-trang.js";
 import { layTongQuan, kyTinh, type KyTongQuan } from "../services/tong-quan.js";
 import { baoCaoChuoi } from "../services/bao-cao-chuoi.js";
 import { sucKhoeTrang } from "../services/suc-khoe.js";
+import { hoatDongKhoiNao } from "../services/hoat-dong-khoi-nao.js";
 import { soBangChungTrang } from "../services/so-bang-chung.js";
 import { hangBangChung } from "../services/kiem-cung.js";
 import { dieuHanhMotLan, goiAiThat, khoBangChung } from "../services/dieu-hanh.js";
@@ -154,6 +155,15 @@ dieuHanhRouter.get(
   route(async (req, res) => {
     const trangId = await trangCuaToi(req.user!.id);
     res.json({ success: true, data: await sucKhoeTrang(trangId) });
+  })
+);
+
+/** Việc thật 10 phút gần nhất của 4 AI — khối não Tổng quan hỏi 20 giây/lần khi đang xem (chỉ đọc, không tốn tiền). */
+dieuHanhRouter.get(
+  "/hoat-dong",
+  route(async (req, res) => {
+    const trangId = await trangCuaToi(req.user!.id);
+    res.json({ success: true, data: await hoatDongKhoiNao(trangId) });
   })
 );
 

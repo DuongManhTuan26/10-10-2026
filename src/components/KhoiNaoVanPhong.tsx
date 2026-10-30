@@ -1,7 +1,8 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type BaoCaoDieuHanh, type ChiSoSucKhoe, type Conversation, type SucKhoeTrang } from '../lib/api';
+import { api, type BaoCaoDieuHanh, type ChiSoSucKhoe, type Conversation, type MaNhanVien, type SucKhoeTrang } from '../lib/api';
 import { BON_AI } from '../lib/bon-ai';
+import { GIU_VIEC_S, luongDang, trangThaiNv, type HoatDongKhoiNao, type TrangThaiNv } from '../lib/hoat-dong-khoi-nao';
 
 /*
  * KHỐI NÃO "4 VĂN PHÒNG" (chủ dự án 30/10/2026 — ảnh mẫu, đồng ý dùng chính ảnh làm nền cảnh, 0 đ).
@@ -11,6 +12,10 @@ import { BON_AI } from '../lib/bon-ai';
  * khoẻ + hộp thư) — số mẫu trong ảnh (12.5tr, 92%, ROAS…) không bao giờ lộ ra. Chưa có số → "Chưa đủ dữ liệu" / "—".
  * Toạ độ đo trên ảnh (px ảnh); chữ co theo bề rộng khối (cqw) nên khung luôn khớp ảnh ở mọi bề rộng.
  * Màn hẹp (< xl): 4 thẻ, mỗi thẻ cắt đúng cảnh văn phòng của AI đó + số thật bên dưới.
+ *
+ * CHUYỂN ĐỘNG (31/10/2026, chủ dự án chọn cách 1 — 0 đ, tốc độ trên hết): 4 nhân viên là ảnh cắt từ chính ảnh nền
+ * (scripts/giao-dien/cat-nhan-vien.py) đặt ĐÈ lên khung số; chỉ chạy CSS transform / opacity (không video, không vẽ lại).
+ * Trạng thái lấy từ việc THẬT (api.dieuHanh.hoatDong — hỏi 20 giây/lần, chỉ khi thẻ trình duyệt đang hiện).
  */
 
 const ANH = '/giao-dien/khoi-nao.webp';
@@ -48,7 +53,11 @@ export interface SoLieuKhoiNao {
   bao: BaoCaoDieuHanh | null;
   suc: SucKhoeTrang | null;
   hoiThoai: Conversation[];
+  hd: HoatDongKhoiNao | null;
 }
+
+/** Hỏi việc mới mỗi 20 giây — chỉ khi thẻ trình duyệt đang hiện (ẩn thẻ = không hỏi, không tốn máy chủ). */
+export const HOI_MOI_MS = 20_000;
 
 /** Đọc số thật cho khối não của cửa hàng đang chọn (3 lời gọi sẵn có, chỉ đọc). */
 export function useSoLieuKhoiNao(trangId: number | null | undefined): SoLieuKhoiNao & { loi: string } {
@@ -56,6 +65,7 @@ export function useSoLieuKhoiNao(trangId: number | null | undefined): SoLieuKhoi
   const [suc, setSuc] = useState<SucKhoeTrang | null>(null);
   const [hoiThoai, setHoiThoai] = useState<Conversation[]>([]);
   const [loi, setLoi] = useState('');
+  const [hd, setHd] = useState<HoatDongKhoiNao | null>(null);
   useEffect(() => {
     if (!trangId) return;
     let huy = false;
@@ -65,25 +75,52 @@ export function useSoLieuKhoiNao(trangId: number | null | undefined): SoLieuKhoi
     api.inbox.conversations({ soDong: 4 }).then(({ data }) => !huy && setHoiThoai(data.slice(0, 4))).catch(() => {});
     return () => { huy = true; };
   }, [trangId]);
-  return { bao, suc, hoiThoai, loi };
+  useEffect(() => {
+    if (!trangId) return;
+    let huy = false;
+    setHd(null);
+    const hoi = () => {
+      if (document.visibilityState !== 'visible') return;
+      api.dieuHanh.hoatDong().then(({ data }) => !huy && setHd({ suKien: data, nhanLuc: Date.now() })).catch(() => {});
+    };
+    hoi();
+    const dem = window.setInterval(hoi, HOI_MOI_MS);
+    document.addEventListener('visibilitychange', hoi);
+    return () => { huy = true; window.clearInterval(dem); document.removeEventListener('visibilitychange', hoi); };
+  }, [trangId]);
+  return { bao, suc, hoiThoai, hd, loi };
 }
 
 /**
- * Vị trí 3 NHÂN VIÊN NỮ trong ảnh (tâm đầu, px ảnh — đo 30/10/2026). Khung số của ①②③ KHOÉT hình đầu + vai đúng chỗ
- * này (viền mềm) để người ngồi TRƯỚC màn hình luôn lộ ra — chủ dự án: không che đầu, sau này làm chuyển động cho họ.
+ * 4 NHÂN VIÊN (đầu + vai) cắt từ ảnh nền — khung bao đúng số in ra của scripts/giao-dien/cat-nhan-vien.py (px ảnh). Ảnh cắt
+ * nằm TRÊN khung số: khung ①②③ che người gốc trong ảnh nên người chuyển động không để lại bóng; ④ không có khung phía sau
+ * → chỉ "thở" rất nhẹ (chủ dự án 30/10: không che đầu, làm chuyển động cho họ).
  */
-export const NHAN_VIEN: Record<'noi_dung' | 'quang_cao' | 'ban_hang', { cx: number; cy: number }> = {
-  noi_dung: { cx: 316, cy: 470 },
-  quang_cao: { cx: 983, cy: 470 },
-  ban_hang: { cx: 1666, cy: 482 },
+export const ANH_NV: Record<MaNhanVien, { x: number; y: number; w: number; h: number }> = {
+  noi_dung: { x: 281, y: 442, w: 77, h: 77 },
+  quang_cao: { x: 938, y: 444, w: 93, h: 76 },
+  ban_hang: { x: 1628, y: 456, w: 85, h: 81 },
+  dieu_hanh: { x: 931, y: 166, w: 90, h: 75 },
 };
 
-/** Một màn hình đè lên ảnh: kính tối viền màu AI, phát sáng nhẹ. `khoet` = tâm đầu nhân viên (px ảnh) → khoét đầu + vai. */
-function ManHinh({ x, y, w, h, mau, khoet, children }: { x: number; y: number; w: number; h: number; mau: string; khoet?: { cx: number; cy: number }; children: ReactNode }) {
-  const mask = khoet
-    ? `radial-gradient(ellipse ${p(31)} ${p(44)} at ${p(khoet.cx - x)} ${p(khoet.cy - y)}, transparent 78%, #000 100%), ` +
-      `radial-gradient(ellipse ${p(50)} ${p(36)} at ${p(khoet.cx - x)} ${p(khoet.cy - y + 46)}, transparent 78%, #000 100%)`
-    : undefined;
+const CHU_TT: Record<TrangThaiNv, string> = {
+  cho: 'Chờ việc', nhan: 'Nhận việc', xong: 'Hoàn thành', ban_giao: 'Bàn giao', bao_cao: 'Báo cáo', canh_bao: 'Cảnh báo',
+};
+const AI_THEO_KHAU: Record<MaNhanVien, (typeof BON_AI)[number]> = { noi_dung: NOI_DUNG, quang_cao: QUANG_CAO, ban_hang: BAN_HANG, dieu_hanh: DIEU_HANH };
+
+/** Màu trạng thái: hoàn thành xanh lá, cảnh báo cam, chờ xám; còn lại màu của AI đó. */
+const mauTT = (tt: TrangThaiNv, mauAi: string) => (tt === 'xong' ? '#4ade80' : tt === 'canh_bao' ? '#fb923c' : tt === 'cho' ? '#94a3b8' : mauAi);
+
+/** Nhãn trạng thái (px ảnh): ①②③ trên sàn dưới bàn, giữa theo người ngồi (không đè biển tên); ④ đỉnh quả địa cầu. */
+const VI_TRI_TT: Record<MaNhanVien, [number, number, number, number]> = {
+  noi_dung: [116, 604, 400, 30],
+  quang_cao: [785, 604, 400, 30],
+  ban_hang: [1470, 604, 400, 30],
+  dieu_hanh: [790, 128, 400, 30],
+};
+
+/** Một màn hình đè lên ảnh: kính tối viền màu AI, phát sáng nhẹ. */
+function ManHinh({ x, y, w, h, mau, children }: { x: number; y: number; w: number; h: number; mau: string; children: ReactNode }) {
   return (
     <div
       className="absolute overflow-hidden pointer-events-none flex flex-col"
@@ -95,7 +132,6 @@ function ManHinh({ x, y, w, h, mau, khoet, children }: { x: number; y: number; w
         boxShadow: `0 0 ${p(14)} ${mau}66, inset 0 0 ${p(18)} ${mau}26`,
         padding: `${p(8)} ${p(12)}`,
         color: '#E8EDF2',
-        ...(mask ? { WebkitMaskImage: mask, maskImage: mask, WebkitMaskComposite: 'source-in', maskComposite: 'intersect' } : {}),
       }}
     >
       {children}
@@ -175,14 +211,17 @@ export function KhoiNaoAnh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaH
   return (
     <div className="relative w-full overflow-hidden" style={{ aspectRatio: `${kw} / ${kh}`, borderRadius: khung ? undefined : '18px' }}>
       <div className="absolute" style={{ width: `${(W / kw) * 100}%`, left: `${(-kx / kw) * 100}%`, top: `${(-ky / kh) * 100}%` }}>
-        <Canh s={s} tenCuaHang={tenCuaHang} />
+        <Canh s={s} tenCuaHang={tenCuaHang} khung={khung} />
       </div>
     </div>
   );
 }
 
-function Canh({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
+function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; khung?: [number, number, number, number] }) {
   const t = tomSo(s);
+  const bayGio = Date.now();
+  // Chỉ vẽ nhân viên / nhãn nằm trong khung đang nhìn (thẻ hẹp, tầng) — phần ngoài khung không chạy hiệu ứng thừa.
+  const trongKhung = ([x, y, w, h]: number[]) => !khung || (x < khung[0] + khung[2] && x + w > khung[0] && y < khung[1] + khung[3] && y + h > khung[1]);
   const dang = !t.co;
   const v = (x: string) => (dang ? '…' : x);
   const chiSo = (khau: ChiSoSucKhoe['khau']) => s.suc?.chiSo.find((c) => c.khau === khau);
@@ -266,8 +305,8 @@ function Canh({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
         </span>
       </div>
 
-      {/* ① NỘI DUNG — trải hết dãy màn hình, khoét chỗ nhân viên ngồi: số bên trái / bên phải người. */}
-      <ManHinh x={140} y={378} w={462} h={134} mau={NOI_DUNG.hex} khoet={NHAN_VIEN.noi_dung}>
+      {/* ① NỘI DUNG — trải hết dãy màn hình, chừa chỗ nhân viên ngồi (ảnh cắt đè lên): số bên trái / bên phải người. */}
+      <ManHinh x={140} y={378} w={462} h={134} mau={NOI_DUNG.hex}>
         {tieuDe('Bài đăng tháng này', undefined, NOI_DUNG.hex)}
         <div className="grid flex-1 items-end" style={{ gridTemplateColumns: '28% 16% 1fr 1fr 1fr', columnGap: p(6) }}>
           <HangSo ten="Đã đăng" giaTri={v(so(t.baiDang))} mau={NOI_DUNG.hex} />
@@ -279,7 +318,7 @@ function Canh({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
       </ManHinh>
 
       {/* ② QUẢNG CÁO — chi tiêu (trái người) + tỉ lệ nhấp (phải người); app chưa đo ROAS → không hiện ROAS. */}
-      <ManHinh x={776} y={378} w={428} h={132} mau={QUANG_CAO.hex} khoet={NHAN_VIEN.quang_cao}>
+      <ManHinh x={776} y={378} w={428} h={132} mau={QUANG_CAO.hex}>
         {tieuDe('Quảng cáo tháng này', undefined, QUANG_CAO.hex)}
         <div className="grid flex-1 items-end" style={{ gridTemplateColumns: '38% 1fr 40%', columnGap: p(8) }}>
           <div className="min-w-0">
@@ -294,7 +333,7 @@ function Canh({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
         </div>
       </ManHinh>
 
-      {/* ③ BÁN HÀNG — hội thoại thật (màn trái, phủ hết danh sách mẫu) + số bán (khoét chỗ nhân viên). */}
+      {/* ③ BÁN HÀNG — hội thoại thật (màn trái, phủ hết danh sách mẫu) + số bán (chừa chỗ nhân viên). */}
       <ManHinh x={1334} y={378} w={164} h={200} mau={BAN_HANG.hex}>
         {tieuDe('Hội thoại', undefined, BAN_HANG.hex)}
         <div className="flex flex-col flex-1" style={{ gap: p(7), marginTop: p(6) }}>
@@ -315,7 +354,7 @@ function Canh({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
           )}
         </div>
       </ManHinh>
-      <ManHinh x={1502} y={378} w={358} h={146} mau={BAN_HANG.hex} khoet={NHAN_VIEN.ban_hang}>
+      <ManHinh x={1502} y={378} w={358} h={146} mau={BAN_HANG.hex}>
         {tieuDe('Bán hàng tháng này', undefined, BAN_HANG.hex)}
         <div className="grid flex-1 items-end" style={{ gridTemplateColumns: '36% 1fr 40%', columnGap: p(8) }}>
           <div className="flex flex-col justify-end h-full" style={{ gap: p(4) }}>
@@ -329,6 +368,50 @@ function Canh({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
           </div>
         </div>
       </ManHinh>
+
+      {/* NHÂN VIÊN — ảnh cắt đè lên khung số, chuyển động theo việc thật + nhãn trạng thái của văn phòng. */}
+      {(Object.keys(ANH_NV) as MaNhanVien[]).map((k) => {
+        const b = ANH_NV[k];
+        const { tt, su, giay } = trangThaiNv(s.hd, k, bayGio);
+        const mau = mauTT(tt, AI_THEO_KHAU[k].hex);
+        const den = su?.luong_den && su.luong_den !== k ? AI_THEO_KHAU[su.luong_den].ten.replace(/^AI /, '') : null;
+        const chu = `${CHU_TT[tt]}${su ? ` · ${su.chu}` : ''}${den ? ` → ${den}` : ''}${tt === 'canh_bao' && giay > GIU_VIEC_S ? ` · ${Math.round(giay / 60)} phút trước` : ''}`;
+        // Bàn giao / báo cáo: nghiêng về phía văn phòng nhận (phải = văn phòng kế; lên = Điều hành).
+        const huong = (tt === 'ban_giao' || tt === 'bao_cao') && su?.luong_den
+          ? su.luong_den === 'dieu_hanh' ? { '--len': '-1.6%' } : { '--nghieng': '2deg', '--lech': '1.4%' }
+          : {};
+        return (
+          <Fragment key={k}>
+            {trongKhung([b.x, b.y, b.w, b.h]) && (
+              <>
+                {tt !== 'cho' && (
+                  <span aria-hidden className="absolute pointer-events-none rounded-full nv-hao" style={{ ...hop(b.x - b.w * 0.35, b.y - b.h * 0.2, b.w * 1.7, b.h * 1.3), background: `radial-gradient(closest-side, ${mau}70, ${mau}00)` }} />
+                )}
+                <img
+                  src={`/giao-dien/nv-${k}.webp`}
+                  alt=""
+                  aria-hidden
+                  draggable={false}
+                  className={`absolute pointer-events-none select-none nv ${k === 'dieu_hanh' ? 'nv-nhe' : `nv-${tt}`}`}
+                  style={{ ...hop(b.x, b.y, b.w, b.h), ...(huong as CSSProperties) }}
+                />
+              </>
+            )}
+            {trongKhung(VI_TRI_TT[k]) && (
+              <div className="absolute pointer-events-none flex items-center justify-center" style={hop(...VI_TRI_TT[k])}>
+                <span
+                  className="inline-flex items-center max-w-full rounded-full font-bold whitespace-nowrap"
+                  title={chu}
+                  style={{ gap: p(8), fontSize: p(16), padding: `${p(3)} ${p(14)}`, color: tt === 'cho' ? '#cbd5e1' : '#F8FAFC', background: 'rgba(5,10,18,0.86)', border: `1px solid ${mau}${tt === 'cho' ? '66' : 'cc'}`, boxShadow: tt === 'cho' ? undefined : `0 0 ${p(12)} ${mau}66` }}
+                >
+                  <span className={`shrink-0 rounded-full ${tt === 'cho' ? '' : 'nv-cham'}`} style={{ width: p(10), height: p(10), background: mau }} />
+                  <span className="truncate">{chu}</span>
+                </span>
+              </div>
+            )}
+          </Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -346,7 +429,25 @@ export const KHUNG_HAI_TANG = {
   ban_hang: [1320, 318, 560, 322] as [number, number, number, number],
 };
 
+/** Đường nối giữa hai văn phòng: mờ khi yên; sáng màu AI + mũi tên chạy khi có dòng việc thật (≤ 90 giây). */
+function Noi({ doc, dang, mau, ten, style }: { doc?: boolean; dang: boolean; mau: string; ten: string; style: CSSProperties }) {
+  return (
+    <span
+      title={ten}
+      aria-label={ten}
+      className="absolute z-10 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full overflow-hidden"
+      style={{ ...style, width: doc ? 24 : 36, height: doc ? 36 : 24, background: '#07080B', border: `1.5px solid ${dang ? mau : 'rgba(245,196,81,0.45)'}`, boxShadow: dang ? `0 0 12px ${mau}` : undefined }}
+    >
+      <span className={`material-symbols-outlined text-[17px] ${dang ? (doc ? 'luong-len' : 'luong-ngang') : ''}`} style={{ color: dang ? mau : 'rgba(245,196,81,0.6)' }}>
+        {doc ? 'arrow_upward' : 'arrow_forward'}
+      </span>
+    </span>
+  );
+}
+
 export function KhoiNaoHaiTang({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
+  const luong = luongDang(s.hd, Date.now());
+  const cotGiua = (i: number) => `calc((100% - 2rem) / 3 * ${i + 0.5} + ${i}rem)`;
   const tang = (k: [number, number, number, number], mau: string) => (
     <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${mau}88`, boxShadow: `0 0 22px ${mau}33` }}>
       <KhoiNaoAnh s={s} tenCuaHang={tenCuaHang} khung={k} />
@@ -374,10 +475,18 @@ export function KhoiNaoHaiTang({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang
           </Link>
         </div>
         {tang(KHUNG_HAI_TANG.dieu_hanh, DIEU_HANH.hex)}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="relative grid grid-cols-3 gap-4">
           {tang(KHUNG_HAI_TANG.noi_dung, NOI_DUNG.hex)}
           {tang(KHUNG_HAI_TANG.quang_cao, QUANG_CAO.hex)}
           {tang(KHUNG_HAI_TANG.ban_hang, BAN_HANG.hex)}
+          {/* Dòng việc: ① bài đã đăng → ②; ② khách từ quảng cáo → ③; ①②③ → ④ (đơn mới, số liệu cho lượt chấm). */}
+          <Noi dang={luong.has('noi_dung>quang_cao')} mau={NOI_DUNG.hex} ten="Nội dung → Quảng cáo: bài đã đăng" style={{ left: 'calc((100% - 2rem) / 3 + 0.5rem)', top: '50%' }} />
+          <Noi dang={luong.has('quang_cao>ban_hang')} mau={QUANG_CAO.hex} ten="Quảng cáo → Bán hàng: khách từ quảng cáo" style={{ left: 'calc((100% - 2rem) / 3 * 2 + 1.5rem)', top: '50%' }} />
+          {([NOI_DUNG, QUANG_CAO, BAN_HANG] as const).map((a, i) => (
+            <Fragment key={a.ma}>
+              <Noi doc dang={luong.has(`${a.khau}>dieu_hanh`)} mau={a.hex} ten={`${a.ten.replace(/^AI /, '')} → Điều hành: báo cáo, số liệu`} style={{ left: cotGiua(i), top: '-0.5rem' }} />
+            </Fragment>
+          ))}
         </div>
       </div>
     </div>

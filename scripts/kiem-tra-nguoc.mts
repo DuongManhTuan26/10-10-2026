@@ -6635,15 +6635,17 @@ const DUC: PhepDuc[] = [
     ten: "khối não: bỏ khung số thật của màn 'Kết quả bán hàng' (lộ tên + SĐT khách mẫu)",
     tep: "src/components/KhoiNaoVanPhong.tsx",
     // 30/10/2026: khung ③ gộp, khoét người — trỏ lại: khung hẹp lại không phủ màn 'Thông tin khách'.
-    tim: "      <ManHinh x={1502} y={378} w={358} h={146} mau={BAN_HANG.hex} khoet={NHAN_VIEN.ban_hang}>",
-    thay: "      <ManHinh x={1502} y={378} w={170} h={146} mau={BAN_HANG.hex} khoet={NHAN_VIEN.ban_hang}>",
+    // 31/10/2026: bỏ khoét (ảnh nhân viên đè lên) — trỏ lại.
+    tim: "      <ManHinh x={1502} y={378} w={358} h={146} mau={BAN_HANG.hex}>",
+    thay: "      <ManHinh x={1502} y={378} w={170} h={146} mau={BAN_HANG.hex}>",
   },
   {
     ten: "khối não: khung số lệch khỏi màn ROAS (lộ số mẫu)",
     tep: "src/components/KhoiNaoVanPhong.tsx",
     // 30/10/2026: khung ② gộp (chi tiêu + tỉ lệ nhấp) — trỏ lại: khung hẹp lại không phủ màn ROAS.
-    tim: "      <ManHinh x={776} y={378} w={428} h={132} mau={QUANG_CAO.hex} khoet={NHAN_VIEN.quang_cao}>",
-    thay: "      <ManHinh x={776} y={378} w={260} h={132} mau={QUANG_CAO.hex} khoet={NHAN_VIEN.quang_cao}>",
+    // 31/10/2026: bỏ khoét — trỏ lại.
+    tim: "      <ManHinh x={776} y={378} w={428} h={132} mau={QUANG_CAO.hex}>",
+    thay: "      <ManHinh x={776} y={378} w={260} h={132} mau={QUANG_CAO.hex}>",
   },
   {
     ten: "khối não: thẻ màn hẹp dùng ảnh trần (lộ toàn bộ số mẫu)",
@@ -6670,22 +6672,96 @@ const DUC: PhepDuc[] = [
     thay: '        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">',
   },
   {
-    ten: "khối não: khung ① che đầu nhân viên (bỏ khoét)",
+    ten: "khối não: ảnh nhân viên ① lệch khỏi người gốc (bóng đôi)",
     tep: "src/components/KhoiNaoVanPhong.tsx",
-    tim: " mau={NOI_DUNG.hex} khoet={NHAN_VIEN.noi_dung}>",
-    thay: " mau={NOI_DUNG.hex}>",
+    // 31/10/2026: khoét đầu → ảnh cắt đè lên — trỏ lại.
+    tim: "  noi_dung: { x: 281, y: 442, w: 77, h: 77 },",
+    thay: "  noi_dung: { x: 291, y: 442, w: 77, h: 77 },",
   },
   {
-    ten: "khối não: khoét ③ lệch khỏi đầu nhân viên",
+    ten: "khối não: ảnh nhân viên ③ thấp xuống, khung số không che người gốc (bóng đôi khi chuyển động)",
     tep: "src/components/KhoiNaoVanPhong.tsx",
-    tim: "  ban_hang: { cx: 1666, cy: 482 },",
-    thay: "  ban_hang: { cx: 1766, cy: 482 },",
+    // 31/10/2026: khoét đầu → ảnh cắt đè lên — trỏ lại.
+    tim: "  ban_hang: { x: 1628, y: 456, w: 85, h: 81 },",
+    thay: "  ban_hang: { x: 1628, y: 506, w: 85, h: 81 },",
   },
   {
     ten: "khối não 2 tầng: tầng dưới dùng ảnh trần (lộ số mẫu)",
     tep: "src/components/KhoiNaoVanPhong.tsx",
     tim: "      <KhoiNaoAnh s={s} tenCuaHang={tenCuaHang} khung={k} />",
     thay: "      <img src={ANH} alt=\"\" style={{ aspectRatio: `${k[2]} / ${k[3]}` }} />",
+  },
+  {
+    ten: "khối não: ④ (không khung che) chuyển động mạnh như ①②③ (lộ người gốc)",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "nv ${k === 'dieu_hanh' ? 'nv-nhe' : `nv-${tt}`}`}",
+    thay: "nv nv-${tt}`}",
+  },
+  {
+    ten: "khối não: ảnh nhân viên vẽ trước khung số (bị che mất)",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "      {/* ④ ĐIỀU HÀNH — trái: doanh thu tháng + cột theo ngày (chữ to, đọc được ở 1440) */}",
+    thay: "      <img src={`/giao-dien/nv-${k}.webp`} alt=\"\" />\n      {/* ④ ĐIỀU HÀNH — trái: doanh thu tháng + cột theo ngày (chữ to, đọc được ở 1440) */}",
+  },
+  {
+    ten: "khối não: hỏi việc cả khi thẻ trình duyệt đang ẩn",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "      if (document.visibilityState !== 'visible') return;\n",
+    thay: "",
+  },
+  {
+    ten: "khối não: rời trang không dọn hẹn giờ hỏi việc",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "window.clearInterval(dem); ",
+    thay: "",
+  },
+  {
+    ten: "khối não: việc cũ giữ trạng thái mãi (không về chờ việc)",
+    tep: "src/lib/hoat-dong-khoi-nao.ts",
+    tim: "  if (moi && tuoiNay(hd, moi, bayGio) <= GIU_VIEC_S) return",
+    thay: "  if (moi) return",
+  },
+  {
+    ten: "khối não: cảnh báo tắt ngay sau 90 giây",
+    tep: "src/lib/hoat-dong-khoi-nao.ts",
+    tim: "  if (canh && tuoiNay(hd, canh, bayGio) <= GIU_CANH_BAO_S) return",
+    thay: "  if (canh && tuoiNay(hd, canh, bayGio) <= GIU_VIEC_S) return",
+  },
+  {
+    ten: "khối não: lượt chấm chỉ sáng một đường lên ④",
+    tep: "src/lib/hoat-dong-khoi-nao.ts",
+    tim: "e.luong_tu === 'ba_ai' ? (['noi_dung', 'quang_cao', 'ban_hang'] as const)",
+    thay: "e.luong_tu === 'ba_ai' ? (['noi_dung'] as const)",
+  },
+  {
+    ten: "hoạt động khối não: đơn không lọc theo cửa hàng (lộ đơn cửa hàng khác)",
+    tep: "server/services/hoat-dong-khoi-nao.ts",
+    tim: "FROM orders o WHERE o.trang_id = $1 AND",
+    thay: "FROM orders o WHERE",
+  },
+  {
+    ten: "hoạt động khối não: đẩy quảng cáo lấy 10 ngày (không phải việc vừa xảy ra)",
+    tep: "server/services/hoat-dong-khoi-nao.ts",
+    tim: "     AND d.luc > now() - interval '10 minutes'",
+    thay: "     AND d.luc > now() - interval '10 days'",
+  },
+  {
+    ten: "hoạt động khối não: trả nội dung tin khách",
+    tep: "server/services/hoat-dong-khoi-nao.ts",
+    tim: "CASE m.sender_type WHEN 'customer' THEN 'Khách nhắn tin' ELSE 'Đã trả lời khách' END",
+    thay: "m.content",
+  },
+  {
+    ten: "khối não: hiệu ứng cảnh báo dùng filter (vẽ lại mỗi khung hình)",
+    tep: "src/index.css",
+    tim: "@keyframes nv-canh { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.4%); } }",
+    thay: "@keyframes nv-canh { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.4%); filter: drop-shadow(0 0 6px #fb923c); } }",
+  },
+  {
+    ten: "khối não: giảm chuyển động không tắt nhân viên",
+    tep: "src/index.css",
+    tim: "    .nv, .nv-hao, .nv-cham, .luong-ngang, .luong-len { animation: none !important; }",
+    thay: "    .nv-hao, .nv-cham, .luong-ngang, .luong-len { animation: none !important; }",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

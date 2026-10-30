@@ -6376,7 +6376,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   // Điều kiện 1 của phiên kiểm duyệt: MỌI tệp đọc bảng posts được xếp loại — tệp mới đọc posts phải được xếp trước.
   // đợt 3: trang.ts — hậu quả chuyển kênh đếm bài của CỬA HÀNG CŨ của kênh; don-lich.ts — bài có kênh đích đã rời cửa
   // hàng CỦA BÀI (so từng bài với cửa hàng của chính nó, việc chạy nền).
-  const DOC_THEO_CUA_HANG = ["ads.ts", "bao-cao-chuoi.ts", "dieu-hanh-ngay.ts", "so-lieu-kenh.ts", "suc-khoe.ts", "trang.ts"];
+  // 31/10/2026: hoat-dong-khoi-nao.ts — việc thật 10 phút của khối não, mọi nhánh lọc trang_id = $1 (cửa hàng đang chọn).
+  const DOC_THEO_CUA_HANG = ["ads.ts", "bao-cao-chuoi.ts", "dieu-hanh-ngay.ts", "hoat-dong-khoi-nao.ts", "so-lieu-kenh.ts", "suc-khoe.ts", "trang.ts"];
   const DOC_THEO_BAI = ["autopilot.ts", "don-lich.ts", "post-status.ts", "posts.ts", "publish.ts"]; // theo mã bài + chủ bài / việc chạy nền
   const DOC_THEO_TAI_KHOAN = ["quan-ly-chung.ts", "settings.ts"]; // Gói dịch vụ + màn quản trị: theo cả tài khoản (sơ đồ §1)
   const tepDocPosts = [...new Set(tepMC.filter((t) => /FROM posts\b/.test(doc1(path.relative(GOC, t)))).map((t) => path.basename(t)))].sort();
@@ -6777,6 +6778,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     // theo tài khoản: Tổng quan (chốt 19/10), màn quản trị (analytics cũ đã gỡ — TD-12, 23/10); settings: kịch bản theo cửa hàng, thống kê / rào chắn → A3
     // H7 (24/10/2026): ④ chấm hằng ngày đọc hội thoại / bình luận THEO CỬA HÀNG (truy vấn hoạt động 24 giờ).
     "services/dieu-hanh-ngay.ts": "cua_hang",
+    // 31/10/2026: khối não chuyển động — hội thoại / tin nhắn 10 phút gần nhất theo c.trang_id = $1.
+    "services/hoat-dong-khoi-nao.ts": "cua_hang",
     "routes/dashboard.ts": "tai_khoan", "routes/quan-ly.ts": "tai_khoan", "services/quan-ly-chung.ts": "tai_khoan",
     "routes/settings.ts": "hon_hop",
   };
@@ -7634,16 +7637,22 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     const che = (r: number[]) => khung.some(([x, y, w, h]) => x <= r[0] && y <= r[1] && x + w >= r[0] + r[2] && y + h >= r[1] + r[3]);
     kiem("khối não văn phòng", "mọi màn hình có số / chữ giả trong ảnh đều bị một khung số thật che kín (đo theo toạ độ ảnh)",
       MAN_GIA.filter(([, ...r]) => !che(r)).map(([ten]) => ten), []);
-    // 3 nhân viên nữ (chủ dự án 30/10: không che đầu, sau này làm chuyển động): khung nào phủ lên tâm đầu thì PHẢI khoét đúng
-    // người đó (khoet={NHAN_VIEN.<khâu>}); toạ độ tâm đầu khoá theo số đo.
-    const nv = Object.fromEntries([...kn.matchAll(/(noi_dung|quang_cao|ban_hang): \{ cx: (\d+), cy: (\d+) \}/g)].map((m) => [m[1], [Number(m[2]), Number(m[3])]]));
-    const khungDu = [...kn.matchAll(/<ManHinh x=\{(\d+)\} y=\{(\d+)\} w=\{(\d+)\} h=\{(\d+)\} mau=\{[^}]+\}( khoet=\{NHAN_VIEN\.(\w+)\})?>/g)]
-      .map((m) => ({ r: m.slice(1, 5).map(Number), khoet: m[6] ?? null }));
-    const cheDau = Object.entries(nv).flatMap(([k, [cx, cy]]) =>
-      khungDu.filter(({ r: [x, y, w, h] }) => x <= cx && cx <= x + w && y <= cy && cy <= y + h).filter((f) => f.khoet !== k).map(() => k));
-    kiem("khối não văn phòng", "đầu 3 nhân viên không bị che: khung phủ tâm đầu đều khoét đúng người; toạ độ tâm đầu như số đo",
-      [cheDau, nv, khungDu.filter((f) => f.khoet).length],
-      [[], { noi_dung: [316, 470], quang_cao: [983, 470], ban_hang: [1666, 482] }, 3]);
+    // NHÂN VIÊN (31/10/2026 — chủ dự án: không che đầu, chuyển động theo việc thật): ảnh cắt đầu + vai nằm TRÊN khung số;
+    // khung ①②③ phủ kín bề ngang + đỉnh đầu người gốc (≥ 80% diện tích) → người chuyển động không để lại bóng đôi.
+    const anhNv = Object.fromEntries([...kn.matchAll(/(noi_dung|quang_cao|ban_hang|dieu_hanh): \{ x: (\d+), y: (\d+), w: (\d+), h: (\d+) \}/g)]
+      .map((m) => [m[1], m.slice(2, 6).map(Number)]));
+    const khungNv = [...kn.matchAll(/<ManHinh x=\{(\d+)\} y=\{(\d+)\} w=\{(\d+)\} h=\{(\d+)\}/g)].map((m) => m.slice(1, 5).map(Number));
+    const phu = ([x, y, w, h]: number[]) => Math.max(0, ...khungNv.filter(([kx, ky, kw]) => kx <= x && x + w <= kx + kw && ky <= y)
+      .map(([, ky, , kh]) => Math.min(y + h, ky + kh) - y)) / h;
+    kiem("khối não văn phòng", "4 nhân viên: ảnh cắt có trong public/ đúng khung số đo; ①②③ bị khung số che người gốc ≥ 80%; không còn khoét / mask",
+      [anhNv, (["noi_dung", "quang_cao", "ban_hang"] as const).filter((k) => !anhNv[k] || phu(anhNv[k]) < 0.8),
+        (["noi_dung", "quang_cao", "ban_hang", "dieu_hanh"] as const).filter((k) => !fs.existsSync(path.join(GOC, `public/giao-dien/nv-${k}.webp`))),
+        /khoet|maskImage/.test(kn)],
+      [{ noi_dung: [281, 442, 77, 77], quang_cao: [938, 444, 93, 76], ban_hang: [1628, 456, 85, 81], dieu_hanh: [931, 166, 90, 75] }, [], [], false]);
+    kiem("khối não văn phòng", "ảnh nhân viên vẽ SAU mọi khung số (nằm trên); ④ không có khung che phía sau → chỉ thở nhẹ (nv-nhe)",
+      [kn.lastIndexOf("<ManHinh ") < kn.indexOf("src={`/giao-dien/nv-${k}.webp`}"),
+        /className=\{`absolute pointer-events-none select-none nv \$\{k === 'dieu_hanh' \? 'nv-nhe' : `nv-\$\{tt\}`\}`\}/.test(kn)],
+      [true, true]);
     const theHep = kn.slice(kn.indexOf("export function KhoiNaoThe"));
     kiem("khối não văn phòng", "thẻ màn hẹp dùng CẢNH ĐÃ ĐÈ SỐ (KhoiNaoAnh thu khung), không dùng ảnh trần làm nền",
       [/<KhoiNaoAnh s=\{s\} tenCuaHang=\{tenCuaHang\} khung=\{cat\} \/>/.test(theHep), /backgroundImage/.test(kn)], [true, false]);
@@ -7654,11 +7663,49 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     kiem("khối não văn phòng", "Tổng quan dùng khối văn phòng: màn rộng cảnh lớn, màn hẹp 4 thẻ; ảnh nền có trong public/",
       // 30/10/2026 (chủ dự án "to hơn, kéo dài xuống"): màn rộng HAI TẦNG — ④ phủ ngang, ①②③ cạnh nhau, cùng cảnh đã đè số.
       [/<KhoiNaoHaiTang s=\{s\} tenCuaHang=\{trangDangChon\.ten\} \/>/.test(fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8"))
-        && /\{tang\(KHUNG_HAI_TANG\.dieu_hanh, DIEU_HANH\.hex\)\}\s*<div className="grid grid-cols-3 gap-4">\s*\{tang\(KHUNG_HAI_TANG\.noi_dung/.test(kn)
+        && /\{tang\(KHUNG_HAI_TANG\.dieu_hanh, DIEU_HANH\.hex\)\}\s*<div className="relative grid grid-cols-3 gap-4">\s*\{tang\(KHUNG_HAI_TANG\.noi_dung/.test(kn)
         && /<KhoiNaoAnh s=\{s\} tenCuaHang=\{tenCuaHang\} khung=\{k\} \/>/.test(kn),
         /<KhoiNaoThe s=\{s\} tenCuaHang=\{trangDangChon\.ten\} \/>/.test(fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8")),
         fs.existsSync(path.join(GOC, "public/giao-dien/khoi-nao.webp"))],
       [true, true, true]);
+  }
+  // CHUYỂN ĐỘNG KHỐI NÃO (31/10/2026, chủ dự án chọn cách 1 — 0 đ, tốc độ trên hết; "đang xử lý" không cần): trạng thái từ
+  // việc THẬT; không có việc = chờ việc; hỏi 20 giây/lần chỉ khi thẻ đang hiện; chỉ transform/opacity; tôn trọng giảm chuyển động.
+  {
+    const hd = await import("../src/lib/hoat-dong-khoi-nao.ts");
+    const kn = fs.readFileSync(path.join(GOC, "src/components/KhoiNaoVanPhong.tsx"), "utf8");
+    const cau = fs.readFileSync(path.join(GOC, "server/services/hoat-dong-khoi-nao.ts"), "utf8");
+    const css = fs.readFileSync(path.join(GOC, "src/index.css"), "utf8");
+    const T = 1_000_000;
+    const su = (ai: string, loai: string, tuoi: number, tu: string | null = null, den: string | null = null) =>
+      ({ ai, loai, chu: "x", luong_tu: tu, luong_den: den, tuoi }) as never;
+    const g = (suKien: never[], ai: string, troi = 0) => hd.trangThaiNv({ suKien, nhanLuc: T }, ai as never, T + troi * 1000).tt;
+    kiem("chuyển động khối não", "trạng thái theo việc thật: chưa tải / không việc → chờ; việc ≤ 90 giây → đúng loại; quá 90 giây → chờ; cảnh báo giữ 10 phút trừ khi có việc mới hơn; không lẫn nhân viên",
+      [hd.trangThaiNv(null, "ban_hang", T).tt, g([], "ban_hang"), g([su("ban_hang", "nhan", 5)], "ban_hang"), g([su("ban_hang", "nhan", 5)], "ban_hang", 86),
+        g([su("ban_hang", "nhan", 5)], "ban_hang", 80), g([su("ban_hang", "canh_bao", 300)], "ban_hang"), g([su("ban_hang", "canh_bao", 590)], "ban_hang", 20),
+        g([su("ban_hang", "xong", 10), su("ban_hang", "canh_bao", 200)], "ban_hang"), g([su("ban_hang", "xong", 10)], "noi_dung"),
+        g([su("noi_dung", "canh_bao", 60), su("noi_dung", "xong", 3)], "noi_dung")],
+      ["cho", "cho", "nhan", "cho", "nhan", "canh_bao", "cho", "xong", "cho", "xong"]);
+    kiem("chuyển động khối não", "dòng chảy ≤ 90 giây: ① → ②, ② → ③, ③ → ④; lượt chấm (ba_ai) → cả 3 lên ④; tự chảy về mình không tính",
+      [[...hd.luongDang({ suKien: [su("noi_dung", "ban_giao", 5, "noi_dung", "quang_cao"), su("quang_cao", "ban_giao", 95, "quang_cao", "ban_hang")], nhanLuc: T }, T)],
+        [...hd.luongDang({ suKien: [su("dieu_hanh", "xong", 1, "ba_ai", "dieu_hanh"), su("dieu_hanh", "xong", 1, "dieu_hanh", "dieu_hanh")], nhanLuc: T }, T)].sort(),
+        [...hd.luongDang(null, T)]],
+      [["noi_dung>quang_cao"], ["ban_hang>dieu_hanh", "noi_dung>dieu_hanh", "quang_cao>dieu_hanh"], []]);
+    kiem("chuyển động khối não", "hỏi 20 giây/lần, CHỈ khi thẻ đang hiện; dọn hẹn giờ + lắng nghe khi rời trang / đổi cửa hàng",
+      [/export const HOI_MOI_MS = 20_000;/.test(kn), /if \(document\.visibilityState !== 'visible'\) return;\s*api\.dieuHanh\.hoatDong\(\)/.test(kn),
+        /const dem = window\.setInterval\(hoi, HOI_MOI_MS\);/.test(kn), /window\.clearInterval\(dem\); document\.removeEventListener\('visibilitychange', hoi\);/.test(kn),
+        /"\/hoat-dong",\s*route\(async \(req, res\) => \{\s*const trangId = await trangCuaToi\(req\.user!\.id\);/.test(fs.readFileSync(path.join(GOC, "server/routes/dieu-hanh.ts"), "utf8"))],
+      [true, true, true, true, true]);
+    const nhanh = cau.slice(cau.indexOf("WITH su AS ("), cau.indexOf("SELECT ai, loai, chu")).split("UNION ALL");
+    kiem("chuyển động khối não", "câu hoạt động: 11 nhánh, nhánh nào cũng lọc trang_id = $1 + 10 phút; chỉ đọc; không lấy nội dung tin / tên / SĐT khách",
+      [nhanh.length, nhanh.filter((n) => !/trang_id = \$1/.test(n) || !/> now\(\) - interval '10 minutes'/.test(n)).length,
+        /\b(INSERT|UPDATE|DELETE)\b/.test(cau.slice(cau.indexOf("export const CAU_HOAT_DONG"))), /m\.content|customer_name|phone|address|last_message\b/.test(cau)],
+      [11, 0, false, false]);
+    const khung = [...css.matchAll(/@keyframes (nv-[\w-]+|luong-[\w-]+) \{([\s\S]*?)\}\s*\n/g)];
+    kiem("chuyển động khối não", "hiệu ứng chỉ transform / opacity (không vẽ lại); giảm chuyển động → tắt hết",
+      [khung.length >= 9, khung.filter(([, , than]) => /(filter|box-shadow|left|top|width|height|background)\s*:/.test(than)).map(([, ten]) => ten),
+        /@media \(prefers-reduced-motion: reduce\) \{\s*\.nv, \.nv-hao, \.nv-cham, \.luong-ngang, \.luong-len \{ animation: none !important; \}/.test(css)],
+      [true, [], true]);
   }
   // TỔNG QUAN 30/10/2026 (chủ dự án: "thu hẹp các mục không quan trọng, phóng to khối não cho hoành tráng"): khối não đứng
   // ĐẦU (sau dải khách chờ một dòng), tràn bề ngang; 4 số chính thành 4 ô gọn một hàng bên dưới, không biểu đồ nhỏ.

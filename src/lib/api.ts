@@ -667,6 +667,18 @@ export interface DeXuatDieuHanh {
   noi_dung: string | null;
 }
 
+/** Việc thật 10 phút gần nhất của 4 AI (server/services/hoat-dong-khoi-nao.ts) — khối não Tổng quan cho nhân viên chuyển động. */
+export type MaNhanVien = "noi_dung" | "quang_cao" | "ban_hang" | "dieu_hanh";
+export interface SuKienKhoiNao {
+  ai: MaNhanVien;
+  loai: "nhan" | "xong" | "ban_giao" | "bao_cao" | "canh_bao";
+  chu: string;
+  luong_tu: MaNhanVien | "ba_ai" | null;
+  luong_den: MaNhanVien | null;
+  /** Giây từ lúc xảy ra tới lúc máy chủ đọc. */
+  tuoi: number;
+}
+
 export interface SucKhoeTrang {
   luc: string;
   cuaSo: { gan: string[]; nen: string[] };
@@ -1566,6 +1578,8 @@ export const api = {
     deXuat: () => get<{ data: DeXuatDieuHanh[] }>("/dieu-hanh/de-xuat"),
     /** Sức khoẻ từng khâu của trang đang chọn — thẻ Kết quả của khuôn 4 thẻ. */
     sucKhoe: () => get<{ data: SucKhoeTrang }>("/dieu-hanh/suc-khoe"),
+    /** Việc thật 10 phút gần nhất của 4 AI (chỉ đọc) — khối não hỏi 20 giây/lần khi đang xem. */
+    hoatDong: () => get<{ data: SuKienKhoiNao[] }>("/dieu-hanh/hoat-dong"),
     /** Lượt chấm TỰ ĐỘNG hôm nay của cửa hàng đang chọn (null = hôm nay chưa chấm). */
     hangNgay: () =>
       get<{ data: { trang_thai: string; van_de: string | null; tien_usd: string; ghi_chu: string | null; created_at: string; xong_luc: string | null } | null }>(
