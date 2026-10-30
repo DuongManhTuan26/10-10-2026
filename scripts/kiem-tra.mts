@@ -7652,7 +7652,10 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /api\.dieuHanh\.baoCao\('thang_nay'\)/.test(kn), /api\.dieuHanh\.sucKhoe\(\)/.test(kn), /api\.inbox\.conversations\(\{ soDong: 4 \}\)/.test(kn)],
       [false, true, true, true]);
     kiem("khối não văn phòng", "Tổng quan dùng khối văn phòng: màn rộng cảnh lớn, màn hẹp 4 thẻ; ảnh nền có trong public/",
-      [/<KhoiNaoAnh s=\{s\} tenCuaHang=\{trangDangChon\.ten\} \/>/.test(fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8")),
+      // 30/10/2026 (chủ dự án "to hơn, kéo dài xuống"): màn rộng HAI TẦNG — ④ phủ ngang, ①②③ cạnh nhau, cùng cảnh đã đè số.
+      [/<KhoiNaoHaiTang s=\{s\} tenCuaHang=\{trangDangChon\.ten\} \/>/.test(fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8"))
+        && /\{tang\(KHUNG_HAI_TANG\.dieu_hanh, DIEU_HANH\.hex\)\}\s*<div className="grid grid-cols-3 gap-4">\s*\{tang\(KHUNG_HAI_TANG\.noi_dung/.test(kn)
+        && /<KhoiNaoAnh s=\{s\} tenCuaHang=\{tenCuaHang\} khung=\{k\} \/>/.test(kn),
         /<KhoiNaoThe s=\{s\} tenCuaHang=\{trangDangChon\.ten\} \/>/.test(fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8")),
         fs.existsSync(path.join(GOC, "public/giao-dien/khoi-nao.webp"))],
       [true, true, true]);

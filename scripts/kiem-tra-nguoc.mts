@@ -6682,6 +6682,12 @@ const DUC: PhepDuc[] = [
     thay: "  ban_hang: { cx: 1766, cy: 482 },",
   },
   {
+    ten: "khối não 2 tầng: tầng dưới dùng ảnh trần (lộ số mẫu)",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "      <KhoiNaoAnh s={s} tenCuaHang={tenCuaHang} khung={k} />",
+    thay: "      <img src={ANH} alt=\"\" style={{ aspectRatio: `${k[2]} / ${k[3]}` }} />",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

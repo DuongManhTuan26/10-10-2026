@@ -333,6 +333,57 @@ function Canh({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
   );
 }
 
+/**
+ * Màn rộng (≥ xl) — HAI TẦNG (chủ dự án 30/10/2026: "to hơn, kéo dài xuống dưới"): ảnh toàn cảnh rộng gấp 3 lần cao nên
+ * một tấm thì chiều cao bị khoá theo bề ngang. Tầng trên: văn phòng ④ phủ hết bề ngang (to ~gấp đôi); tầng dưới: ①②③ cạnh
+ * nhau, mỗi văn phòng cắt sát cảnh của nó. Mỗi tầng là CÙNG cảnh đã đè số thật (KhoiNaoAnh thu khung) — số mẫu không lộ,
+ * lỗ khoét đầu nhân viên + vùng bấm giữ nguyên. Đầu khối (tên cửa hàng, Đổi cửa hàng) thành hàng riêng; cả khối viền vàng.
+ */
+export const KHUNG_HAI_TANG = {
+  dieu_hanh: [500, 0, 980, 300] as [number, number, number, number],
+  noi_dung: [92, 318, 560, 322] as [number, number, number, number],
+  quang_cao: [708, 318, 560, 322] as [number, number, number, number],
+  ban_hang: [1320, 318, 560, 322] as [number, number, number, number],
+};
+
+export function KhoiNaoHaiTang({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
+  const tang = (k: [number, number, number, number], mau: string) => (
+    <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${mau}88`, boxShadow: `0 0 22px ${mau}33` }}>
+      <KhoiNaoAnh s={s} tenCuaHang={tenCuaHang} khung={k} />
+    </div>
+  );
+  return (
+    <div
+      className="rounded-[22px] p-[3px]"
+      style={{ background: 'linear-gradient(155deg, #7A4F10 0%, #F5C451 12%, #FFF1C1 20%, #C98A22 38%, #6E4710 52%, #E9B44A 68%, #FFE8A8 80%, #9C6516 100%)', boxShadow: '0 0 18px rgba(245,196,81,0.45), 0 0 46px rgba(245,170,50,0.18)' }}
+    >
+      <div className="rounded-[19px] p-4 space-y-4" style={{ background: 'linear-gradient(180deg, #0B0D12 0%, #07080B 100%)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-11 h-11 rounded-xl" style={{ border: '1.5px solid #F5C451', boxShadow: '0 0 12px rgba(245,196,81,0.6), inset 0 0 10px rgba(245,196,81,0.25)' }}>
+              <span className="material-symbols-outlined text-[26px] text-[#FFD978]">psychology</span>
+            </span>
+            <span>
+              <span className="block text-xl font-extrabold text-white leading-tight">Bộ não AI</span>
+              <span className="block text-sm text-on-surface-variant">cửa hàng <b className="text-on-surface">{tenCuaHang}</b> · 4 AI làm việc liền mạch</span>
+            </span>
+          </h3>
+          <Link to="/ket-noi" className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white hover:brightness-125" style={{ border: '1.5px solid #F5C451', background: 'rgba(8,10,14,0.92)', boxShadow: '0 0 10px rgba(245,196,81,0.4)' }}>
+            <span className="material-symbols-outlined text-[20px]">storefront</span>
+            Đổi cửa hàng
+          </Link>
+        </div>
+        {tang(KHUNG_HAI_TANG.dieu_hanh, DIEU_HANH.hex)}
+        <div className="grid grid-cols-3 gap-4">
+          {tang(KHUNG_HAI_TANG.noi_dung, NOI_DUNG.hex)}
+          {tang(KHUNG_HAI_TANG.quang_cao, QUANG_CAO.hex)}
+          {tang(KHUNG_HAI_TANG.ban_hang, BAN_HANG.hex)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Màn hẹp (< xl): 4 thẻ — mỗi thẻ là CẢNH ĐÃ ĐÈ SỐ THẬT thu khung vào văn phòng của AI đó + số chính bên dưới. */
 export function KhoiNaoThe({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
   const t = tomSo(s);

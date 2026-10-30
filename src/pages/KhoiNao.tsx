@@ -22,7 +22,7 @@ import AnToanTaiKhoan from '../components/AnToanTaiKhoan';
 import Dashboard from './Dashboard';
 import { KetQuaDieuHanh, DangLamDieuHanh } from './DieuHanh';
 import { useActivePage } from '../lib/ActivePage';
-import { KhoiNaoAnh, KhoiNaoThe, useSoLieuKhoiNao } from '../components/KhoiNaoVanPhong';
+import { KhoiNaoHaiTang, KhoiNaoThe, useSoLieuKhoiNao } from '../components/KhoiNaoVanPhong';
 
 export function NoiDungAi() {
   return (
@@ -147,7 +147,7 @@ function TongQuanBoNao() {
   return (
     <section className="min-w-0">
       <div className="hidden xl:block">
-        <KhoiNaoAnh s={s} tenCuaHang={trangDangChon.ten} />
+        <KhoiNaoHaiTang s={s} tenCuaHang={trangDangChon.ten} />
       </div>
       <div className="xl:hidden the p-4">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
