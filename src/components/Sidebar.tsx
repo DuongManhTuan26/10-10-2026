@@ -92,7 +92,8 @@ export default function Sidebar({
   const nhan = (chu: string) => (
     <div className="px-3 pb-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.2em] text-[#E8EDF2]/45">{chu}</div>
   );
-  const vach = <div className="mx-2 my-3 [@media(max-height:860px)]:my-2 h-px shrink-0" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,226,160,0.14) 18%, rgba(255,226,160,0.14) 82%, transparent)' }} />;
+  // Khoảng cách giữa các nhóm (ảnh mẫu 30/10 không kẻ vạch giữa nhóm — chỉ vạch vàng ở đáy).
+  const vach = <div className="h-5 [@media(max-height:860px)]:h-3 shrink-0" />;
   const muiTen = (sang: boolean) => (
     <span
       className="material-symbols-outlined relative z-10 ml-auto shrink-0 transition-colors duration-300"
@@ -168,8 +169,8 @@ export default function Sidebar({
   );
 
   /** Trợ giúp / Đăng xuất: mờ hơn menu chính, cùng hàng mũi tên. */
-  const kieuChan = { color: 'rgba(232,237,242,0.55)', fontSize: '15px', fontWeight: 400, height: '40px', fontFamily: "'Be Vietnam Pro', sans-serif" };
-  const bieuTuongChan = { fontSize: '23px', color: 'inherit', fontVariationSettings: "'wght' 300" };
+  const kieuChan = { color: 'rgba(240,243,247,0.92)', fontSize: '15px', fontWeight: 500, height: '42px', fontFamily: "'Be Vietnam Pro', sans-serif" };
+  const bieuTuongChan = { fontSize: '26px', color: 'inherit', fontVariationSettings: "'wght' 300" };
 
   return (
     <>
@@ -192,7 +193,7 @@ export default function Sidebar({
       <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ perspective: '1000px', perspectiveOrigin: '0% 46%' }}>
         <div
           className="absolute"
-          style={{ left: '14px', top: '10px', right: '16px', bottom: '34px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}
+          style={{ left: '8px', top: '10px', right: '24px', bottom: '34px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}
         >
           {/* Thân khối: vành gương ngoài + độ dày đắp lớp (lệch xuống – sang trái) + quầng neon. */}
           <div
@@ -210,7 +211,7 @@ export default function Sidebar({
             className="absolute inset-[10px] rounded-[20px] overflow-hidden"
             style={{
               background: 'linear-gradient(180deg, #0F1116 0%, #0A0C10 45%, #07080B 100%)',
-              boxShadow: 'inset 0 0 0 1.5px rgba(255,210,110,0.8), inset 0 0 10px rgba(255,180,60,0.35), inset 0 0 40px rgba(0,0,0,0.9)',
+              boxShadow: 'inset 0 0 0 1.5px rgba(255,214,120,0.9), inset 0 0 14px rgba(255,170,50,0.62), inset 0 0 34px rgba(255,140,30,0.3), inset 0 0 70px rgba(255,120,20,0.08)',
             }}
           >
             {/* Bóng gương: vệt sáng chéo trên kính */}
@@ -230,7 +231,7 @@ export default function Sidebar({
           ))}
         </div>
         {/* PHẢN CHIẾU dưới cạnh đáy: dải vàng mờ dần + quầng trên "sàn" */}
-        <div className="absolute" style={{ left: '14px', right: '16px', bottom: '2px', height: '30px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}>
+        <div className="absolute" style={{ left: '14px', right: '14px', bottom: '0px', height: '30px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}>
           <div
             className="absolute inset-x-[6px] top-0 h-full rounded-b-[30px]"
             style={{
@@ -248,21 +249,21 @@ export default function Sidebar({
       <div className="relative z-10 h-full flex flex-col" style={{ padding: '38px 50px 66px 30px' }}>
         {/* Brand Header: lục giác viền vàng + khối lập phương; tên + "AI 5.0 PLATFORM". */}
         <div className="flex items-center gap-2.5 px-1 shrink-0">
-          <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center">
+          <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center" style={{ filter: 'drop-shadow(0 0 8px rgba(34,211,238,0.45))' }}>
             <svg viewBox="0 0 52 52" className="absolute inset-0 w-full h-full" aria-hidden>
               <defs>
-                <linearGradient id="vienLogoVang" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#FFF1C1" />
-                  <stop offset="35%" stopColor="#F5C451" />
-                  <stop offset="70%" stopColor="#B07A22" />
-                  <stop offset="100%" stopColor="#F5C451" />
+                <linearGradient id="vienLogoNgoc" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#A5F3FC" />
+                  <stop offset="40%" stopColor="#22D3EE" />
+                  <stop offset="75%" stopColor="#0E7490" />
+                  <stop offset="100%" stopColor="#22D3EE" />
                 </linearGradient>
               </defs>
-              <polygon points="26,3 46,14.5 46,37.5 26,49 6,37.5 6,14.5" fill="rgba(245,196,81,0.08)" stroke="url(#vienLogoVang)" strokeWidth="2.2" strokeLinejoin="round" />
+              <polygon points="26,3 46,14.5 46,37.5 26,49 6,37.5 6,14.5" fill="rgba(34,211,238,0.12)" stroke="url(#vienLogoNgoc)" strokeWidth="2.2" strokeLinejoin="round" />
             </svg>
             <span
               className="material-symbols-outlined relative z-10"
-              style={{ fontSize: '25px', color: VANG.chinh, fontVariationSettings: "'wght' 400", filter: 'drop-shadow(0 0 5px rgba(245,196,81,0.6))' }}
+              style={{ fontSize: '25px', color: '#67E8F9', fontVariationSettings: "'wght' 400", filter: 'drop-shadow(0 0 6px rgba(34,211,238,0.8))' }}
             >
               deployed_code
             </span>
@@ -300,7 +301,11 @@ export default function Sidebar({
 
         {/* Đáy: vạch vàng phát sáng, rồi Trợ giúp / Đăng xuất. */}
         <div className="flex flex-col shrink-0 mt-3">
-          <div className="mx-3 h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, transparent, #F5C451 20%, #FFF1C1 50%, #F5C451 80%, transparent)', boxShadow: '0 0 8px rgba(245,196,81,0.9), 0 0 18px rgba(245,170,50,0.45)' }}></div>
+          <div className="relative mx-3 h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, transparent, #F5C451 15%, #FFE7A0 50%, #F5C451 85%, transparent)', boxShadow: '0 0 8px rgba(245,196,81,0.9), 0 0 18px rgba(245,170,50,0.45)' }}>
+            {['22%', '64%'].map((x) => (
+              <span key={x} className="absolute top-1/2 h-[6px] w-12 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: x, background: 'radial-gradient(ellipse, #FFFFFF 0%, rgba(255,236,170,0.9) 30%, transparent 70%)' }} />
+            ))}
+          </div>
           <div style={{ height: '10px' }}></div>
           <div className="flex flex-col" style={{ gap: '2px' }}>
             {SUPPORT_URL ? (
@@ -357,10 +362,11 @@ const VANG = {
   khung: 'linear-gradient(158deg, #5E3A08 0%, #FFE08A 6%, #FFFBEA 10%, #F2B841 16%, #7A4D0C 27%, #C98A22 38%, #FFF3C9 47%, #E8A935 55%, #5C3707 66%, #D99A2E 77%, #FFEBB0 86%, #B97818 93%, #6A430B 100%)',
   vienSang: 'linear-gradient(95deg, #FFF1C1 0%, #F5C451 25%, #B98023 60%, #F5C451 85%, #FFE3A0 100%)',
   vanhGiua: 'linear-gradient(170deg, #FFE7A0 0%, #C88A22 22%, #7A4D0C 40%, #E9B44A 60%, #FFF0C0 75%, #9C6516 100%)',
-  // Độ dày khối: các lớp bóng đắp lệch xuống – sang trái (lộ cạnh trái + cạnh đáy), tối dần như mặt bên kim loại; rồi neon.
+  // Độ dày khối: các lớp bóng đắp lệch xuống – sang PHẢI (lộ cạnh phải + cạnh đáy như ảnh mẫu), có một gờ sáng giữa
+  // như ống vàng thứ hai, tối dần như mặt bên kim loại; rồi neon.
   khoi: [
-    '-1px 1px 0 #E3AC45', '-2px 2px 0 #C98F2C', '-3px 3px 0 #B07A20', '-4px 4px 0 #976518', '-5px 5px 0 #7E5212',
-    '-6px 6px 0 #67420D', '-7px 7px 0 #523409', '-8px 8px 1px #3E2706', '-9px 10px 6px rgba(0,0,0,0.6)',
+    '1px 1px 0 #FFE7A0', '2px 2px 0 #E3AC45', '3px 3px 0 #C98F2C', '4px 4px 0 #B07A20', '5px 4px 0 #976518', '6px 5px 0 #FFD27A',
+    '7px 6px 0 #9C6A1A', '8px 7px 0 #67420D', '9px 8px 0 #523409', '10px 9px 1px #3E2706', '12px 11px 8px rgba(0,0,0,0.6)',
     '0 0 0 1px rgba(255,240,195,0.9)', '0 0 8px rgba(255,195,70,0.85)', '0 0 22px rgba(255,170,40,0.55)', '0 0 50px rgba(255,150,30,0.25)',
   ].join(', '),
 };
