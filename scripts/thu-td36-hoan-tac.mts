@@ -9,7 +9,7 @@
  *   npx tsx scripts/thu-td36-hoan-tac.mts
  */
 import { pool } from "../server/db.js";
-import { DAT_NGAT_KHI_BI_CHAN, NGAT_KHI_BI_CHAN_MS } from "../server/services/guardrails.js";
+import { DAT_NGAT_KHI_BI_CHAN, LY_DO_KENH_BI_CHAN, NGAT_KHI_BI_CHAN_MS } from "../server/services/guardrails.js";
 import { coNguon } from "../server/services/so-thay-doi.js";
 
 const KENH = "6ad369a7eab86410459c7c88";
@@ -41,6 +41,16 @@ try {
   await c.query("UPDATE social_accounts SET ai_paused_until = now() + interval '30 minutes', ai_pause_reason = 'tỷ lệ lỗi' WHERE id = $1", [KENH]);
   const lan3 = (await c.query(DAT_NGAT_KHI_BI_CHAN, [KENH, NGAT_KHI_BI_CHAN_MS, "thử 3"])).rows;
   kiem("đang tự ngắt 30 phút (tỷ lệ lỗi) → kéo lên 24 giờ", [lan3.length, Math.round((await gio()) ?? -1)], [1, 86400]);
+
+  // TD-36b: đúng biểu thức của GET /inbox/conversations/:id — chỉ báo khi lý do bắt đầu bằng tiền tố chặn gửi.
+  const BAO = `SELECT CASE WHEN sa.ai_paused_until > now() AND left(sa.ai_pause_reason, length($2)) = $2
+                    THEN sa.ai_paused_until END AS den, sa.page_id FROM social_accounts sa WHERE sa.id = $1`;
+  await c.query("UPDATE social_accounts SET ai_pause_reason = $2 WHERE id = $1", [KENH, `${LY_DO_KENH_BI_CHAN} ((#2022) thử)`]);
+  const baoChan = (await c.query(BAO, [KENH, LY_DO_KENH_BI_CHAN])).rows[0];
+  await c.query("UPDATE social_accounts SET ai_pause_reason = 'tỷ lệ gửi thất bại 80%' WHERE id = $1", [KENH]);
+  const baoTyLe = (await c.query(BAO, [KENH, LY_DO_KENH_BI_CHAN])).rows[0];
+  kiem("hộp thư: ngắt vì chặn gửi → có mốc + page_id; ngắt vì tỷ lệ lỗi → không báo",
+    [baoChan?.den !== null, baoChan?.page_id, baoTyLe?.den], [true, "851314991396686", null]);
 
   const loiRa = (await c.query("SELECT ai_paused_until, ai_pause_reason FROM social_accounts WHERE id = $1 AND ai_paused_until > now()", [KENH])).rowCount;
   await c.query("UPDATE social_accounts SET ai_paused_until = now() - interval '1 second' WHERE id = $1", [KENH]);

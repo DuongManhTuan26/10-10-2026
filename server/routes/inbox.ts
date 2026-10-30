@@ -4,6 +4,7 @@ import { requireAuth } from "../auth.js";
 import { AppError, requireString, route } from "../http.js";
 import * as zernio from "../services/zernio.js";
 import { sendMessageSafely } from "../services/outbound.js";
+import { LY_DO_KENH_BI_CHAN } from "../services/guardrails.js";
 import { layHoiThoaiChoTin, LY_DO_CHI_XEM } from "../services/nhiem-ky.js";
 import { LOI_KENH_DA_ROI } from "../services/cua-ra.js";
 import { layHoacTaoKhach } from "../services/khach.js";
@@ -180,12 +181,16 @@ inboxRouter.get(
   route(async (req, res) => {
     const conversation = await queryOne(
       `SELECT c.*, cu.name AS customer_name, cu.phone, cu.address, cu.avatar_url,
-              cu.tags, cu.note, sa.display_name AS account_name, ${LY_DO_CHI_XEM("c", "sa")} AS chi_xem
+              cu.tags, cu.note, sa.display_name AS account_name, ${LY_DO_CHI_XEM("c", "sa")} AS chi_xem,
+              -- Kênh đang ngắt vì Facebook chặn gửi (TD-36) → ô soạn báo trả lời trong Meta Business Suite.
+              CASE WHEN sa.ai_paused_until > now() AND left(sa.ai_pause_reason, length($3)) = $3
+                   THEN sa.ai_paused_until END AS kenh_bi_chan_den,
+              sa.page_id AS kenh_page_id
          FROM conversations c
          LEFT JOIN customers cu ON cu.id = c.customer_id
          LEFT JOIN social_accounts sa ON sa.id = c.social_account_id
         WHERE c.id = $1 AND c.user_id = $2`,
-      [req.params.id, req.user!.id]
+      [req.params.id, req.user!.id, LY_DO_KENH_BI_CHAN]
     );
 
     if (!conversation) throw new AppError("Không tìm thấy hội thoại", 404);

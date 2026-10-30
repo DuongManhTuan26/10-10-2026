@@ -464,3 +464,10 @@ vấn đề. Bảng mã lỗi Messenger: 2022 = "commerce messages … temporari
 gọi mô hình khi kênh đang ngắt (mọi kiểu ngắt). Thử tự hoàn tác scripts/thu-td36-hoan-tac.mts.
 Còn mở: nguyên nhân Meta chặn chưa biết (Meta không nói); tin khách đến lúc máy mất mạng vào app trễ 1 giờ 51 phút qua
 rà soát hộp thư (đường dự phòng chạy đúng).
+30/10/2026 chiều — chủ dự án xác nhận: "tin nhắn thường trên fanpage vẫn gửi được bình thường, chỉ tin nhắn do AI nhắn tự
+động là bị chặn". Phiên kiểm duyệt đọc Business Suite (chỉ đọc): hộp thư Fanpage 851314991396686 mở, không biểu ngữ hạn chế;
+Tổng quan tài khoản / tài khoản Facebook + BM: không vấn đề. → khớp mã 2022 ("commerce messages"): chặn ĐƯỜNG API, không
+chặn gửi tay trong Meta. Đã làm (TD-36b): người thật gửi tay trong app bị chặn → AppError 409 CAU_KENH_BI_CHAN_GUI ("…Vui
+lòng trả lời trong Meta Business Suite (tin gửi tay ở đó vẫn đi được)") thay câu Meta gây hiểu nhầm; chi tiết hội thoại trả
+kenh_bi_chan_den (chỉ khi lý do ngắt bắt đầu bằng LY_DO_KENH_BI_CHAN) + page_id → ô soạn báo dòng cam + link
+business.facebook.com/latest/inbox/messenger?asset_id=… (không khoá ô soạn: Meta mở lại thì gửi được ngay).

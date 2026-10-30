@@ -456,6 +456,10 @@ export interface Message {
 }
 
 export interface ConversationDetail extends Conversation {
+  /** TD-36: kênh đang ngắt vì Facebook chặn gửi qua ứng dụng — tới lúc này (null = không). */
+  kenh_bi_chan_den: string | null;
+  /** Mã Fanpage của kênh (link hộp thư Meta Business Suite). */
+  kenh_page_id: string | null;
   address: string | null;
   tags: string[];
   note: string | null;

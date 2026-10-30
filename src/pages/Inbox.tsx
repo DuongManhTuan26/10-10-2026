@@ -390,6 +390,11 @@ export default function Inbox() {
       externalUrl: detail.external_url,
       // Chỉ xem (kênh đã rời / chưa gắn cửa hàng): khoá gửi + giao AI; việc nội bộ (ghi chú, tạo đơn, quét thông tin) vẫn mở.
       chiXem: detail.chi_xem ?? null,
+      kenhBiChan: Boolean(detail.kenh_bi_chan_den),
+      // Hộp thư Fanpage trong Meta Business Suite (phiên kiểm duyệt mở thật 30/10: /latest/inbox/messenger?asset_id=…).
+      linkHopThuMeta: detail.platform === 'facebook' && detail.kenh_page_id
+        ? `https://business.facebook.com/latest/inbox/messenger?asset_id=${encodeURIComponent(detail.kenh_page_id)}`
+        : null,
       canSend: detail.window_state !== 'expired' && !detail.chi_xem,
       aiHandling: detail.status === 'ai',
       infoCollected: {
@@ -807,6 +812,22 @@ export default function Inbox() {
                     {selectedConv.chiXem === 'chua_gan'
                       ? 'Kênh chưa gắn cửa hàng — tạm thời chưa gửi được. Vui lòng vào Kết nối kênh để gắn kênh vào cửa hàng.'
                       : 'Kênh đã rời cửa hàng — chỉ xem lịch sử. Vẫn ghi chú khách và tạo đơn được; không gửi tin hay giao AI qua kênh này nữa.'}
+                  </span>
+                </div>
+              )}
+              {selectedConv.kenhBiChan && !selectedConv.chiXem && (
+                <div className="mb-3 px-3 py-2 bg-amber-400/10 border border-amber-400/30 rounded-md flex items-start gap-2 text-xs text-amber-400">
+                  <span className="material-symbols-outlined text-[16px] shrink-0">block</span>
+                  <span className="font-medium leading-relaxed">
+                    Facebook đang chặn gửi tin tự động từ ứng dụng cho Fanpage này. Vui lòng trả lời trong Meta Business Suite (tin gửi tay ở đó vẫn đi được).
+                    {selectedConv.linkHopThuMeta && (
+                      <>
+                        {' '}
+                        <a href={selectedConv.linkHopThuMeta} target="_blank" rel="noopener noreferrer" className="underline font-bold">
+                          Mở hộp thư Meta Business Suite
+                        </a>
+                      </>
+                    )}
                   </span>
                 </div>
               )}

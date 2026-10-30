@@ -10,6 +10,7 @@ import {
   evaluateAutoPause,
   laKenhBiChanGui,
   ngatKenhBiChanGui,
+  CAU_KENH_BI_CHAN_GUI,
   type Actor,
 } from "./guardrails.js";
 import { chanCuaRa } from "./cua-ra.js";
@@ -286,7 +287,11 @@ export async function sendMessageSafely(params: {
       `[gửi tin] Thất bại trong ${params.conversationId} (${params.actor}): ${message}`
     );
 
-    if (params.throwOnBlock) throw error;
+    if (params.throwOnBlock) {
+      // Người thật gửi tay: nói rõ chỉ đường gửi qua ứng dụng bị chặn, trả lời trong Meta vẫn được (không ném câu Meta gây hiểu nhầm).
+      if (laKenhBiChanGui(error)) throw new AppError(CAU_KENH_BI_CHAN_GUI, 409);
+      throw error;
+    }
 
     /*
      * 429 và 5xx: Zernio/Facebook từ chối xử lý, tin chắc chắn chưa đi.

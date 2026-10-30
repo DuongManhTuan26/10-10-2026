@@ -7670,6 +7670,34 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /\.\.\.\(dc\.sauMoc\.soLuotTheoBangGia > 0\s*\? \[\[`Trong đó \$\{dc\.sauMoc\.soLuotTheoBangGia\} lượt tính theo bảng giá/.test(ui34)],
       [true, true]);
   }
+  // TD-36b (30/10/2026): chủ dự án xác nhận gửi tay trong Meta vẫn đi, chỉ đường ứng dụng bị chặn (#2022). Người thật gửi tay
+  // trong app bị chặn → câu rõ "trả lời trong Meta Business Suite" (không câu Meta gây hiểu nhầm); ô soạn báo + link hộp thư.
+  {
+    const g36b = await import("../server/services/guardrails.js");
+    const ob = boChuThich(fs.readFileSync(path.join(GOC, "server/services/outbound.ts"), "utf8"));
+    const ib = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/inbox.ts"), "utf8"));
+    const ht = boChuThich(fs.readFileSync(path.join(GOC, "server/http.ts"), "utf8"));
+    const ix = fs.readFileSync(path.join(GOC, "src/pages/Inbox.tsx"), "utf8");
+    kiem("gửi tay khi bị chặn", "câu cho người thật: nói rõ chỉ đường ứng dụng bị chặn + trả lời trong Meta Business Suite; không 'Hệ thống:' / không mã Meta; lý do ngắt dùng chung tiền tố",
+      [g36b.CAU_KENH_BI_CHAN_GUI, /Hệ thống|#2022|Zernio/.test(g36b.CAU_KENH_BI_CHAN_GUI), g36b.LY_DO_KENH_BI_CHAN,
+        /const lyDo = `\$\{LY_DO_KENH_BI_CHAN\} \(\$\{params\.loi\.slice\(0, 200\)\}\)`;/.test(boChuThich(fs.readFileSync(path.join(GOC, "server/services/guardrails.ts"), "utf8")))],
+      ["Facebook đang chặn gửi tin tự động từ ứng dụng cho Fanpage này. Vui lòng trả lời trong Meta Business Suite (tin gửi tay ở đó vẫn đi được).",
+        false, "Facebook đang chặn Fanpage gửi tin nhắn", true]);
+    kiem("gửi tay khi bị chặn", "cổng gửi: throwOnBlock + lỗi chặn → AppError 409 đúng câu (sau khi ngắt kênh); lỗi khác ném nguyên; AppError ra màn hình nguyên câu",
+      [/if \(params\.throwOnBlock\) \{\s*if \(laKenhBiChanGui\(error\)\) throw new AppError\(CAU_KENH_BI_CHAN_GUI, 409\);\s*throw error;\s*\}/.test(ob),
+        ob.indexOf("ngatKenhBiChanGui(") < ob.indexOf("throw new AppError(CAU_KENH_BI_CHAN_GUI, 409)"),
+        /if \(error instanceof AppError\) \{\s*res\.status\(error\.status\)\.json\(\{ error: error\.message,/.test(ht)],
+      [true, true, true]);
+    kiem("gửi tay khi bị chặn", "chi tiết hội thoại: kenh_bi_chan_den CHỈ khi kênh đang ngắt VÀ lý do bắt đầu bằng tiền tố chặn gửi; kèm page_id",
+      [/CASE WHEN sa\.ai_paused_until > now\(\) AND left\(sa\.ai_pause_reason, length\(\$3\)\) = \$3\s*THEN sa\.ai_paused_until END AS kenh_bi_chan_den,\s*sa\.page_id AS kenh_page_id/.test(ib),
+        /\[req\.params\.id, req\.user!\.id, LY_DO_KENH_BI_CHAN\]/.test(ib)],
+      [true, true]);
+    kiem("gửi tay khi bị chặn", "ô soạn: dòng báo đúng câu máy chủ (không khoá ô soạn); link hộp thư Meta chỉ cho Facebook có page id (/latest/inbox/messenger?asset_id=)",
+      [ix.includes(`<span className="font-medium leading-relaxed">\n                    ${g36b.CAU_KENH_BI_CHAN_GUI}`), /\{selectedConv\.kenhBiChan && !selectedConv\.chiXem && \(/.test(ix),
+        /linkHopThuMeta: detail\.platform === 'facebook' && detail\.kenh_page_id\s*\? `https:\/\/business\.facebook\.com\/latest\/inbox\/messenger\?asset_id=\$\{encodeURIComponent\(detail\.kenh_page_id\)\}`\s*: null,/.test(ix),
+        /canSend: detail\.window_state !== 'expired' && !detail\.chi_xem,/.test(ix)],
+      [true, true, true, true]);
+  }
   // TD-36 (30/10/2026): Facebook chặn Fanpage gửi tin (#2022 / 10-1893063) → ngắt AI kênh 24 giờ trước khi trả về; AI Bán
   // hàng không gọi mô hình khi kênh đang ngắt; báo Telegram một lần mỗi lần ngắt.
   {
@@ -7702,7 +7730,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     const bat36 = ob36.slice(ob36.indexOf('await markAttemptOutcome(attemptId, "failed", code);'));
     kiem("Facebook chặn gửi", "cổng gửi: lỗi chặn → ngắt kênh NGAY sau khi ghi 'failed', trước khi trả kết quả (lượt nhường người sau đó bị cổng chặn)",
       [/if \(conversation\.social_account_id && laKenhBiChanGui\(error\)\) \{\s*await ngatKenhBiChanGui\(\{ socialAccountId: conversation\.social_account_id, loi: message \}\)/.test(bat36),
-        bat36.indexOf("ngatKenhBiChanGui(") > 0 && bat36.indexOf("ngatKenhBiChanGui(") < bat36.indexOf("if (params.throwOnBlock) throw error;"),
+        bat36.indexOf("ngatKenhBiChanGui(") > 0 && bat36.indexOf("ngatKenhBiChanGui(") < bat36.indexOf("if (params.throwOnBlock) {"),
         bat36.indexOf("ngatKenhBiChanGui(") < bat36.indexOf("blockReason: \"send_failed\"")],
       [true, true, true]);
     const sa36 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/sales-ai.ts"), "utf8"));

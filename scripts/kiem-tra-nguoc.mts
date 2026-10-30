@@ -6637,6 +6637,30 @@ const DUC: PhepDuc[] = [
     thay: "        {!anhRieng && coTaiLieuNoiDung === null && (",
   },
   {
+    ten: "gửi tay bị chặn: ném nguyên câu Meta (chủ shop tưởng bị cấm gửi mọi tin)",
+    tep: "server/services/outbound.ts",
+    tim: "      if (laKenhBiChanGui(error)) throw new AppError(CAU_KENH_BI_CHAN_GUI, 409);\n",
+    thay: "",
+  },
+  {
+    ten: "hộp thư báo 'bị chặn' cho MỌI kiểu ngắt (cả tự ngắt tỷ lệ lỗi)",
+    tep: "server/routes/inbox.ts",
+    tim: "CASE WHEN sa.ai_paused_until > now() AND left(sa.ai_pause_reason, length($3)) = $3",
+    thay: "CASE WHEN sa.ai_paused_until > now() AND length($3) > 0",
+  },
+  {
+    ten: "ô soạn không báo kênh bị chặn",
+    tep: "src/pages/Inbox.tsx",
+    tim: "              {selectedConv.kenhBiChan && !selectedConv.chiXem && (",
+    thay: "              {selectedConv.kenhBiChan && selectedConv.chiXem && (",
+  },
+  {
+    ten: "lý do ngắt không dùng tiền tố chung (hộp thư không nhận ra)",
+    tep: "server/services/guardrails.ts",
+    tim: "  const lyDo = `${LY_DO_KENH_BI_CHAN} (${params.loi.slice(0, 200)})`;",
+    thay: "  const lyDo = `Bị chặn (${params.loi.slice(0, 200)})`;",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

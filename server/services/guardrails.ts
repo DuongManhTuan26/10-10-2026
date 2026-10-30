@@ -721,6 +721,17 @@ export function cauAiTamNgat(lyDo: string | null, den: Date): string {
  */
 export const NGAT_KHI_BI_CHAN_MS = 24 * 60 * 60_000;
 
+/** Tiền tố ai_pause_reason khi ngắt vì Facebook chặn gửi — MỘT nguồn cho ngatKenhBiChanGui và hộp thư (kenh_bi_chan_den). */
+export const LY_DO_KENH_BI_CHAN = "Facebook đang chặn Fanpage gửi tin nhắn";
+
+/**
+ * Câu cho NGƯỜI THẬT gửi tay trong app khi Facebook chặn (30/10/2026): chủ dự án xác nhận tin gửi tay trong Meta vẫn đi,
+ * chỉ đường gửi qua ứng dụng (API) bị chặn — khớp mã 2022 "commerce messages". Câu nguyên văn của Meta ("Bạn tạm thời bị
+ * hạn chế gửi tin nhắn…") làm chủ shop tưởng bị cấm gửi mọi tin.
+ */
+export const CAU_KENH_BI_CHAN_GUI =
+  "Facebook đang chặn gửi tin tự động từ ứng dụng cho Fanpage này. Vui lòng trả lời trong Meta Business Suite (tin gửi tay ở đó vẫn đi được).";
+
 /** Câu đặt ngắt (một nguồn cho hàm ngắt và phép thử tự hoàn tác scripts/thu-td36-hoan-tac.mts). $1 kênh, $2 ms, $3 lý do. */
 export const DAT_NGAT_KHI_BI_CHAN = `
   UPDATE social_accounts
@@ -763,7 +774,7 @@ export async function ngatKenhBiChanGui(
   params: { socialAccountId: string; loi: string },
   gui: (chuKenh: number, trangId: number | null, noiDung: string) => Promise<boolean> = guiChuKenhVaQuanTri
 ): Promise<Date | null> {
-  const lyDo = `Facebook đang chặn Fanpage gửi tin nhắn (${params.loi.slice(0, 200)})`;
+  const lyDo = `${LY_DO_KENH_BI_CHAN} (${params.loi.slice(0, 200)})`;
   const dat = await transaction(async (c) => {
     await coNguon(c, "he_thong");
     const r = await c.query<{ ai_paused_until: Date; user_id: number; trang_id: number | null; display_name: string | null }>(
