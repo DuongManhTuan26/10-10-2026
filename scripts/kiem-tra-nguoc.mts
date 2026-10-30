@@ -225,7 +225,7 @@ const DUC: PhepDuc[] = [
     ten: "viền thẻ kính mờ mất, thẻ chìm vào nền",
     tep: "src/index.css",
     // 31/10/2026: viền chung sang vàng gold menu — trỏ lại.
-    tim: "  --color-outline-variant: rgb(245 196 81 / 0.34);",
+    tim: "  --color-outline-variant: rgb(245 196 81 / 0.45);",
     thay: "  --color-outline-variant: rgb(245 196 81 / 0.08);",
   },
   {
@@ -6804,8 +6804,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "viền vàng: viền chung quay lại xanh ngọc",
     tep: "src/index.css",
-    tim: "  --color-outline-variant: rgb(245 196 81 / 0.34);",
-    thay: "  --color-outline-variant: rgb(0 229 255 / 0.34);",
+    tim: "  --color-outline-variant: rgb(245 196 81 / 0.45);",
+    thay: "  --color-outline-variant: rgb(0 229 255 / 0.45);",
   },
   {
     ten: "viền vàng: đổi luôn màu nút sang vàng (chủ dự án: nút để nguyên)",
@@ -6814,10 +6814,11 @@ const DUC: PhepDuc[] = [
     thay: "  --color-primary: #F5C451;",
   },
   {
-    ten: "viền vàng: trang 4 AI mất viền màu AI",
+    ten: "4 AI chung màu: trang AI Quảng cáo quay lại màu đỏ riêng",
     tep: "src/index.css",
-    tim: "  .mien-noi-dung, .mien-quang-cao, .mien-ban-hang, .mien-dieu-hanh { --vien-mac-dinh: var(--mien); }\n",
-    thay: "",
+    // 31/10/2026: chủ dự án đưa 4 AI về chung màu — trỏ lại.
+    tim: "  .mien-quang-cao { --mien: #22d3ee; --tren-mien: #003640; }",
+    thay: "  .mien-quang-cao { --mien: #ff4d6a; --tren-mien: #2b0309; }",
   },
   {
     ten: "viền vàng: thẻ con thừa hưởng viền vàng của thẻ cha",
@@ -6834,14 +6835,50 @@ const DUC: PhepDuc[] = [
   {
     ten: "viền vàng: lưới ô vuông nền bị đổi",
     tep: "src/index.css",
-    tim: "      linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),\n",
-    thay: "      linear-gradient(rgb(245 196 81 / 0.025) 1px, transparent 1px),\n",
+    tim: "      linear-gradient(rgb(255 255 255 / 0.043) 1px, transparent 1px),\n",
+    thay: "      linear-gradient(rgb(245 196 81 / 0.043) 1px, transparent 1px),\n",
   },
   {
     ten: "viền vàng: thanh cuộn còn xanh ngọc",
     tep: "src/index.css",
     tim: "    background: rgba(245, 196, 81, 0.1);",
     thay: "    background: rgba(0, 229, 255, 0.1);",
+  },
+  {
+    ten: "viền ánh kim: bỏ vòng kim loại (chỉ còn viền phẳng)",
+    tep: "src/index.css",
+    tim: "    mask-composite: exclude;\n}",
+    thay: "    mask-composite: exclude;\n    display: none;\n}",
+  },
+  {
+    ten: "4 AI chung màu: thanh 4 bước quay lại màu riêng AI",
+    tep: "src/components/KhuonAi.tsx",
+    tim: "  const mau = MAU_THUONG_HIEU;",
+    thay: "  const mau = motAi.hex;",
+  },
+  {
+    ten: "4 AI chung màu: tiêu đề trang AI quay lại màu riêng",
+    tep: "src/components/TopNavBar.tsx",
+    tim: "  const mauTieuDe = MAU_THUONG_HIEU;",
+    thay: "  const mauTieuDe = aiDangXem?.hex ?? MAU_THUONG_HIEU;",
+  },
+  {
+    ten: "4 AI chung màu: khung phần mang màu AI vẫn xanh lá / đỏ / tím / vàng",
+    tep: "src/index.css",
+    tim: "  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang) { --mau: #22d3ee; --mau-vien: var(--vien-mac-dinh); }\n",
+    thay: "",
+  },
+  {
+    ten: "4 AI chung màu: thẻ gắn màu AI trên trang chung vẫn màu riêng",
+    tep: "src/lib/bon-ai.ts",
+    tim: "  mau === MAU_THUONG_HIEU || BON_AI.some((a) => a.hex === mau)",
+    thay: "  mau === MAU_THUONG_HIEU",
+  },
+  {
+    ten: "nền: không phải tông 4 chủ dự án chọn",
+    tep: "src/index.css",
+    tim: "  --color-background: #0a1a20;",
+    thay: "  --color-background: #071418;",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

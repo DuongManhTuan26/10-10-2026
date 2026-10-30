@@ -9,7 +9,7 @@ import { PRICING_PLANS, goiHienTai, type PricingPlan } from '../lib/pricing';
  */
 import { SUPPORT_URL, IS_EXTERNAL_SUPPORT } from '../lib/ho-tro';
 import TheMuc from '../components/TheMuc';
-import { aiTheoMa, MAU_THONG_TIN, MAU_THUONG_HIEU, VIEN_HE_THONG } from '../lib/bon-ai';
+import { aiTheoMa, bienThe, MAU_THONG_TIN, MAU_THUONG_HIEU, VIEN_HE_THONG } from '../lib/bon-ai';
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -149,7 +149,7 @@ export default function Pricing() {
             { nhan: 'ĐƠN HÀNG', so: usage.orders_month, mau: aiTheoMa('sales').hex, icon: 'receipt_long' },
             { nhan: 'BÀI ĐÃ TẠO', so: usage.posts_month, mau: aiTheoMa('content').hex, icon: 'post_add' },
           ].map((o) => (
-            <div key={o.nhan} className="the p-md" style={{ ['--nhan' as string]: o.mau }}>
+            <div key={o.nhan} className="the p-md" style={bienThe(o.mau)}>
               <div className="flex items-center gap-3">
                 <span className="o-bieu-tuong shrink-0"><span className="material-symbols-outlined text-[20px]">{o.icon}</span></span>
                 <span className="font-label-sm text-on-surface-variant tracking-widest uppercase">{o.nhan}</span>

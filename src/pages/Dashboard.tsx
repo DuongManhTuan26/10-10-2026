@@ -16,7 +16,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { clsx } from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { api, formatCurrency, timeAgo, ORDER_STATUS_LABELS, type User } from '../lib/api';
-import { aiTheoMa, BIEU_DO, MAU_XAM } from '../lib/bon-ai';
+import { aiTheoMa, bienThe, BIEU_DO, MAU_XAM } from '../lib/bon-ai';
 
 type Range = '1d' | '7d' | '30d';
 
@@ -257,7 +257,7 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
             { nhan: `Doanh thu · ${ky.ten.toLowerCase()}`, so: isLoading ? '…' : formatCurrency(stats.revenue), phu: `${soDon.toLocaleString('vi-VN')} đơn, không tính đơn huỷ`, icon: 'payments', mau: mauBan },
             ...baSo.map((o) => ({ ...o, so: isLoading ? '…' : o.so })),
           ].map((o) => (
-            <section key={o.nhan} className="the px-4 py-3 flex items-center gap-3 min-w-0" style={{ ['--nhan' as string]: o.mau }}>
+            <section key={o.nhan} className="the px-4 py-3 flex items-center gap-3 min-w-0" style={bienThe(o.mau)}>
               <span className="o-bieu-tuong shrink-0"><span className="material-symbols-outlined text-[20px]">{o.icon}</span></span>
               <span className="min-w-0">
                 <span className="block text-xs font-bold text-on-surface-variant truncate">{o.nhan}</span>
@@ -271,7 +271,7 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
 
         {/* 4. XU HƯỚNG 7 NGÀY | HOẠT ĐỘNG GẦN ĐÂY — hai cột cao bằng nhau. */}
         <div className="grid gap-4 xl:grid-cols-3">
-          <section className="the p-5 xl:col-span-2 flex flex-col min-w-0" style={{ ['--nhan' as string]: mauBan }}>
+          <section className="the p-5 xl:col-span-2 flex flex-col min-w-0" style={bienThe(mauBan)}>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <h3 className="flex items-center gap-3 text-base font-bold text-on-surface">
                 <span className="o-bieu-tuong"><span className="material-symbols-outlined text-[20px]">monitoring</span></span>
@@ -309,7 +309,7 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
             </div>
           </section>
 
-          <section className="the p-5 flex flex-col min-w-0 xl:h-[360px]" style={{ ['--nhan' as string]: mauBan }}>
+          <section className="the p-5 flex flex-col min-w-0 xl:h-[360px]" style={bienThe(mauBan)}>
             <h3 className="flex items-center gap-3 text-base font-bold text-on-surface mb-4">
               <span className="o-bieu-tuong"><span className="material-symbols-outlined text-[20px]">bolt</span></span>
               Hoạt động gần đây
@@ -334,7 +334,7 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
 
         {/* 5. ĐƠN HÀNG MỚI NHẤT */}
         {/* Đơn hàng thuộc ③ AI Bán hàng — CẢ khung (viền, kẻ dòng, liên kết) màu ③, không chỉ biểu tượng. */}
-        <section className="the overflow-hidden mb-8" style={{ ['--nhan' as string]: mauBan }}>
+        <section className="the overflow-hidden mb-8" style={bienThe(mauBan)}>
           <div className="px-5 py-4 flex justify-between items-center border-b border-[color-mix(in_srgb,var(--mau-the)_40%,transparent)]">
             <h3 className="flex items-center gap-3 text-base font-bold text-on-surface">
               <span className="o-bieu-tuong"><span className="material-symbols-outlined text-[20px]">receipt_long</span></span>

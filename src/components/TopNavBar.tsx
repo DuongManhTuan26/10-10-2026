@@ -67,7 +67,8 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
   // Màu tiêu đề theo miền (src/lib/bon-ai.ts): 4 AI theo màu của nó; Tổng quan, Kết nối và trang hệ thống = màu thương hiệu
   // (chủ dự án 23/10/2026: trang hệ thống học theo Tổng quan — bỏ chữ trắng).
   const aiDangXem = BON_AI.find((a) => a.duong === location.pathname);
-  const mauTieuDe = aiDangXem?.hex ?? MAU_THUONG_HIEU;
+  // 31/10/2026: 4 AI chung màu với Tổng quan — tiêu đề mọi trang một màu thương hiệu.
+  const mauTieuDe = MAU_THUONG_HIEU;
 
   return (
     <nav className="fixed top-0 right-0 w-full lg:w-[calc(100%-288px)] z-40 bg-surface border-b border-outline-variant transition-all duration-200 flex justify-between items-center gap-2 px-4 sm:px-margin py-base h-16">

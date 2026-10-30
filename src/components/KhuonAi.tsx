@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { BON_THE, aiTheoMa, type MaThe } from '../lib/bon-ai';
+import { BON_THE, MAU_THUONG_HIEU, aiTheoMa, type MaThe } from '../lib/bon-ai';
 import type { MaAi } from '../lib/api';
 
 /**
@@ -23,6 +23,8 @@ export default function KhuonAi({
   phuDe?: ReactNode;
 }) {
   const motAi = aiTheoMa(ai);
+  // 31/10/2026 (chủ dự án: "đưa toàn bộ 4 AI về chung màu"): đầu trang + 4 bước dùng màu chung của hệ thống, không màu riêng AI.
+  const mau = MAU_THUONG_HIEU;
   const [tim, datTim] = useSearchParams();
   const theMo = (BON_THE.find((t) => t.ma === tim.get('the'))?.ma ?? BON_THE[0].ma) as MaThe;
 
@@ -35,7 +37,7 @@ export default function KhuonAi({
       <div className="flex items-center gap-3 mb-4 min-w-0">
         <span
           className="w-10 h-10 rounded-xl flex items-center justify-center font-mono text-lg font-black shrink-0"
-          style={{ color: motAi.hex, border: `1px solid ${motAi.hex}99`, background: `${motAi.hex}1f` }}
+          style={{ color: mau, border: `1px solid ${mau}99`, background: `${mau}1f` }}
         >
           {motAi.so}
         </span>
@@ -62,12 +64,12 @@ export default function KhuonAi({
               onClick={() => datTim((p) => { const m = new URLSearchParams(p); m.set('the', t.ma); return m; }, { replace: true })}
               className={clsx('flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition', !mo && 'hover:brightness-125')}
               style={mo
-                ? { background: motAi.hex, borderColor: motAi.hex, color: '#0b1417' }
-                : { background: `${motAi.hex}12`, borderColor: `${motAi.hex}59`, color: motAi.hex }}
+                ? { background: mau, borderColor: mau, color: '#0b1417' }
+                : { background: `${mau}12`, borderColor: `${mau}59`, color: mau }}
             >
               <span
                 className="w-7 h-7 rounded-full flex items-center justify-center font-mono text-sm font-black shrink-0"
-                style={mo ? { background: '#0b141726', color: '#0b1417' } : { border: `1px solid ${motAi.hex}80` }}
+                style={mo ? { background: '#0b141726', color: '#0b1417' } : { border: `1px solid ${mau}80` }}
               >
                 {i + 1}
               </span>

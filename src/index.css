@@ -33,34 +33,34 @@
    * rgb(8,21,26) trên nền rgb(6,12,15), viền rgb(32,78,87). Màu chữ tính trên
    * màu SAU KHI TRỘN với nền: chữ phụ ≥ 7, viền thẻ ↔ nền ≥ 2,2.
    */
-  /* 31/10/2026 (chủ dự án: "tăng ánh xanh đá + sáng hơn một chút, không hợp thì quay về được"). MÀU CŨ: #050c0e. */
-  --color-background: #071418;
+  /* 31/10/2026 — chủ dự án CHỌN tông 4 "Xanh đá dầu (sáng hơn)" từ bảng thử 13 tông. Cũ: #050c0e → #071418 → nay. */
+  --color-background: #0a1a20;
   --color-on-background: #e2e8f0;
   
-  --color-surface: #0f1f24;
+  --color-surface: #10252c;
   --color-on-surface: #f1f5f9;
-  --color-surface-variant: rgb(40 105 118 / 0.30);
+  --color-surface-variant: rgb(24 80 92 / 0.30);
   --color-on-surface-variant: #bfd0d6;
   
-  --color-surface-container-lowest: #081317;
-  --color-surface-container-low: rgb(24 72 82 / 0.14);
-  --color-surface-container: rgb(24 72 82 / 0.22);
-  --color-surface-container-high: rgb(40 105 118 / 0.30);
-  --color-surface-container-highest: rgb(50 125 140 / 0.40);
+  --color-surface-container-lowest: #0a1a20;
+  --color-surface-container-low: rgb(24 80 92 / 0.14);
+  --color-surface-container: rgb(24 80 92 / 0.22);
+  --color-surface-container-high: rgb(24 80 92 / 0.30);
+  --color-surface-container-highest: rgb(24 80 92 / 0.40);
   
   /*
    * Nền đặc cho thứ NỔI trên nội dung (hộp thoại, menu thả xuống, thông báo
    * nổi): trong suốt thì chữ của trang phía sau lẫn vào chữ của nó.
    */
-  --color-hop-thoai: #0a171b;
-  --color-hop-thoai-dau: #0f2227;
-  --color-noi: #0e1f24;
+  --color-hop-thoai: #10252c;
+  --color-hop-thoai-dau: #10252c;
+  --color-noi: #10252c;
   /* Nền hộp chú thích của biểu đồ (phải đặc để đọc được chữ đè lên đường biểu đồ). */
-  --color-the: #121f25;
+  --color-the: #10252c;
 
   --color-outline: #668b99;
   /* 31/10/2026 (chủ dự án: "chỉ đổi viền vàng thôi, nút để nguyên"): viền chung = vàng gold của menu (#F5C451). */
-  --color-outline-variant: rgb(245 196 81 / 0.34);
+  --color-outline-variant: rgb(245 196 81 / 0.45);
   
   --color-error: #ef4444;
 
@@ -203,11 +203,38 @@
     --vien-the: initial;
     --mau-the: var(--nhan, var(--color-primary));
     --vien-cua-the: var(--vien-the, var(--nhan, var(--vien-mac-dinh)));
+    --vien-anh-kim: var(--vien-cua-the);
     position: relative;
     border: 1px solid color-mix(in srgb, var(--vien-cua-the) 55%, transparent);
     border-radius: 18px;
     background: color-mix(in srgb, var(--mau-the) 5%, transparent);
-    box-shadow: 0 0 22px color-mix(in srgb, var(--vien-cua-the) 10%, transparent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--vien-cua-the) 16%, transparent);
+}
+/*
+ * VIỀN VÀNG GOLD ÁNH KIM SÁNG (chủ dự án 31/10/2026: "viền chủ đạo là viền gold ánh kim sáng") — vòng kim loại nhiều dải
+ * sáng / tối như khung menu, thay viền phẳng. Vẽ bằng lớp ::before khoét giữa (mask) để nền thẻ vẫn trong suốt thấy lưới.
+ * Màu gốc của vòng = màu viền của thẻ (--vien-anh-kim): vàng gold; thẻ cảnh báo / lỗi giữ màu nghĩa của nó, cũng ánh kim.
+ */
+.the, .khung-muc { border-color: transparent !important; }
+.khung-muc { position: relative; --vien-anh-kim: var(--mau-vien, var(--mau)); }
+.the::before, .khung-muc::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    pointer-events: none;
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--vien-anh-kim) 45%, #000) 0%,
+        var(--vien-anh-kim) 14%,
+        color-mix(in srgb, var(--vien-anh-kim) 30%, #fff) 24%,
+        color-mix(in srgb, var(--vien-anh-kim) 65%, #000) 42%,
+        var(--vien-anh-kim) 60%,
+        color-mix(in srgb, var(--vien-anh-kim) 40%, #fff) 76%,
+        color-mix(in srgb, var(--vien-anh-kim) 55%, #000) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
 }
 .the-bam {
     transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
@@ -433,13 +460,15 @@ textarea::placeholder {
     --color-on-primary-container: color-mix(in srgb, var(--mien) 35%, white);
     --color-outline-variant: color-mix(in srgb, var(--vien-mac-dinh) 32%, transparent);
   }
-  /* Trang 4 AI: viền theo màu AI như cũ (chủ dự án quyết màu 4 AI sau); Tổng quan + trang hệ thống: viền vàng (:root). */
-  .mien-noi-dung, .mien-quang-cao, .mien-ban-hang, .mien-dieu-hanh { --vien-mac-dinh: var(--mien); }
-  /* Quy tắc XANH – ĐỎ – TÍM – VÀNG (chủ dự án 12/10/2026 — nguồn tên miền ↔ AI: src/lib/bon-ai.ts). */
-  .mien-noi-dung  { --mien: #4ade80; --tren-mien: #052e16; }
-  .mien-quang-cao { --mien: #ff4d6a; --tren-mien: #2b0309; }
-  .mien-ban-hang  { --mien: #b38bff; --tren-mien: #1e0f40; }
-  .mien-dieu-hanh { --mien: #facc15; --tren-mien: #2a2100; }
+  /*
+   * 4 AI CHUNG MÀU (chủ dự án 31/10/2026: "đưa toàn bộ 4 AI về chung màu này" — thay quy tắc xanh–đỏ–tím–vàng 12/10):
+   * trang 4 AI dùng đúng bộ màu của Tổng quan — nút xanh ngọc, viền vàng gold ánh kim. Màu riêng 4 AI (bon-ai.ts hex) chỉ
+   * còn ở dấu nhận diện nhỏ: số ①②③④ trên menu, ảnh khối não, đường biểu đồ.
+   */
+  .mien-noi-dung  { --mien: #22d3ee; --tren-mien: #003640; }
+  .mien-quang-cao { --mien: #22d3ee; --tren-mien: #003640; }
+  .mien-ban-hang  { --mien: #22d3ee; --tren-mien: #003640; }
+  .mien-dieu-hanh { --mien: #22d3ee; --tren-mien: #003640; }
   /* Tổng quan: màu thương hiệu (không thuộc AI nào). */
   .mien-tong-quan { --mien: #22d3ee; --tren-mien: #003640; }
   /*
@@ -462,19 +491,21 @@ textarea::placeholder {
   .mau-xam { --mau: #94a3b8; }
   /* VIỀN khung (31/10/2026): khung xanh ngọc + khung mặc định → viền vàng gold; khung màu khác giữ viền cùng màu. */
   .khung-muc.mau-xanh, .khung-muc:not([class*="mau-"]) { --mau-vien: var(--vien-mac-dinh); }
+  /* 4 AI CHUNG MÀU (31/10/2026): khung mang màu của một AI (lá / đỏ / tím / vàng) → dải đầu xanh ngọc, viền vàng ánh kim. */
+  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang) { --mau: #22d3ee; --mau-vien: var(--vien-mac-dinh); }
 
   /*
    * Nền chung của app — cùng một chất liệu với thanh menu (chủ dự án chọn):
    * nền gần đen ánh xanh ngọc, quầng sáng xanh mờ, lưới ô 24px rất nhạt.
    */
-  /* 31/10/2026: quầng xanh đá đậm hơn (cũ 0.07 / 0.05); đường kẻ ô vuông giữ nguyên. */
+  /* 31/10/2026 tông 4 "Xanh đá dầu": quầng 0.10 / 0.07; nét lưới 4,3% (nền sáng hơn → nét đậm hơn để ô vuông rõ ngang bản cũ). */
   .nen-app {
     background-color: var(--color-background);
     background-image:
-      radial-gradient(640px 420px at 90% -8%, rgb(0 229 255 / 0.11), transparent 70%),
-      radial-gradient(560px 420px at 30% 108%, rgb(0 229 255 / 0.08), transparent 70%),
-      linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px);
+      radial-gradient(640px 420px at 90% -8%, rgb(0 229 255 / 0.10), transparent 70%),
+      radial-gradient(560px 420px at 30% 108%, rgb(0 229 255 / 0.07), transparent 70%),
+      linear-gradient(rgb(255 255 255 / 0.043) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.043) 1px, transparent 1px);
     background-size: auto, auto, 24px 24px, 24px 24px;
   }
 
