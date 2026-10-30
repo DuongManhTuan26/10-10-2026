@@ -160,7 +160,16 @@ Mỗi mục: hiện tượng · căn cứ để gọi là lỗi · nguyên nhân
 - **Đã xử lý 23/10/2026:** gỡ server/routes/analytics.ts + app.use; bỏ 7 phép kiểm và 3 phép đục canh tệp đó (đường gọi AI
   /analyze bớt khỏi danh sách chống đốt tiền). Bảng ai_reports giữ nguyên (dữ liệu cũ).
 
-## TD-13 — Sửa ngân sách chiến dịch ABO (ngân sách ở tầng nhóm quảng cáo) chưa làm được trong app (18/10/2026)
+## TD-13 — ĐÃ LÀM (30/10/2026): Sửa ngân sách chiến dịch ABO (ngân sách ở tầng nhóm quảng cáo) chưa làm được trong app (18/10/2026)
+
+30/10/2026: QC 75 (bài app đẩy) đọc thật → budgetLevel "adset", 1 nhóm 52561208491312 → MỌI bài app đẩy đều ABO, nút "Sửa ngân
+sách" trả 409 cho 100% chiến dịch app tạo. Đã làm trong PATCH /api/ads/campaigns/:id/budget: chốt tiền như đẩy bài (VND / chạy
+được / thanh toán / tối thiểu ngày / trần chi tiêu) TRƯỚC mọi lệnh sửa → PUT chiến dịch (CBO) → 409 thì nhóm từ /v1/ads/tree,
+đúng 1 nhóm ngân sách ngày (≥ 2 nhóm / trọn đời → 409 nói rõ), nhóm thuộc đúng tài khoản + chiến dịch theo Meta (GET
+/v1/ads/ad-sets/{id} fields account_id,campaign_id) → PUT /v1/ads/ad-sets/{id} → sổ thay đổi có ngân sách trước / sau.
+CHƯA THỬ PUT THẬT (đổi tiền thật) — kiểm bằng mã; lần sửa ngân sách thật đầu tiên phải đọc lại ngân sách nhóm sau lệnh.
+
+Ghi chép cũ:
 
 - Hiện trạng: chiến dịch ABO → máy chủ trả 409 "ngân sách nằm ở tầng nhóm quảng cáo, chưa sửa được trong app".
 - Lý do: đường danh sách nhóm cũ gọi GET /v1/ads/ad-sets — tài liệu nhà cung cấp KHÔNG có đường này (chỉ có

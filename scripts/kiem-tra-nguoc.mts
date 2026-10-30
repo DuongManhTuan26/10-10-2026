@@ -3535,10 +3535,11 @@ const DUC: PhepDuc[] = [
     thay: "    // phải tự đối chiếu chiến dịch thuộc shop TRƯỚC khi đổi (phiên kiểm duyệt bắt được 18/10/2026).\n    if (false) {",
   },
   {
-    ten: "ABO: không báo rõ lý do chưa sửa được ngân sách",
+    // 30/10/2026 (TD-13): câu "chưa sửa được trong app" đã bỏ — ABO nay sửa ở nhóm. Trỏ lại: 409 phải sang nhánh nhóm.
+    ten: "ABO: lỗi 409 ném thẳng ra (không sang sửa ở nhóm)",
     tep: "server/routes/ads.ts",
-    tim: "ngân sách nằm ở tầng nhóm quảng cáo, chưa sửa được trong app.",
-    thay: "vui lòng thử lại.",
+    tim: "      if (status !== 409) throw error;",
+    thay: "      void status;\n      throw error;",
   },
   {
     ten: "lại gọi đường danh sách nhóm không có trong tài liệu",
@@ -6530,6 +6531,54 @@ const DUC: PhepDuc[] = [
     tep: "server/services/sales-ai.ts",
     tim: "    if (tuChuSom.bat) await baoChuShop(conversation, lyDo, tuChuSom, true);\n    else await handoff(conversation, lyDo);",
     thay: "    void lyDo;",
+  },
+  {
+    ten: "ngân sách nhóm: chiến dịch nhiều nhóm vẫn sửa nhóm đầu (tự chia tiền)",
+    tep: "server/services/ads.ts",
+    tim: "  if (nhom.length > 1) {",
+    thay: "  if (nhom.length > 99) {",
+  },
+  {
+    ten: "ngân sách nhóm: nhóm trọn đời bị đổi sang ngân sách ngày",
+    tep: "server/services/ads.ts",
+    tim: "  if (n.budget?.type !== \"daily\") {",
+    thay: "  if (n.budget?.type === \"khong-co\") {",
+  },
+  {
+    ten: "ngân sách nhóm: không so chiến dịch của nhóm (nhóm chiến dịch khác lọt qua)",
+    tep: "server/services/ads.ts",
+    tim: " && String(d.adSet.campaign_id) === p.campaignId;",
+    thay: ";",
+  },
+  {
+    ten: "ngân sách nhóm: lệnh sửa không ghi kiểu ngân sách ngày",
+    tep: "server/services/ads.ts",
+    tim: "    body: { platform, budget: { amount, type: \"daily\" } },",
+    thay: "    body: { platform, budget: { amount } },",
+  },
+  {
+    ten: "sửa ngân sách bỏ chốt tiền (tối thiểu / thanh toán / VND)",
+    tep: "server/routes/ads.ts",
+    tim: "    ads.kiemNganSachDayBai(resolved.account, budgetType === \"daily\" ? amount : Number.POSITIVE_INFINITY);\n",
+    thay: "",
+  },
+  {
+    ten: "sửa ngân sách chiến dịch thành công vẫn chạy tiếp sang nhóm",
+    tep: "server/routes/ads.ts",
+    tim: "      res.json({ success: true, data: result });\n      return;\n    } catch (error) {",
+    thay: "      res.json({ success: true, data: result });\n    } catch (error) {",
+  },
+  {
+    ten: "sửa nhóm không kiểm nhóm thuộc tài khoản của cửa hàng",
+    tep: "server/routes/ads.ts",
+    tim: "    if (!(await ads.nhomThuocChienDich({ adSetId: chon.id,",
+    thay: "    if (Date.now() < 0 && !(await ads.nhomThuocChienDich({ adSetId: chon.id,",
+  },
+  {
+    ten: "sổ thay đổi sửa nhóm không ghi ngân sách trước (không hoàn tác được)",
+    tep: "server/routes/ads.ts",
+    tim: "      truoc: { ngan_sach: chon.truoc, loai_ngan_sach: \"daily\", chien_dich: req.params.id },\n",
+    thay: "",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

@@ -254,6 +254,75 @@ export async function chienDichThuocTaiKhoan(p: { campaignId: string; accountId:
   return (d.campaigns ?? []).length > 0;
 }
 
+/**
+ * TD-13 (30/10/2026): mọi bài app đẩy (/ads/boost) là ABO — đo QC 75: budgetLevel "adset", 1 nhóm. Tài liệu PUT
+ * /v1/ads/campaigns/{id}: "budget (CBO; ABO returns 409)", "A live ABO campaign still returns 409 with the ad-set budget
+ * endpoint"; PUT /v1/ads/ad-sets/{adSetId} {platform, budget}: "ABO budget updates".
+ */
+export interface NhomQuangCao {
+  id: string;
+  budget: { type?: unknown; amount?: unknown } | null;
+}
+
+/** Nhóm quảng cáo của chiến dịch — CÙNG lời gọi /v1/ads/tree đã lọc theo tài khoản của cửa hàng. null = không thấy chiến dịch. */
+export async function nhomCuaChienDich(p: { campaignId: string; accountId: string; adAccountId: string }): Promise<NhomQuangCao[] | null> {
+  const d = await request<{ campaigns?: { platformCampaignId?: unknown; adSets?: { platformAdSetId?: unknown; adSetBudget?: NhomQuangCao["budget"]; budget?: NhomQuangCao["budget"] }[] }[] }>(
+    "/ads/tree",
+    { query: { campaignId: p.campaignId, accountId: p.accountId, adAccountId: p.adAccountId, limit: 1 } }
+  );
+  const camp = (d.campaigns ?? []).find((c) => String(c.platformCampaignId) === p.campaignId);
+  if (!camp) return null;
+  return (camp.adSets ?? [])
+    .filter((s) => typeof s.platformAdSetId === "string" && s.platformAdSetId)
+    .map((s) => ({ id: s.platformAdSetId as string, budget: s.adSetBudget ?? s.budget ?? null }));
+}
+
+/**
+ * Chọn nhóm để sửa ngân sách NGÀY: đúng 1 nhóm, ngân sách ngày. ≥ 2 nhóm → không tự chia tiền; nhóm trọn đời → không đổi
+ * kiểu ngân sách. Trả ngân sách cũ để ghi sổ thay đổi (hoàn tác bằng tay được).
+ */
+export function chonNhomDeSua(nhom: NhomQuangCao[]): { id: string; truoc: number | null } {
+  if (nhom.length === 0) throw new AppError("Chưa đọc được nhóm quảng cáo của chiến dịch này. Vui lòng thử lại sau ít phút.", 409);
+  if (nhom.length > 1) {
+    throw new AppError(`Chiến dịch có ${nhom.length} nhóm quảng cáo, mỗi nhóm một ngân sách — chưa sửa chung được trong app.`, 409);
+  }
+  const [n] = nhom;
+  if (n.budget?.type !== "daily") {
+    throw new AppError(
+      n.budget?.type === "lifetime"
+        ? "Nhóm quảng cáo của chiến dịch này dùng ngân sách trọn đời — chưa sửa được trong app."
+        : "Chưa rõ kiểu ngân sách của nhóm quảng cáo — chưa sửa được trong app.",
+      409
+    );
+  }
+  const truoc = Number(n.budget.amount);
+  return { id: n.id, truoc: Number.isFinite(truoc) ? truoc : null };
+}
+
+/**
+ * Nhóm có thuộc ĐÚNG tài khoản quảng cáo + đúng chiến dịch không — đọc TRỰC TIẾP từ Meta (GET /v1/ads/ad-sets/{id}, tài
+ * liệu: "read live from Meta"). accountId ở đây chỉ để lấy token, nên phải so account_id / campaign_id của chính nhóm.
+ */
+export async function nhomThuocChienDich(p: { adSetId: string; campaignId: string; accountId: string; adAccountId: string }): Promise<boolean> {
+  const d = await request<{ adSet?: { account_id?: unknown; campaign_id?: unknown } }>(`/ads/ad-sets/${encodeURIComponent(p.adSetId)}`, {
+    query: { accountId: p.accountId, fields: "account_id,campaign_id" },
+  });
+  return !!d.adSet && String(d.adSet.account_id) === p.adAccountId.replace(/^act_/, "") && String(d.adSet.campaign_id) === p.campaignId;
+}
+
+export function lenhSuaNganSachNhom(adSetId: string, platform: string, amount: number) {
+  return {
+    path: `/ads/ad-sets/${encodeURIComponent(adSetId)}`,
+    method: "PUT" as const,
+    body: { platform, budget: { amount, type: "daily" } },
+  };
+}
+
+export async function suaNganSachNhom(adSetId: string, platform: string, amount: number): Promise<unknown> {
+  const l = lenhSuaNganSachNhom(adSetId, platform, amount);
+  return request(l.path, l);
+}
+
 export async function doiTrangThaiChienDich(campaignId: string, platform: string, status: "active" | "paused") {
   const l = lenhDoiTrangThai(campaignId, platform, status);
   return request<{ updated?: number; skipped?: number; skippedReasons?: string[]; message?: string }>(l.path, l);
@@ -274,7 +343,7 @@ export async function nhanBanChienDich(campaignId: string, platform: string, kho
  * Ngân sách nằm ở hai tầng, và Meta chỉ cho đặt ở MỘT trong hai:
  *   - CBO: ngân sách ở tầng chiến dịch  -> sửa bằng hàm này.
  *   - ABO: ngân sách ở tầng nhóm quảng cáo -> Zernio trả 409 và phải sửa
- *     bằng updateAdSetBudget.
+ *     bằng suaNganSachNhom (TD-13).
  * Nên lỗi 409 ở đây không phải hỏng hóc, mà là câu trả lời "ngân sách của
  * chiến dịch này nằm ở tầng dưới".
  */

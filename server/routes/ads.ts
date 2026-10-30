@@ -311,6 +311,14 @@ adsRouter.patch(
     if (!(await ads.chienDichThuocTaiKhoan({ campaignId: req.params.id, accountId: resolved.accountId, adAccountId: resolved.adAccountId }))) {
       throw new AppError("Không tìm thấy chiến dịch này trong tài khoản quảng cáo của bạn", 404);
     }
+    // Tăng ngân sách = tiêu thêm tiền → qua CÙNG các chốt tiền như đẩy bài (H12), TRƯỚC mọi lệnh sửa (chiến dịch hay nhóm):
+    // tiền tệ VND, tài khoản chạy được, có thanh toán, ≥ tối thiểu ngày của Meta (chỉ áp cho ngân sách ngày), trần chi tiêu.
+    ads.kiemNganSachDayBai(resolved.account, budgetType === "daily" ? amount : Number.POSITIVE_INFINITY);
+    ads.kiemTranChiTieu(
+      await ads.taiChinhTaiKhoan({ accountId: resolved.accountId, adAccountId: resolved.adAccountId }).catch(() => {
+        throw new AppError("Chưa đọc được phần tiền của tài khoản quảng cáo nên chưa sửa ngân sách. Vui lòng thử lại sau ít phút.", 502);
+      })
+    );
 
     try {
       const result = await ads.updateCampaignBudget({
@@ -322,33 +330,44 @@ adsRouter.patch(
       });
       await ghiThayDoiNgoai({ userId: req.user!.id, bang: "quang_cao_chien_dich", banGhi: req.params.id, hanhDong: "sua", sau: { ngan_sach: amount, loai_ngan_sach: budgetType }, nguon: "nguoi_dung" });
       res.json({ success: true, data: result });
+      return;
     } catch (error) {
-      /*
-       * 409 nghĩa là chiến dịch đặt ngân sách ở tầng nhóm quảng cáo (ABO), nên
-       * lệnh sửa ở tầng chiến dịch bị từ chối. Đây là cấu hình hợp lệ của Meta,
-       * không phải hỏng — nói rõ ra thay vì ném lỗi kỹ thuật vào mặt chủ shop.
-       */
+      // 409 = chiến dịch đặt ngân sách ở tầng nhóm quảng cáo (ABO) — lệnh tầng chiến dịch bị từ chối, không đổi gì; sửa ở nhóm.
       const status = (error as { status?: number })?.status;
-      if (status === 409) {
-        // ABO: ngân sách nằm ở tầng nhóm quảng cáo. Danh sách nhóm của nhà cung cấp chưa có trong tài liệu (chỉ có
-        // /v1/ads/tree với adSets "No description") → chưa sửa được trong app; xem sổ tồn đọng TD-13.
-        throw new AppError(
-          "Chiến dịch này đặt ngân sách ở từng nhóm quảng cáo — ngân sách nằm ở tầng nhóm quảng cáo, chưa sửa được trong app.",
-          409
-        );
-      }
-      throw error;
+      if (status !== 409) throw error;
     }
+
+    /*
+     * ABO (TD-13, 30/10/2026): mọi bài app đẩy đều đặt ngân sách ở NHÓM quảng cáo (đo QC 75). Lấy nhóm từ /v1/ads/tree đã
+     * lọc theo tài khoản của cửa hàng; đúng 1 nhóm ngân sách ngày mới sửa; nhóm phải thuộc đúng tài khoản + chiến dịch theo
+     * Meta (đọc trực tiếp) trước lệnh tiêu tiền.
+     */
+    if (budgetType !== "daily") {
+      throw new AppError("Chiến dịch này đặt ngân sách ở nhóm quảng cáo — app chỉ sửa ngân sách mỗi ngày của nhóm.", 409);
+    }
+    const nhom = await ads.nhomCuaChienDich({ campaignId: req.params.id, accountId: resolved.accountId, adAccountId: resolved.adAccountId });
+    if (!nhom) throw new AppError("Không tìm thấy chiến dịch này trong tài khoản quảng cáo của bạn", 404);
+    const chon = ads.chonNhomDeSua(nhom);
+    if (!(await ads.nhomThuocChienDich({ adSetId: chon.id, campaignId: req.params.id, accountId: resolved.accountId, adAccountId: resolved.adAccountId }))) {
+      throw new AppError("Không tìm thấy nhóm quảng cáo này trong tài khoản quảng cáo của bạn", 404);
+    }
+    const result = await ads.suaNganSachNhom(chon.id, platform, amount);
+    await ghiThayDoiNgoai({
+      userId: req.user!.id,
+      bang: "quang_cao_nhom",
+      banGhi: chon.id,
+      hanhDong: "sua",
+      truoc: { ngan_sach: chon.truoc, loai_ngan_sach: "daily", chien_dich: req.params.id },
+      sau: { ngan_sach: amount, loai_ngan_sach: "daily", chien_dich: req.params.id },
+      nguon: "nguoi_dung",
+    });
+    res.json({ success: true, data: result });
   })
 );
 
-// Đường danh sách nhóm quảng cáo (GET /api/ads/campaigns/:id/ad-sets) đã BỎ 18/10/2026: nó gọi GET /v1/ads/ad-sets —
-// tài liệu nhà cung cấp KHÔNG có đường danh sách này (chỉ có /v1/ads/ad-sets/{id} và /v1/ads/tree). Sổ tồn đọng TD-13.
-
-// Đường sửa ngân sách NHÓM quảng cáo (PATCH /api/ads/ad-sets/:id/budget) đã TẮT 19/10/2026 (phiên kiểm duyệt đề nghị):
-// không màn nào gọi, mà kiểm chủ sở hữu qua GET /v1/ads/ad-sets/{id}?accountId không đủ — accountId chỉ "used to resolve
-// the Meta token" (tài liệu 28755), hai cửa hàng dùng chung một tài khoản Facebook thì lọt. Làm lại cùng TD-13, khi đó so
-// account_id của nhóm với tài khoản quảng cáo của cửa hàng.
+// Không có đường riêng cho nhóm quảng cáo (bỏ 18–19/10/2026): ngân sách nhóm sửa NGAY trong PATCH /campaigns/:id/budget
+// ở trên (TD-13, 30/10/2026) — nhóm lấy từ /v1/ads/tree đã lọc theo tài khoản, chủ sở hữu so account_id / campaign_id đọc
+// trực tiếp từ Meta (accountId của GET /v1/ads/ad-sets/{id} chỉ để lấy token, tài liệu 28755).
 
 adsRouter.post(
   "/campaigns/:id/duplicate",

@@ -402,16 +402,8 @@ export default function Ads({ trongKhuon = false }: { trongKhuon?: boolean } = {
       await api.ads.updateCampaignBudget(campaignId, { amount, budgetType: 'daily', platform });
       await load();
     } catch (error) {
-      /*
-       * 409 nghĩa là chiến dịch đặt ngân sách ở tầng NHÓM quảng cáo, không đặt
-       * chung ở cấp chiến dịch. Máy chủ bảo "mở chiến dịch và sửa ngân sách
-       * của nhóm bên trong" — trước đây giao diện không có chỗ nào để mở nhóm
-       * ra cả, nên lời chỉ dẫn đúng lại dẫn chủ shop vào ngõ cụt.
-       *
-       * Nay tự mở luôn danh sách nhóm ngay tại đây, không bắt đi tìm.
-       */
-      // 409 (ABO / nền tảng chưa hỗ trợ / không thuộc shop): máy chủ trả câu rõ ràng — hiện đúng câu đó. Danh sách nhóm
-      // quảng cáo chưa có trong tài liệu nhà cung cấp nên chưa mở được ở đây (sổ tồn đọng TD-13).
+      // Ngân sách ở nhóm quảng cáo (ABO) máy chủ tự sửa ở nhóm (TD-13). Còn lỗi (nhiều nhóm / trọn đời / chốt tiền / không
+      // thuộc shop): máy chủ trả câu rõ ràng — hiện đúng câu đó.
       setErrorMessage(error instanceof ApiError ? error.message : 'Không sửa được ngân sách');
     } finally {
       setBusy(false);

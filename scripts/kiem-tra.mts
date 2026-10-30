@@ -3617,13 +3617,52 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
    * PATCH /ads/ad-sets/:id/budget. Chủ shop được bảo làm một việc mà app không
    * cho làm.
    */
-  // 18/10/2026 (B1-b2, phiên kiểm duyệt duyệt): danh sách nhóm cũ gọi GET /v1/ads/ad-sets — KHÔNG có trong tài liệu.
-  // Tạm thời: chiến dịch ABO báo rõ "chưa sửa được trong app", ghi sổ tồn đọng TD-13 (làm khi đọc được dạng thật).
-  kiem("quảng cáo", "ngân sách theo nhóm (ABO): báo rõ chưa sửa được trong app + có sổ tồn đọng TD-13; không gọi đường ngoài tài liệu",
-    [/ngân sách nằm ở tầng nhóm quảng cáo, chưa sửa được trong app/.test(nguonQC),
-      /## TD-13 — Sửa ngân sách chiến dịch ABO/.test(fs.readFileSync(path.join(GOC, "docs/ton-dong.md"), "utf8")),
+  // 18/10/2026 (B1-b2): danh sách nhóm cũ gọi GET /v1/ads/ad-sets — KHÔNG có trong tài liệu, đã bỏ.
+  // 30/10/2026 (TD-13): ABO sửa ngay ở nhóm — nhóm lấy từ /v1/ads/tree (có trong tài liệu), không đường danh sách riêng.
+  kiem("quảng cáo", "ngân sách theo nhóm (ABO): sửa ở nhóm trong cùng đường; TD-13 ghi ĐÃ LÀM; không gọi đường ngoài tài liệu",
+    [/const result = await ads\.suaNganSachNhom\(chon\.id, platform, amount\);/.test(nguonQC),
+      /## TD-13 — ĐÃ LÀM \(30\/10\/2026\)/.test(fs.readFileSync(path.join(GOC, "docs/ton-dong.md"), "utf8")),
       /listAdSets|"\/campaigns\/:id\/ad-sets"/.test(nguonQC)],
     [true, true, false]);
+  // TD-13 (30/10/2026): mọi bài app đẩy là ABO (QC 75: budgetLevel "adset", 1 nhóm) → sửa ngân sách NGÀY của đúng 1 nhóm,
+  // nhóm thuộc đúng tài khoản + chiến dịch theo Meta (đọc trực tiếp), chốt tiền như đẩy bài TRƯỚC mọi lệnh sửa.
+  {
+    const q13 = await import("../server/services/ads.js");
+    const loi13 = (f: () => unknown) => { try { return JSON.stringify(f()); } catch (e) { return `${(e as { status?: number }).status}:${(e as Error).message.slice(0, 48)}`; } };
+    const ngay = (id: string, amount: unknown) => ({ id, budget: { type: "daily", amount } });
+    kiem("ngân sách nhóm", "chonNhomDeSua: 1 nhóm ngày → sửa (ghi ngân sách cũ); 0 nhóm / ≥ 2 nhóm (không tự chia tiền) / trọn đời / kiểu không rõ → 409",
+      [loi13(() => q13.chonNhomDeSua([ngay("52561208491312", 30000)])), loi13(() => q13.chonNhomDeSua([])),
+        loi13(() => q13.chonNhomDeSua([ngay("a", 1), ngay("b", 2)])),
+        loi13(() => q13.chonNhomDeSua([{ id: "a", budget: { type: "lifetime", amount: 500000 } }])), loi13(() => q13.chonNhomDeSua([{ id: "a", budget: null }])),
+        loi13(() => q13.chonNhomDeSua([ngay("a", "x")]))],
+      ['{"id":"52561208491312","truoc":30000}', "409:Chưa đọc được nhóm quảng cáo của chiến dịch này.",
+        "409:Chiến dịch có 2 nhóm quảng cáo, mỗi nhóm một ngâ", "409:Nhóm quảng cáo của chiến dịch này dùng ngân sách",
+        "409:Chưa rõ kiểu ngân sách của nhóm quảng cáo — chưa", '{"id":"a","truoc":null}']);
+    kiem("ngân sách nhóm", "lệnh sửa nhóm đúng tài liệu: PUT /v1/ads/ad-sets/{id} {platform, budget {amount, type daily}}",
+      q13.lenhSuaNganSachNhom("52561208491312", "facebook", 35000),
+      { path: "/ads/ad-sets/52561208491312", method: "PUT", body: { platform: "facebook", budget: { amount: 35000, type: "daily" } } });
+    const sv13 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/ads.ts"), "utf8"));
+    kiem("ngân sách nhóm", "chủ sở hữu nhóm: đọc trực tiếp account_id + campaign_id, so với tài khoản (bỏ act_) VÀ chiến dịch; nhóm lấy từ /ads/tree lọc theo tài khoản",
+      [/query: \{ accountId: p\.accountId, fields: "account_id,campaign_id" \}/.test(sv13),
+        /String\(d\.adSet\.account_id\) === p\.adAccountId\.replace\(\/\^act_\/, ""\) && String\(d\.adSet\.campaign_id\) === p\.campaignId/.test(sv13),
+        /"\/ads\/tree",\s*\{ query: \{ campaignId: p\.campaignId, accountId: p\.accountId, adAccountId: p\.adAccountId, limit: 1 \} \}/.test(sv13)],
+      [true, true, true]);
+    const rt13 = boChuThich(fs.readFileSync(path.join(GOC, "server/routes/ads.ts"), "utf8"));
+    const d13 = rt13.slice(rt13.indexOf('"/campaigns/:id/budget"'), rt13.indexOf('"/campaigns/:id/duplicate"'));
+    const vt = (x: string) => d13.indexOf(x);
+    kiem("ngân sách nhóm", "thứ tự: chiến dịch thuộc shop → chốt tiền (VND/chạy được/thanh toán/tối thiểu ngày, trần chi tiêu) → sửa chiến dịch (thành công thì DỪNG) → chỉ 409 mới sang nhóm",
+      [vt("ads.chienDichThuocTaiKhoan(") > 0, vt("ads.chienDichThuocTaiKhoan(") < vt("ads.kiemNganSachDayBai(resolved.account, budgetType === \"daily\" ? amount : Number.POSITIVE_INFINITY);"),
+        vt("ads.kiemNganSachDayBai(") < vt("ads.kiemTranChiTieu(") && vt("ads.kiemTranChiTieu(") < vt("ads.updateCampaignBudget("),
+        /res\.json\(\{ success: true, data: result \}\);\s*return;\s*\} catch \(error\) \{/.test(d13), /if \(status !== 409\) throw error;/.test(d13)],
+      [true, true, true, true, true]);
+    kiem("ngân sách nhóm", "nhánh nhóm: chỉ ngân sách ngày → nhóm từ tree → chọn 1 nhóm → nhóm thuộc tài khoản + chiến dịch → PUT nhóm → sổ thay đổi CÓ ngân sách trước",
+      [vt('if (budgetType !== "daily") {') > vt("if (status !== 409) throw error;"), vt("ads.nhomCuaChienDich(") < vt("ads.chonNhomDeSua(nhom)"),
+        vt("ads.chonNhomDeSua(nhom)") < vt("ads.nhomThuocChienDich(") && vt("ads.nhomThuocChienDich(") < vt("ads.suaNganSachNhom(")
+          && /\n    if \(!\(await ads\.nhomThuocChienDich\(\{ adSetId: chon\.id, campaignId: req\.params\.id, accountId: resolved\.accountId, adAccountId: resolved\.adAccountId \}\)\)\) \{\s*throw new AppError\("Không tìm thấy nhóm quảng cáo này trong tài khoản quảng cáo của bạn", 404\);/.test(d13),
+        /bang: "quang_cao_nhom",\s*banGhi: chon\.id,\s*hanhDong: "sua",\s*truoc: \{ ngan_sach: chon\.truoc, loai_ngan_sach: "daily", chien_dich: req\.params\.id \}/.test(d13),
+        vt("ads.suaNganSachNhom(") < vt('bang: "quang_cao_nhom"')],
+      [true, true, true, true, true]);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -6044,7 +6083,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     [true, true, true]);
   kiem("quảng cáo", "sửa ngân sách + xem chi tiết cũng kiểm chiến dịch thuộc shop; ngân sách chỉ facebook/instagram/google; bỏ danh sách nhóm ngoài tài liệu",
     [(rtB2.match(/if \(!\(await ads\.chienDichThuocTaiKhoan\(/g) ?? []).length,
-      /if \(!ads\.NEN_TANG_NGAN_SACH\.includes\(platform\)\)[\s\S]{0,900}?chienDichThuocTaiKhoan[\s\S]{0,600}?ads\.updateCampaignBudget\(/.test(rtB2),
+      /if \(!ads\.NEN_TANG_NGAN_SACH\.includes\(platform\)\)[\s\S]{0,900}?chienDichThuocTaiKhoan[\s\S]{0,1400}?ads\.updateCampaignBudget\(/.test(rtB2),
       /listAdSets|"\/ads\/ad-sets"/.test(svB2 + rtB2), /api\.ads\.adSets|moNhomQuangCao/.test(uiB2),
       /disabled=\{busy \|\| !NEN_TANG_NGAN_SACH\.includes\(camp\.nenTang\)\}/.test(uiB2)],
     [4, true, false, false, true]);
