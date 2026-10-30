@@ -182,158 +182,165 @@ export default function Sidebar({
       />
     )}
     <aside
-      className={`w-72 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] pl-2 pr-3 pt-2 pb-7 transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
-      style={{ perspective: '1100px', perspectiveOrigin: '0% 50%' }}
+      className={`w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
     >
-      {/* BÓNG PHẢN CHIẾU dưới chân khung (ảnh mẫu: sàn bóng phản ánh viền vàng): một vạch vàng mờ dần + quầng loang. */}
-      <div aria-hidden className="absolute left-3 right-7 bottom-0 h-7 pointer-events-none" style={{ perspective: '1100px', perspectiveOrigin: '0% 0%' }}>
-        <div
-          className="absolute inset-x-0 top-0 h-full rounded-b-[26px]"
-          style={{
-            transform: 'rotateY(12deg)',
-            transformOrigin: '0% 50%',
-            borderLeft: '2px solid rgba(255,205,100,0.55)',
-            borderRight: '2px solid rgba(255,205,100,0.35)',
-            background: 'linear-gradient(180deg, rgba(255,190,70,0.16) 0%, rgba(255,170,50,0.03) 60%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(180deg, rgba(0,0,0,0.75), transparent 85%)',
-            maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.75), transparent 85%)',
-            filter: 'blur(2.5px)',
-          }}
-        />
-      </div>
       {/*
-        KHUNG KIM LOẠI VÀNG NGHIÊNG 3D (chủ dự án 30/10/2026, ảnh mẫu): xoay quanh mép trái — mép phải lùi xa (thấp + hẹp hơn)
-        như tấm kính đặt chéo; vàng bóng gương = dải sáng – tối tương phản mạnh + vệt loé; ống neon vàng cam bao ngoài.
+        LỚP KHUNG 3D — chỉ trang trí (chủ dự án 30/10/2026, ảnh mẫu): tấm kim loại vàng NGHIÊNG có phối cảnh (xoay quanh mép
+        trái, mép phải lùi xa), có ĐỘ DÀY (lớp bóng đắp lộ cạnh trái + cạnh đáy), viền nhiều lớp đồng tâm, bóng gương, điểm loé,
+        phản chiếu dưới cạnh đáy. Chữ + nút nằm ở LỚP NỘI DUNG phẳng bên dưới — không xoay theo nên không méo.
       */}
-      <div
-        className="relative h-full rounded-[26px] p-[5px]"
-        style={{
-          background: VANG.khung,
-          transform: 'rotateY(12deg)',
-          transformOrigin: '0% 50%',
-          boxShadow: '0 0 0 1px rgba(255,236,180,0.85), 0 0 6px rgba(255,190,60,0.9), 0 0 18px rgba(255,170,40,0.6), 0 0 46px rgba(255,150,30,0.28), inset 0 1px 1px rgba(255,252,235,0.95), inset 0 -1px 2px rgba(60,35,5,0.9)',
-        }}
-      >
-        {/* Vệt loé gương trên viền: góc trên trái + dọc mép trái. */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ perspective: '1000px', perspectiveOrigin: '0% 46%' }}>
         <div
-          aria-hidden
-          className="absolute inset-0 rounded-[26px] pointer-events-none"
-          style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 7%), linear-gradient(90deg, rgba(255,250,220,0.55) 0%, rgba(255,250,220,0) 2.2%)', mixBlendMode: 'screen' }}
-        />
-        {/* Rãnh tối + chỉ vàng mảnh bên trong (vát hai lớp như ảnh mẫu). */}
-        <div className="relative h-full rounded-[21px] p-[2px]" style={{ background: 'linear-gradient(160deg, #1A1206, #0A0805 40%, #140E05)', boxShadow: 'inset 0 0 0 1px rgba(255,200,90,0.35)' }}>
+          className="absolute"
+          style={{ left: '14px', top: '10px', right: '16px', bottom: '34px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}
+        >
+          {/* Thân khối: vành gương ngoài + độ dày đắp lớp (lệch xuống – sang trái) + quầng neon. */}
           <div
-            className="relative h-full rounded-[19px] overflow-hidden flex flex-col"
+            className="absolute inset-0 rounded-[30px]"
+            style={{ background: VANG.khung, boxShadow: VANG.khoi }}
+          />
+          {/* Rãnh tối 1 */}
+          <div className="absolute inset-[4px] rounded-[26px]" style={{ background: 'linear-gradient(160deg, #1B1306, #080603 45%, #150F05)' }} />
+          {/* Vành vàng giữa (lớp 2) */}
+          <div className="absolute inset-[6px] rounded-[24px]" style={{ background: VANG.vanhGiua, boxShadow: '0 0 6px rgba(255,190,70,0.55)' }} />
+          {/* Rãnh tối 2 */}
+          <div className="absolute inset-[8.5px] rounded-[22px]" style={{ background: '#0B0804' }} />
+          {/* Mặt kính đen + chỉ neon trong cùng (lớp 3) */}
+          <div
+            className="absolute inset-[10px] rounded-[20px] overflow-hidden"
             style={{
-              background: 'linear-gradient(180deg, #0E1015 0%, #090B0F 45%, #07080B 100%)',
-              // Ống neon vàng thứ hai bên trong (ảnh mẫu có hai đường viền sáng song song).
-              boxShadow: 'inset 0 0 0 1.5px rgba(255,205,100,0.75), inset 0 0 8px rgba(255,180,60,0.35), inset 0 0 34px rgba(0,0,0,0.85)',
+              background: 'linear-gradient(180deg, #0F1116 0%, #0A0C10 45%, #07080B 100%)',
+              boxShadow: 'inset 0 0 0 1.5px rgba(255,210,110,0.8), inset 0 0 10px rgba(255,180,60,0.35), inset 0 0 40px rgba(0,0,0,0.9)',
             }}
           >
-            {/* Ánh kính: vệt sáng chéo rất nhẹ ở nửa trên. */}
-            <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(160deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 28%, transparent 46%)' }} />
+            {/* Bóng gương: vệt sáng chéo trên kính */}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(158deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 26%, transparent 44%), linear-gradient(200deg, transparent 70%, rgba(255,200,110,0.05) 100%)' }} />
+          </div>
+          {/* Vệt loé gương dọc cạnh trái + cạnh trên (ánh sáng chiếu từ trái) */}
+          <div className="absolute inset-0 rounded-[30px]" style={{ background: 'linear-gradient(90deg, rgba(255,252,235,0.75) 0%, rgba(255,252,235,0) 1.6%), linear-gradient(180deg, rgba(255,252,235,0.6) 0%, rgba(255,252,235,0) 0.9%)', mixBlendMode: 'screen' }} />
+          {/* Điểm loé sáng hình sao ở góc + giữa cạnh */}
+          {[
+            { left: '2px', top: '18px', s: 34 },
+            { right: '10px', top: '4px', s: 22 },
+            { left: '-4px', bottom: '40px', s: 30 },
+            { right: '34%', bottom: '-14px', s: 26 },
+            { left: '38%', top: '-5px', s: 18 },
+          ].map(({ s: c, ...vt }, n) => (
+            <div key={n} className="absolute" style={{ ...vt, width: c, height: c, transform: 'translate(-50%,-50%)', background: LOE }} />
+          ))}
+        </div>
+        {/* PHẢN CHIẾU dưới cạnh đáy: dải vàng mờ dần + quầng trên "sàn" */}
+        <div className="absolute" style={{ left: '14px', right: '16px', bottom: '2px', height: '30px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}>
+          <div
+            className="absolute inset-x-[6px] top-0 h-full rounded-b-[30px]"
+            style={{
+              background: 'linear-gradient(180deg, rgba(255,200,90,0.42) 0%, rgba(255,170,50,0.12) 40%, transparent 85%)',
+              WebkitMaskImage: 'linear-gradient(180deg, #000 0%, transparent 90%)',
+              maskImage: 'linear-gradient(180deg, #000 0%, transparent 90%)',
+              filter: 'blur(2px)',
+            }}
+          />
+          <div className="absolute left-[10%] right-[20%] top-[2px] h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,235,180,0.75), transparent)', filter: 'blur(1px)' }} />
+        </div>
+      </div>
 
-            {/* Main Content Wrapper */}
-            <div className="relative z-10 px-3 h-full flex flex-col pt-4 pb-3">
+      {/* LỚP NỘI DUNG — PHẲNG (không xoay): nằm gọn trong mặt kính của khung nghiêng. */}
+      <div className="relative z-10 h-full flex flex-col" style={{ padding: '38px 50px 66px 30px' }}>
+        {/* Brand Header: lục giác viền vàng + khối lập phương; tên + "AI 5.0 PLATFORM". */}
+        <div className="flex items-center gap-2.5 px-1 shrink-0">
+          <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center">
+            <svg viewBox="0 0 52 52" className="absolute inset-0 w-full h-full" aria-hidden>
+              <defs>
+                <linearGradient id="vienLogoVang" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#FFF1C1" />
+                  <stop offset="35%" stopColor="#F5C451" />
+                  <stop offset="70%" stopColor="#B07A22" />
+                  <stop offset="100%" stopColor="#F5C451" />
+                </linearGradient>
+              </defs>
+              <polygon points="26,3 46,14.5 46,37.5 26,49 6,37.5 6,14.5" fill="rgba(245,196,81,0.08)" stroke="url(#vienLogoVang)" strokeWidth="2.2" strokeLinejoin="round" />
+            </svg>
+            <span
+              className="material-symbols-outlined relative z-10"
+              style={{ fontSize: '25px', color: VANG.chinh, fontVariationSettings: "'wght' 400", filter: 'drop-shadow(0 0 5px rgba(245,196,81,0.6))' }}
+            >
+              deployed_code
+            </span>
+          </div>
+          <div className="min-w-0">
+            {/* Tên tạm (chủ dự án 23/10/2026 đồng ý bỏ chữ "LOGO"); tên sản phẩm thật chờ chủ dự án chọn — sơ đồ 8.4. */}
+            <h2 className="text-[16.5px] font-extrabold tracking-wide text-white leading-tight whitespace-nowrap">Quản lý Fanpage</h2>
+            <div className="mt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#E8EDF2]/50 whitespace-nowrap">AI 5.0 Platform</div>
+          </div>
+        </div>
+        {vach}
 
-              {/* Brand Header: lục giác viền vàng + khối lập phương; tên + "AI 5.0 PLATFORM". */}
-              <div className="flex items-center gap-2.5 px-1 shrink-0">
-                <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center">
-                  <svg viewBox="0 0 52 52" className="absolute inset-0 w-full h-full" aria-hidden>
-                    <defs>
-                      <linearGradient id="vienLogoVang" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#FFF1C1" />
-                        <stop offset="35%" stopColor="#F5C451" />
-                        <stop offset="70%" stopColor="#B07A22" />
-                        <stop offset="100%" stopColor="#F5C451" />
-                      </linearGradient>
-                    </defs>
-                    <polygon points="26,3 46,14.5 46,37.5 26,49 6,37.5 6,14.5" fill="rgba(245,196,81,0.08)" stroke="url(#vienLogoVang)" strokeWidth="2.2" strokeLinejoin="round" />
-                  </svg>
-                  <span
-                    className="material-symbols-outlined relative z-10"
-                    style={{ fontSize: '25px', color: VANG.chinh, fontVariationSettings: "'wght' 400", filter: 'drop-shadow(0 0 5px rgba(245,196,81,0.6))' }}
-                  >
-                    deployed_code
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  {/* Tên tạm (chủ dự án 23/10/2026 đồng ý bỏ chữ "LOGO"); tên sản phẩm thật chờ chủ dự án chọn — sơ đồ 8.4. */}
-                  <h2 className="text-[16.5px] font-extrabold tracking-wide text-white leading-tight whitespace-nowrap">Quản lý Fanpage</h2>
-                  <div className="mt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#E8EDF2]/50 whitespace-nowrap">AI 5.0 Platform</div>
-                </div>
-              </div>
+        <nav className="flex flex-col min-h-0 overflow-y-auto no-scrollbar -mx-2.5 px-2.5 -my-2.5 py-2.5">
+          {renderNavGroup([mucTongQuan])}
+          {vach}
+          {nhan('Kênh bán hàng')}
+          {renderNavGroup([mucKetNoi])}
+          {coNao && (
+            <>
               {vach}
+              {nhan('Bộ não AI')}
+              {renderNavGroup(nhomNao)}
+              {vach}
+              {nhan('Dữ liệu của cửa hàng')}
+              {renderNavGroup(nhomDuLieu)}
+            </>
+          )}
+          {vach}
+          {nhan('Quản lý')}
+          {renderNavGroup(nhomQuanLy)}
+        </nav>
 
-              <nav className="flex flex-col min-h-0 overflow-y-auto no-scrollbar -mx-2.5 px-2.5 -my-2.5 py-2.5">
-                {renderNavGroup([mucTongQuan])}
-                {vach}
-                {nhan('Kênh bán hàng')}
-                {renderNavGroup([mucKetNoi])}
-                {coNao && (
-                  <>
-                    {vach}
-                    {nhan('Bộ não AI')}
-                    {renderNavGroup(nhomNao)}
-                    {vach}
-                    {nhan('Dữ liệu của cửa hàng')}
-                    {renderNavGroup(nhomDuLieu)}
-                  </>
-                )}
-                {vach}
-                {nhan('Quản lý')}
-                {renderNavGroup(nhomQuanLy)}
-              </nav>
+        {/* Spacer */}
+        <div className="flex-1"></div>
 
-              {/* Spacer */}
-              <div className="flex-1"></div>
-
-              {/* Đáy: vạch vàng phát sáng, rồi Trợ giúp / Đăng xuất. */}
-              <div className="flex flex-col shrink-0 mt-3">
-                <div className="mx-3 h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, transparent, #F5C451 20%, #FFF1C1 50%, #F5C451 80%, transparent)', boxShadow: '0 0 8px rgba(245,196,81,0.9), 0 0 18px rgba(245,170,50,0.45)' }}></div>
-                <div style={{ height: '10px' }}></div>
-                <div className="flex flex-col" style={{ gap: '2px' }}>
-                  {SUPPORT_URL ? (
-                  <a
-                    className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] hover:bg-white/5 hover:text-white transition-colors group shrink-0"
-                    href={SUPPORT_URL}
-                    {...(IS_EXTERNAL_SUPPORT ? { target: '_blank', rel: 'noreferrer' } : {})}
-                    style={kieuChan}
-                  >
-                    <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
-                      help
-                    </span>
-                    <span className="whitespace-nowrap">Trợ giúp</span>
-                    {muiTen(false)}
-                  </a>
-                  ) : (
-                    // Chưa có đường hỗ trợ: mục mờ, không bấm, không nhận Tab/Enter (không phải nút, không phải liên kết).
-                    <div
-                      aria-disabled="true"
-                      className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] shrink-0 cursor-default select-none"
-                      style={{ ...kieuChan, color: 'rgba(232,237,242,0.3)' }}
-                    >
-                      <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
-                        help
-                      </span>
-                      <span className="whitespace-nowrap">Trợ giúp</span>
-                      <span className="ml-auto text-[10px] font-bold uppercase tracking-wide border border-white/15 rounded px-1.5 py-0.5">Sắp có</span>
-                    </div>
-                  )}
-                  <button
-                    className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors group shrink-0 w-full text-left"
-                    onClick={onLogout}
-                    style={kieuChan}
-                  >
-                    <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
-                      logout
-                    </span>
-                    <span className="whitespace-nowrap">Đăng xuất</span>
-                    {muiTen(false)}
-                  </button>
-                </div>
+        {/* Đáy: vạch vàng phát sáng, rồi Trợ giúp / Đăng xuất. */}
+        <div className="flex flex-col shrink-0 mt-3">
+          <div className="mx-3 h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, transparent, #F5C451 20%, #FFF1C1 50%, #F5C451 80%, transparent)', boxShadow: '0 0 8px rgba(245,196,81,0.9), 0 0 18px rgba(245,170,50,0.45)' }}></div>
+          <div style={{ height: '10px' }}></div>
+          <div className="flex flex-col" style={{ gap: '2px' }}>
+            {SUPPORT_URL ? (
+            <a
+              className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] hover:bg-white/5 hover:text-white transition-colors group shrink-0"
+              href={SUPPORT_URL}
+              {...(IS_EXTERNAL_SUPPORT ? { target: '_blank', rel: 'noreferrer' } : {})}
+              style={kieuChan}
+            >
+              <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
+                help
+              </span>
+              <span className="whitespace-nowrap">Trợ giúp</span>
+              {muiTen(false)}
+            </a>
+            ) : (
+              // Chưa có đường hỗ trợ: mục mờ, không bấm, không nhận Tab/Enter (không phải nút, không phải liên kết).
+              <div
+                aria-disabled="true"
+                className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] shrink-0 cursor-default select-none"
+                style={{ ...kieuChan, color: 'rgba(232,237,242,0.3)' }}
+              >
+                <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
+                  help
+                </span>
+                <span className="whitespace-nowrap">Trợ giúp</span>
+                <span className="ml-auto text-[10px] font-bold uppercase tracking-wide border border-white/15 rounded px-1.5 py-0.5">Sắp có</span>
               </div>
-            </div>
+            )}
+            <button
+              className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors group shrink-0 w-full text-left"
+              onClick={onLogout}
+              style={kieuChan}
+            >
+              <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
+                logout
+              </span>
+              <span className="whitespace-nowrap">Đăng xuất</span>
+              {muiTen(false)}
+            </button>
           </div>
         </div>
       </div>
@@ -349,4 +356,17 @@ const VANG = {
   // Kim loại đánh bóng: dải sáng – tối xen kẽ theo đường chéo.
   khung: 'linear-gradient(158deg, #5E3A08 0%, #FFE08A 6%, #FFFBEA 10%, #F2B841 16%, #7A4D0C 27%, #C98A22 38%, #FFF3C9 47%, #E8A935 55%, #5C3707 66%, #D99A2E 77%, #FFEBB0 86%, #B97818 93%, #6A430B 100%)',
   vienSang: 'linear-gradient(95deg, #FFF1C1 0%, #F5C451 25%, #B98023 60%, #F5C451 85%, #FFE3A0 100%)',
+  vanhGiua: 'linear-gradient(170deg, #FFE7A0 0%, #C88A22 22%, #7A4D0C 40%, #E9B44A 60%, #FFF0C0 75%, #9C6516 100%)',
+  // Độ dày khối: các lớp bóng đắp lệch xuống – sang trái (lộ cạnh trái + cạnh đáy), tối dần như mặt bên kim loại; rồi neon.
+  khoi: [
+    '-1px 1px 0 #E3AC45', '-2px 2px 0 #C98F2C', '-3px 3px 0 #B07A20', '-4px 4px 0 #976518', '-5px 5px 0 #7E5212',
+    '-6px 6px 0 #67420D', '-7px 7px 0 #523409', '-8px 8px 1px #3E2706', '-9px 10px 6px rgba(0,0,0,0.6)',
+    '0 0 0 1px rgba(255,240,195,0.9)', '0 0 8px rgba(255,195,70,0.85)', '0 0 22px rgba(255,170,40,0.55)', '0 0 50px rgba(255,150,30,0.25)',
+  ].join(', '),
 };
+
+/** Điểm loé sáng hình sao: lõi trắng + tia ngang / dọc. */
+const LOE =
+  'radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,246,210,0.9) 10%, rgba(255,210,120,0.35) 26%, transparent 55%), ' +
+  'linear-gradient(90deg, transparent 0%, rgba(255,250,225,0.9) 50%, transparent 100%) center / 100% 1.5px no-repeat, ' +
+  'linear-gradient(180deg, transparent 0%, rgba(255,250,225,0.9) 50%, transparent 100%) center / 1.5px 100% no-repeat';

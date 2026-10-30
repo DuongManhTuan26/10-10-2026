@@ -138,7 +138,7 @@ export default function App() {
         moKhung={menuMo}
         onDong={() => setMenuMo(false)}
       />
-      <div className="flex-1 lg:ml-72 min-w-0 flex flex-col h-screen relative">
+      <div className="flex-1 lg:ml-76 min-w-0 flex flex-col h-screen relative">
         {/*
           Đang xem thay một trang thì mọi màn hình trông y hệt tài khoản của
           chính mình. Nút vàng cam ở góc phải thanh tiêu đề là thứ phân biệt —

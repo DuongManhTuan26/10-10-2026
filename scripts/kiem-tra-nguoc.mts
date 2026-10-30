@@ -2000,8 +2000,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "thanh menu lại chiếm chỗ cố định trên điện thoại",
     tep: "src/App.tsx",
-    tim: 'className="flex-1 lg:ml-72 min-w-0',
-    thay: 'className="flex-1 ml-72',
+    // 30/10/2026: menu rộng 304px (w-76) — trỏ lại đúng dòng, cùng ý.
+    tim: 'className="flex-1 lg:ml-76 min-w-0',
+    thay: 'className="flex-1 ml-76',
   },
   {
     ten: "thanh menu không còn trượt ra ngoài khi chưa mở",

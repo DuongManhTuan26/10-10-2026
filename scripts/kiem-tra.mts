@@ -2065,7 +2065,8 @@ kiem("điện thoại", "có nền mờ bấm ra ngoài để đóng",
 kiem("điện thoại", "chọn một mục là đóng ngăn kéo",
   /useEffect\(\(\) => \{ onDong\?\.\(\); \}, \[viTri\.pathname\]\)/.test(nguonMenu), true);
 kiem("điện thoại", "nội dung chỉ chừa chỗ cho menu từ lg trở lên",
-  /className="flex-1 lg:ml-72 min-w-0/.test(nguonApp2) && !/"flex-1 ml-72/.test(nguonApp2), true);
+  // 30/10/2026: menu nghiêng 3D rộng 304px (w-76) — nội dung chừa đúng bằng bề rộng menu, chỉ từ lg.
+  /className="flex-1 lg:ml-76 min-w-0/.test(nguonApp2) && !/"flex-1 ml-7[26]/.test(nguonApp2) && /className=\{`w-76 h-screen fixed/.test(nguonMenu), true);
 kiem("điện thoại", "thanh trên không còn bị ẩn hẳn",
   /hidden md:flex justify-between/.test(nguonThanhTren), false);
 kiem("điện thoại", "có nút mở menu dưới lg",
