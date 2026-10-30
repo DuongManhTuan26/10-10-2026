@@ -69,9 +69,10 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
   const aiDangXem = BON_AI.find((a) => a.duong === location.pathname);
   // 31/10/2026: 4 AI chung màu với Tổng quan — tiêu đề mọi trang một màu thương hiệu.
   const mauTieuDe = MAU_THUONG_HIEU;
+  // 31/10/2026: thanh trên rộng đúng phần còn lại sau thanh menu w-76 (19rem) — trước 288px nên lấn 16px, vạch vàng đâm vào menu.
 
   return (
-    <nav className="fixed top-0 right-0 w-full lg:w-[calc(100%-288px)] z-40 bg-surface border-b border-outline-variant transition-all duration-200 flex justify-between items-center gap-2 px-4 sm:px-margin py-base h-16">
+    <nav className="fixed top-0 right-0 w-full lg:w-[calc(100%-19rem)] z-40 bg-surface border-b border-outline-variant transition-all duration-200 flex justify-between items-center gap-2 px-4 sm:px-margin py-base h-16">
       <div className="flex items-center gap-2 sm:gap-md min-w-0">
         <button
           onClick={onMoMenu}

@@ -6883,6 +6883,24 @@ const DUC: PhepDuc[] = [
     thay: "  --color-background: #071418;",
   },
   {
+    ten: "thanh menu: thanh trên lấn 16px vào menu (288px)",
+    tep: "src/components/TopNavBar.tsx",
+    tim: "lg:w-[calc(100%-19rem)]",
+    thay: "lg:w-[calc(100%-288px)]",
+  },
+  {
+    ten: "thanh menu: khung hụt cách mép dưới 34px (chơi vơi)",
+    tep: "src/components/Sidebar.tsx",
+    tim: "right: '24px', bottom: '8px', transform",
+    thay: "right: '24px', bottom: '34px', transform",
+  },
+  {
+    ten: "thanh menu: màn rộng dải nền đen tách khỏi nội dung",
+    tep: "src/components/Sidebar.tsx",
+    tim: "bg-[#030509] lg:bg-transparent ",
+    thay: "bg-[#030509] ",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

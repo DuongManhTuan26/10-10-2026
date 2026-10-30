@@ -8520,6 +8520,12 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
       [true, "#22d3ee", true,
         ".nen-app { background-color: var(--color-background); background-image: radial-gradient(640px 420px at 90% -8%, rgb(0 229 255 / 0.10), transparent 70%), radial-gradient(560px 420px at 30% 108%, rgb(0 229 255 / 0.07), transparent 70%), linear-gradient(rgb(255 255 255 / 0.043) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.043) 1px, transparent 1px); background-size: auto, auto, 24px 24px, 24px 24px; }"]);
   }
+  // 31/10/2026 (chủ dự án): thanh menu kéo sát mép dưới, nền màn rộng trong suốt (lưới chạy liền); thanh trên rộng đúng
+  // phần còn lại sau menu w-76 — trước 288px nên lấn 16px, vạch vàng đâm vào menu.
+  kiem("thanh menu sát mép", "khung menu cách mép dưới 8px, bỏ dải phản chiếu; màn rộng nền trong suốt (điện thoại nền đặc); thanh trên = 100% − 19rem",
+    [/left: '8px', top: '10px', right: '24px', bottom: '8px', transform: 'rotateY\(11deg\)'/.test(sb), /PHẢN CHIẾU/.test(sb),
+      /w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-\[#030509\] lg:bg-transparent /.test(sb), /lg:w-\[calc\(100%-19rem\)\]/.test(tn), /288px/.test(tn)],
+    [true, false, true, true, false]);
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");
   const ma = (x: { ma: string }[]) => x.map((d) => d.ma);

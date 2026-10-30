@@ -183,9 +183,12 @@ export default function Sidebar({
       />
     )}
     <aside
-      className={`w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] lg:bg-transparent transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
     >
       {/*
+        31/10/2026 (chủ dự án: "thanh menu chơi vơi, kéo dài sát mép màn hình"): khung kéo xuống sát mép dưới (cách 8px), bỏ
+        dải phản chiếu dưới đáy (không còn "sàn"); màn rộng nền thanh menu trong suốt — nền lưới của app chạy liền dưới khung,
+        không còn dải đen tách khỏi phần nội dung. Điện thoại (ngăn kéo) vẫn nền đặc.
         LỚP KHUNG 3D — chỉ trang trí (chủ dự án 30/10/2026, ảnh mẫu): tấm kim loại vàng NGHIÊNG có phối cảnh (xoay quanh mép
         trái, mép phải lùi xa), có ĐỘ DÀY (lớp bóng đắp lộ cạnh trái + cạnh đáy), viền nhiều lớp đồng tâm, bóng gương, điểm loé,
         phản chiếu dưới cạnh đáy. Chữ + nút nằm ở LỚP NỘI DUNG phẳng bên dưới — không xoay theo nên không méo.
@@ -193,7 +196,7 @@ export default function Sidebar({
       <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ perspective: '1000px', perspectiveOrigin: '0% 46%' }}>
         <div
           className="absolute"
-          style={{ left: '8px', top: '10px', right: '24px', bottom: '34px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}
+          style={{ left: '8px', top: '10px', right: '24px', bottom: '8px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}
         >
           {/* Thân khối: vành gương ngoài + độ dày đắp lớp (lệch xuống – sang trái) + quầng neon. */}
           <div
@@ -224,29 +227,16 @@ export default function Sidebar({
             { left: '2px', top: '18px', s: 34 },
             { right: '10px', top: '4px', s: 22 },
             { left: '-4px', bottom: '40px', s: 30 },
-            { right: '34%', bottom: '-14px', s: 26 },
+            { right: '34%', bottom: '0px', s: 26 },
             { left: '38%', top: '-5px', s: 18 },
           ].map(({ s: c, ...vt }, n) => (
             <div key={n} className="absolute" style={{ ...vt, width: c, height: c, transform: 'translate(-50%,-50%)', background: LOE }} />
           ))}
         </div>
-        {/* PHẢN CHIẾU dưới cạnh đáy: dải vàng mờ dần + quầng trên "sàn" */}
-        <div className="absolute" style={{ left: '14px', right: '14px', bottom: '0px', height: '30px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}>
-          <div
-            className="absolute inset-x-[6px] top-0 h-full rounded-b-[30px]"
-            style={{
-              background: 'linear-gradient(180deg, rgba(255,200,90,0.42) 0%, rgba(255,170,50,0.12) 40%, transparent 85%)',
-              WebkitMaskImage: 'linear-gradient(180deg, #000 0%, transparent 90%)',
-              maskImage: 'linear-gradient(180deg, #000 0%, transparent 90%)',
-              filter: 'blur(2px)',
-            }}
-          />
-          <div className="absolute left-[10%] right-[20%] top-[2px] h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,235,180,0.75), transparent)', filter: 'blur(1px)' }} />
-        </div>
       </div>
 
       {/* LỚP NỘI DUNG — PHẲNG (không xoay): nằm gọn trong mặt kính của khung nghiêng. */}
-      <div className="relative z-10 h-full flex flex-col" style={{ padding: '38px 60px 66px 28px' }}>
+      <div className="relative z-10 h-full flex flex-col" style={{ padding: '38px 60px 40px 28px' }}>
         {/* Brand Header: lục giác viền vàng + khối lập phương; tên + "AI 5.0 PLATFORM". */}
         <div className="flex items-center gap-2.5 px-1 shrink-0">
           <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center" style={{ filter: 'drop-shadow(0 0 8px rgba(34,211,238,0.45))' }}>
