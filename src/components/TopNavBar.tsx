@@ -72,7 +72,7 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
   // 31/10/2026: thanh trên rộng đúng phần còn lại sau thanh menu w-76 (19rem) — trước 288px nên lấn 16px, vạch vàng đâm vào menu.
 
   return (
-    <nav className="fixed top-0 right-0 w-full lg:w-[calc(100%-19rem)] z-40 bg-surface border-b border-outline-variant transition-all duration-200 flex justify-between items-center gap-2 px-4 sm:px-margin py-base h-16">
+    <nav className="thanh-tren fixed top-0 right-0 w-full lg:w-[calc(100%-19rem)] z-40 transition-all duration-200 flex justify-between items-center gap-2 px-4 sm:px-margin py-base h-16">
       <div className="flex items-center gap-2 sm:gap-md min-w-0">
         <button
           onClick={onMoMenu}

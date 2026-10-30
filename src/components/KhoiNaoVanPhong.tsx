@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type BaoCaoDieuHanh, type ChiSoSucKhoe, type Conversation, type MaNhanVien, type SucKhoeTrang } from '../lib/api';
-import { BON_AI } from '../lib/bon-ai';
+import { BON_AI, MAU_THUONG_HIEU, VIEN_HE_THONG } from '../lib/bon-ai';
 import { BUOC_THU_MS, GIU_VIEC_S, kichBanThu, luongDang, trangThaiNv, type HoatDongKhoiNao, type TrangThaiNv } from '../lib/hoat-dong-khoi-nao';
 
 /*
@@ -28,6 +28,12 @@ const hop = (x: number, y: number, w: number, h: number): CSSProperties => ({
 });
 
 const [NOI_DUNG, QUANG_CAO, BAN_HANG, DIEU_HANH] = BON_AI;
+/**
+ * 31/10/2026 (chủ dự án: 4 AI chung màu; khung số viền vàng ánh kim): khung số + chữ nhấn dùng màu chung — viền VANG (gold
+ * menu), chữ XANH (xanh ngọc thương hiệu). Màu riêng AI chỉ còn ở dấu nhận diện ①②③ + thanh sức khoẻ (như số trên menu).
+ */
+const VANG = VIEN_HE_THONG;
+const XANH = MAU_THUONG_HIEU;
 
 /** Tiền VND gọn: 12,5 tr · 850.000 đ · 0 đ. */
 function vnd(v: number | null | undefined): string {
@@ -149,17 +155,18 @@ const VI_TRI_TT: Record<MaNhanVien, [number, number, number, number]> = {
   dieu_hanh: [790, 128, 400, 30],
 };
 
-/** Một màn hình đè lên ảnh: kính tối viền màu AI, phát sáng nhẹ. */
-function ManHinh({ x, y, w, h, mau, children }: { x: number; y: number; w: number; h: number; mau: string; children: ReactNode }) {
+/** Một màn hình đè lên ảnh: kính tối, viền vàng ánh kim (.vien-anh-kim), phát sáng nhẹ. */
+function ManHinh({ x, y, w, h, children }: { x: number; y: number; w: number; h: number; children: ReactNode }) {
   return (
     <div
-      className="absolute overflow-hidden pointer-events-none flex flex-col"
+      className="vien-anh-kim absolute overflow-hidden pointer-events-none flex flex-col"
       style={{
         ...hop(x, y, w, h),
         background: 'linear-gradient(180deg, rgba(10,22,36,0.96) 0%, rgba(5,12,22,0.96) 100%)',
-        border: `1px solid ${mau}bb`,
+        border: '1px solid transparent',
         borderRadius: p(10),
-        boxShadow: `0 0 ${p(14)} ${mau}66, inset 0 0 ${p(18)} ${mau}26`,
+        boxShadow: `0 0 ${p(14)} ${VANG}55, inset 0 0 ${p(18)} ${XANH}1f`,
+        ['--vien-anh-kim' as string]: VANG,
         padding: `${p(8)} ${p(12)}`,
         color: '#E8EDF2',
       }}
@@ -292,14 +299,14 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
       </Link>
 
       {/* ④ ĐIỀU HÀNH — trái: doanh thu tháng + cột theo ngày (chữ to, đọc được ở 1440) */}
-      <ManHinh x={522} y={98} w={208} h={170} mau="#38bdf8">
+      <ManHinh x={522} y={98} w={208} h={170}>
         {tieuDe('Doanh thu')}
         <div style={{ fontSize: p(42), fontWeight: 800, lineHeight: 1.1, marginTop: p(4) }}>{v(vnd(t.doanhThu))}</div>
         <div style={{ fontSize: p(16), color: '#4ade80', marginBottom: p(4) }}>{v(`${so(t.don)} đơn · tháng này`)}</div>
-        <Cot giaTri={t.doanhThuNgay} mau="#38bdf8" />
+        <Cot giaTri={t.doanhThuNgay} mau={XANH} />
       </ManHinh>
       {/* ④ — giữa trái: đơn / hội thoại mới / tỉ lệ chốt */}
-      <ManHinh x={732} y={98} w={124} h={170} mau="#38bdf8">
+      <ManHinh x={732} y={98} w={124} h={170}>
         <div className="flex flex-col justify-between h-full">
           <HangSo ten="Đơn hàng" giaTri={v(so(t.don))} co={28} coNhan={15} />
           <HangSo ten="Hội thoại mới" giaTri={v(so(t.hoiThoaiMoi))} co={28} coNhan={15} />
@@ -307,7 +314,7 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
         </div>
       </ManHinh>
       {/* ④ — phải: sức khoẻ 3 AI (mức do code chấm, không phải % bịa) */}
-      <ManHinh x={1168} y={98} w={288} h={170} mau="#38bdf8">
+      <ManHinh x={1168} y={98} w={288} h={170}>
         {tieuDe('Sức khoẻ 3 AI', '7 ngày')}
         <div className="flex flex-col justify-around flex-1" style={{ marginTop: p(2) }}>
           {[NOI_DUNG, QUANG_CAO, BAN_HANG].map((a) => {
@@ -336,10 +343,10 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
       </div>
 
       {/* ① NỘI DUNG — trải hết dãy màn hình, chừa chỗ nhân viên ngồi (ảnh cắt đè lên): số bên trái / bên phải người. */}
-      <ManHinh x={140} y={378} w={462} h={134} mau={NOI_DUNG.hex}>
-        {tieuDe('Bài đăng tháng này', undefined, NOI_DUNG.hex)}
+      <ManHinh x={140} y={378} w={462} h={134}>
+        {tieuDe('Bài đăng tháng này', undefined, XANH)}
         <div className="grid flex-1 items-end" style={{ gridTemplateColumns: '28% 16% 1fr 1fr 1fr', columnGap: p(6) }}>
-          <HangSo ten="Đã đăng" giaTri={v(so(t.baiDang))} mau={NOI_DUNG.hex} />
+          <HangSo ten="Đã đăng" giaTri={v(so(t.baiDang))} mau={XANH} />
           <span />
           <HangSo ten="AI viết" giaTri={v(so(t.baiAi))} co={30} coNhan={15} />
           <HangSo ten="Hiển thị" giaTri={v(so(t.hienThiBai))} co={30} coNhan={15} />
@@ -348,8 +355,8 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
       </ManHinh>
 
       {/* ② QUẢNG CÁO — chi tiêu (trái người) + tỉ lệ nhấp (phải người); app chưa đo ROAS → không hiện ROAS. */}
-      <ManHinh x={776} y={378} w={428} h={132} mau={QUANG_CAO.hex}>
-        {tieuDe('Quảng cáo tháng này', undefined, QUANG_CAO.hex)}
+      <ManHinh x={776} y={378} w={428} h={132}>
+        {tieuDe('Quảng cáo tháng này', undefined, XANH)}
         <div className="grid flex-1 items-end" style={{ gridTemplateColumns: '38% 1fr 40%', columnGap: p(8) }}>
           <div className="min-w-0">
             <HangSo ten="Chi quảng cáo" giaTri={v(vnd(t.chiQc))} co={36} />
@@ -364,15 +371,15 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
       </ManHinh>
 
       {/* ③ BÁN HÀNG — hội thoại thật (màn trái, phủ hết danh sách mẫu) + số bán (chừa chỗ nhân viên). */}
-      <ManHinh x={1334} y={378} w={164} h={200} mau={BAN_HANG.hex}>
-        {tieuDe('Hội thoại', undefined, BAN_HANG.hex)}
+      <ManHinh x={1334} y={378} w={164} h={200}>
+        {tieuDe('Hội thoại', undefined, XANH)}
         <div className="flex flex-col flex-1" style={{ gap: p(7), marginTop: p(6) }}>
           {s.hoiThoai.length === 0 ? (
             <div style={{ fontSize: p(16), opacity: 0.6 }}>{dang ? '…' : 'Chưa có hội thoại'}</div>
           ) : (
             s.hoiThoai.slice(0, 3).map((h) => (
               <div key={h.id} className="flex items-center min-w-0" style={{ gap: p(7) }}>
-                <span className="flex items-center justify-center shrink-0 rounded-full font-bold" style={{ width: p(28), height: p(28), fontSize: p(15), background: `${BAN_HANG.hex}33`, color: BAN_HANG.hex }}>
+                <span className="flex items-center justify-center shrink-0 rounded-full font-bold" style={{ width: p(28), height: p(28), fontSize: p(15), background: `${XANH}33`, color: XANH }}>
                   {(h.customer_name || '?').trim().charAt(0).toUpperCase()}
                 </span>
                 <span className="min-w-0">
@@ -384,8 +391,8 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
           )}
         </div>
       </ManHinh>
-      <ManHinh x={1502} y={378} w={358} h={146} mau={BAN_HANG.hex}>
-        {tieuDe('Bán hàng tháng này', undefined, BAN_HANG.hex)}
+      <ManHinh x={1502} y={378} w={358} h={146}>
+        {tieuDe('Bán hàng tháng này', undefined, XANH)}
         <div className="grid flex-1 items-end" style={{ gridTemplateColumns: '36% 1fr 40%', columnGap: p(8) }}>
           <div className="flex flex-col justify-end h-full" style={{ gap: p(4) }}>
             <HangSo ten="AI trả lời" giaTri={v(so(t.tinAi))} co={32} />
@@ -393,7 +400,7 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
           </div>
           <span />
           <div className="flex flex-col justify-end h-full" style={{ gap: p(4) }}>
-            <HangSo ten="Đơn hàng" giaTri={v(so(t.don))} mau={BAN_HANG.hex} co={30} />
+            <HangSo ten="Đơn hàng" giaTri={v(so(t.don))} mau={XANH} co={30} />
             <HangSo ten="Doanh thu" giaTri={v(vnd(t.doanhThu))} co={26} />
           </div>
         </div>
@@ -403,7 +410,7 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
       {(Object.keys(ANH_NV) as MaNhanVien[]).map((k) => {
         const b = ANH_NV[k];
         const { tt, su, giay } = trangThaiNv(s.hd, k, bayGio);
-        const mau = mauTT(tt, AI_THEO_KHAU[k].hex);
+        const mau = mauTT(tt, XANH);
         const den = su?.luong_den && su.luong_den !== k ? AI_THEO_KHAU[su.luong_den].ten.replace(/^AI /, '') : null;
         const chu = `${s.xemThu ? 'Thử · ' : ''}${CHU_TT[tt]}${su ? ` · ${su.chu}` : ''}${den ? ` → ${den}` : ''}${tt === 'canh_bao' && giay > GIU_VIEC_S ? ` · ${Math.round(giay / 60)} phút trước` : ''}`;
         // Bàn giao / báo cáo: nghiêng về phía văn phòng nhận (phải = văn phòng kế; lên = Điều hành).
@@ -511,17 +518,17 @@ export function KhoiNaoHaiTang({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang
           </Link>
           </span>
         </div>
-        {tang(KHUNG_HAI_TANG.dieu_hanh, DIEU_HANH.hex)}
+        {tang(KHUNG_HAI_TANG.dieu_hanh, VANG)}
         <div className="relative grid grid-cols-3 gap-4">
-          {tang(KHUNG_HAI_TANG.noi_dung, NOI_DUNG.hex)}
-          {tang(KHUNG_HAI_TANG.quang_cao, QUANG_CAO.hex)}
-          {tang(KHUNG_HAI_TANG.ban_hang, BAN_HANG.hex)}
+          {tang(KHUNG_HAI_TANG.noi_dung, VANG)}
+          {tang(KHUNG_HAI_TANG.quang_cao, VANG)}
+          {tang(KHUNG_HAI_TANG.ban_hang, VANG)}
           {/* Dòng việc: ① bài đã đăng → ②; ② khách từ quảng cáo → ③; ①②③ → ④ (đơn mới, số liệu cho lượt chấm). */}
-          <Noi dang={luong.has('noi_dung>quang_cao')} mau={NOI_DUNG.hex} ten="Nội dung → Quảng cáo: bài đã đăng" style={{ left: 'calc((100% - 2rem) / 3 + 0.5rem)', top: '50%' }} />
-          <Noi dang={luong.has('quang_cao>ban_hang')} mau={QUANG_CAO.hex} ten="Quảng cáo → Bán hàng: khách từ quảng cáo" style={{ left: 'calc((100% - 2rem) / 3 * 2 + 1.5rem)', top: '50%' }} />
+          <Noi dang={luong.has('noi_dung>quang_cao')} mau={XANH} ten="Nội dung → Quảng cáo: bài đã đăng" style={{ left: 'calc((100% - 2rem) / 3 + 0.5rem)', top: '50%' }} />
+          <Noi dang={luong.has('quang_cao>ban_hang')} mau={XANH} ten="Quảng cáo → Bán hàng: khách từ quảng cáo" style={{ left: 'calc((100% - 2rem) / 3 * 2 + 1.5rem)', top: '50%' }} />
           {([NOI_DUNG, QUANG_CAO, BAN_HANG] as const).map((a, i) => (
             <Fragment key={a.ma}>
-              <Noi doc dang={luong.has(`${a.khau}>dieu_hanh`)} mau={a.hex} ten={`${a.ten.replace(/^AI /, '')} → Điều hành: báo cáo, số liệu`} style={{ left: cotGiua(i), top: '-0.5rem' }} />
+              <Noi doc dang={luong.has(`${a.khau}>dieu_hanh`)} mau={XANH} ten={`${a.ten.replace(/^AI /, '')} → Điều hành: báo cáo, số liệu`} style={{ left: cotGiua(i), top: '-0.5rem' }} />
             </Fragment>
           ))}
         </div>
@@ -535,12 +542,12 @@ export function KhoiNaoThe({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: st
   const t = tomSo(s);
   const v = (x: string) => (t.co ? x : '…');
   const the = (a: (typeof BON_AI)[number], cat: [number, number, number, number], so4: [string, string][]) => (
-    <div key={a.ma} className="rounded-2xl overflow-hidden border" style={{ borderColor: `${a.hex}66`, boxShadow: `0 0 18px ${a.hex}26` }}>
+    <div key={a.ma} className="rounded-2xl overflow-hidden border" style={{ borderColor: `${VANG}99`, boxShadow: `0 0 18px ${VANG}26` }}>
       <KhoiNaoAnh s={s} tenCuaHang={tenCuaHang} khung={cat} />
       <Link to={a.duong} className="block p-3 bg-[#030509] transition hover:brightness-125">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-bold" style={{ color: a.hex }}>{a.so} · {a.ten}</span>
-          <span className="text-[12px] font-bold" style={{ color: a.hex }}>Vào xem →</span>
+          <span className="text-sm font-bold" style={{ color: XANH }}>{a.so} · {a.ten}</span>
+          <span className="text-[12px] font-bold" style={{ color: XANH }}>Vào xem →</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {so4.map(([ten, gt]) => (

@@ -6639,16 +6639,18 @@ const DUC: PhepDuc[] = [
     tep: "src/components/KhoiNaoVanPhong.tsx",
     // 30/10/2026: khung ③ gộp, khoét người — trỏ lại: khung hẹp lại không phủ màn 'Thông tin khách'.
     // 31/10/2026: bỏ khoét (ảnh nhân viên đè lên) — trỏ lại.
-    tim: "      <ManHinh x={1502} y={378} w={358} h={146} mau={BAN_HANG.hex}>",
-    thay: "      <ManHinh x={1502} y={378} w={170} h={146} mau={BAN_HANG.hex}>",
+    // 31/10/2026: khung số bỏ màu riêng AI — trỏ lại.
+    tim: "      <ManHinh x={1502} y={378} w={358} h={146}>",
+    thay: "      <ManHinh x={1502} y={378} w={170} h={146}>",
   },
   {
     ten: "khối não: khung số lệch khỏi màn ROAS (lộ số mẫu)",
     tep: "src/components/KhoiNaoVanPhong.tsx",
     // 30/10/2026: khung ② gộp (chi tiêu + tỉ lệ nhấp) — trỏ lại: khung hẹp lại không phủ màn ROAS.
     // 31/10/2026: bỏ khoét — trỏ lại.
-    tim: "      <ManHinh x={776} y={378} w={428} h={132} mau={QUANG_CAO.hex}>",
-    thay: "      <ManHinh x={776} y={378} w={260} h={132} mau={QUANG_CAO.hex}>",
+    // 31/10/2026: khung số bỏ màu riêng AI — trỏ lại.
+    tim: "      <ManHinh x={776} y={378} w={428} h={132}>",
+    thay: "      <ManHinh x={776} y={378} w={260} h={132}>",
   },
   {
     ten: "khối não: thẻ màn hẹp dùng ảnh trần (lộ toàn bộ số mẫu)",
@@ -6899,6 +6901,24 @@ const DUC: PhepDuc[] = [
     tep: "src/components/Sidebar.tsx",
     tim: "bg-[#030509] transition-transform",
     thay: "bg-[#030509] lg:bg-transparent transition-transform",
+  },
+  {
+    ten: "thanh trên: mất vạch vàng ánh kim (về nền phẳng + viền mảnh)",
+    tep: "src/components/TopNavBar.tsx",
+    tim: "<nav className=\"thanh-tren fixed top-0",
+    thay: "<nav className=\"fixed top-0",
+  },
+  {
+    ten: "khối não: khung số mất viền vàng ánh kim",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "className=\"vien-anh-kim absolute overflow-hidden",
+    thay: "className=\"absolute overflow-hidden",
+  },
+  {
+    ten: "khối não: tiêu đề khung ① quay lại màu riêng AI",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "tieuDe('Bài đăng tháng này', undefined, XANH)",
+    thay: "tieuDe('Bài đăng tháng này', undefined, NOI_DUNG.hex)",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

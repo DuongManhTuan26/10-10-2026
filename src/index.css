@@ -139,6 +139,26 @@
  */
 :root { --vien-mac-dinh: #F5C451; }
 
+/*
+ * THANH TRÊN (31/10/2026, chủ dự án duyệt mục 3): nền có chiều sâu cùng tông xanh đá dầu + vạch đáy VÀNG ÁNH KIM như khung
+ * menu (thay đường vàng mảnh phẳng). Chữ tiêu đề giữ xanh ngọc.
+ */
+.thanh-tren {
+    background: linear-gradient(180deg, #14323c 0%, #10252c 100%);
+    box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.75);
+}
+.thanh-tren::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    pointer-events: none;
+    background: linear-gradient(90deg, #6A430B 0%, #F5C451 12%, #FFF1C1 22%, #C98A22 38%, #FFE8A8 55%, #B97818 72%, #F5C451 86%, #7A4D0C 100%);
+    box-shadow: 0 0 8px rgba(245, 196, 81, 0.55);
+}
+
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
@@ -215,9 +235,9 @@
  * sáng / tối như khung menu, thay viền phẳng. Vẽ bằng lớp ::before khoét giữa (mask) để nền thẻ vẫn trong suốt thấy lưới.
  * Màu gốc của vòng = màu viền của thẻ (--vien-anh-kim): vàng gold; thẻ cảnh báo / lỗi giữ màu nghĩa của nó, cũng ánh kim.
  */
-.the, .khung-muc { border-color: transparent !important; }
+.the, .khung-muc, .vien-anh-kim { border-color: transparent !important; }
 .khung-muc { position: relative; --vien-anh-kim: var(--mau-vien, var(--mau)); }
-.the::before, .khung-muc::before {
+.the::before, .khung-muc::before, .vien-anh-kim::before {
     content: "";
     position: absolute;
     inset: 0;

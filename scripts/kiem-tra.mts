@@ -3216,7 +3216,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   const nguonThanhTieuDe = fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8");
   kiem("phân tầng", "nút Quay lại quản lý nằm trong thanh tiêu đề cố định (không trôi, không đè nội dung), nổi bật màu chủ đạo",
     [/gocPhai=\{<DangXemThay user=\{user\} onQuayLai=/.test(nguonApp),
-      /<nav className="fixed top-0 /.test(nguonThanhTieuDe) && /<div className="flex items-center gap-base">\s*\{gocPhai\}/.test(nguonThanhTieuDe),
+      /<nav className="(thanh-tren )?fixed top-0 /.test(nguonThanhTieuDe) && /<div className="flex items-center gap-base">\s*\{gocPhai\}/.test(nguonThanhTieuDe),
       /rounded-full bg-primary text-on-primary text-xs font-bold pl-2\.5 pr-3 py-2 shadow-\[0_0_18px_var\(--color-primary\)\]/.test(nguonBangXem),
       /sticky top-0 z-50/.test(nguonBangXem)],
     [true, true, true, false]);
@@ -7664,7 +7664,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     kiem("khối não văn phòng", "Tổng quan dùng khối văn phòng: màn rộng cảnh lớn, màn hẹp 4 thẻ; ảnh nền có trong public/",
       // 30/10/2026 (chủ dự án "to hơn, kéo dài xuống"): màn rộng HAI TẦNG — ④ phủ ngang, ①②③ cạnh nhau, cùng cảnh đã đè số.
       [/<KhoiNaoHaiTang s=\{s\} tenCuaHang=\{trangDangChon\.ten\} \/>/.test(fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8"))
-        && /\{tang\(KHUNG_HAI_TANG\.dieu_hanh, DIEU_HANH\.hex\)\}\s*<div className="relative grid grid-cols-3 gap-4">\s*\{tang\(KHUNG_HAI_TANG\.noi_dung/.test(kn)
+        && /\{tang\(KHUNG_HAI_TANG\.dieu_hanh, VANG\)\}\s*<div className="relative grid grid-cols-3 gap-4">\s*\{tang\(KHUNG_HAI_TANG\.noi_dung/.test(kn)
         && /<KhoiNaoAnh s=\{s\} tenCuaHang=\{tenCuaHang\} khung=\{k\} \/>/.test(kn),
         /<KhoiNaoThe s=\{s\} tenCuaHang=\{trangDangChon\.ten\} \/>/.test(fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8")),
         fs.existsSync(path.join(GOC, "public/giao-dien/khoi-nao.webp"))],
@@ -8507,9 +8507,9 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
         JSON.stringify(ba.bienThe(ba.MAU_THUONG_HIEU)), JSON.stringify(ba.bienThe("#4ade80"))],
       [true, true, true, true, 2, true, true, JSON.stringify({ "--nhan": "#22d3ee", "--vien-the": "#F5C451" }), JSON.stringify({ "--nhan": "#22d3ee", "--vien-the": "#F5C451" })]);
     kiem("viền vàng gold", "viền ánh kim: thẻ + khung vẽ vòng kim loại nhiều dải (::before khoét giữa), viền phẳng ẩn; màu cảnh báo vẫn giữ nghĩa",
-      [/\.the, \.khung-muc \{ border-color: transparent !important; \}/.test(css), /\.the::before, \.khung-muc::before \{[\s\S]{0,200}background: linear-gradient\(135deg,\s*color-mix\(in srgb, var\(--vien-anh-kim\)/.test(css),
+      [/\.the, \.khung-muc, \.vien-anh-kim \{ border-color: transparent !important; \}/.test(css), /\.the::before, \.khung-muc::before, \.vien-anh-kim::before \{[\s\S]{0,200}background: linear-gradient\(135deg,\s*color-mix\(in srgb, var\(--vien-anh-kim\)/.test(css),
         /mask-composite: exclude;/.test(css), /--vien-anh-kim: var\(--vien-cua-the\);/.test(css), JSON.stringify(ba.bienThe("var(--color-canh-bao)")),
-        /display|visibility|opacity/.test(css.slice(css.indexOf(".the::before, .khung-muc::before {"), css.indexOf("}", css.indexOf(".the::before, .khung-muc::before {"))))],
+        /display|visibility|opacity/.test(css.slice(css.indexOf(".the::before, .khung-muc::before, .vien-anh-kim::before {"), css.indexOf("}", css.indexOf(".the::before, .khung-muc::before, .vien-anh-kim::before {"))))],
       [true, true, true, true, JSON.stringify({ "--nhan": "var(--color-canh-bao)" }), false]);
     kiem("viền vàng gold", "4 AI chung màu: tiêu đề mọi trang một màu thương hiệu; khung mang màu AI (lá / đỏ / tím / vàng) → dải đầu xanh ngọc + viền vàng",
       [/const mauTieuDe = MAU_THUONG_HIEU;/.test(boChuThich(fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8"))),
@@ -8526,6 +8526,16 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     [/left: '8px', top: '10px', right: '24px', bottom: '8px', transform: 'rotateY\(11deg\)'/.test(sb), /PHẢN CHIẾU/.test(sb),
       /w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-\[#030509\] transition-transform/.test(sb) && !/lg:bg-transparent/.test(sb), /lg:w-\[calc\(100%-19rem\)\]/.test(tn), /288px/.test(tn)],
     [true, false, true, true, false]);
+  // 31/10/2026 (chủ dự án duyệt mục 3 + 4): thanh trên có chiều sâu + vạch đáy vàng ánh kim; khung số khối não viền vàng
+  // ánh kim, chữ nhấn màu chung (không màu riêng AI — chỉ còn ở dấu ①②③ + thanh sức khoẻ).
+  {
+    const kn31 = fs.readFileSync(path.join(GOC, "src/components/KhoiNaoVanPhong.tsx"), "utf8");
+    kiem("thanh trên + khối não ánh kim", "thanh trên dùng .thanh-tren (vạch đáy vàng ánh kim); khung số khối não .vien-anh-kim viền vàng; không còn màu riêng AI ở khung / tiêu đề / số / đường nối",
+      [/<nav className="thanh-tren fixed top-0 /.test(tn), /\.thanh-tren::after \{[\s\S]{0,260}background: linear-gradient\(90deg, #6A430B 0%, #F5C451 12%/.test(css),
+        /className="vien-anh-kim absolute overflow-hidden pointer-events-none flex flex-col"/.test(kn31), /\['--vien-anh-kim' as string\]: VANG,/.test(kn31),
+        (kn31.match(/(NOI_DUNG|QUANG_CAO|BAN_HANG|DIEU_HANH)\.hex|#38bdf8/g) ?? []).length],
+      [true, true, true, true, 0]);
+  }
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");
   const ma = (x: { ma: string }[]) => x.map((d) => d.ma);
