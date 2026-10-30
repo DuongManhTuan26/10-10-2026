@@ -16,6 +16,9 @@ Trả lời chủ dự án bằng tiếng Việt, ngắn, có chứng cứ.
 - Trước gộp: `npx tsc --noEmit -p .` sạch · `npm run kiem-tra` tất cả đạt · `TEP="…" npx tsx scripts/kiem-tra-nguoc.mts`
   "Mọi chốt chặn đều có phép kiểm thật đứng sau" (không chạy song song hai lượt).
 - Tính năng mới = phép kiểm + lỗ đục ngược. Lời dặn AI Bán hàng khoá bằng `scripts/mau/loi-dan-ban-hang.json`.
+- Lỗ đục ngược / phép kiểm KHÔNG được chạm thứ thật: kiem-tra-nguoc chạy kiem-tra trong `MOI_TRUONG_CO_LAP` (CSDL .invalid,
+  không Telegram / AI); lỗ đục không `import(` / `require(`, không nạp đường ghi DB hay gửi tin thật (30/10/2026 đã gây một
+  tin Telegram giả — TD-35). Thêm biến môi trường dẫn ra ngoài thì thêm vào `MOI_TRUONG_CO_LAP`.
 - Không tiêu tiền (AI / quảng cáo) khi chưa được chủ dự án cho; đẩy bài quảng cáo phải báo số tiền trước.
 - Trình chủ dự án: mỗi mục = đề xuất + nguyên nhân + căn cứ + hệ quả + tiền. Không liệt kê trơn, không hỏi vặt.
 - Không tự đổi điều đã chốt; sửa lỗi thì sửa mọi chỗ cùng loại; "Zernio" không bao giờ lộ ra cho khách.
