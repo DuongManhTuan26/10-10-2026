@@ -224,8 +224,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "viền thẻ kính mờ mất, thẻ chìm vào nền",
     tep: "src/index.css",
-    tim: "  --color-outline-variant: rgb(0 229 255 / 0.34);",
-    thay: "  --color-outline-variant: rgb(0 229 255 / 0.08);",
+    // 31/10/2026: viền chung sang vàng gold menu — trỏ lại.
+    tim: "  --color-outline-variant: rgb(245 196 81 / 0.34);",
+    thay: "  --color-outline-variant: rgb(245 196 81 / 0.08);",
   },
   {
     ten: "chữ phụ lại tối",
@@ -335,7 +336,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "khung phần mất viền màu",
     tep: "src/index.css",
-    tim: "    border: 1px solid color-mix(in srgb, var(--mau) 55%, transparent);\n",
+    // 31/10/2026: viền khung theo --mau-vien (xanh ngọc / mặc định → vàng gold) — trỏ lại.
+    tim: "    border: 1px solid color-mix(in srgb, var(--mau-vien, var(--mau)) 55%, transparent);\n",
     thay: "",
   },
   {
