@@ -131,8 +131,8 @@ Công nghệ: React 19 + Vite + TypeScript (src/), Express ESM chạy bằng `ts
       đọc từ nhà cung cấp sau ~1 giờ và lúc kết thúc. Lỗi Meta → dừng, báo nguyên văn.
    b. **TD-32** lời đọc / chữ trên hình video: đề xuất luôn cấm bịa khi cửa hàng chưa có tài liệu (đổi điều đã chốt → chờ).
    c. Chọn tài khoản quảng cáo cho cửa hàng 1 (đề xuất VISA *8686; Fanpage tài chính có thể vướng danh mục đặc biệt Meta).
-   d. Cũ: TD-14 (khoá tài khoản có kênh thật), TD-18 (hội thoại chỉ xem — chờ chuyển kênh thật), đường hỗ trợ
-      (VITE_SUPPORT_URL — đề xuất Zalo), tên sản phẩm chính thức (tạm "Quản lý Fanpage"), khoá OpenRouter riêng cho nghiên
+   d. Cũ: TD-14 (khoá tài khoản có kênh thật), TD-18 (hội thoại chỉ xem — chờ chuyển kênh thật), đường hỗ trợ ĐÃ ĐẶT 30/10
+      (VITE_SUPPORT_URL="https://zalo.me/0763012345" trong .env + khoa-api.env, chủ dự án cho số), tên sản phẩm chính thức (tạm "Quản lý Fanpage"), khoá OpenRouter riêng cho nghiên
       cứu, xoá 7 bảng *_truoc_* (~06/11). Hạn mức kênh theo gói: làm khi có gói trả phí.
 2. **TD-29** cache ngắn danh sách tài khoản quảng cáo khi tìm tỉnh / sở thích (làm khi chậm / chạm hạn mức).
 3. **TD-30** allowlist `adAccountId` khi nối quảng cáo (cửa hàng thứ hai cùng người Facebook thấy tài khoản của nhau).
