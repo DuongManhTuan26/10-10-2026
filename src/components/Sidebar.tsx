@@ -183,12 +183,12 @@ export default function Sidebar({
       />
     )}
     <aside
-      className={`w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] lg:bg-transparent transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
     >
       {/*
         31/10/2026 (chủ dự án: "thanh menu chơi vơi, kéo dài sát mép màn hình"): khung kéo xuống sát mép dưới (cách 8px), bỏ
-        dải phản chiếu dưới đáy (không còn "sàn"); màn rộng nền thanh menu trong suốt — nền lưới của app chạy liền dưới khung,
-        không còn dải đen tách khỏi phần nội dung. Điện thoại (ngăn kéo) vẫn nền đặc.
+        dải phản chiếu dưới đáy (không còn "sàn"). Nền ĐEN BÓNG quanh khung giữ nguyên — chủ dự án: "màu đen xì bóng cũ chính
+        là điểm nhấn để thanh menu nổi bật, đừng đổi thành màu xanh".
         LỚP KHUNG 3D — chỉ trang trí (chủ dự án 30/10/2026, ảnh mẫu): tấm kim loại vàng NGHIÊNG có phối cảnh (xoay quanh mép
         trái, mép phải lùi xa), có ĐỘ DÀY (lớp bóng đắp lộ cạnh trái + cạnh đáy), viền nhiều lớp đồng tâm, bóng gương, điểm loé,
         phản chiếu dưới cạnh đáy. Chữ + nút nằm ở LỚP NỘI DUNG phẳng bên dưới — không xoay theo nên không méo.

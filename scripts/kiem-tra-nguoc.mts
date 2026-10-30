@@ -6895,10 +6895,10 @@ const DUC: PhepDuc[] = [
     thay: "right: '24px', bottom: '34px', transform",
   },
   {
-    ten: "thanh menu: màn rộng dải nền đen tách khỏi nội dung",
+    ten: "thanh menu: nền đen bóng quanh khung bị đổi thành trong suốt (mất điểm nhấn)",
     tep: "src/components/Sidebar.tsx",
-    tim: "bg-[#030509] lg:bg-transparent ",
-    thay: "bg-[#030509] ",
+    tim: "bg-[#030509] transition-transform",
+    thay: "bg-[#030509] lg:bg-transparent transition-transform",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

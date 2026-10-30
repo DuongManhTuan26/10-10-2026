@@ -8522,9 +8522,9 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   }
   // 31/10/2026 (chủ dự án): thanh menu kéo sát mép dưới, nền màn rộng trong suốt (lưới chạy liền); thanh trên rộng đúng
   // phần còn lại sau menu w-76 — trước 288px nên lấn 16px, vạch vàng đâm vào menu.
-  kiem("thanh menu sát mép", "khung menu cách mép dưới 8px, bỏ dải phản chiếu; màn rộng nền trong suốt (điện thoại nền đặc); thanh trên = 100% − 19rem",
+  kiem("thanh menu sát mép", "khung menu cách mép dưới 8px, bỏ dải phản chiếu; nền quanh khung GIỮ đen bóng #030509 (chủ dự án: điểm nhấn); thanh trên = 100% − 19rem",
     [/left: '8px', top: '10px', right: '24px', bottom: '8px', transform: 'rotateY\(11deg\)'/.test(sb), /PHẢN CHIẾU/.test(sb),
-      /w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-\[#030509\] lg:bg-transparent /.test(sb), /lg:w-\[calc\(100%-19rem\)\]/.test(tn), /288px/.test(tn)],
+      /w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-\[#030509\] transition-transform/.test(sb) && !/lg:bg-transparent/.test(sb), /lg:w-\[calc\(100%-19rem\)\]/.test(tn), /288px/.test(tn)],
     [true, false, true, true, false]);
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");
