@@ -6656,6 +6656,18 @@ const DUC: PhepDuc[] = [
     thay: "hop(52, 34, 200, 84), gap: p(14)",
   },
   {
+    ten: "tổng quan: khối não không còn tràn ngang (nhỏ lại)",
+    tep: "src/pages/Dashboard.tsx",
+    tim: '        <div className="xl:-mx-5">{boNao}</div>',
+    thay: '        <div>{boNao}</div>',
+  },
+  {
+    ten: "tổng quan: 4 ô số lại thành thẻ cao 5 cột",
+    tep: "src/pages/Dashboard.tsx",
+    tim: '        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">',
+    thay: '        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">',
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

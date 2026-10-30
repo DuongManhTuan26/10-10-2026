@@ -1191,12 +1191,6 @@ export const api = {
         }>;
         aiReport: { findings: string; recommendation: string } | null;
       }>(`/dashboard/stats?range=${range}`),
-    /*
-     * dashboard/chart CỐ Ý KHÔNG dùng: nó trả về đúng dữ liệu mà
-     * analytics/overview đã trả (đơn và doanh thu theo ngày), và màn hình
-     * Thống Kê đang vẽ từ nguồn đó. Hai nguồn cho cùng một biểu đồ là cách
-     * chắc chắn để hai chỗ hiện hai con số khác nhau.
-     */
     sparklines: () =>
       get<{ data: Array<{ id: number; label: string; value: string; data: number[] }> }>(
         "/dashboard/sparklines"
@@ -1205,9 +1199,6 @@ export const api = {
       get<{ data: Array<{ id: number; time: string; content: string; color: string }> }>(
         "/dashboard/activity"
       ),
-    /** Doanh thu và số đơn theo NGÀY (giờ VN) của 7 hoặc 30 ngày gần nhất — ngày không có đơn vẫn có dòng số 0. */
-    chart: (range: "7d" | "30d") =>
-      get<{ data: Array<{ label: string; orders: number; revenue: number | string }> }>(`/dashboard/chart?range=${range}`),
   },
 
   orders: {

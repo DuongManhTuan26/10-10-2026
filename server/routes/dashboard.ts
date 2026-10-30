@@ -249,33 +249,3 @@ dashboardRouter.get(
   })
 );
 
-/** Doanh thu và số đơn theo từng ngày, dùng vẽ biểu đồ. */
-dashboardRouter.get(
-  "/chart",
-  route(async (req, res) => {
-    const days = req.query.range === "30d" ? 30 : 7;
-
-    // generate_series đảm bảo ngày không có đơn vẫn hiện số 0,
-    // nếu không biểu đồ sẽ nhảy cóc và gây hiểu nhầm.
-    const rows = await query(
-      // Ngày theo giờ Việt Nam — xem giải thích ở truy vấn sparklines phía trên.
-      `SELECT to_char(d.day, 'DD/MM')                      AS label,
-              COALESCE(COUNT(o.id), 0)::int                AS orders,
-              COALESCE(SUM(o.total) FILTER (WHERE o.status <> 'cancelled'), 0) AS revenue
-         FROM generate_series(
-                date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh')
-                  - (($1::int - 1) || ' days')::interval,
-                date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh'),
-                interval '1 day'
-              ) AS d(day)
-         LEFT JOIN orders o
-                ON o.user_id = $2
-               AND date_trunc('day', o.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = d.day
-        GROUP BY d.day
-        ORDER BY d.day`,
-      [days, req.user!.id]
-    );
-
-    res.json({ success: true, data: rows.rows });
-  })
-);

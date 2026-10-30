@@ -7647,6 +7647,22 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         fs.existsSync(path.join(GOC, "public/giao-dien/khoi-nao.webp"))],
       [true, true, true]);
   }
+  // TỔNG QUAN 30/10/2026 (chủ dự án: "thu hẹp các mục không quan trọng, phóng to khối não cho hoành tráng"): khối não đứng
+  // ĐẦU (sau dải khách chờ một dòng), tràn bề ngang; 4 số chính thành 4 ô gọn một hàng bên dưới, không biểu đồ nhỏ.
+  {
+    const db = fs.readFileSync(path.join(GOC, "src/pages/Dashboard.tsx"), "utf8");
+    const viTri = (x: string) => db.indexOf(x);
+    kiem("tổng quan khối não trung tâm", "thứ tự: dải khách chờ → KHỐI NÃO (tràn ngang) → 4 ô số gọn → xu hướng 7 ngày",
+      [viTri("1. CẦN XỬ LÝ NGAY") > 0 && viTri("1. CẦN XỬ LÝ NGAY") < viTri("{boNao}"),
+        /<div className="xl:-mx-5">\{boNao\}<\/div>/.test(db),
+        viTri("{boNao}") < viTri("3. SỐ CHÍNH CỦA KỲ") && viTri("3. SỐ CHÍNH CỦA KỲ") < viTri("4. XU HƯỚNG 7 NGÀY"),
+        (db.match(/\{boNao\}/g) ?? []).length],
+      [true, true, true, 1]);
+    kiem("tổng quan khối não trung tâm", "mục phụ gọn: dải khách chờ một dòng (tối đa 4 khách); 4 ô số một hàng, không biểu đồ nhỏ / biểu đồ doanh thu trong ô",
+      [/<section className="the px-4 py-2\.5 flex flex-wrap items-center/.test(db), /canXuLy\.slice\(0, 4\)/.test(db),
+        /<div className="grid grid-cols-2 xl:grid-cols-4 gap-3">/.test(db), /BieuDoNho|AreaChart|dashboard\.chart/.test(db)],
+      [true, true, true, false]);
+  }
   // TD-34 (30/10/2026): lượt KHÔNG có mã nhà cung cấp (vẽ ảnh — /images không trả id; sổ cũ) không bao giờ đối chiếu được →
   // không được nằm mãi ở "đang chờ"; tính riêng "theo bảng giá" như đã chốt; cùng cách tong-quan.ts.
   {
@@ -8337,7 +8353,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   kiem("P3 biểu đồ", "Điều hành / Quảng cáo / Tổng quan: một kiểu chú thích + trục + lưới (BIEU_DO), không còn mã màu riêng",
     [[dh30, ad30, db30].map((x) => /#111827|#18181B|#27272A|#374151|#A1A1AA|#8b95a1|#9ca3af|rgba\(255,255,255,0\.0[56]\)/.test(x)),
       [dh30, ad30, db30].map((x) => (x.match(/contentStyle=\{BIEU_DO\.chuThich\}/g) ?? []).length)],
-    [[false, false, false], [2, 1, 2]]);
+    // 30/10/2026: Tổng quan bỏ biểu đồ doanh thu trong ô số (ô gọn; doanh thu theo ngày ở màn ④ của khối não) → 1.
+    [[false, false, false], [2, 1, 1]]);
   kiem("P3 khung", "② Đang làm: 'Hiệu quả chiến dịch' đỏ → bảng 'Chiến dịch' xám → 'Tệp đối tượng' đỏ (liền kề khác màu)",
     [/<div className="khung-muc mau-do mb-8 flex flex-col">\s*<div className="dau-muc flex items-center justify-between gap-3">\s*<h2 className="tieu-de-muc">Hiệu quả chiến dịch<\/h2>/.test(ad30),
       /<div id="ds-chien-dich" className="khung-muc mau-xam mb-8 scroll-mt-6">\s*<h3 className="tieu-de-muc dau-muc">Chiến dịch<\/h3>/.test(ad30),
