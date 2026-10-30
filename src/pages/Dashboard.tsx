@@ -69,7 +69,7 @@ function ToLich() {
   const t = gioVN(bayGio);
   return (
     <div className="the shrink-0 w-[88px] overflow-hidden text-center" aria-label={`${t.thu}, ngày ${t.ngay} tháng ${t.thang} năm ${t.nam}`}>
-      <div className="py-1 text-[10px] font-black uppercase tracking-[0.14em] text-primary border-b border-[color-mix(in_srgb,var(--mau-the)_40%,transparent)] bg-primary/15">
+      <div className="py-1 text-[10px] font-black uppercase tracking-[0.14em] text-primary border-b border-[color-mix(in_srgb,var(--vien-cua-the)_40%,transparent)] bg-primary/15">
         {t.thu}
       </div>
       <div className="so-lon pt-1.5 text-[40px] font-black text-on-surface">{t.ngay}</div>
@@ -84,7 +84,7 @@ function DongHo() {
   const bayGio = useBayGio(1000);
   const t = gioVN(bayGio);
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--color-primary)_55%,transparent)] bg-primary/10 pl-2.5 pr-3 py-1">
+    <span className="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--vien-mac-dinh)_55%,transparent)] bg-primary/10 pl-2.5 pr-3 py-1">
       <span className="material-symbols-outlined text-[18px] text-primary">schedule</span>
       <span className="font-mono text-base font-black text-on-surface tabular-nums">
         {t.gio}<span className={bayGio.getSeconds() % 2 ? 'opacity-30' : ''}>:</span>{t.phut}

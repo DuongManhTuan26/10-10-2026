@@ -5,7 +5,7 @@ import { clsx } from 'clsx';
 import { api, ApiError, type Platform, type SocialAccount } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useActivePage } from '../lib/ActivePage';
-import { MAU_THUONG_HIEU } from '../lib/bon-ai';
+import { bienThe, MAU_THUONG_HIEU } from '../lib/bon-ai';
 import { hoiNhap, hoiXacNhan } from '../components/HopHoi';
 import BangTrangBanHang, { DongKenh } from '../components/BangTrangBanHang';
 import ChonTrangBanHang, { type TrangChon } from '../components/ChonTrangBanHang';
@@ -1091,7 +1091,7 @@ export default function Connections() {
             { nhan: 'Cửa hàng chưa có kênh', so: trangChuaCoKenh.length, phu: trangChuaCoKenh.length ? 'AI của cửa hàng đó chưa làm việc được' : 'cửa hàng nào cũng đã có kênh', icon: trangChuaCoKenh.length ? 'warning' : 'task_alt', mau: trangChuaCoKenh.length ? 'var(--color-canh-bao)' : '#94a3b8' },
             { nhan: 'Mất kết nối', so: soKenhHong, phu: soKenhHong ? 'AI đang dừng trên kênh này' : 'mọi kênh đều ổn', icon: soKenhHong ? 'link_off' : 'verified', mau: soKenhHong ? 'var(--color-loi)' : '#94a3b8' },
           ].map((o) => (
-            <div key={o.nhan} className="the p-4 md:p-5 min-w-0" style={{ ['--nhan' as string]: o.mau }}>
+            <div key={o.nhan} className="the p-4 md:p-5 min-w-0" style={bienThe(o.mau)}>
               <div className="flex items-center gap-3">
                 <span className="o-bieu-tuong !w-8 !h-8 md:!w-9 md:!h-9 shrink-0"><span className="material-symbols-outlined text-[18px] md:text-[20px]">{o.icon}</span></span>
                 <span className="text-xs md:text-sm font-bold text-on-surface-variant leading-tight">{o.nhan}</span>

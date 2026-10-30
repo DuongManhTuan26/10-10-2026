@@ -5018,7 +5018,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
       mauLanLuot.filter((m, i) => i > 0 && m === mauLanLuot[i - 1]).length, 0);
   }
   kiem("phân tách phần", "khung phần có viền màu và dải tiêu đề ám màu",
-    /\.khung-muc \{[\s\S]{0,200}?border: 1px solid color-mix\(in srgb, var\(--mau\) 55%, transparent\);/.test(nguonCss) &&
+    // 31/10/2026: viền theo --mau-vien (khung xanh ngọc / mặc định → vàng gold menu), còn lại cùng màu khung.
+    /\.khung-muc \{[\s\S]{0,200}?border: 1px solid color-mix\(in srgb, var\(--mau-vien, var\(--mau\)\) 55%, transparent\);/.test(nguonCss) &&
       /\.khung-muc > \.dau-muc \{[\s\S]{0,250}?background: color-mix\(in srgb, var\(--mau\) 14%, transparent\);/.test(nguonCss), true);
   kiem("giao diện", "mọi hộp thoại dùng khung chung HopThoai",
     tepGiaoDien.filter((tep) => !DUOC_PHEP.includes(path.basename(tep)))
@@ -8488,6 +8489,24 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     [/\.mien-he-thong\s*\{ --mien: #22d3ee; --tren-mien: #003640; \}/.test(css), /#e2e8f0/.test(css.match(/\.mien-he-thong[^}]*\}/)?.[0] ?? ""),
       /const MAU_HE_THONG = VANG\.chinh;/.test(sb) && /chinh: '#F5C451',/.test(sb), /'#f1f5f9'/.test(tn)],
     [true, false, true, false]);
+  // 31/10/2026 (chủ dự án: "chỉ đổi viền vàng thôi, còn các nút vẫn để nguyên"; "nền ô vuông là không đổi"): viền hệ thống
+  // = vàng gold menu; nút / chữ / biểu tượng giữ xanh ngọc; trang 4 AI giữ viền màu AI (màu 4 AI chủ dự án quyết sau).
+  {
+    const nenApp = css.slice(css.indexOf("  .nen-app {"), css.indexOf("}", css.indexOf("  .nen-app {")) + 1);
+    const ba = await import("../src/lib/bon-ai.ts");
+    kiem("viền vàng gold", "viền chung + thẻ + khung + thanh cuộn vàng gold; trang 4 AI viền theo màu AI; thẻ con không thừa hưởng viền thẻ cha",
+      [/--color-outline-variant: rgb\(245 196 81 \/ 0\.34\);/.test(css), /:root \{ --vien-mac-dinh: #F5C451; \}/.test(css),
+        /\.mien-noi-dung, \.mien-quang-cao, \.mien-ban-hang, \.mien-dieu-hanh \{ --vien-mac-dinh: var\(--mien\); \}/.test(css),
+        /--vien-cua-the: var\(--vien-the, var\(--nhan, var\(--vien-mac-dinh\)\)\);\s*position: relative;\s*border: 1px solid color-mix\(in srgb, var\(--vien-cua-the\) 55%, transparent\);/.test(css),
+        (css.match(/--vien-the: initial;/g) ?? []).length, /\.khung-muc\.mau-xanh, \.khung-muc:not\(\[class\*="mau-"\]\) \{ --mau-vien: var\(--vien-mac-dinh\); \}/.test(css),
+        /::-webkit-scrollbar-thumb \{\s*background: rgba\(245, 196, 81, 0\.1\);/.test(css),
+        JSON.stringify(ba.bienThe(ba.MAU_THUONG_HIEU)), JSON.stringify(ba.bienThe("#4ade80"))],
+      [true, true, true, true, 2, true, true, JSON.stringify({ "--nhan": "#22d3ee", "--vien-the": "#F5C451" }), JSON.stringify({ "--nhan": "#4ade80" })]);
+    kiem("viền vàng gold", "nút / chữ giữ nguyên xanh ngọc (chỉ đổi viền); nền lưới ô vuông y nguyên",
+      [/--color-primary: #00e5ff;/.test(css), ba.MAU_THUONG_HIEU, /--color-background: #050c0e;/.test(css), nenApp.replace(/\s+/g, " ").trim()],
+      [true, "#22d3ee", true,
+        ".nen-app { background-color: var(--color-background); background-image: radial-gradient(640px 420px at 90% -8%, rgb(0 229 255 / 0.07), transparent 70%), radial-gradient(560px 420px at 30% 108%, rgb(0 229 255 / 0.05), transparent 70%), linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px); background-size: auto, auto, 24px 24px, 24px 24px; }"]);
+  }
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");
   const ma = (x: { ma: string }[]) => x.map((d) => d.ma);

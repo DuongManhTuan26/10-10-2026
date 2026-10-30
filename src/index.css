@@ -58,7 +58,8 @@
   --color-the: #121f25;
 
   --color-outline: #668b99;
-  --color-outline-variant: rgb(0 229 255 / 0.34);
+  /* 31/10/2026 (chủ dự án: "chỉ đổi viền vàng thôi, nút để nguyên"): viền chung = vàng gold của menu (#F5C451). */
+  --color-outline-variant: rgb(245 196 81 / 0.34);
   
   --color-error: #ef4444;
 
@@ -130,6 +131,13 @@
   --text-label-sm--letter-spacing: 0.05em;
 }
 
+/*
+ * VIỀN HỆ THỐNG (31/10/2026, chủ dự án: menu đã sang vàng gold → "chỉ đổi viền vàng thôi, còn các nút vẫn để nguyên";
+ * nền lưới ô vuông giữ nguyên). Viền tách khỏi màu nhấn: nút / chữ / biểu tượng vẫn xanh ngọc (--color-primary), viền
+ * khung, thẻ, ô nhập, thanh cuộn theo --vien-mac-dinh. Trang 4 AI: viền vẫn theo màu AI (màu 4 AI chủ dự án quyết sau).
+ */
+:root { --vien-mac-dinh: #F5C451; }
+
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
@@ -139,11 +147,11 @@
     background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 229, 255, 0.3);
+    background-color: rgba(245, 196, 81, 0.3);
     border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(0, 229, 255, 0.5);
+    background-color: rgba(245, 196, 81, 0.5);
 }
 
 /* Fallback for global scrollbar */
@@ -155,11 +163,11 @@
     background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(0, 229, 255, 0.1);
+    background: rgba(245, 196, 81, 0.1);
     border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 229, 255, 0.2);
+    background: rgba(245, 196, 81, 0.2);
 }
 
 .ai-draft-animation {
@@ -190,25 +198,29 @@
  * Màu của thẻ: --nhan (màu AI làm ra số liệu đó); bỏ trống = màu miền đang xem.
  */
 .the {
+    /* --vien-the: chỉ đặt trên chính thẻ (style), không truyền xuống thẻ con. Thẻ màu thương hiệu → viền vàng (bienThe). */
+    --vien-the: initial;
     --mau-the: var(--nhan, var(--color-primary));
+    --vien-cua-the: var(--vien-the, var(--nhan, var(--vien-mac-dinh)));
     position: relative;
-    border: 1px solid color-mix(in srgb, var(--mau-the) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vien-cua-the) 55%, transparent);
     border-radius: 18px;
     background: color-mix(in srgb, var(--mau-the) 5%, transparent);
-    box-shadow: 0 0 22px color-mix(in srgb, var(--mau-the) 10%, transparent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--vien-cua-the) 10%, transparent);
 }
 .the-bam {
     transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
 }
 .the-bam:hover {
     transform: translateY(-2px);
-    border-color: var(--mau-the);
-    box-shadow: 0 0 28px color-mix(in srgb, var(--mau-the) 28%, transparent);
+    border-color: var(--vien-cua-the);
+    box-shadow: 0 0 28px color-mix(in srgb, var(--vien-cua-the) 28%, transparent);
 }
 /* Ô trong thẻ (dòng danh sách): cùng chất liệu, một cấp nhạt hơn. */
 .o-trong {
+    --vien-the: initial;
     background: color-mix(in srgb, var(--nhan, var(--color-primary)) 6%, transparent);
-    border: 1px solid color-mix(in srgb, var(--nhan, var(--color-primary)) 30%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vien-the, var(--nhan, var(--vien-mac-dinh))) 30%, transparent);
     border-radius: 12px;
 }
 /* Ô biểu tượng tô nhạt theo màu nhấn (--nhan). */
@@ -333,7 +345,7 @@
     background: linear-gradient(135deg, rgba(0, 229, 255, 0.1) 0%, rgba(11, 15, 25, 0) 100%);
 }
 .ai-border {
-    border: 1px solid rgba(0, 229, 255, 0.5);
+    border: 1px solid rgba(245, 196, 81, 0.5);
 }
 
 .material-symbols-outlined {
@@ -374,18 +386,19 @@ textarea::placeholder {
    */
   .khung-muc {
     --mau: var(--color-primary);
-    border: 1px solid color-mix(in srgb, var(--mau) 55%, transparent);
+    --mau-vien: initial;
+    border: 1px solid color-mix(in srgb, var(--mau-vien, var(--mau)) 55%, transparent);
     border-radius: 18px;
     background: color-mix(in srgb, var(--mau) 5%, transparent);
     padding: 0 18px 18px;
-    box-shadow: 0 0 22px color-mix(in srgb, var(--mau) 10%, transparent);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--mau-vien, var(--mau)) 10%, transparent);
   }
   .khung-muc > .dau-muc {
     margin: 0 -18px 16px;
     padding: 13px 18px;
     border-radius: 17px 17px 0 0;
     background: color-mix(in srgb, var(--mau) 14%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--mau) 40%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--mau-vien, var(--mau)) 40%, transparent);
   }
   .khung-muc .dau-muc.tieu-de-muc,
   .khung-muc .dau-muc .tieu-de-muc {
@@ -403,6 +416,7 @@ textarea::placeholder {
   .vung-video {
     --color-primary: var(--color-secondary);
     --color-on-primary: var(--color-on-secondary-fixed);
+    --vien-mac-dinh: var(--color-secondary);
     --color-primary-container: var(--color-secondary-container);
     --color-on-primary-container: var(--color-on-secondary-container);
   }
@@ -416,8 +430,10 @@ textarea::placeholder {
     --color-on-primary: var(--tren-mien);
     --color-primary-container: color-mix(in srgb, var(--mien) 28%, #050c0e);
     --color-on-primary-container: color-mix(in srgb, var(--mien) 35%, white);
-    --color-outline-variant: color-mix(in srgb, var(--mien) 32%, transparent);
+    --color-outline-variant: color-mix(in srgb, var(--vien-mac-dinh) 32%, transparent);
   }
+  /* Trang 4 AI: viền theo màu AI như cũ (chủ dự án quyết màu 4 AI sau); Tổng quan + trang hệ thống: viền vàng (:root). */
+  .mien-noi-dung, .mien-quang-cao, .mien-ban-hang, .mien-dieu-hanh { --vien-mac-dinh: var(--mien); }
   /* Quy tắc XANH – ĐỎ – TÍM – VÀNG (chủ dự án 12/10/2026 — nguồn tên miền ↔ AI: src/lib/bon-ai.ts). */
   .mien-noi-dung  { --mien: #4ade80; --tren-mien: #052e16; }
   .mien-quang-cao { --mien: #ff4d6a; --tren-mien: #2b0309; }
@@ -443,6 +459,8 @@ textarea::placeholder {
   .mau-lam { --mau: #60a5fa; }
   /* Xám: khung phụ, không mang nghĩa (bảng màu B). */
   .mau-xam { --mau: #94a3b8; }
+  /* VIỀN khung (31/10/2026): khung xanh ngọc + khung mặc định → viền vàng gold; khung màu khác giữ viền cùng màu. */
+  .khung-muc.mau-xanh, .khung-muc:not([class*="mau-"]) { --mau-vien: var(--vien-mac-dinh); }
 
   /*
    * Nền chung của app — cùng một chất liệu với thanh menu (chủ dự án chọn):

@@ -24,7 +24,7 @@ import {
 } from '../lib/api';
 import { chi, chiDu, mauChi, vnd } from '../lib/tien-chi';
 import { DongLuot } from './NhatKyChiPhi';
-import { aiTheoMa, MAU_THONG_TIN, MAU_THUONG_HIEU } from '../lib/bon-ai';
+import { aiTheoMa, bienThe, MAU_THONG_TIN, MAU_THUONG_HIEU } from '../lib/bon-ai';
 
 /** Các loại tiền, đúng thứ tự hiện. Tiền AI theo nhóm việc của sổ AI; "kenh" = tiền hoá đơn kết nối kênh tính cho từng kênh. */
 export const LOAI_TIEN = [
@@ -117,7 +117,7 @@ export const tienGoc = (n: number, tienTe: string) =>
  */
 function OSo({ nhan, so, phu, mau, className, chot, mauThe, icon }: { nhan: string; so: string; phu?: string; mau?: string; className?: string; chot?: ReactNode; mauThe: string; icon: string }) {
   return (
-    <div className={clsx('the px-4 py-3 min-w-0', className)} style={{ ['--nhan' as string]: mauThe }}>
+    <div className={clsx('the px-4 py-3 min-w-0', className)} style={bienThe(mauThe)}>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <span className="flex items-center gap-2 min-w-0">
           <span className="o-bieu-tuong !w-8 !h-8 shrink-0"><span className="material-symbols-outlined text-[18px]">{icon}</span></span>
@@ -153,7 +153,7 @@ function ThanhChong({ doan, toiDa }: { doan: { mau: string; giaTri: number; ten:
 /** Một khối biểu đồ: tiêu đề + các dòng (nhãn trái, thanh giữa, số phải). Kiểu thẻ Tổng quan, màu theo nghĩa. */
 function BieuDo({ tieuDe, phu, children, mauThe, icon }: { tieuDe: string; phu?: string; children: ReactNode; mauThe: string; icon: string }) {
   return (
-    <section className="the p-4 sm:p-5 min-w-0" style={{ ['--nhan' as string]: mauThe }}>
+    <section className="the p-4 sm:p-5 min-w-0" style={bienThe(mauThe)}>
       <h3 className="flex items-center gap-3 font-bold text-on-surface">
         <span className="o-bieu-tuong shrink-0"><span className="material-symbols-outlined text-[20px]">{icon}</span></span>
         {tieuDe}

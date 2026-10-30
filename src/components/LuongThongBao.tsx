@@ -5,6 +5,7 @@
  */
 import { clsx } from 'clsx';
 import type { DongThongBao } from '../lib/luong-thong-bao';
+import { bienThe } from '../lib/bon-ai';
 
 export default function LuongThongBao({ dong, noiNhan }: { dong: DongThongBao[]; noiNhan: string | null }) {
   const coChay = dong.some((d) => d.chay);
@@ -15,7 +16,7 @@ export default function LuongThongBao({ dong, noiNhan }: { dong: DongThongBao[];
           <li key={d.ma} className="flex items-center gap-2 sm:gap-0 min-w-0">
             <div
               className="o-trong flex items-center gap-2.5 px-3 py-2 min-w-0 sm:w-[260px] flex-1 sm:flex-none"
-              style={{ ['--nhan' as string]: d.mau }}
+              style={bienThe(d.mau)}
             >
               <span
                 className="w-6 h-6 rounded-full border flex items-center justify-center text-[11px] font-black font-mono shrink-0"

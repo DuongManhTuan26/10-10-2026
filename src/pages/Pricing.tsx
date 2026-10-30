@@ -9,7 +9,7 @@ import { PRICING_PLANS, goiHienTai, type PricingPlan } from '../lib/pricing';
  */
 import { SUPPORT_URL, IS_EXTERNAL_SUPPORT } from '../lib/ho-tro';
 import TheMuc from '../components/TheMuc';
-import { aiTheoMa, MAU_THONG_TIN, MAU_THUONG_HIEU } from '../lib/bon-ai';
+import { aiTheoMa, MAU_THONG_TIN, MAU_THUONG_HIEU, VIEN_HE_THONG } from '../lib/bon-ai';
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -168,7 +168,7 @@ export default function Pricing() {
               // Kiểu thẻ Tổng quan: gói đang dùng màu thương hiệu + quầng mạnh hơn; gói khác lam, nổi lên khi rê chuột.
               className={`the the-bam p-md flex flex-col overflow-hidden ${plan.isCurrent ? 'z-10' : ''}`}
               style={plan.isCurrent
-                ? { ['--nhan' as string]: MAU_THUONG_HIEU, borderColor: MAU_THUONG_HIEU, boxShadow: `0 0 32px ${MAU_THUONG_HIEU}40` }
+                ? { ['--nhan' as string]: MAU_THUONG_HIEU, ['--vien-the' as string]: VIEN_HE_THONG, borderColor: VIEN_HE_THONG, boxShadow: `0 0 32px ${VIEN_HE_THONG}40` }
                 : { ['--nhan' as string]: MAU_THONG_TIN }}
             >
               {plan.isCurrent && (

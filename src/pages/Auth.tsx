@@ -122,7 +122,7 @@ export default function Auth({ onLogin, onRegister }: {
       </div>
 
       {/* Card */}
-      <div className="glass-card ai-border rounded-xl w-full max-w-[440px] shadow-[0_0_30px_rgba(0,229,255,0.05)] relative z-10 flex flex-col overflow-hidden">
+      <div className="glass-card ai-border rounded-xl w-full max-w-[440px] shadow-[0_0_30px_rgba(245,196,81,0.05)] relative z-10 flex flex-col overflow-hidden">
         {/* Tabs */}
         <div className="flex border-b border-outline-variant">
           <button 

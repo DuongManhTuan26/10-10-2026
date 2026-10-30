@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useActivePage, type TrangNao } from '../lib/ActivePage';
 import type { SocialAccount } from '../lib/api';
-import { MAU_THUONG_HIEU } from '../lib/bon-ai';
+import { MAU_THUONG_HIEU, VIEN_HE_THONG } from '../lib/bon-ai';
 
 /** Số dòng mỗi trang của bảng — đủ nhìn một lượt, không bắt cuộn dài khi có rất nhiều trang. */
 const MOI_TRANG = 25;
@@ -246,8 +246,8 @@ export default function BangTrangBanHang({
                 // KHÔNG overflow-hidden: menu ⋯ của khối phải tràn ra ngoài được (bị cắt + vẽ lại giật — chủ dự án 17/10/2026).
                 className="rounded-2xl border"
                 style={{
-                  borderColor: dangMo ? `color-mix(in srgb, ${MAU_THUONG_HIEU} 55%, transparent)` : 'var(--color-outline-variant)',
-                  boxShadow: dangMo ? `0 0 22px -10px ${MAU_THUONG_HIEU}` : undefined,
+                  borderColor: dangMo ? `color-mix(in srgb, ${VIEN_HE_THONG} 55%, transparent)` : 'var(--color-outline-variant)',
+                  boxShadow: dangMo ? `0 0 22px -10px ${VIEN_HE_THONG}` : undefined,
                 }}
               >
                 <div
@@ -260,7 +260,7 @@ export default function BangTrangBanHang({
                   // 17/10/2026). Bo góc đặt thẳng cho dải đầu vì khối không cắt phần tràn nữa.
                   className={clsx('px-3 py-3 cursor-pointer border-l-4 rounded-t-[15px] flex flex-wrap items-center gap-x-3 gap-y-2', !mo && 'rounded-b-[15px]', LUOI)}
                   style={{
-                    borderLeftColor: MAU_THUONG_HIEU,
+                    borderLeftColor: VIEN_HE_THONG,
                     background: `color-mix(in srgb, ${MAU_THUONG_HIEU} ${dangMo ? 10 : 6}%, transparent)`,
                   }}
                 >

@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from 'react';
 import { clsx } from 'clsx';
+import { bienThe } from '../lib/bon-ai';
 
 export default function TheMuc({
   mau,
@@ -22,7 +23,7 @@ export default function TheMuc({
   children: ReactNode;
 }) {
   return (
-    <section className={clsx('the p-5 md:p-6 min-w-0', className)} style={{ ['--nhan' as string]: mau }}>
+    <section className={clsx('the p-5 md:p-6 min-w-0', className)} style={bienThe(mau)}>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="flex items-center gap-3 text-base font-bold text-on-surface min-w-0">
           <span className="o-bieu-tuong shrink-0"><span className="material-symbols-outlined text-[20px]">{bieuTuong}</span></span>

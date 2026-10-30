@@ -6800,6 +6800,48 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
+    ten: "viền vàng: viền chung quay lại xanh ngọc",
+    tep: "src/index.css",
+    tim: "  --color-outline-variant: rgb(245 196 81 / 0.34);",
+    thay: "  --color-outline-variant: rgb(0 229 255 / 0.34);",
+  },
+  {
+    ten: "viền vàng: đổi luôn màu nút sang vàng (chủ dự án: nút để nguyên)",
+    tep: "src/index.css",
+    tim: "  --color-primary: #00e5ff;",
+    thay: "  --color-primary: #F5C451;",
+  },
+  {
+    ten: "viền vàng: trang 4 AI mất viền màu AI",
+    tep: "src/index.css",
+    tim: "  .mien-noi-dung, .mien-quang-cao, .mien-ban-hang, .mien-dieu-hanh { --vien-mac-dinh: var(--mien); }\n",
+    thay: "",
+  },
+  {
+    ten: "viền vàng: thẻ con thừa hưởng viền vàng của thẻ cha",
+    tep: "src/index.css",
+    tim: "    --vien-the: initial;\n    --mau-the:",
+    thay: "    --mau-the:",
+  },
+  {
+    ten: "viền vàng: thẻ màu thương hiệu vẫn viền xanh ngọc",
+    tep: "src/lib/bon-ai.ts",
+    tim: "{ '--nhan': mau, '--vien-the': VIEN_HE_THONG }",
+    thay: "{ '--nhan': mau }",
+  },
+  {
+    ten: "viền vàng: lưới ô vuông nền bị đổi",
+    tep: "src/index.css",
+    tim: "      linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),\n",
+    thay: "      linear-gradient(rgb(245 196 81 / 0.025) 1px, transparent 1px),\n",
+  },
+  {
+    ten: "viền vàng: thanh cuộn còn xanh ngọc",
+    tep: "src/index.css",
+    tim: "    background: rgba(245, 196, 81, 0.1);",
+    thay: "    background: rgba(0, 229, 255, 0.1);",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

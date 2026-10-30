@@ -44,6 +44,11 @@ export const BON_AI: readonly MotAi[] = [
 
 /** Màu thương hiệu (logo, thanh menu, Tổng quan) — không thuộc AI nào. */
 export const MAU_THUONG_HIEU = '#22d3ee';
+/** Màu VIỀN hệ thống = vàng gold của menu (chủ dự án 31/10/2026: chỉ viền đổi vàng; nút / chữ / biểu tượng giữ màu thương hiệu). */
+export const VIEN_HE_THONG = '#F5C451';
+/** Biến màu cho một thẻ .the / .o-trong: màu nhấn `mau`; thẻ màu thương hiệu thì VIỀN vàng gold (index.css --vien-the). */
+export const bienThe = (mau: string): Record<string, string> =>
+  mau === MAU_THUONG_HIEU ? { '--nhan': mau, '--vien-the': VIEN_HE_THONG } : { '--nhan': mau };
 
 /** Màu nghĩa ngoài 4 AI — khớp .mau-lam / .mau-xam trong index.css (lam = thông tin; xám = không mang nghĩa). */
 export const MAU_THONG_TIN = '#60a5fa';
