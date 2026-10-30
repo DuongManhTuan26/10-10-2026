@@ -1609,7 +1609,7 @@ export const api = {
           documents: AiDocument[];
           model: string;
           /** H8: phần tài liệu AI đọc được mỗi lượt (null với AI không dùng trần này). */
-          docDuoc: { daDocKyTu: number; tongKyTu: number; tran: number; biCat: { ten: string; boKyTu: number }[]; chuaDoc: string[] } | null;
+          docDuoc: { daDocKyTu: number; tongKyTu: number; tran: number; biCat: { ten: string; boKyTu: number }[]; chuaDoc: string[]; coTaiLieu: boolean } | null;
         };
       }>(
         `/ai/configs/${kind}`

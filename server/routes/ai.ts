@@ -2,7 +2,7 @@ import { MODEL_GIONG_DOC_DUOC_CHON, MODEL_NHIEU_CANH, MODEL_NOI_DAI, MODEL_TIENG
 import { Router } from "express";
 import { query, queryOne } from "../db.js";
 import { requireAuth } from "../auth.js";
-import { docTaiLieu, TRAN_KY_TU_TAI_LIEU } from "../services/knowledge.js";
+import { coTaiLieu, docTaiLieu, TRAN_KY_TU_TAI_LIEU } from "../services/knowledge.js";
 import { docGiong, moTaGiong } from "../services/giong-dieu.js";
 import { AppError, requireString, route } from "../http.js";
 import { chat, chatJson, asRecord, stringArray, DEFAULT_MODELS } from "../services/ai.js";
@@ -109,7 +109,8 @@ aiRouter.get(
         config: config ?? { kind, system_prompt: "", tone: kind === "content" ? null : "friendly", settings: {} },
         documents: documents.rows,
         model: DEFAULT_MODELS[kind as keyof typeof DEFAULT_MODELS],
-        docDuoc: doc && { daDocKyTu: doc.daDocKyTu, tongKyTu: doc.tongKyTu, tran: doc.tran, biCat: doc.biCat, chuaDoc: doc.chuaDoc },
+        // coTaiLieu: CÙNG hàm AI dùng (knowledge.ts) — giao diện Xưởng AI báo "ảnh chỉ vẽ cảnh chung" khi chưa có.
+        docDuoc: doc && { daDocKyTu: doc.daDocKyTu, tongKyTu: doc.tongKyTu, tran: doc.tran, biCat: doc.biCat, chuaDoc: doc.chuaDoc, coTaiLieu: coTaiLieu(doc) },
       },
     });
   })

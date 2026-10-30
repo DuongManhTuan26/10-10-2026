@@ -1674,8 +1674,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "để luật an toàn đứng trước, phong cách ghi đè được",
     tep: "server/services/image-ai.ts",
-    tim: "const moTa = `${phongCach}\\n\\n${deBai}\\n\\n${anhMau ? luatAnhTuMau(chu, params.luat) : luatAnh(chu, params.luat)}`;",
-    thay: "const moTa = `${anhMau ? luatAnhTuMau(chu, params.luat) : luatAnh(chu, params.luat)}\\n\\n${deBai}\\n\\n${phongCach}`;",
+    // 30/10/2026: lời nhắc thêm khối "chưa có tài liệu" (ap.them) và luật theo ap.luat — trỏ lại đúng dòng, cùng ý.
+    tim: "    `${phongCach}\\n\\n${deBai}${ap.them ? `\\n\\n${ap.them}` : \"\"}\\n\\n` +\n    `${anhMau ? luatAnhTuMau(chu, ap.luat) : luatAnh(chu, ap.luat)}`;",
+    thay: "    `${anhMau ? luatAnhTuMau(chu, ap.luat) : luatAnh(chu, ap.luat)}\\n\\n${deBai}${ap.them ? `\\n\\n${ap.them}` : \"\"}\\n\\n` +\n    `${phongCach}`;",
   },
   {
     ten: "bỏ ô chỉ dẫn phong cách khỏi hộp soạn bài",
@@ -1698,8 +1699,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "dùng luật cấm chữ của ảnh vẽ mới cho cả ảnh mẫu, xoá mất nhãn thật của shop",
     tep: "server/services/image-ai.ts",
-    tim: "${anhMau ? luatAnhTuMau(chu, params.luat) : luatAnh(chu, params.luat)}",
-    thay: "${luatAnh(chu, params.luat)}",
+    tim: "${anhMau ? luatAnhTuMau(chu, ap.luat) : luatAnh(chu, ap.luat)}",
+    thay: "${luatAnh(chu, ap.luat)}",
   },
   {
     ten: "không hoàn địa chỉ thật của ảnh mẫu trước khi gửi model",
@@ -6600,6 +6601,42 @@ const DUC: PhepDuc[] = [
     thay: "dc.sauMoc.soDaChotUsd + dc.sauMoc.soChoUsd]",
   },
   {
+    ten: "ảnh chưa tài liệu: không ép trống chữ (chữ / giá bịa lọt lên ảnh)",
+    tep: "server/services/image-ai.ts",
+    tim: "  return { chu: \"khong\", luat: { ...(p.luat ?? {}), chanNhanHieuGia: true }, them: ANH_CHUA_CO_TAI_LIEU };",
+    thay: "  return { chu: p.chu, luat: { ...(p.luat ?? {}), chanNhanHieuGia: true }, them: ANH_CHUA_CO_TAI_LIEU };",
+  },
+  {
+    ten: "ảnh chưa tài liệu: không ép cấm nhãn hiệu",
+    tep: "server/services/image-ai.ts",
+    tim: "  return { chu: \"khong\", luat: { ...(p.luat ?? {}), chanNhanHieuGia: true }, them: ANH_CHUA_CO_TAI_LIEU };",
+    thay: "  return { chu: \"khong\", luat: { ...(p.luat ?? {}) }, them: ANH_CHUA_CO_TAI_LIEU };",
+  },
+  {
+    ten: "ảnh chưa tài liệu: ép cả ảnh tạo riêng / ảnh mẫu (ghi đè lựa chọn ngoài phạm vi)",
+    tep: "server/services/image-ai.ts",
+    tim: "  if (!p.theoBai || p.coTaiLieu) return { chu: p.chu, luat: p.luat ?? {}, them: \"\" };",
+    thay: "  if (p.coTaiLieu) return { chu: p.chu, luat: p.luat ?? {}, them: \"\" };",
+  },
+  {
+    ten: "ảnh chưa tài liệu: coi như luôn có tài liệu (không đọc)",
+    tep: "server/services/image-ai.ts",
+    tim: "    coTaiLieu: !tuMoTa && !anhMau ? coTaiLieu(await docTaiLieu(params.trangId, \"content\")) : true,",
+    thay: "    coTaiLieu: true,",
+  },
+  {
+    ten: "Xưởng AI: lần đầu ảnh vẫn tạo riêng (bài đăng chỉ chữ)",
+    tep: "src/components/XuongAi.tsx",
+    tim: "nhoLocal('anhRieng', 'false', ['true', 'false'] as const) === 'true'",
+    thay: "nhoLocal('anhRieng', 'true', ['true', 'false'] as const) === 'true'",
+  },
+  {
+    ten: "Xưởng AI: không báo 'chưa có tài liệu: ảnh chỉ vẽ cảnh chung'",
+    tep: "src/components/XuongAi.tsx",
+    tim: "        {!anhRieng && coTaiLieuNoiDung === false && (",
+    thay: "        {!anhRieng && coTaiLieuNoiDung === null && (",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",
@@ -7086,8 +7123,15 @@ const DUC: PhepDuc[] = [
   {
     ten: "phong cách ảnh không nạp lại khi đổi Trang",
     tep: "src/components/XuongAi.tsx",
-    tim: "  }, [activeAccountId, activeTrangId]);",
-    thay: "  }, []);",
+    // 30/10/2026: XuongAi có thêm hiệu ứng nạp trạng thái tài liệu cùng phụ thuộc — chuỗi tìm phải riêng của phong cách.
+    tim: "        /* Không nạp được thì để trống, máy chủ vẫn có phong cách mặc định. */\n      });\n  }, [activeAccountId, activeTrangId]);",
+    thay: "        /* Không nạp được thì để trống, máy chủ vẫn có phong cách mặc định. */\n      });\n  }, []);",
+  },
+  {
+    ten: "trạng thái tài liệu (ảnh chỉ vẽ cảnh chung) không nạp lại khi đổi cửa hàng",
+    tep: "src/components/XuongAi.tsx",
+    tim: "      .catch(() => setCoTaiLieuNoiDung(null));\n  }, [activeAccountId, activeTrangId]);",
+    thay: "      .catch(() => setCoTaiLieuNoiDung(null));\n  }, []);",
   },
   {
     ten: "công tắc lại nằm dưới thanh Ảnh | Video",
