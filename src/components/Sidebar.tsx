@@ -84,81 +84,92 @@ export default function Sidebar({
     // Chỉ quản trị tổng. Đứng cuối cùng.
     ...(laQuanTri ? [{ name: 'Quản lý tài khoản', icon: 'manage_accounts', path: '/admin' }] : []),
   ];
+  /*
+   * THANH MENU VÀNG GOLD (chủ dự án 30/10/2026: "giống 100% ảnh mẫu" — khung kim loại vàng vát cạnh, kính đen, mục đang chọn
+   * viên viền vàng phát sáng, mũi tên ›, số 4 AI trong vòng tròn màu miền, vạch vàng phát sáng ở đáy). Chỉ đổi phần NHÌN:
+   * đường dẫn, nhóm, quyền, ngăn kéo điện thoại, Trợ giúp "Sắp có" giữ nguyên.
+   */
   const nhan = (chu: string) => (
-    <div className="px-3 pb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#E8EDF2]/50">{chu}</div>
+    <div className="px-3 pb-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.2em] text-[#E8EDF2]/45">{chu}</div>
+  );
+  const vach = <div className="mx-2 my-3 [@media(max-height:860px)]:my-2 h-px shrink-0" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,226,160,0.14) 18%, rgba(255,226,160,0.14) 82%, transparent)' }} />;
+  const muiTen = (sang: boolean) => (
+    <span
+      className="material-symbols-outlined relative z-10 ml-auto shrink-0 transition-colors duration-300"
+      style={{ fontSize: '20px', color: sang ? '#FFF4D6' : 'rgba(232,237,242,0.5)', fontVariationSettings: "'wght' 300" }}
+    >
+      chevron_right
+    </span>
   );
 
-  /** Màu sáng của mục khi đang chọn: 4 AI theo màu miền; Tổng quan + mục hệ thống màu thương hiệu (chủ dự án 23/10/2026: học theo Tổng quan). */
-  const MAU_HE_THONG = MAU_THUONG_HIEU;
+  /** Mục đang chọn: một màu VÀNG GOLD cho mọi mục (ảnh mẫu); số của 4 AI vẫn giữ màu miền trong vòng tròn. */
+  const MAU_HE_THONG = VANG.chinh;
   const renderNavGroup = (items: any[]) => (
-    <div className="flex flex-col relative" style={{ gap: '8px' }}>
-      {items.map((item) => { const mau: string = item.mau ?? MAU_HE_THONG; return (
+    <div className="flex flex-col relative gap-1.5 [@media(max-height:860px)]:gap-1">
+      {items.map((item) => (
         <NavLink
           key={item.path}
           to={item.path}
           end={item.path === '/'}
           className={({ isActive }) => clsx(
-            "relative flex items-center gap-3 px-3 rounded-lg transition-all duration-300 group overflow-hidden shrink-0 cursor-pointer"
+            "relative flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] transition-all duration-300 group shrink-0 cursor-pointer h-[43px] [@media(max-height:860px)]:h-[38px]",
+            !isActive && "hover:bg-[#F5C451]/[0.06]"
           )}
           style={({ isActive }) => ({
-            height: '40px',
             fontFamily: "'Be Vietnam Pro', sans-serif",
             fontSize: '15px',
-            fontWeight: isActive ? 700 : 600,
-            letterSpacing: '0.2px',
+            fontWeight: isActive ? 700 : 500,
+            letterSpacing: '0.1px',
             color: isActive ? '#FFFFFF' : '#E8EDF2',
-            background: isActive ? `linear-gradient(90deg, ${mau}26 0%, ${mau}03 100%)` : 'transparent',
-            borderTop: isActive ? `1px solid ${mau}26` : '1px solid transparent',
-            borderRight: isActive ? `1px solid ${mau}26` : '1px solid transparent',
-            borderBottom: isActive ? `1px solid ${mau}26` : '1px solid transparent',
-            borderLeft: 'none',
+            border: '1.5px solid transparent',
+            ...(isActive
+              ? {
+                  // Kính vàng SẪM (ảnh mẫu): nền nâu vàng tối, vệt sáng mỏng phía trên, viền vàng sáng sắc nét.
+                  background: `linear-gradient(180deg, rgba(255,226,150,0.10) 0%, rgba(255,226,150,0) 50%) padding-box, linear-gradient(100deg, rgba(122,84,20,0.72) 0%, rgba(82,56,14,0.66) 45%, rgba(46,32,9,0.72) 100%) padding-box, ${VANG.vienSang} border-box`,
+                  boxShadow: `0 0 12px ${MAU_HE_THONG}b3, 0 0 30px ${MAU_HE_THONG}4d, inset 0 0 18px ${MAU_HE_THONG}40, inset 0 1px 0 rgba(255,244,214,0.45)`,
+                }
+              : {}),
           })}
         >
           {({ isActive }) => (
             <>
-              {/* Hover background for inactive items */}
-              {!isActive && (
-                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              )}
-
-              {/* Laser left border for active item */}
-              {isActive && (
-                <div className="absolute left-0 top-[15%] bottom-[15%] w-[3px] rounded-r-md z-20" style={{ background: mau }}></div>
-              )}
-
-              {/* Số thứ tự + màu riêng của từng AI trong khối não (src/lib/bon-ai.ts). */}
+              {/* Số thứ tự + màu riêng của từng AI trong khối não (src/lib/bon-ai.ts) — vòng tròn màu miền như ảnh mẫu. */}
               {item.so && (
                 <span
-                  className="relative z-10 w-5 h-5 shrink-0 rounded-md flex items-center justify-center font-mono text-[11px] font-black"
-                  style={{ color: item.mau, border: `1px solid ${item.mau}80`, background: `${item.mau}1a` }}
+                  className="relative z-10 w-[25px] h-[25px] shrink-0 rounded-full flex items-center justify-center font-mono text-[13px] font-bold"
+                  style={{ color: item.mau, border: `1.5px solid ${item.mau}`, boxShadow: `0 0 8px ${item.mau}55, inset 0 0 6px ${item.mau}33`, textShadow: `0 0 6px ${item.mau}99` }}
                 >
                   {item.so}
                 </span>
               )}
-              {/* Icon */}
-              <span 
-                className="material-symbols-outlined relative z-10 transition-all duration-300 flex items-center justify-center w-6" 
+              {/* Icon: nét mảnh khi thường; đang chọn thì vàng, tô đầy, phát sáng. */}
+              <span
+                className="material-symbols-outlined relative z-10 transition-all duration-300 flex items-center justify-center w-[26px] shrink-0"
                 style={{
-                  color: isActive ? mau : 'inherit',
-                  strokeWidth: isActive ? 2.5 : 2,
+                  color: isActive ? VANG.sang : 'inherit',
                   fontSize: '24px',
-                  ...(isActive ? { fontVariationSettings: "'FILL' 1" } : {}),
+                  fontVariationSettings: isActive ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 300",
+                  ...(isActive ? { filter: `drop-shadow(0 0 6px ${MAU_HE_THONG}cc)` } : {}),
                 }}
               >
                 {item.icon}
-              </span> 
-              
-              {/* Text */}
-              <span className={clsx("relative z-10 whitespace-nowrap transition-colors duration-300", !isActive && "group-hover:text-white")}>
-                {item.name}
               </span>
 
+              {/* Text */}
+              <span className={clsx("relative z-10 min-w-0 truncate transition-colors duration-300", !isActive && "group-hover:text-white")}>
+                {item.name}
+              </span>
+              {muiTen(isActive)}
             </>
           )}
         </NavLink>
-      ); })}
+      ))}
     </div>
   );
+
+  /** Trợ giúp / Đăng xuất: mờ hơn menu chính, cùng hàng mũi tên. */
+  const kieuChan = { color: 'rgba(232,237,242,0.55)', fontSize: '15px', fontWeight: 400, height: '40px', fontFamily: "'Be Vietnam Pro', sans-serif" };
+  const bieuTuongChan = { fontSize: '23px', color: 'inherit', fontVariationSettings: "'wght' 300" };
 
   return (
     <>
@@ -171,119 +182,129 @@ export default function Sidebar({
       />
     )}
     <aside
-      className={`w-72 h-screen fixed left-0 top-0 flex flex-col z-50 overflow-hidden bg-[#030509] transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`w-72 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] p-2 transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
     >
-      {/* Deep Space / Cyberpunk Ambient Background Effects */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#00e5ff]/10 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute top-[40%] -left-32 w-80 h-80 bg-[#d946ef]/10 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-[#00e5ff]/10 rounded-full blur-[100px] pointer-events-none"></div>
-      
-      {/* Subtle Grid Pattern for Tech Vibe */}
-      <div 
-        className="absolute inset-0 opacity-[0.02] pointer-events-none" 
-        style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
-      ></div>
+      {/* KHUNG KIM LOẠI VÀNG: vành ngoài vát cạnh (dải sáng – tối như kim loại đánh bóng) + quầng sáng vàng. */}
+      <div
+        className="relative h-full rounded-[26px] p-[5px]"
+        style={{
+          background: VANG.khung,
+          boxShadow: '0 0 0 1px rgba(255,236,180,0.55), 0 0 16px rgba(245,196,81,0.55), 0 0 44px rgba(245,170,50,0.22), inset 0 1px 1px rgba(255,250,225,0.8), inset 0 -1px 2px rgba(60,35,5,0.8)',
+        }}
+      >
+        {/* Rãnh tối + chỉ vàng mảnh bên trong (vát hai lớp như ảnh mẫu). */}
+        <div className="relative h-full rounded-[21px] p-[2px]" style={{ background: 'linear-gradient(160deg, #1A1206, #0A0805 40%, #140E05)' }}>
+          <div
+            className="relative h-full rounded-[19px] overflow-hidden flex flex-col"
+            style={{
+              background: 'linear-gradient(180deg, #0E1015 0%, #090B0F 45%, #07080B 100%)',
+              boxShadow: 'inset 0 0 0 1px rgba(255,214,120,0.45), inset 0 0 6px rgba(245,196,81,0.18), inset 0 0 30px rgba(0,0,0,0.85)',
+            }}
+          >
+            {/* Ánh kính: vệt sáng chéo rất nhẹ ở nửa trên. */}
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(160deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 28%, transparent 46%)' }} />
 
-      {/* The Strongest Line: Neon Right Border */}
-      <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-[#00e5ff] to-transparent shadow-[0_0_20px_#00e5ff,0_0_40px_#00e5ff,0_0_10px_#ffffff] z-20"></div>
+            {/* Main Content Wrapper */}
+            <div className="relative z-10 px-3 h-full flex flex-col pt-4 pb-3">
 
-      {/* Main Content Wrapper */}
-      <div className="relative z-10 px-5 h-full flex flex-col pt-6 pb-6">
-        
-        {/* Brand Header */}
-        <div className="flex items-center gap-3 px-3 shrink-0" style={{ marginBottom: '24px' }}>
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 relative overflow-hidden group border border-[#00e5ff]/30 bg-[#00e5ff]/10 shadow-[0_0_15px_rgba(0,229,255,0.2)]">
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#00e5ff]/20 to-transparent"></div>
-            <span className="material-symbols-outlined text-[#00e5ff] text-[20px] relative z-10 filter drop-shadow-[0_0_5px_rgba(0,229,255,0.8)]">token</span>
-          </div>
-          <div>
-            {/* Tên tạm (chủ dự án 23/10/2026 đồng ý bỏ chữ "LOGO"); tên sản phẩm thật chờ chủ dự án chọn — sơ đồ 8.4. */}
-            <h2 className="text-[16px] font-black tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50">Quản lý Fanpage</h2>
-          </div>
-        </div>
-
-        <nav className="flex flex-col min-h-0 overflow-y-auto no-scrollbar">
-          {renderNavGroup([mucTongQuan])}
-          <div style={{ height: '20px', flexShrink: 0 }}></div>
-          {nhan('Kênh bán hàng')}
-          {renderNavGroup([mucKetNoi])}
-          {coNao && (
-            <>
-              <div style={{ height: '20px', flexShrink: 0 }}></div>
-              {nhan('Bộ não AI')}
-              {renderNavGroup(nhomNao)}
-              <div style={{ height: '20px', flexShrink: 0 }}></div>
-              {nhan('Dữ liệu của cửa hàng')}
-              {renderNavGroup(nhomDuLieu)}
-            </>
-          )}
-          <div style={{ height: '20px', flexShrink: 0 }}></div>
-          {nhan('Quản lý')}
-          {renderNavGroup(nhomQuanLy)}
-        </nav>
-
-        {/* Spacer */}
-        <div className="flex-1"></div>
-
-        {/* CTA & Footer */}
-        <div className="flex flex-col shrink-0 mt-4">
-          <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(0,229,255,0.2), transparent)' }}></div>
-          <div style={{ height: '16px' }}></div>
-          <div className="flex flex-col" style={{ gap: '4px' }}>
-            {SUPPORT_URL ? (
-            <a
-              className="flex items-center gap-3 px-3 rounded-lg hover:bg-white/5 transition-colors group shrink-0"
-              href={SUPPORT_URL}
-              {...(IS_EXTERNAL_SUPPORT ? { target: '_blank', rel: 'noreferrer' } : {})}
-              style={{
-                color: 'rgba(232,237,242,0.4)',
-                fontSize: '13px',
-                fontWeight: 400,
-                height: '40px',
-                fontFamily: "'Be Vietnam Pro', sans-serif"
-              }}
-            >
-              <span 
-                className="material-symbols-outlined transition-colors group-hover:text-white flex items-center justify-center w-6" 
-                style={{ strokeWidth: 1.5, color: 'inherit', fontSize: '20px' }}
-              >
-                help
-              </span> 
-              <span className="whitespace-nowrap group-hover:text-white transition-colors">Trợ giúp</span>
-            </a>
-            ) : (
-              // Chưa có đường hỗ trợ: mục mờ, không bấm, không nhận Tab/Enter (không phải nút, không phải liên kết).
-              <div
-                aria-disabled="true"
-                className="flex items-center gap-3 px-3 rounded-lg shrink-0 cursor-default select-none"
-                style={{ color: 'rgba(232,237,242,0.3)', fontSize: '13px', fontWeight: 400, height: '40px', fontFamily: "'Be Vietnam Pro', sans-serif" }}
-              >
-                <span className="material-symbols-outlined flex items-center justify-center w-6" style={{ strokeWidth: 1.5, color: 'inherit', fontSize: '20px' }}>
-                  help
-                </span>
-                <span className="whitespace-nowrap">Trợ giúp</span>
-                <span className="ml-auto text-[10px] font-bold uppercase tracking-wide border border-white/15 rounded px-1.5 py-0.5">Sắp có</span>
+              {/* Brand Header: lục giác viền vàng + khối lập phương; tên + "AI 5.0 PLATFORM". */}
+              <div className="flex items-center gap-2.5 px-1 shrink-0">
+                <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center">
+                  <svg viewBox="0 0 52 52" className="absolute inset-0 w-full h-full" aria-hidden>
+                    <defs>
+                      <linearGradient id="vienLogoVang" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#FFF1C1" />
+                        <stop offset="35%" stopColor="#F5C451" />
+                        <stop offset="70%" stopColor="#B07A22" />
+                        <stop offset="100%" stopColor="#F5C451" />
+                      </linearGradient>
+                    </defs>
+                    <polygon points="26,3 46,14.5 46,37.5 26,49 6,37.5 6,14.5" fill="rgba(245,196,81,0.08)" stroke="url(#vienLogoVang)" strokeWidth="2.2" strokeLinejoin="round" />
+                  </svg>
+                  <span
+                    className="material-symbols-outlined relative z-10"
+                    style={{ fontSize: '25px', color: VANG.chinh, fontVariationSettings: "'wght' 400", filter: 'drop-shadow(0 0 5px rgba(245,196,81,0.6))' }}
+                  >
+                    deployed_code
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  {/* Tên tạm (chủ dự án 23/10/2026 đồng ý bỏ chữ "LOGO"); tên sản phẩm thật chờ chủ dự án chọn — sơ đồ 8.4. */}
+                  <h2 className="text-[16.5px] font-extrabold tracking-wide text-white leading-tight whitespace-nowrap">Quản lý Fanpage</h2>
+                  <div className="mt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#E8EDF2]/50 whitespace-nowrap">AI 5.0 Platform</div>
+                </div>
               </div>
-            )}
-            <button 
-              className="flex items-center gap-3 px-3 rounded-lg hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors group shrink-0 w-full text-left" 
-              onClick={onLogout}
-              style={{ 
-                color: 'rgba(232,237,242,0.4)', 
-                fontSize: '13px', 
-                fontWeight: 400, 
-                height: '40px',
-                fontFamily: "'Be Vietnam Pro', sans-serif"
-              }}
-            >
-              <span 
-                className="material-symbols-outlined transition-colors flex items-center justify-center w-6" 
-                style={{ strokeWidth: 1.5, color: 'inherit', fontSize: '20px' }}
-              >
-                logout
-              </span> 
-              <span className="whitespace-nowrap transition-colors">Đăng xuất</span>
-            </button>
+              {vach}
+
+              <nav className="flex flex-col min-h-0 overflow-y-auto no-scrollbar -mx-2.5 px-2.5 -my-2.5 py-2.5">
+                {renderNavGroup([mucTongQuan])}
+                {vach}
+                {nhan('Kênh bán hàng')}
+                {renderNavGroup([mucKetNoi])}
+                {coNao && (
+                  <>
+                    {vach}
+                    {nhan('Bộ não AI')}
+                    {renderNavGroup(nhomNao)}
+                    {vach}
+                    {nhan('Dữ liệu của cửa hàng')}
+                    {renderNavGroup(nhomDuLieu)}
+                  </>
+                )}
+                {vach}
+                {nhan('Quản lý')}
+                {renderNavGroup(nhomQuanLy)}
+              </nav>
+
+              {/* Spacer */}
+              <div className="flex-1"></div>
+
+              {/* Đáy: vạch vàng phát sáng, rồi Trợ giúp / Đăng xuất. */}
+              <div className="flex flex-col shrink-0 mt-3">
+                <div className="mx-3 h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, transparent, #F5C451 20%, #FFF1C1 50%, #F5C451 80%, transparent)', boxShadow: '0 0 8px rgba(245,196,81,0.9), 0 0 18px rgba(245,170,50,0.45)' }}></div>
+                <div style={{ height: '10px' }}></div>
+                <div className="flex flex-col" style={{ gap: '2px' }}>
+                  {SUPPORT_URL ? (
+                  <a
+                    className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] hover:bg-white/5 hover:text-white transition-colors group shrink-0"
+                    href={SUPPORT_URL}
+                    {...(IS_EXTERNAL_SUPPORT ? { target: '_blank', rel: 'noreferrer' } : {})}
+                    style={kieuChan}
+                  >
+                    <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
+                      help
+                    </span>
+                    <span className="whitespace-nowrap">Trợ giúp</span>
+                    {muiTen(false)}
+                  </a>
+                  ) : (
+                    // Chưa có đường hỗ trợ: mục mờ, không bấm, không nhận Tab/Enter (không phải nút, không phải liên kết).
+                    <div
+                      aria-disabled="true"
+                      className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] shrink-0 cursor-default select-none"
+                      style={{ ...kieuChan, color: 'rgba(232,237,242,0.3)' }}
+                    >
+                      <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
+                        help
+                      </span>
+                      <span className="whitespace-nowrap">Trợ giúp</span>
+                      <span className="ml-auto text-[10px] font-bold uppercase tracking-wide border border-white/15 rounded px-1.5 py-0.5">Sắp có</span>
+                    </div>
+                  )}
+                  <button
+                    className="flex items-center gap-2.5 pl-2.5 pr-2 rounded-[13px] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors group shrink-0 w-full text-left"
+                    onClick={onLogout}
+                    style={kieuChan}
+                  >
+                    <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
+                      logout
+                    </span>
+                    <span className="whitespace-nowrap">Đăng xuất</span>
+                    {muiTen(false)}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -291,3 +312,12 @@ export default function Sidebar({
     </>
   );
 }
+
+/** Bảng màu vàng gold của khung menu (ảnh mẫu 30/10/2026). */
+const VANG = {
+  chinh: '#F5C451',
+  sang: '#FFD978',
+  // Kim loại đánh bóng: dải sáng – tối xen kẽ theo đường chéo.
+  khung: 'linear-gradient(155deg, #7A4F10 0%, #F5C451 10%, #FFF1C1 17%, #D39A33 28%, #6E4710 42%, #C88E2A 55%, #FFE8A8 66%, #E0AA40 76%, #7C5213 88%, #F1C65A 100%)',
+  vienSang: 'linear-gradient(95deg, #FFF1C1 0%, #F5C451 25%, #B98023 60%, #F5C451 85%, #FFE3A0 100%)',
+};

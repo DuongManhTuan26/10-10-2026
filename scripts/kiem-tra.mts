@@ -3300,7 +3300,7 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
   // 18/10/2026 (chủ dự án: "nhân bản 100%"): mọi tài khoản thấy ĐỦ menu y hệt tài khoản mẫu, kể cả khi chưa nối kênh.
   kiem("phân tầng", "menu đủ như tài khoản mẫu: Tổng quan, Kết nối kênh, 4 AI, dữ liệu cửa hàng — không giấu khi chưa có kênh",
     /const coNao = true;/.test(nguonMenu) &&
-      /<nav className="flex flex-col min-h-0 overflow-y-auto no-scrollbar">\s*\{renderNavGroup\(\[mucTongQuan\]\)\}[\s\S]{0,200}?\{renderNavGroup\(\[mucKetNoi\]\)\}/.test(nguonMenu) &&
+      /<nav className="flex flex-col min-h-0 overflow-y-auto no-scrollbar[^"]*">\s*\{renderNavGroup\(\[mucTongQuan\]\)\}[\s\S]{0,200}?\{renderNavGroup\(\[mucKetNoi\]\)\}/.test(nguonMenu) &&
       /\{coNao && \(\s*<>[\s\S]{0,200}?\{renderNavGroup\(nhomNao\)\}/.test(nguonMenu), true);
   // Chọn trang chỉ ở bảng "Trang bán hàng" của Kết nối kênh (chủ dự án 11/10/2026) — menu không còn ô chọn nào.
   kiem("phân tầng", "menu không có bộ chọn Fanpage (chọn cửa hàng ở Kết nối kênh)",
@@ -4988,7 +4988,8 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     /export const O_NHAP =\s*'w-full h-12 px-4 rounded-xl bg-surface-container-high border border-outline-variant /.test(nguonHopThoai2), true);
   // Màu nền ghi cứng chỉ được là màu thương hiệu / màu nhấn đã biết; còn lại phải dùng màu chung.
   // Màu thương hiệu (Messenger, Telegram) và màu nhấn của thanh menu — mẫu chủ dự án chọn.
-  const MAU_CUNG_DUOC_PHEP = new Set(["#00e5ff", "#10b981", "#2aabee", "#030509", "#d946ef", "#0084ff", "#229ed9", "#3390ec", "#ef4444"]);
+  // 30/10/2026: vàng gold #f5c451 của thanh menu (chủ dự án chọn theo ảnh mẫu).
+  const MAU_CUNG_DUOC_PHEP = new Set(["#00e5ff", "#10b981", "#2aabee", "#030509", "#d946ef", "#0084ff", "#229ed9", "#3390ec", "#ef4444", "#f5c451"]);
   kiem("giao diện", "không ghi cứng màu nền lạc tông (đã thấy #18222d, #022c22, #450a0a)",
     tepGiaoDien.flatMap((tep) => [...fs.readFileSync(tep, "utf8").matchAll(/\bbg-\[(#[0-9a-fA-F]{3,8})\]/g)]
       .filter((m) => !MAU_CUNG_DUOC_PHEP.has(m[1].toLowerCase())).map((m) => `${path.basename(tep)}: ${m[1]}`)), []);
@@ -8357,9 +8358,10 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   const css = fs.readFileSync(path.join(GOC, "src/index.css"), "utf8");
   const sb = boChuThich(fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8"));
   const tn = boChuThich(fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8"));
-  kiem("H2 màu miền", "trang hệ thống dùng màu thương hiệu (#22d3ee) như Tổng quan: màu miền, mục menu đang chọn, tiêu đề thanh trên — không còn trắng",
+  // 30/10/2026 (chủ dự án, ảnh mẫu): mục menu đang chọn đổi sang VÀNG GOLD cho mọi mục; màu miền + tiêu đề thanh trên giữ.
+  kiem("H2 màu miền", "trang hệ thống dùng màu thương hiệu (#22d3ee) như Tổng quan: màu miền, tiêu đề thanh trên — không còn trắng; mục menu đang chọn vàng gold",
     [/\.mien-he-thong\s*\{ --mien: #22d3ee; --tren-mien: #003640; \}/.test(css), /#e2e8f0/.test(css.match(/\.mien-he-thong[^}]*\}/)?.[0] ?? ""),
-      /const MAU_HE_THONG = MAU_THUONG_HIEU;/.test(sb), /'#f1f5f9'/.test(tn)],
+      /const MAU_HE_THONG = VANG\.chinh;/.test(sb) && /chinh: '#F5C451',/.test(sb), /'#f1f5f9'/.test(tn)],
     [true, false, true, false]);
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");

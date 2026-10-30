@@ -5788,9 +5788,10 @@ const DUC: PhepDuc[] = [
     thay: "className={'dong-chay'}",
   },
   {
+    // 30/10/2026: mục đang chọn đổi sang vàng gold (chủ dự án) — trỏ lại đúng dòng, cùng ý (không được về trắng).
     ten: "menu mục hệ thống lại trắng",
     tep: "src/components/Sidebar.tsx",
-    tim: "  const MAU_HE_THONG = MAU_THUONG_HIEU;",
+    tim: "  const MAU_HE_THONG = VANG.chinh;",
     thay: "  const MAU_HE_THONG = '#e2e8f0';",
   },
   {
