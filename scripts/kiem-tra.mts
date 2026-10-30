@@ -255,7 +255,8 @@ dong.forEach((d, i) => {
   if (!/await handoff\(/.test(d)) return;
   choGoi++;
   const truoc = dong.slice(Math.max(0, i - 16), i + 1).join("\n");
-  if (/tuChu\.bat/.test(truoc)) coChot++;
+  // tuChuSom = cùng cấu hình tự chủ, đọc sớm ở đầu handleIncomingMessage (lối ra sớm kênh ngắt, TD-36).
+  if (/tuChu(Som)?\.bat/.test(truoc)) coChot++;
 });
 kiem("cấu trúc", "có ít nhất 5 chỗ gọi handoff", choGoi >= 5, true);
 kiem("cấu trúc", "MỌI chỗ gọi handoff đều nằm dưới chốt tuChu.bat", coChot, choGoi);
@@ -7572,6 +7573,50 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
         /const loDucCam = DUC\.filter\(\(d\) => MAU_CAM_TRONG_LO_DUC\.test\(d\.thay\)\);\s*if \(loDucCam\.length\) \{[\s\S]{0,200}process\.exit\(1\);/.test(ktn),
         ktn.indexOf("const loDucCam") < ktn.indexOf("for (const d of CHON)")],
       [true, true, false, true, true]);
+  }
+  // TD-36 (30/10/2026): Facebook chặn Fanpage gửi tin (#2022 / 10-1893063) → ngắt AI kênh 24 giờ trước khi trả về; AI Bán
+  // hàng không gọi mô hình khi kênh đang ngắt; báo Telegram một lần mỗi lần ngắt.
+  {
+    const g36 = await import("../server/services/guardrails.js");
+    const that36 = "(#2022) Bạn tạm thời bị hạn chế gửi tin nhắn đến ngày mai lúc 18:20.";
+    kiem("Facebook chặn gửi", "laKenhBiChanGui: mã có cấu trúc 2022 / 10+1893063 (subcode hoặc error_subcode) → có; câu thật 30/10 (chỉ trong lời) → có; ngoài cửa sổ 10/2018278, 551, mạng, 500 → KHÔNG",
+      [g36.laKenhBiChanGui({ body: { platformError: { code: 2022 } } }), g36.laKenhBiChanGui({ body: { platformError: { code: 10, subcode: 1893063 } } }),
+        g36.laKenhBiChanGui({ body: { platformError: { code: 10, error_subcode: 1893063 } } }), g36.laKenhBiChanGui({ nguyenVan: that36, message: that36 }),
+        g36.laKenhBiChanGui(new Error(that36)),
+        g36.laKenhBiChanGui({ body: { platformError: { code: 10, subcode: 2018278 } }, message: "This message is sent outside of allowed window." }),
+        g36.laKenhBiChanGui({ body: { platformError: { code: 551 } }, message: "This person isn't available right now." }),
+        g36.laKenhBiChanGui(new Error("fetch failed")), g36.laKenhBiChanGui({ status: 500, message: "Internal error 2022" }), g36.laKenhBiChanGui(null)],
+      [true, true, true, true, true, false, false, false, false, false]);
+    kiem("Facebook chặn gửi", "ngắt 24 giờ (tài liệu Meta không nói thời hạn, không đọc mốc trong câu); câu tạm ngắt một nguồn, giờ Việt Nam",
+      [g36.NGAT_KHI_BI_CHAN_MS, g36.cauAiTamNgat(null, new Date("2026-10-31T06:21:00Z")), g36.cauAiTamNgat("Facebook đang chặn", new Date("2026-10-31T06:21:00Z")).startsWith("AI đang tạm ngắt trên kênh này: Facebook đang chặn. Mở lại lúc ")],
+      [86_400_000, `AI đang tạm ngắt trên kênh này: tỷ lệ lỗi cao. Mở lại lúc ${new Date("2026-10-31T06:21:00Z").toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}.`, true]);
+    const gr36 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/guardrails.ts"), "utf8"));
+    const ngat36 = gr36.slice(gr36.indexOf("export async function ngatKenhBiChanGui"), gr36.indexOf("export async function resumeAi"));
+    kiem("Facebook chặn gửi", "ngắt chống lặp bằng chính mốc (chỉ đặt khi chưa ngắt / mốc cũ ngắn hơn quá 1 giờ, RETURNING); chỉ báo khi đặt được; nguồn 'he_thong'; HÀNG RÀO 6 dùng cauAiTamNgat",
+      [/AND \(ai_paused_until IS NULL\s*OR ai_paused_until < now\(\) \+ make_interval\(secs => \$2::double precision \/ 1000\) - interval '1 hour'\)\s*RETURNING/.test(g36.DAT_NGAT_KHI_BI_CHAN)
+          && /DAT_NGAT_KHI_BI_CHAN,\s*\[params\.socialAccountId, NGAT_KHI_BI_CHAN_MS, lyDo\]/.test(ngat36),
+        /if \(!dat\) return null;/.test(ngat36), ngat36.indexOf("if (!dat) return null;") < ngat36.indexOf("await gui("), /await coNguon\(c, "he_thong"\);/.test(ngat36),
+        /message: cauAiTamNgat\(conversation\.ai_pause_reason, conversation\.ai_paused_until\)/.test(gr36)],
+      [true, true, true, true, true]);
+    kiem("Facebook chặn gửi", "Telegram: chủ kênh + quản trị, KHÔNG trùng người (user 5 vừa chủ vừa admin); kind kenh_bi_chan; dòng cửa hàng chỉ cho chủ kênh",
+      [/const nguoiNhan = \[\.\.\.new Set\(\[chuKenh, \.\.\.admins\.rows\.map\(\(a\) => a\.id\)\]\)\];/.test(gr36),
+        /sendTelegramMessage\(id, noiDung, "kenh_bi_chan", id === chuKenh \? trangId : null\)/.test(gr36)],
+      [true, true]);
+    const ob36 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/outbound.ts"), "utf8"));
+    const bat36 = ob36.slice(ob36.indexOf('await markAttemptOutcome(attemptId, "failed", code);'));
+    kiem("Facebook chặn gửi", "cổng gửi: lỗi chặn → ngắt kênh NGAY sau khi ghi 'failed', trước khi trả kết quả (lượt nhường người sau đó bị cổng chặn)",
+      [/if \(conversation\.social_account_id && laKenhBiChanGui\(error\)\) \{\s*await ngatKenhBiChanGui\(\{ socialAccountId: conversation\.social_account_id, loi: message \}\)/.test(bat36),
+        bat36.indexOf("ngatKenhBiChanGui(") > 0 && bat36.indexOf("ngatKenhBiChanGui(") < bat36.indexOf("if (params.throwOnBlock) throw error;"),
+        bat36.indexOf("ngatKenhBiChanGui(") < bat36.indexOf("blockReason: \"send_failed\"")],
+      [true, true, true]);
+    const sa36 = boChuThich(fs.readFileSync(path.join(GOC, "server/services/sales-ai.ts"), "utf8"));
+    const xl36 = sa36.slice(sa36.indexOf("export async function handleIncomingMessage"), sa36.indexOf("export async function giaCoTrongTaiLieu"));
+    kiem("Facebook chặn gửi", "AI Bán hàng: kênh đang ngắt (MỌI kiểu ngắt) → ra sớm TRƯỚC decide() (không gọi mô hình); tự chủ báo chủ shop, không thì nhường người",
+      [/FROM social_accounts WHERE id = \$1 AND ai_paused_until > now\(\)/.test(xl36),
+        /if \(kenhNgat\) \{\s*const lyDo = cauAiTamNgat\(kenhNgat\.ai_pause_reason, kenhNgat\.ai_paused_until\);[\s\S]{0,200}if \(tuChuSom\.bat\) await baoChuShop\(conversation, lyDo, tuChuSom, true\);\s*else await handoff\(conversation, lyDo\);\s*return false;\s*\}/.test(xl36),
+        xl36.indexOf("if (kenhNgat) {") > 0 && xl36.indexOf("if (kenhNgat) {") < xl36.indexOf("await decide("),
+        xl36.indexOf("if (kenhNgat) {") < xl36.indexOf("xinSuatTraLoiAI(")],
+      [true, true, true, true]);
   }
   // H19 (30/10/2026): AI bị chặn (ngân sách workspace / hết tiền) → ghi sự cố + báo quản trị; chạy lại → xoá + báo.
   {

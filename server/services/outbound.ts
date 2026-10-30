@@ -8,6 +8,8 @@ import {
   markAttemptOutcome,
   markDisclosureSent,
   evaluateAutoPause,
+  laKenhBiChanGui,
+  ngatKenhBiChanGui,
   type Actor,
 } from "./guardrails.js";
 import { chanCuaRa } from "./cua-ra.js";
@@ -262,6 +264,14 @@ export async function sendMessageSafely(params: {
       error instanceof zernio.ZernioError ? (error.code ?? String(error.status)) : "unknown";
 
     await markAttemptOutcome(attemptId, "failed", code);
+
+    // Facebook chặn Fanpage gửi tin (TD-36): ngắt AI của kênh TRƯỚC khi trả về — lượt nhường người / câu giữ chỗ phía sau
+    // (actor ai) bị HÀNG RÀO 6 chặn ở cổng, không gửi thêm tin chắc chắn hỏng.
+    if (conversation.social_account_id && laKenhBiChanGui(error)) {
+      await ngatKenhBiChanGui({ socialAccountId: conversation.social_account_id, loi: message }).catch((e) =>
+        console.error("[hàng rào] Không ngắt được kênh bị chặn:", e instanceof Error ? e.message : e)
+      );
+    }
 
     // Gửi lỗi có thể là dấu hiệu Trang đang bị hạn chế. Xét ngắt AI ngay.
     if (conversation.social_account_id) {

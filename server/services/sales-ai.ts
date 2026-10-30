@@ -9,6 +9,7 @@ import * as zernio from "./zernio.js";
 import { sendHandoffAlert } from "./telegram.js";
 import { taoDon, daCoDon } from "./orders.js";
 import { sendMessageSafely } from "./outbound.js";
+import { cauAiTamNgat } from "./guardrails.js";
 import { xinSuatTraLoiAI } from "./chong-lam-dung.js";
 import { chayChoTrang } from "./ngu-canh-trang.js";
 import { DK_NHIEM_KY_MO } from "./nhiem-ky.js";
@@ -182,6 +183,27 @@ export async function handleIncomingMessage(conversationId: string): Promise<boo
   }
 
   if (!conversation.social_account_id) return false;
+
+  /*
+   * Lối ra sớm thứ hai: KÊNH ĐANG TẠM NGẮT AI (mọi kiểu ngắt — tỷ lệ lỗi cao hay Facebook chặn gửi, TD-36).
+   *
+   * Cổng gửi (HÀNG RÀO 6) chặn sẵn tin AI của kênh đang ngắt, nên gọi mô hình lúc này là trả tiền cho một câu không bao
+   * giờ gửi được (đo 30/10: kênh bị chặn vẫn tốn một lượt AI cho mỗi tin khách). Xử lý y như khi cổng trả 'ai_paused'
+   * (needsHuman phía dưới): tự chủ → báo chủ shop; không → nhường người (hội thoại hiện "chờ người" trong hộp thư; câu báo
+   * khách của lượt nhường cũng bị cổng chặn, không gọi nhà cung cấp). Hết ngắt không tự trả lời dồn — chỉ runDueBoSot vớt
+   * hội thoại còn ở trạng thái 'ai' trong 24 giờ như mọi khi.
+   */
+  const kenhNgat = await queryOne<{ ai_paused_until: Date; ai_pause_reason: string | null }>(
+    "SELECT ai_paused_until, ai_pause_reason FROM social_accounts WHERE id = $1 AND ai_paused_until > now()",
+    [conversation.social_account_id]
+  );
+  if (kenhNgat) {
+    const lyDo = cauAiTamNgat(kenhNgat.ai_pause_reason, kenhNgat.ai_paused_until);
+    console.log(`[AI bán hàng] Bỏ qua ${conversationId}: ${lyDo}`);
+    if (tuChuSom.bat) await baoChuShop(conversation, lyDo, tuChuSom, true);
+    else await handoff(conversation, lyDo);
+    return false;
+  }
 
   /*
    * Phải lấy cả attachments.

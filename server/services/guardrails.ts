@@ -365,7 +365,7 @@ export async function checkOutbound(params: {
     };
   }
 
-  // ── HÀNG RÀO 6: AI đang bị tạm ngắt vì tỷ lệ lỗi cao ──────────────────
+  // ── HÀNG RÀO 6: AI đang bị tạm ngắt (tỷ lệ lỗi cao / Facebook chặn gửi) ─
   if (
     params.actor === "ai" &&
     conversation.ai_paused_until &&
@@ -374,9 +374,7 @@ export async function checkOutbound(params: {
     return {
       allowed: false,
       reason: "ai_paused",
-      message:
-        `AI đang tạm ngắt trên kênh này: ${conversation.ai_pause_reason ?? "tỷ lệ lỗi cao"}. ` +
-        `Mở lại lúc ${conversation.ai_paused_until.toLocaleString("vi-VN")}.`,
+      message: cauAiTamNgat(conversation.ai_pause_reason, conversation.ai_paused_until),
     };
   }
 
@@ -698,6 +696,96 @@ export async function evaluateAutoPause(params: {
   );
 
   return { paused: true, reason, until };
+}
+
+/** Câu "AI đang tạm ngắt" — MỘT nguồn cho cổng gửi (HÀNG RÀO 6) và lối ra sớm của AI Bán hàng. */
+export function cauAiTamNgat(lyDo: string | null, den: Date): string {
+  return (
+    `AI đang tạm ngắt trên kênh này: ${lyDo ?? "tỷ lệ lỗi cao"}. ` +
+    `Mở lại lúc ${den.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}.`
+  );
+}
+
+/**
+ * FACEBOOK CHẶN FANPAGE GỬI TIN (TD-36, 30/10/2026).
+ *
+ * Đo thật 30/10: Fanpage của cửa hàng 370 gửi lỗi "(#2022) Bạn tạm thời bị hạn chế gửi tin nhắn đến ngày mai lúc 18:20."
+ * → AI vẫn được gọi cho mỗi tin khách, rồi lượt nhường người gửi thêm MỘT tin chắc chắn hỏng (send_attempts 206 + 207).
+ * Bảng mã lỗi Messenger (developers.facebook.com/docs/messenger-platform/error-codes, đọc 30/10/2026):
+ *   2022 "The ability to send commerce messages has been temporarily disabled … feature limit placed after a policy violation."
+ *   10 / 1893063 "You are temporarily restricted from sending messages." (Messaging Policies)
+ * Tài liệu KHÔNG nói thời hạn; câu "đến … 18:20" không rõ múi giờ → KHÔNG đọc mốc trong câu. Ngắt 24 giờ; hết mốc mà vẫn
+ * bị chặn thì lần gửi kế tiếp lỗi lại → ngắt lại (tối đa một lượt hỏng mỗi ngày).
+ * Mã có cấu trúc (platformError.code / subcode trong thân lỗi của nhà cung cấp) trước; chuỗi "(#2022)" chỉ là dự phòng.
+ * Chỉ chặn NHẮN TIN — ngắt cũng chỉ áp cho tin nhắn (HÀNG RÀO 6), không đụng bình luận / đăng bài.
+ */
+export const NGAT_KHI_BI_CHAN_MS = 24 * 60 * 60_000;
+
+/** Câu đặt ngắt (một nguồn cho hàm ngắt và phép thử tự hoàn tác scripts/thu-td36-hoan-tac.mts). $1 kênh, $2 ms, $3 lý do. */
+export const DAT_NGAT_KHI_BI_CHAN = `
+  UPDATE social_accounts
+     SET ai_paused_until = now() + make_interval(secs => $2::double precision / 1000),
+         ai_pause_reason = $3, ai_paused_at = now(), updated_at = now()
+   WHERE id = $1
+     AND (ai_paused_until IS NULL
+          OR ai_paused_until < now() + make_interval(secs => $2::double precision / 1000) - interval '1 hour')
+   RETURNING ai_paused_until, user_id, trang_id, display_name`;
+
+export function laKenhBiChanGui(error: unknown): boolean {
+  const e = error as { body?: { platformError?: Record<string, unknown> }; nguyenVan?: unknown; message?: unknown } | null;
+  const pe = e?.body?.platformError;
+  const code = Number(pe?.code);
+  const sub = Number(pe?.subcode ?? pe?.error_subcode);
+  if (code === 2022) return true;
+  if (code === 10 && sub === 1893063) return true;
+  const cau = typeof e?.nguyenVan === "string" ? e.nguyenVan : typeof e?.message === "string" ? e.message : "";
+  return /\(#2022\)/.test(cau);
+}
+
+/** Gửi một tin cho chủ kênh + mọi quản trị, không trùng người. true = ít nhất một người nhận. */
+async function guiChuKenhVaQuanTri(chuKenh: number, trangId: number | null, noiDung: string): Promise<boolean> {
+  const { sendTelegramMessage } = await import("./telegram.js");
+  const admins = await query<{ id: number }>("SELECT id FROM users WHERE role = 'admin' AND is_active = TRUE");
+  const nguoiNhan = [...new Set([chuKenh, ...admins.rows.map((a) => a.id)])];
+  let da = 0;
+  for (const id of nguoiNhan) {
+    if (await sendTelegramMessage(id, noiDung, "kenh_bi_chan", id === chuKenh ? trangId : null).catch(() => false)) da++;
+  }
+  return da > 0;
+}
+
+/**
+ * Ngắt AI của kênh 24 giờ vì Facebook chặn gửi. Chống lặp bằng CHÍNH mốc ngắt: chỉ đặt (và chỉ báo Telegram) khi kênh
+ * chưa ngắt, hoặc mốc cũ kết thúc sớm hơn mốc mới quá 1 giờ (vd. đang tự ngắt 30 phút vì tỷ lệ lỗi). Hai lượt lỗi cùng lúc:
+ * lượt sau thấy mốc của lượt trước → không đặt lại, không báo lần hai.
+ */
+export async function ngatKenhBiChanGui(
+  params: { socialAccountId: string; loi: string },
+  gui: (chuKenh: number, trangId: number | null, noiDung: string) => Promise<boolean> = guiChuKenhVaQuanTri
+): Promise<Date | null> {
+  const lyDo = `Facebook đang chặn Fanpage gửi tin nhắn (${params.loi.slice(0, 200)})`;
+  const dat = await transaction(async (c) => {
+    await coNguon(c, "he_thong");
+    const r = await c.query<{ ai_paused_until: Date; user_id: number; trang_id: number | null; display_name: string | null }>(
+      DAT_NGAT_KHI_BI_CHAN,
+      [params.socialAccountId, NGAT_KHI_BI_CHAN_MS, lyDo]
+    );
+    return r.rows[0] ?? null;
+  });
+  if (!dat) return null;
+
+  const { escapeHtml } = await import("./telegram.js");
+  console.error(`[hàng rào] Facebook CHẶN GỬI trên kênh ${params.socialAccountId}: ${params.loi}. AI ngắt tới ${dat.ai_paused_until.toISOString()}`);
+  const noiDung =
+    "⛔ <b>FACEBOOK ĐANG CHẶN FANPAGE GỬI TIN NHẮN</b>\n\n" +
+    `<b>Kênh:</b> ${escapeHtml(dat.display_name ?? params.socialAccountId)}\n` +
+    `<b>Facebook báo:</b> ${escapeHtml(params.loi.slice(0, 300))}\n\n` +
+    `AI tạm dừng trả lời tin nhắn trên kênh này tới ${dat.ai_paused_until.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })} ` +
+    "(không gọi AI, không gửi thêm tin nào). Tin khách vẫn vào hộp thư và chuyển chờ người. Bình luận và đăng bài không bị ảnh hưởng.";
+  if (!(await gui(dat.user_id, dat.trang_id, noiDung).catch(() => false))) {
+    console.error("[hàng rào] Không gửi được Telegram báo kênh bị chặn — kênh vẫn đang ngắt.");
+  }
+  return dat.ai_paused_until;
 }
 
 /** Mở lại AI cho một kênh trước thời hạn, do chủ shop chủ động. */

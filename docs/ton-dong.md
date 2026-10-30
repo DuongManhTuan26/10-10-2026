@@ -422,3 +422,16 @@ flash-lite-image qua /images không trả `id`). Tiền vẫn đúng theo bảng
 /credits) — chỉ trạng thái đối soát sai.
 Sửa khi làm: (a) lượt không ma_ncc → đánh dấu "đối chiếu theo bảng giá" (doi_chieu_at = created_at, cost_ncc NULL) để không
 tính chờ; hoặc (b) nhánh ảnh lấy mã lượt từ phần khác của phản hồi nếu nhà cung cấp có. Đọc tài liệu /images trước.
+
+## TD-36 — ĐÃ SỬA (30/10/2026): Facebook chặn Fanpage gửi tin → AI vẫn tốn lượt + gửi thêm tin chắc chắn hỏng
+
+Đo thật 30/10 (cửa hàng 370, Fanpage kênh 6ad369a7): tin khách từ quảng cáo thử bài 75 → AI soạn → gửi lỗi "(#2022) Bạn
+tạm thời bị hạn chế gửi tin nhắn đến ngày mai lúc 18:20." → nhường người → notifyCustomerOfHandoff gửi thêm 1 tin cũng
+lỗi (send_attempts 206 + 207). Trước đó Fanpage này chưa từng gửi tin qua app → không do app gửi dồn. Account quality: không
+vấn đề. Bảng mã lỗi Messenger: 2022 = "commerce messages … temporarily disabled … after a policy violation"; 10/1893063 =
+"temporarily restricted from sending messages"; không nói thời hạn.
+Đã sửa: laKenhBiChanGui (mã có cấu trúc platformError trước, "(#2022)" dự phòng) → ngatKenhBiChanGui ngắt AI kênh 24 giờ
+(chống lặp bằng chính mốc, Telegram chủ kênh + quản trị không trùng) TRƯỚC khi cổng gửi trả về; AI Bán hàng ra sớm trước khi
+gọi mô hình khi kênh đang ngắt (mọi kiểu ngắt). Thử tự hoàn tác scripts/thu-td36-hoan-tac.mts.
+Còn mở: nguyên nhân Meta chặn chưa biết (Meta không nói); tin khách đến lúc máy mất mạng vào app trễ 1 giờ 51 phút qua
+rà soát hộp thư (đường dự phòng chạy đúng).
