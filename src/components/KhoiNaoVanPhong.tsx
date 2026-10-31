@@ -337,7 +337,7 @@ function Canh({ s, tenCuaHang, khung }: { s: SoLieuKhoiNao; tenCuaHang: string; 
       </ManHinh>
       {/* ④ — đỉnh quả địa cầu (không che người điều hành): việc cần xử lý */}
       <div className="absolute pointer-events-none flex items-center justify-center" style={hop(870, 92, 260, 34)}>
-        <span className="rounded-full font-bold whitespace-nowrap" style={{ fontSize: p(17), padding: `${p(3)} ${p(14)}`, color: '#facc15', background: 'rgba(10,8,2,0.88)', border: '1px solid rgba(250,204,21,0.7)', boxShadow: `0 0 ${p(12)} rgba(250,204,21,0.45)` }}>
+        <span className="rounded-full font-bold whitespace-nowrap" style={{ fontSize: p(17), padding: `${p(3)} ${p(14)}`, color: VANG, background: 'rgba(10,8,2,0.88)', border: `1px solid ${VANG}b3`, boxShadow: `0 0 ${p(12)} ${VANG}73` }}>
           {t.viecCan === null ? 'Đang chấm…' : t.viecCan > 0 ? `${t.viecCan} việc cần xử lý trước` : 'Không có việc gấp'}
         </span>
       </div>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useActivePage, type TrangNao } from '../lib/ActivePage';
 import type { SocialAccount } from '../lib/api';
-import { MAU_THUONG_HIEU, VIEN_HE_THONG } from '../lib/bon-ai';
+import { bienThe, MAU_THUONG_HIEU, VIEN_HE_THONG } from '../lib/bon-ai';
 
 /** Số dòng mỗi trang của bảng — đủ nhìn một lượt, không bắt cuộn dài khi có rất nhiều trang. */
 const MOI_TRANG = 25;
@@ -267,7 +267,7 @@ export default function BangTrangBanHang({
                   <span className={clsx('material-symbols-outlined text-[22px] text-on-surface-variant transition-transform shrink-0', mo && 'rotate-90')} aria-hidden>chevron_right</span>
                   {/* Tên trang */}
                   <span className="flex items-center gap-3 min-w-0 flex-1 @3xl:flex-none">
-                    <span className="o-bieu-tuong !w-10 !h-10 shrink-0" style={{ ['--nhan' as string]: MAU_THUONG_HIEU }}>
+                    <span className="o-bieu-tuong !w-10 !h-10 shrink-0" style={bienThe(MAU_THUONG_HIEU)}>
                       <span className="material-symbols-outlined text-[22px]">storefront</span>
                     </span>
                     <span className="min-w-0">
@@ -319,7 +319,7 @@ export default function BangTrangBanHang({
                         <button
                           onClick={() => moBoNao(n)}
                           className="h-8 px-3 rounded-lg border text-xs font-bold transition-colors hover:bg-[color-mix(in_srgb,var(--mau)_15%,transparent)]"
-                          style={{ borderColor: `${MAU_THUONG_HIEU}99`, color: MAU_THUONG_HIEU }}
+                          style={{ borderColor: `${VIEN_HE_THONG}99`, color: MAU_THUONG_HIEU }}
                         >
                           Mở bộ não
                         </button>

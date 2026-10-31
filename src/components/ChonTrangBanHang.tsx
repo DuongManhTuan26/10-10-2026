@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { clsx } from 'clsx';
-import { MAU_THUONG_HIEU } from '../lib/bon-ai';
+import { bienThe, MAU_THUONG_HIEU } from '../lib/bon-ai';
 
 export interface TrangChon {
   id: number;
@@ -82,7 +82,7 @@ export default function ChonTrangBanHang({
             <span className={clsx('w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center', chon ? 'border-primary' : 'border-outline')}>
               {chon && <span className="w-2.5 h-2.5 rounded-full bg-primary" />}
             </span>
-            <span className="o-bieu-tuong !w-9 !h-9 shrink-0" style={{ ['--nhan' as string]: chon ? MAU_THUONG_HIEU : '#94a3b8' }}>
+            <span className="o-bieu-tuong !w-9 !h-9 shrink-0" style={bienThe(chon ? MAU_THUONG_HIEU : '#94a3b8')}>
               <span className="material-symbols-outlined text-[20px]">storefront</span>
             </span>
             <span className="min-w-0 flex-1">

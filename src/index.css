@@ -300,7 +300,8 @@
     border-radius: 12px;
     color: var(--nhan, var(--color-primary));
     background: color-mix(in srgb, var(--nhan, var(--color-primary)) 24%, transparent);
-    border: 1px solid color-mix(in srgb, var(--nhan, var(--color-primary)) 55%, transparent);
+    /* 31/10/2026: VIỀN ô biểu tượng theo viền thẻ (vàng gold); biểu tượng + nền ô giữ màu nhấn. Thẻ màu nghĩa (cam / đỏ) giữ màu nghĩa. */
+    border: 1px solid color-mix(in srgb, var(--vien-the, var(--nhan, var(--vien-mac-dinh))) 55%, transparent);
     box-shadow: 0 0 18px -4px color-mix(in srgb, var(--nhan, var(--color-primary)) 55%, transparent);
 }
 /* Số lớn: chữ số đều cột, khít chữ — đọc nhanh. */

@@ -5765,8 +5765,8 @@ const DUC: PhepDuc[] = [
     tep: "src/components/KhuonAi.tsx",
     // 31/10/2026: thanh 4 bước dùng màu chung (mau) — trỏ lại.
     // 31/10/2026: bước đang mở = .nut-chinh — trỏ lại: bước khác mỗi bước một màu.
-    tim: ": { background: `${mau}12`, borderColor: `${mau}59`, color: mau }}",
-    thay: ": { background: ['#60a5fa', '#f472b6'][i % 2], borderColor: `${mau}59`, color: mau }}",
+    tim: ": { background: `${mau}12`, borderColor: `${VIEN_HE_THONG}73`, color: mau }}",
+    thay: ": { background: ['#60a5fa', '#f472b6'][i % 2], borderColor: `${VIEN_HE_THONG}73`, color: mau }}",
   },
   {
     ten: "trang hệ thống lại nút trắng",
@@ -6950,6 +6950,24 @@ const DUC: PhepDuc[] = [
     tep: "src/pages/Connections.tsx",
     tim: "className=\"nut-chinh self-start",
     thay: "className=\"self-start",
+  },
+  {
+    ten: "rà viền: ô biểu tượng viền xanh ngọc",
+    tep: "src/index.css",
+    tim: "border: 1px solid color-mix(in srgb, var(--vien-the, var(--nhan, var(--vien-mac-dinh))) 55%, transparent);",
+    thay: "border: 1px solid color-mix(in srgb, var(--nhan, var(--color-primary)) 55%, transparent);",
+  },
+  {
+    ten: "rà viền: ô số đầu trang AI viền xanh ngọc",
+    tep: "src/components/KhuonAi.tsx",
+    tim: "border: `1px solid ${VIEN_HE_THONG}99`",
+    thay: "border: `1px solid ${mau}99`",
+  },
+  {
+    ten: "rà viền: nhãn ④ khối não quay lại vàng ④",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "color: VANG, background: 'rgba(10,8,2,0.88)'",
+    thay: "color: '#facc15', background: 'rgba(10,8,2,0.88)'",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

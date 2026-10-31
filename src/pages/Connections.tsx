@@ -1038,7 +1038,7 @@ export default function Connections() {
       */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4 min-w-0">
-          <span className="o-bieu-tuong !w-12 !h-12 !rounded-2xl" style={{ ['--nhan' as string]: MAU_THUONG_HIEU }}>
+          <span className="o-bieu-tuong !w-12 !h-12 !rounded-2xl" style={bienThe(MAU_THUONG_HIEU)}>
             <span className="material-symbols-outlined text-[26px]">hub</span>
           </span>
           <div className="min-w-0">

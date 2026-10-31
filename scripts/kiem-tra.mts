@@ -8477,7 +8477,7 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   kiem("thanh 4 bước", "một màu CHUNG (màu thương hiệu) ở cả 4 AI: bước mở tô màu chung, bước khác viền màu chung; không dùng màu riêng AI",
     [/const mau = MAU_THUONG_HIEU;/.test(ka),
       // 31/10/2026: bước đang mở = nút chính ngọc lục bảo ánh kim (.nut-chinh); bước khác viền màu chung.
-      /mo \? 'nut-chinh' : 'hover:brightness-125'/.test(ka) && /\? undefined [^\n]*\n\s*: \{ background: `\$\{mau\}12`, borderColor: `\$\{mau\}59`, color: mau \}/.test(ka),
+      /mo \? 'nut-chinh' : 'hover:brightness-125'/.test(ka) && /\? undefined [^\n]*\n\s*: \{ background: `\$\{mau\}12`, borderColor: `\$\{VIEN_HE_THONG\}73`, color: mau \}/.test(ka),
       /motAi\.hex|t\.hex/.test(ka), /hex:/.test(bonThe)],
     [true, true, false, false]);
 }
@@ -8544,6 +8544,17 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
       /:is\(button, a\):is\(\.bg-primary, \.nut-chinh\):not\(\[role="switch"\]\):not\(\.vung-video \*\) \{\s*background: var\(--nut-chinh-nen\) !important;\s*border: 1\.5px solid #F5C451 !important;/.test(css),
       /className="nut-chinh self-start/.test(fs.readFileSync(path.join(GOC, "src/pages/Connections.tsx"), "utf8"))],
     [true, true, true]);
+  // 31/10/2026 (rà toàn bộ 21 trang / thẻ bằng đo màu thật): viền ô biểu tượng, bước chưa mở, ô số đầu trang AI, nút "Mở bộ não",
+  // nhãn ④ khối não — hết xanh ngọc / vàng ④ cũ, theo viền vàng.
+  {
+    const ka31 = fs.readFileSync(path.join(GOC, "src/components/KhuonAi.tsx"), "utf8");
+    kiem("rà viền còn sót", "ô biểu tượng viền theo viền thẻ; bước chưa mở + vòng số + ô số đầu trang AI viền vàng; 'Mở bộ não' viền vàng; nhãn ④ khối não vàng gold",
+      [/border: 1px solid color-mix\(in srgb, var\(--vien-the, var\(--nhan, var\(--vien-mac-dinh\)\)\) 55%, transparent\);/.test(css),
+        (ka31.match(/VIEN_HE_THONG\}(99|73|80)`/g) ?? []).length,
+        /borderColor: `\$\{VIEN_HE_THONG\}99`, color: MAU_THUONG_HIEU/.test(fs.readFileSync(path.join(GOC, "src/components/BangTrangBanHang.tsx"), "utf8")),
+        /#facc15|250,204,21/.test(fs.readFileSync(path.join(GOC, "src/components/KhoiNaoVanPhong.tsx"), "utf8"))],
+      [true, 3, true, false]);
+  }
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");
   const ma = (x: { ma: string }[]) => x.map((d) => d.ma);

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { BON_THE, MAU_THUONG_HIEU, aiTheoMa, type MaThe } from '../lib/bon-ai';
+import { BON_THE, MAU_THUONG_HIEU, VIEN_HE_THONG, aiTheoMa, type MaThe } from '../lib/bon-ai';
 import type { MaAi } from '../lib/api';
 
 /**
@@ -37,7 +37,7 @@ export default function KhuonAi({
       <div className="flex items-center gap-3 mb-4 min-w-0">
         <span
           className="w-10 h-10 rounded-xl flex items-center justify-center font-mono text-lg font-black shrink-0"
-          style={{ color: mau, border: `1px solid ${mau}99`, background: `${mau}1f` }}
+          style={{ color: mau, border: `1px solid ${VIEN_HE_THONG}99`, background: `${mau}1f` }}
         >
           {motAi.so}
         </span>
@@ -65,11 +65,11 @@ export default function KhuonAi({
               className={clsx('flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition', mo ? 'nut-chinh' : 'hover:brightness-125')}
               style={mo
                 ? undefined /* bước đang mở = nút chính ngọc lục bảo ánh kim (index.css .nut-chinh) */
-                : { background: `${mau}12`, borderColor: `${mau}59`, color: mau }}
+                : { background: `${mau}12`, borderColor: `${VIEN_HE_THONG}73`, color: mau }}
             >
               <span
                 className="w-7 h-7 rounded-full flex items-center justify-center font-mono text-sm font-black shrink-0"
-                style={mo ? { background: '#0b141726', color: '#0b1417' } : { border: `1px solid ${mau}80` }}
+                style={mo ? { background: '#0b141726', color: '#0b1417' } : { border: `1px solid ${VIEN_HE_THONG}80` }}
               >
                 {i + 1}
               </span>
