@@ -243,6 +243,16 @@
     animation: vien-chay-quay 2.8s linear infinite;
 }
 @keyframes vien-chay-quay { to { --goc-vien: 360deg; } }
+/*
+ * TÊN TRANG NHẤP NHÁY (thanh tiêu đề — chủ dự án 31/10/2026: "cho chữ nhấp nháy"): sáng rực có quầng ngọc lục bảo rồi mờ đi,
+ * 1,8 giây một nhịp; máy bật giảm chuyển động thì đứng yên.
+ */
+.chu-nhap-nhay { animation: chu-nhap-nhay 1.8s ease-in-out infinite; }
+@keyframes chu-nhap-nhay {
+    0%, 100% { opacity: 1; text-shadow: 0 0 10px rgba(63, 240, 184, 0.85), 0 0 22px rgba(63, 240, 184, 0.45); }
+    50% { opacity: 0.5; text-shadow: 0 0 2px rgba(63, 240, 184, 0.2); }
+}
+@media (prefers-reduced-motion: reduce) { .chu-nhap-nhay { animation: none; } }
 @media (prefers-reduced-motion: reduce) {
     .so-dien-thoai { animation: none; background-position: 50% 0; }
     .vien-chay::before { animation: none; }

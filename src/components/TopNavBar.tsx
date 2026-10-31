@@ -94,7 +94,8 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, menuAn = false, g
           <span className="material-symbols-outlined relative z-10 text-[20px]" style={{ color: '#8FF7D4' }}>deployed_code</span>
         </button>}
         {/* Điện thoại 18px + lề 12px (chủ dự án "ok" 31/10/2026) để tên trang dài hiện đủ. */}
-        <h1 className="text-lg lg:text-2xl font-bold truncate" style={{ color: mauTieuDe }}>{getPageTitle()}</h1>
+        {/* Tên trang NHẤP NHÁY (chủ dự án 31/10/2026: "cho chữ nhấp nháy") — sáng lên rồi mờ theo nhịp, quầng ngọc lục bảo. */}
+        <h1 className="chu-nhap-nhay text-lg lg:text-2xl font-bold truncate" style={{ color: mauTieuDe }}>{getPageTitle()}</h1>
         {/*
           Trang (bộ não) đang làm việc — chỉ hiển thị, đổi trang ở bảng "Trang bán hàng" của Kết nối kênh. Chỉ hiện ở 4 AI:
           chủ shop nhiều trang luôn biết mình đang chỉnh bộ não của trang nào. KHÔNG hiện ở Tổng quan — số ở đó gộp cả tài

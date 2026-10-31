@@ -280,8 +280,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "bỏ nền lưới chung của app (khác tông menu)",
     tep: "src/App.tsx",
-    tim: "    <div className=\"flex h-screen w-full bg-background nen-app\">",
-    thay: "    <div className=\"flex h-screen w-full bg-background\">",
+    // 31/10/2026: thẻ gốc thêm style --le-menu — trỏ lại.
+    tim: "    <div className=\"flex h-screen w-full bg-background nen-app\" style=",
+    thay: "    <div className=\"flex h-screen w-full bg-background\" style=",
   },
   {
     ten: "hộp thoại trong suốt, chữ trang sau lẫn vào",
@@ -7070,6 +7071,12 @@ const DUC: PhepDuc[] = [
     tep: "src/App.tsx",
     tim: "<div className=\"cot-noi-dung flex-1 sm:ml-[var(--le-menu)]",
     thay: "<div className=\"cot-noi-dung flex-1 lg:ml-[var(--le-menu)]",
+  },
+  {
+    ten: "thanh tiêu đề: tên trang không còn nhấp nháy",
+    tep: "src/components/TopNavBar.tsx",
+    tim: "<h1 className=\"chu-nhap-nhay text-lg",
+    thay: "<h1 className=\"text-lg",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

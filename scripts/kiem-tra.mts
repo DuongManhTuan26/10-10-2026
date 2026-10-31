@@ -8555,6 +8555,10 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
         !/title="Cấu hình AI bán hàng"[\s\S]{0,260}hidden lg:flex/.test(tn), /<h1 className="text-lg lg:text-2xl font-bold truncate"/.test(tn), /px-3 lg:px-margin/.test(tn),
         /loiChao|Chào buổi/.test(db31)],
       [true, true, true, true, true, true, true, false]);
+    kiem("menu to / nhỏ", "tên trang trên thanh tiêu đề NHẤP NHÁY (sáng – mờ, quầng ngọc lục bảo), tôn trọng giảm chuyển động; không bọc khung",
+      [/<h1 className="chu-nhap-nhay text-lg lg:text-2xl font-bold truncate"/.test(tn), /@keyframes chu-nhap-nhay \{/.test(css31),
+        /@media \(prefers-reduced-motion: reduce\) \{ \.chu-nhap-nhay \{ animation: none; \} \}/.test(css31), /khung-goc|vien-tieu-de/.test(tn)],
+      [true, true, true, false]);
     kiem("menu to / nhỏ", "khối não Tổng quan chọn kiểu theo CHỖ TRỐNG THẬT (≥ 860px hai tầng); kiểu thẻ: ④ trải ngang, ①②③ ba cột",
       [/<section className="min-w-0 @container">/.test(kn31b), /<div className="hidden @min-\[860px\]:block">/.test(kn31b), /<div className="@min-\[860px\]:hidden the p-4">/.test(kn31b),
         /grid grid-cols-1 @min-\[640px\]:grid-cols-3 gap-3/.test(kvp31), /'@min-\[640px\]:col-span-3'/.test(kvp31)],
