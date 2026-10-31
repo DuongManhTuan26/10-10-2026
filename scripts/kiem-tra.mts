@@ -2507,6 +2507,13 @@ kiem("trang quảng cáo", "ô chọn kỳ có nối thật và nạp lại theo
       && /onClick=\{\(\) => setHuongDan\(null\)\}[\s\S]{0,200}Xong, không nối thêm/.test(maKetNoiGoc)
       && /const dangHuongDan = !!chHuongDan && cuaHangNoi === chHuongDan\.id;/.test(maKetNoiGoc)
       && !/goiYTiep|boQua: \[/.test(maKetNoiGoc), true);
+  // 31/10/2026 (chủ dự án: mũi tên "bé bằng cái kim"): mũi tên to 72px, mũi tên đôi, nảy + sóng lan.
+  const nguonCssGoc = fs.readFileSync(path.join(GOC, "src/index.css"), "utf8");
+  kiem("cửa hàng", "mũi tên hướng dẫn to, nổi bật: vòng 72px chất nút chính, mũi tên đôi 52px, nảy xuống + hai vòng sóng",
+    [/<span className="mui-ten-chi my-3" aria-hidden>\s*<span className="material-symbols-outlined">keyboard_double_arrow_down<\/span>/.test(maKetNoiGoc),
+      /\.mui-ten-chi \{[^}]*width: 72px;[^}]*background: var\(--nut-chinh-nen\);[^}]*border: 2px solid #F5C451;[^}]*animation: mui-ten-nay /.test(nguonCssGoc),
+      /\.mui-ten-chi::after \{ animation-delay: 0\.9s; \}/.test(nguonCssGoc) && /\.mui-ten-chi \.material-symbols-outlined \{ font-size: 52px;/.test(nguonCssGoc) && /@keyframes mui-ten-song \{ 0% \{ transform: scale\(1\)/.test(nguonCssGoc)],
+    [true, true, true]);
   kiem("cửa hàng", "tiến độ hướng dẫn sống qua lượt tải lại trang khi đăng nhập nền tảng",
     /sessionStorage\.setItem\(KHOA_HUONG_DAN, JSON\.stringify\(v\)\)/.test(maKetNoiGoc), true);
   kiem("cửa hàng", "tải lại trang thì chọn lại đúng cửa hàng đang hướng dẫn (không thì mũi tên tắt mất)",

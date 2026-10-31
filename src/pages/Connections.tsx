@@ -1182,7 +1182,11 @@ export default function Connections() {
               className="h-8 px-4 rounded-lg border border-outline text-xs font-bold text-on-surface hover:bg-white/[0.05]">
               Xong, không nối thêm
             </button>
-            <span className="material-symbols-outlined text-[34px] text-primary animate-bounce motion-reduce:animate-none" aria-hidden>south</span>
+            {/* 31/10/2026 (chủ dự án: mũi tên "bé bằng cái kim" — to hẳn, có hiệu ứng để thấy ngay): vòng ngọc lục bảo ánh kim
+                viền vàng 72px, mũi tên đôi, nảy xuống + hai vòng sóng lan ra. */}
+            <span className="mui-ten-chi my-3" aria-hidden>
+              <span className="material-symbols-outlined">keyboard_double_arrow_down</span>
+            </span>
           </div>
         )}
         <div className={clsx('space-y-5 transition-shadow', dangHuongDan && 'rounded-2xl p-3 -mx-3 ring-2 ring-primary shadow-[0_0_34px_-12px_var(--color-primary)]')}>

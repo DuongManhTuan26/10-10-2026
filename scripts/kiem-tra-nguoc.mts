@@ -3133,6 +3133,24 @@ const DUC: PhepDuc[] = [
     thay: "  if (false && oCuaHangKhac) {",
   },
   {
+    ten: "mũi tên hướng dẫn lại bé như cái kim",
+    tep: "src/pages/Connections.tsx",
+    tim: "<span className=\"mui-ten-chi my-3\" aria-hidden>",
+    thay: "<span className=\"my-3\" aria-hidden>",
+  },
+  {
+    ten: "mũi tên trong vòng lại bé 24px",
+    tep: "src/index.css",
+    tim: ".mui-ten-chi .material-symbols-outlined { font-size: 52px;",
+    thay: ".mui-ten-chi .material-symbols-outlined { font-size: 24px;",
+  },
+  {
+    ten: "mũi tên hướng dẫn đứng im, không sóng lan",
+    tep: "src/index.css",
+    tim: ".mui-ten-chi::after { animation-delay: 0.9s; }",
+    thay: ".mui-ten-chi::after { animation: none; }",
+  },
+  {
     ten: "tạo cửa hàng xong lưới không sáng / không có mũi tên chỉ xuống",
     tep: "src/pages/Connections.tsx",
     tim: "  const dangHuongDan = !!chHuongDan && cuaHangNoi === chHuongDan.id;",
