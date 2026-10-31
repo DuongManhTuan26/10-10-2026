@@ -5,10 +5,12 @@
  */
 import { clsx } from 'clsx';
 import type { DongThongBao } from '../lib/luong-thong-bao';
-import { bienThe } from '../lib/bon-ai';
+import { bienThe, MAU_THUONG_HIEU } from '../lib/bon-ai';
 
 export default function LuongThongBao({ dong, noiNhan }: { dong: DongThongBao[]; noiNhan: string | null }) {
   const coChay = dong.some((d) => d.chay);
+  // 31/10/2026 ("đồng nhất a–z"): chữ nguồn + sợi nối màu chung; chỉ vòng số ①②③④ giữ màu riêng AI (như số trên menu).
+  const xanh = MAU_THUONG_HIEU;
   return (
     <div className="flex flex-col sm:flex-row sm:items-stretch gap-3 sm:gap-0">
       <ul className="flex-1 min-w-0 space-y-2">
@@ -25,7 +27,7 @@ export default function LuongThongBao({ dong, noiNhan }: { dong: DongThongBao[];
                 {d.so ?? '•'}
               </span>
               <span className="min-w-0">
-                <span className="block text-[11px] font-bold truncate" style={{ color: d.mau }}>{d.nguon}</span>
+                <span className="block text-[11px] font-bold truncate text-on-surface-variant">{d.nguon}</span>
                 <span className="block text-sm font-bold text-on-surface truncate">{d.ten}</span>
               </span>
             </div>
@@ -33,15 +35,15 @@ export default function LuongThongBao({ dong, noiNhan }: { dong: DongThongBao[];
               <path
                 d="M0 3 H100"
                 className={d.chay ? 'dong-chay' : 'duong-nen'}
-                stroke={d.mau}
+                stroke={xanh}
                 strokeDasharray={d.chay ? undefined : '3 7'}
                 vectorEffect="non-scaling-stroke"
-                style={d.chay ? { filter: `drop-shadow(0 0 4px ${d.mau})` } : undefined}
+                style={d.chay ? { filter: `drop-shadow(0 0 4px ${xanh})` } : undefined}
               />
             </svg>
             <span
               className={clsx('sm:hidden w-2.5 h-2.5 rounded-full shrink-0', !d.chay && 'opacity-30')}
-              style={{ background: d.mau, boxShadow: d.chay ? `0 0 8px ${d.mau}` : undefined }}
+              style={{ background: xanh, boxShadow: d.chay ? `0 0 8px ${xanh}` : undefined }}
               title={d.chay ? 'Đang gửi' : 'Đang không gửi'}
             />
           </li>

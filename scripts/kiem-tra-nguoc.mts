@@ -6872,7 +6872,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "4 AI chung màu: khung phần mang màu AI vẫn xanh lá / đỏ / tím / vàng",
     tep: "src/index.css",
-    tim: "  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang, .mau-xanh) { --mau: #3ff0b8; --mau-vien: var(--vien-mac-dinh); }\n",
+    tim: "  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang, .mau-xanh, .mau-lam, .mau-xam) { --mau: #3ff0b8; --mau-vien: var(--vien-mac-dinh); }\n",
     thay: "",
   },
   {
@@ -6982,6 +6982,24 @@ const DUC: PhepDuc[] = [
     tep: "src/lib/bon-ai.ts",
     tim: "export const MAU_THUONG_HIEU = '#3ff0b8';",
     thay: "export const MAU_THUONG_HIEU = '#22d3ee';",
+  },
+  {
+    ten: "màu nhấn: khung lam 'thông tin' vẫn viền xanh lam",
+    tep: "src/lib/bon-ai.ts",
+    tim: "mau === MAU_THUONG_HIEU || mau === MAU_THONG_TIN || BON_AI.some",
+    thay: "mau === MAU_THUONG_HIEU || BON_AI.some",
+  },
+  {
+    ten: "màu nhấn: nút Đăng nhập quay lại dải màu riêng",
+    tep: "src/pages/Auth.tsx",
+    tim: "className=\"w-full py-4 nut-chinh text-on-primary font-label-sm rounded-lg shadow-[0_0_15px_rgba(63,240,184,0.4)] hover:brightness-110",
+    thay: "className=\"w-full py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg shadow-[0_0_15px_rgba(63,240,184,0.4)] hover:brightness-110",
+  },
+  {
+    ten: "sơ đồ Telegram: chữ nguồn quay lại màu riêng AI",
+    tep: "src/components/LuongThongBao.tsx",
+    tim: "text-on-surface-variant\">{d.nguon}",
+    thay: "\" style={{ color: d.mau }}>{d.nguon}",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

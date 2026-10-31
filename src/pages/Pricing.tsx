@@ -119,13 +119,13 @@ export default function Pricing() {
           </div>
           {/* Right */}
           <div className="flex flex-col gap-sm md:col-span-3 w-full">
-            <button className="w-full py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg hover:brightness-110 transition-all font-bold" onClick={() => handleUpgrade()}>Nâng cấp gói</button>
+            <button className="w-full py-3 nut-chinh text-on-primary font-label-sm rounded-lg hover:brightness-110 transition-all font-bold" onClick={() => handleUpgrade()}>Nâng cấp gói</button>
           </div>
         </div>
         </TheMuc>
 
         {/* HÀNG 2 — dải giải thích cách tính tiền, nền sáng hơn nền chung, có biểu tượng thông tin */}
-        <div className="the p-4 flex items-start gap-3 mb-lg" style={{ ['--nhan' as string]: MAU_THONG_TIN }}>
+        <div className="the p-4 flex items-start gap-3 mb-lg" style={bienThe(MAU_THONG_TIN)}>
           <span className="o-bieu-tuong shrink-0"><span className="material-symbols-outlined text-[20px]">info</span></span>
           <div>
             <p className="font-body-md text-on-surface font-bold">Bạn chỉ trả tiền theo số kênh kết nối</p>
@@ -169,7 +169,7 @@ export default function Pricing() {
               className={`the the-bam p-md flex flex-col overflow-hidden ${plan.isCurrent ? 'z-10' : ''}`}
               style={plan.isCurrent
                 ? { ['--nhan' as string]: MAU_THUONG_HIEU, ['--vien-the' as string]: VIEN_HE_THONG, borderColor: VIEN_HE_THONG, boxShadow: `0 0 32px ${VIEN_HE_THONG}40` }
-                : { ['--nhan' as string]: MAU_THONG_TIN }}
+                : bienThe(MAU_THONG_TIN)}
             >
               {plan.isCurrent && (
                 <div className="absolute top-0 right-0 bg-primary text-on-primary font-label-sm text-[10px] px-3 py-1 rounded-bl-lg font-bold">ĐANG DÙNG</div>
@@ -193,7 +193,7 @@ export default function Pricing() {
                   plan.isCurrent 
                     ? 'bg-primary/10 text-primary cursor-not-allowed border border-primary/40'
                     : plan.id === 'enterprise'
-                      ? 'bg-gradient-to-r from-primary to-primary-container text-on-primary hover:brightness-110'
+                      ? 'nut-chinh text-on-primary hover:brightness-110'
                       : 'bg-primary/10 text-primary border border-primary/50 hover:bg-primary/20'
                 }`}
                 disabled={plan.isCurrent}

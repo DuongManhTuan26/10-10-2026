@@ -8515,7 +8515,7 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
       [true, true, true, true, JSON.stringify({ "--nhan": "var(--color-canh-bao)" }), false]);
     kiem("viền vàng gold", "4 AI chung màu: tiêu đề mọi trang một màu thương hiệu; khung mang màu AI (lá / đỏ / tím / vàng) → dải đầu xanh ngọc + viền vàng",
       [/const mauTieuDe = MAU_THUONG_HIEU;/.test(boChuThich(fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8"))),
-        /\.khung-muc:is\(\.mau-la, \.mau-do, \.mau-tim, \.mau-vang, \.mau-xanh\) \{ --mau: #3ff0b8; --mau-vien: var\(--vien-mac-dinh\); \}/.test(css)],
+        /\.khung-muc:is\(\.mau-la, \.mau-do, \.mau-tim, \.mau-vang, \.mau-xanh, \.mau-lam, \.mau-xam\) \{ --mau: #3ff0b8; --mau-vien: var\(--vien-mac-dinh\); \}/.test(css)],
       [true, true]);
     kiem("viền vàng gold", "màu nhấn = ngọc lục bảo sáng toàn app (chủ dự án chọn (a) 31/10); nền = tông 4 'Xanh đá dầu' chủ dự án chọn (lưới 4,3%)",
       [/--color-primary: #3ff0b8;/.test(css), ba.MAU_THUONG_HIEU, /--color-background: #0a1a20;/.test(css), nenApp.replace(/\s+/g, " ").trim()],
@@ -8564,6 +8564,15 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
       .filter((t) => /#(00e5ff|22d3ee|67e8f9|99f2ff|003640|00363d)\b|\b(0, ?229, ?255|34, ?211, ?238)\b/i.test(bo(fs.readFileSync(t, "utf8")).replace(nenApp2, "")))
       .map((t) => path.relative(GOC, t));
     kiem("màu nhấn ngọc lục bảo", "đồng nhất a–z: không tệp giao diện nào còn mã xanh ngọc (ngoài quầng nền lưới)", conXanh, []);
+    // Rà phần quản trị + đăng nhập + Gói dịch vụ (31/10/2026): khung lam trang trí về màu chung; nút dải màu riêng → nút chính.
+    const baA = await import("../src/lib/bon-ai.ts");
+    kiem("màu nhấn ngọc lục bảo", "khung lam 'thông tin' (trang trí) về màu chung; không còn nút dải màu riêng (from-primary to-primary-container)",
+      [JSON.stringify(baA.bienThe(baA.MAU_THONG_TIN)),
+        moiTrang(path.join(GOC, "src")).filter((t) => /from-primary to-primary-container/.test(fs.readFileSync(t, "utf8"))).map((t) => path.relative(GOC, t))],
+      [JSON.stringify({ "--nhan": "#3ff0b8", "--vien-the": "#F5C451" }), []]);
+    const ltb = fs.readFileSync(path.join(GOC, "src/components/LuongThongBao.tsx"), "utf8");
+    kiem("màu nhấn ngọc lục bảo", "sơ đồ luồng Telegram: chữ nguồn + sợi nối màu chung; chỉ vòng số giữ màu riêng AI",
+      [/text-on-surface-variant">\{d\.nguon\}/.test(ltb), /stroke=\{xanh\}/.test(ltb), /style=\{\{ color: d\.mau, borderColor: d\.mau \}\}/.test(ltb)], [true, true, true]);
   }
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");

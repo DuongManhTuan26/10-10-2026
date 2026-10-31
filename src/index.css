@@ -534,7 +534,8 @@ textarea::placeholder {
   /* VIỀN khung (31/10/2026): khung xanh ngọc + khung mặc định → viền vàng gold; khung màu khác giữ viền cùng màu. */
   .khung-muc.mau-xanh, .khung-muc:not([class*="mau-"]) { --mau-vien: var(--vien-mac-dinh); }
   /* 4 AI CHUNG MÀU (31/10/2026): khung mang màu của một AI (lá / đỏ / tím / vàng) → dải đầu xanh ngọc, viền vàng ánh kim. */
-  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang, .mau-xanh) { --mau: #3ff0b8; --mau-vien: var(--vien-mac-dinh); }
+  /* + khung lam / xám (trang trí, không báo nghĩa) cũng về màu chung (31/10/2026: "đồng nhất a–z"). Cam / hồng / lục giữ nghĩa. */
+  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang, .mau-xanh, .mau-lam, .mau-xam) { --mau: #3ff0b8; --mau-vien: var(--vien-mac-dinh); }
 
   /*
    * Nền chung của app — cùng một chất liệu với thanh menu (chủ dự án chọn):

@@ -48,8 +48,10 @@ export const MAU_THUONG_HIEU = '#3ff0b8'; // 31/10/2026: ngọc lục bảo sán
 export const VIEN_HE_THONG = '#F5C451';
 /** Biến màu cho một thẻ .the / .o-trong: màu nhấn `mau`; thẻ màu thương hiệu thì VIỀN vàng gold (index.css --vien-the). */
 export const bienThe = (mau: string): Record<string, string> =>
-  mau === MAU_THUONG_HIEU || BON_AI.some((a) => a.hex === mau)
-    ? { '--nhan': MAU_THUONG_HIEU, '--vien-the': VIEN_HE_THONG } // 31/10/2026: 4 AI chung màu với Tổng quan
+  // 31/10/2026: 4 AI chung màu với Tổng quan; màu lam "thông tin" dùng làm KHUNG trang trí cũng về màu chung (đồng nhất a–z).
+  // Màu báo nghĩa (cam cảnh báo, đỏ lỗi, hồng cần làm ngay, lục bảo thành công, xám tắt) giữ nguyên.
+  mau === MAU_THUONG_HIEU || mau === MAU_THONG_TIN || BON_AI.some((a) => a.hex === mau)
+    ? { '--nhan': MAU_THUONG_HIEU, '--vien-the': VIEN_HE_THONG }
     : { '--nhan': mau };
 
 /** Màu nghĩa ngoài 4 AI — khớp .mau-lam / .mau-xam trong index.css (lam = thông tin; xám = không mang nghĩa). */

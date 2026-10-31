@@ -1700,7 +1700,7 @@ export default function Connections() {
                   <h2 className="text-2xl font-bold text-on-surface mb-8 text-center">Xác nhận kết nối</h2>
                   
                   <div className="bg-surface-container border border-outline-variant rounded-2xl p-6 mb-8 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-secondary"></div>
+                    <div className="absolute top-0 left-0 w-full h-1" style={{ background: 'linear-gradient(90deg, #6A430B 0%, #F5C451 18%, #FFF1C1 32%, #C98A22 50%, #FFE8A8 68%, #F5C451 84%, #7A4D0C 100%)' }}></div>
                     <div className="flex items-center gap-4 mb-6 pb-6 border-b border-outline-variant/50">
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <span className="material-symbols-outlined text-[24px] text-primary">{selectedPlatform.icon}</span>
