@@ -2000,23 +2000,24 @@ const DUC: PhepDuc[] = [
     thay: "\"date_trunc('day', now())\"",
   },
   {
-    ten: "thanh menu lại chiếm chỗ cố định trên điện thoại",
+    ten: "menu nhỏ trên điện thoại lại rộng 100px (tên trang bị cắt)",
     tep: "src/App.tsx",
-    // 30/10/2026: menu rộng 304px (w-76) — trỏ lại đúng dòng, cùng ý.
-    tim: 'className="flex-1 lg:ml-76 min-w-0',
-    thay: 'className="flex-1 ml-76',
+    // 31/10/2026: điện thoại menu nhỏ 80px — trỏ lại.
+    tim: "  const rongHep = manRong ? 100 : 80;",
+    thay: "  const rongHep = manRong ? 100 : 100;",
   },
   {
-    ten: "thanh menu không còn trượt ra ngoài khi chưa mở",
-    tep: "src/components/Sidebar.tsx",
-    tim: "lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}",
-    thay: "lg:translate-x-0",
+    ten: "điện thoại mở sẵn menu to (che kín nội dung)",
+    tep: "src/App.tsx",
+    // 31/10/2026: điện thoại menu nhỏ, bấm logo mới mở to — trỏ lại.
+    tim: "  const menuHep = manRong ? thuGon : !menuMo;",
+    thay: "  const menuHep = manRong ? thuGon : false;",
   },
   {
     ten: "ẩn hẳn thanh trên trên điện thoại, mất chỗ mở menu",
     tep: "src/components/TopNavBar.tsx",
-    tim: "transition-all duration-200 flex justify-between items-center gap-2",
-    thay: "transition-all duration-200 hidden md:flex justify-between items-center gap-2",
+    tim: "transition-all duration-300 flex justify-between items-center gap-2",
+    thay: "transition-all duration-300 hidden md:flex justify-between items-center gap-2",
   },
   {
     ten: "hộp thư lại xếp hai cột cạnh nhau trên điện thoại",
@@ -5803,8 +5804,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "thanh bên lại chữ giữ chỗ LOGO",
     tep: "src/components/Sidebar.tsx",
-    tim: ">Quản lý Fanpage</h2>",
-    thay: ">LOGO</h2>",
+    // 31/10/2026: chủ dự án thay tên tạm bằng số điện thoại — trỏ lại.
+    tim: "                0763 012 345\n              </h2>",
+    thay: "                LOGO\n              </h2>",
   },
   {
     ten: "thiếu mã bot chung mà sơ đồ vẫn vẽ đã kết nối",
@@ -6891,20 +6893,20 @@ const DUC: PhepDuc[] = [
   {
     ten: "thanh menu: thanh trên lấn 16px vào menu (288px)",
     tep: "src/components/TopNavBar.tsx",
-    tim: "lg:w-[calc(100%-19rem)]",
-    thay: "lg:w-[calc(100%-288px)]",
+    tim: "w-[calc(100%-var(--le-menu))]",
+    thay: "w-[calc(100%-288px)]",
   },
   {
     ten: "thanh menu: khung hụt cách mép dưới 34px (chơi vơi)",
     tep: "src/components/Sidebar.tsx",
-    tim: "right: '24px', bottom: '8px', transform",
-    thay: "right: '24px', bottom: '34px', transform",
+    tim: ": '24px', bottom: '8px', transform",
+    thay: ": '24px', bottom: '34px', transform",
   },
   {
     ten: "thanh menu: nền đen bóng quanh khung bị đổi thành trong suốt (mất điểm nhấn)",
     tep: "src/components/Sidebar.tsx",
-    tim: "bg-[#030509] transition-transform",
-    thay: "bg-[#030509] lg:bg-transparent transition-transform",
+    tim: "bg-[#030509] transition-[width]",
+    thay: "bg-[#030509] lg:bg-transparent transition-[width]",
   },
   {
     ten: "thanh trên: mất vạch vàng ánh kim (về nền phẳng + viền mảnh)",
@@ -7001,6 +7003,48 @@ const DUC: PhepDuc[] = [
     tep: "src/components/LuongThongBao.tsx",
     tim: "text-on-surface-variant\">{d.nguon}",
     thay: "\" style={{ color: d.mau }}>{d.nguon}",
+  },
+  {
+    ten: "menu: bấm logo không còn chuyển menu",
+    tep: "src/components/Sidebar.tsx",
+    tim: "          onClick={onDoiMenu}\n",
+    thay: "",
+  },
+  {
+    ten: "menu: mép menu mất viền vàng ánh kim",
+    tep: "src/index.css",
+    tim: ".thanh-menu::after {",
+    thay: ".thanh-menu-tat::after {",
+  },
+  {
+    ten: "menu: menu to lại hiện biểu tượng 4 AI",
+    tep: "src/components/Sidebar.tsx",
+    tim: "{!item.so && <span",
+    thay: "{<span",
+  },
+  {
+    ten: "menu: số điện thoại mất viền chạy",
+    tep: "src/components/Sidebar.tsx",
+    tim: "<span className=\"vien-chay inline-flex\">",
+    thay: "<span className=\"inline-flex\">",
+  },
+  {
+    ten: "điện thoại: nút ⚡ lại chiếm chỗ tên trang",
+    tep: "src/components/TopNavBar.tsx",
+    tim: "transition-all duration-200 hidden lg:flex items-center justify-center",
+    thay: "transition-all duration-200 flex items-center justify-center",
+  },
+  {
+    ten: "khối não: chọn kiểu theo bề rộng màn (cửa sổ 1258px ra lưới thẻ)",
+    tep: "src/pages/KhoiNao.tsx",
+    tim: "<div className=\"hidden @min-[860px]:block\">",
+    thay: "<div className=\"hidden xl:block\">",
+  },
+  {
+    ten: "khối não: kiểu thẻ ④ không trải ngang (lưới lệch)",
+    tep: "src/components/KhoiNaoVanPhong.tsx",
+    tim: "], '@min-[640px]:col-span-3')}",
+    thay: "])}",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

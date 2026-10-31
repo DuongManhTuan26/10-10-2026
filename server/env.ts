@@ -88,7 +88,8 @@ export const env = {
     smtpPort: Number(optional("SMTP_PORT", "465")),
     smtpUser: optional("SMTP_USER"),
     smtpPass: optional("SMTP_PASS"),
-    tenNguoiGui: optional("EMAIL_TEN_NGUOI_GUI", "Quản lý Fanpage"),
+    // 31/10/2026 (chủ dự án): bỏ tên tạm cũ — không đặt tên người gửi nào khi chủ dự án chưa chọn.
+    tenNguoiGui: optional("EMAIL_TEN_NGUOI_GUI", ""),
   },
 } as const;
 

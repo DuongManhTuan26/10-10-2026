@@ -2058,19 +2058,23 @@ kiem("múi giờ", "chỉ có MỘT bản định nghĩa, các nơi khác đều
 const nguonMenu = fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8");
 const nguonApp2 = fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8");
 const nguonThanhTren = fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8");
-kiem("điện thoại", "thanh menu trượt ra ngoài khi chưa mở",
-  /lg:translate-x-0 \$\{moKhung \? 'translate-x-0' : '-translate-x-full'\}/.test(nguonMenu), true);
+// 31/10/2026 (chủ dự án): "menu nhỏ phù hợp điện thoại, menu to phù hợp máy tính" — điện thoại menu NHỎ 80px luôn hiện,
+// bấm logo thì menu to trượt đè lên (nền mờ bấm ra ngoài / chọn mục là về nhỏ).
+kiem("điện thoại", "menu nhỏ 80px luôn hiện; bấm logo mở menu to đè lên; máy tính menu nhỏ 100px",
+  [/const menuHep = manRong \? thuGon : !menuMo;/.test(nguonApp2), /const rongHep = manRong \? 100 : 80;/.test(nguonApp2),
+    /style=\{hep \? \{ width: `\$\{rongHep\}px` \} : undefined\}/.test(nguonMenu)], [true, true, true]);
 kiem("điện thoại", "có nền mờ bấm ra ngoài để đóng",
   /onClick=\{onDong\}[\s\S]{0,160}?lg:hidden/.test(nguonMenu), true);
 kiem("điện thoại", "chọn một mục là đóng ngăn kéo",
   /useEffect\(\(\) => \{ onDong\?\.\(\); \}, \[viTri\.pathname\]\)/.test(nguonMenu), true);
-kiem("điện thoại", "nội dung chỉ chừa chỗ cho menu từ lg trở lên",
-  // 30/10/2026: menu nghiêng 3D rộng 304px (w-76) — nội dung chừa đúng bằng bề rộng menu, chỉ từ lg.
-  /className="flex-1 lg:ml-76 min-w-0/.test(nguonApp2) && !/"flex-1 ml-7[26]/.test(nguonApp2) && /className=\{`w-76 h-screen fixed/.test(nguonMenu), true);
+kiem("điện thoại", "nội dung + thanh trên chừa đúng bề rộng menu (--le-menu): máy tính to 19rem / nhỏ 100px, điện thoại 80px",
+  [/const leMenu = manRong && !thuGon \? '19rem' : `\$\{rongHep\}px`;/.test(nguonApp2), /className="cot-noi-dung flex-1 ml-\[var\(--le-menu\)\]/.test(nguonApp2),
+    /w-\[calc\(100%-var\(--le-menu\)\)\]/.test(nguonThanhTren)], [true, true, true]);
 kiem("điện thoại", "thanh trên không còn bị ẩn hẳn",
   /hidden md:flex justify-between/.test(nguonThanhTren), false);
-kiem("điện thoại", "có nút mở menu dưới lg",
-  /onClick=\{onMoMenu\}[\s\S]{0,260}?lg:hidden/.test(nguonThanhTren), true);
+kiem("điện thoại", "bỏ nút ☰ trên thanh tiêu đề — bấm LOGO chuyển menu to ↔ nhỏ (máy tính nhớ lựa chọn)",
+  [/onMoMenu/.test(nguonThanhTren), /onClick=\{onDoiMenu\}[\s\S]{0,120}aria-label=\{hep \? 'Mở menu to' : 'Thu về menu nhỏ'\}/.test(nguonMenu),
+    /localStorage\.setItem\('menu-thu-gon'/.test(nguonApp2)], [false, true, true]);
 const nguonHopThu = fs.readFileSync(path.join(GOC, "src/pages/Inbox.tsx"), "utf8");
 kiem("điện thoại", "hộp thư: điện thoại chỉ hiện một trong hai cột",
   /xemChiTietDiDong \? 'hidden lg:flex' : 'flex'/.test(nguonHopThu) &&
@@ -4954,7 +4958,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
   // Chủ dự án chọn tông của thanh menu cho cả app: nền lưới + quầng sáng xanh ngọc.
   kiem("giao diện", "nền chung của app cùng chất liệu với menu",
     /\.nen-app \{[\s\S]{0,600}?background-size: auto, auto, 24px 24px, 24px 24px;/.test(nguonCss) &&
-      /<div className="flex h-screen w-full bg-background nen-app">/.test(fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8")), true);
+      /<div className="flex h-screen w-full bg-background nen-app"/.test(fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8")), true);
   kiem("giao diện", "trang không tự phủ nền đặc che mất nền chung",
     ["Dashboard", "Ads", "Content", "AutoScripts", "Orders", "QuanLy", "Connections", "Inbox", "DieuHanh", "TelegramAlerts", "Pricing"]
       .filter((t) => /<main className="[^"]*\bbg-background\b(?!\/)/.test(fs.readFileSync(path.join(GOC, `src/pages/${t}.tsx`), "utf8"))), []);
@@ -8524,10 +8528,32 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   }
   // 31/10/2026 (chủ dự án): thanh menu kéo sát mép dưới, nền màn rộng trong suốt (lưới chạy liền); thanh trên rộng đúng
   // phần còn lại sau menu w-76 — trước 288px nên lấn 16px, vạch vàng đâm vào menu.
-  kiem("thanh menu sát mép", "khung menu cách mép dưới 8px, bỏ dải phản chiếu; nền quanh khung GIỮ đen bóng #030509 (chủ dự án: điểm nhấn); thanh trên = 100% − 19rem",
-    [/left: '8px', top: '10px', right: '24px', bottom: '8px', transform: 'rotateY\(11deg\)'/.test(sb), /PHẢN CHIẾU/.test(sb),
-      /w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-\[#030509\] transition-transform/.test(sb) && !/lg:bg-transparent/.test(sb), /lg:w-\[calc\(100%-19rem\)\]/.test(tn), /288px/.test(tn)],
+  kiem("thanh menu sát mép", "khung menu cách mép dưới 8px, bỏ dải phản chiếu; nền quanh khung GIỮ đen bóng #030509 (chủ dự án: điểm nhấn); thanh trên chừa đúng bề rộng menu",
+    [/top: '10px', right: hep \? \(rongHep < 90 \? '12px' : '18px'\) : '24px', bottom: '8px', transform: 'rotateY\(11deg\)'/.test(sb), /PHẢN CHIẾU/.test(sb),
+      /h-screen fixed left-0 top-0 flex flex-col z-50 bg-\[#030509\] transition-\[width\]/.test(sb) && !/lg:bg-transparent/.test(sb), /w-\[calc\(100%-var\(--le-menu\)\)\]/.test(tn), /288px/.test(tn)],
     [true, false, true, true, false]);
+  // 31/10/2026 (chủ dự án, từng ý đã duyệt): mép menu kiểu 4; menu nhỏ nghiêng như menu to (phối cảnh theo bề ngang, viền mảnh
+  // ~60%, chừa đen bóng); 4 AI chỉ vòng số ở cả menu to / nhỏ; số điện thoại vệt sáng chạy + viền chạy vòng; bỏ ⚡ + tên trang
+  // 18px / lề 12px trên điện thoại; bỏ lời chào Tổng quan; khối não chọn kiểu theo chỗ trống thật.
+  {
+    const css31 = fs.readFileSync(path.join(GOC, "src/index.css"), "utf8");
+    const kn31b = fs.readFileSync(path.join(GOC, "src/pages/KhoiNao.tsx"), "utf8");
+    const kvp31 = fs.readFileSync(path.join(GOC, "src/components/KhoiNaoVanPhong.tsx"), "utf8");
+    const db31 = fs.readFileSync(path.join(GOC, "src/pages/Dashboard.tsx"), "utf8");
+    kiem("menu to / nhỏ", "mép menu vàng ánh kim + bóng; menu nhỏ phối cảnh theo bề ngang + viền mảnh; 4 AI chỉ vòng số",
+      [/\.thanh-menu::after \{[\s\S]{0,200}width: 2px;/.test(css31), /\.cot-noi-dung \{\s*box-shadow: inset 18px 0 22px -14px/.test(css31),
+        /perspective: hep \? \(rongHep < 90 \? '270px' : '320px'\) : '1000px'/.test(sb), /khoiNho: \[/.test(sb), /\{!item\.so && <span/.test(sb)],
+      [true, true, true, true, true]);
+    kiem("menu to / nhỏ", "số điện thoại: vệt sáng chạy + quầng + viền chạy vòng; điện thoại bỏ ⚡, tên trang 18px lề 12px; Tổng quan không lời chào",
+      [/className="so-dien-thoai /.test(sb), /className="vien-chay inline-flex"/.test(sb), /@keyframes so-dien-thoai-chay/.test(css31), /@keyframes vien-chay-quay/.test(css31),
+        /title="Cấu hình AI bán hàng"[\s\S]{0,260}hidden lg:flex/.test(tn), /<h1 className="text-lg lg:text-2xl font-bold truncate"/.test(tn), /px-3 lg:px-margin/.test(tn),
+        /loiChao|Chào buổi/.test(db31)],
+      [true, true, true, true, true, true, true, false]);
+    kiem("menu to / nhỏ", "khối não Tổng quan chọn kiểu theo CHỖ TRỐNG THẬT (≥ 860px hai tầng); kiểu thẻ: ④ trải ngang, ①②③ ba cột",
+      [/<section className="min-w-0 @container">/.test(kn31b), /<div className="hidden @min-\[860px\]:block">/.test(kn31b), /<div className="@min-\[860px\]:hidden the p-4">/.test(kn31b),
+        /grid grid-cols-1 @min-\[640px\]:grid-cols-3 gap-3/.test(kvp31), /'@min-\[640px\]:col-span-3'/.test(kvp31)],
+      [true, true, true, true, true]);
+  }
   // 31/10/2026 (chủ dự án duyệt mục 3 + 4): thanh trên có chiều sâu + vạch đáy vàng ánh kim; khung số khối não viền vàng
   // ánh kim, chữ nhấn màu chung (không màu riêng AI — chỉ còn ở dấu ①②③ + thanh sức khoẻ).
   {
@@ -8607,8 +8633,18 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   const html = fs.readFileSync(path.join(GOC, "index.html"), "utf8");
   const sb3 = boChuThich(fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8"));
   const app3 = boChuThich(fs.readFileSync(path.join(GOC, "server/app.ts"), "utf8"));
-  kiem("H3 dọn", "tab 'Quản lý Fanpage'; thanh bên không còn 'LOGO'; không còn đường /api/analytics; không còn tien_ai_thang",
-    [/<title>Quản lý Fanpage<\/title>/.test(html), />LOGO</.test(sb3), /api\/analytics|analyticsRouter/.test(app3),
+  // 31/10/2026: chủ dự án thay tên trên thanh menu bằng số điện thoại 0763 012 345 (tên tạm sai — app đa nền tảng).
+  kiem("H3 dọn", "thanh menu ghi số điện thoại chủ dự án '0763 012 345'; không tệp giao diện / máy chủ nào còn tên tạm 'Quản lý Fanpage'",
+    [/0763 012 345\s*<\/h2>/.test(sb3),
+      [...(function quet(d: string): string[] { return fs.readdirSync(d, { withFileTypes: true }).flatMap((m) => m.isDirectory() ? quet(path.join(d, m.name)) : /\.(ts|tsx)$/.test(m.name) ? [path.join(d, m.name)] : []); })(path.join(GOC, "src")),
+        ...(function quet(d: string): string[] { return fs.readdirSync(d, { withFileTypes: true }).flatMap((m) => m.isDirectory() ? quet(path.join(d, m.name)) : /\.(ts|tsx)$/.test(m.name) ? [path.join(d, m.name)] : []); })(path.join(GOC, "server")),
+        path.join(GOC, "index.html")]
+        .filter((t) => /Quản lý Fanpage/.test(fs.readFileSync(t, "utf8"))).map((t) => path.relative(GOC, t))],
+    [true, []]);
+  // 31/10/2026 (chủ dự án): "chỗ nào có tên đó xoá hết sạch, tuyệt đối không bịa đặt khi chưa hỏi" — thẻ trình duyệt để trống,
+  // email chỉ địa chỉ người gửi; không tệp giao diện / máy chủ nào còn tên tạm "Quản lý Fanpage".
+  kiem("H3 dọn", "thẻ trình duyệt trống (chưa có tên do chủ dự án chọn); thanh bên không còn 'LOGO'; không còn đường /api/analytics; không còn tien_ai_thang",
+    [/<title><\/title>/.test(html), />LOGO</.test(sb3), /api\/analytics|analyticsRouter/.test(app3),
       fs.existsSync(path.join(GOC, "server/routes/analytics.ts")),
       /tien_ai_thang/.test(fs.readFileSync(path.join(GOC, "server/services/quan-ly-chung.ts"), "utf8").replace(/\/\/.*$/gm, "")),
       // Khối "Chi phí tháng này" (cuối màn Quản lý) cũng kiểu thẻ Tổng quan, không còn hộp viền xám cũ.

@@ -15,7 +15,7 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { clsx } from 'clsx';
 import { useNavigate } from 'react-router-dom';
-import { api, formatCurrency, timeAgo, ORDER_STATUS_LABELS, type User } from '../lib/api';
+import { api, formatCurrency, timeAgo, ORDER_STATUS_LABELS } from '../lib/api';
 import { aiTheoMa, bienThe, BIEU_DO, MAU_XAM } from '../lib/bon-ai';
 
 type Range = '1d' | '7d' | '30d';
@@ -94,11 +94,6 @@ function DongHo() {
   );
 }
 
-/** Lời chào theo giờ Việt Nam. */
-function loiChao(): string {
-  const gio = new Date(Date.now() + 7 * 3_600_000).getUTCHours();
-  return gio < 11 ? 'Chào buổi sáng' : gio < 14 ? 'Chào buổi trưa' : gio < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
-}
 
 /**
  * Màu chấm của dòng hoạt động (máy chủ gửi tên lớp cũ). Cả ba loại đều là việc của ③ AI Bán hàng: đơn = tím nhạt, AI trả
@@ -115,7 +110,6 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [chuoi7, setChuoi7] = useState<Array<{ id: number; label: string; value: string; data: number[] }>>([]);
   const [aiActivity, setAiActivity] = useState<Array<{ id: number; time: string; content: string; color: string }>>([]);
-  const [nguoi, setNguoi] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [range, setRange] = useState<Range>('1d');
 
@@ -141,9 +135,6 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
     load(range);
   }, [load, range]);
 
-  useEffect(() => {
-    api.auth.me().then(({ user }) => setNguoi(user)).catch(() => setNguoi(null));
-  }, []);
 
   const stats = dashboardData?.stats || {
     orders_count: 0, revenue: 0, new_customers: 0, open_conversations: 0,
@@ -174,14 +165,11 @@ export default function Dashboard({ boNao }: { boNao?: ReactNode } = {}) {
     <main className="flex-1 w-full relative text-on-surface">
       <div className="p-4 md:p-8 pb-0 md:pb-0 max-w-[1600px] mx-auto w-full space-y-6">
 
-        {/* Đầu trang: tờ lịch · lời chào + đồng hồ sống + phạm vi số liệu · chọn kỳ (ba nút, một lần bấm). */}
+        {/* Đầu trang: tờ lịch · đồng hồ sống + phạm vi số liệu · chọn kỳ (ba nút, một lần bấm). Lời chào đã bỏ (chủ dự án 31/10/2026). */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-4 min-w-0">
             <div className="hidden 2xl:block"><ToLich /></div>
             <div className="min-w-0 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <h2 className="text-xl md:text-2xl font-black tracking-tight text-on-surface">
-                {loiChao()}{nguoi?.name ? <>, <span className="text-primary">{nguoi.name}</span></> : null}
-              </h2>
               <div className="flex flex-wrap items-center gap-2">
                 <DongHo />
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant px-3 py-1 text-xs text-on-surface-variant">

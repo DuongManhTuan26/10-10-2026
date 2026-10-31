@@ -61,7 +61,8 @@ async function guiEmail(toi: string, tieuDe: string, noiDung: string): Promise<v
   });
   try {
     await boGui.sendMail({
-      from: { name: env.email.tenNguoiGui, address: env.email.smtpUser },
+      // Chưa đặt tên người gửi (chủ dự án chưa chọn tên) → chỉ địa chỉ, không bịa tên.
+      from: env.email.tenNguoiGui ? { name: env.email.tenNguoiGui, address: env.email.smtpUser } : env.email.smtpUser,
       to: toi,
       subject: tieuDe,
       text: noiDung,

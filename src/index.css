@@ -180,6 +180,74 @@
     color: var(--nut-chinh-chu) !important;
 }
 
+/*
+ * MÉP CỘT MENU (chủ dự án chọn cách 4 ngày 31/10/2026 từ bảng thử): nền đen bóng của menu GIỮ NGUYÊN; mép phải là dải vàng
+ * ánh kim dọc (nối với vạch vàng dưới thanh trên thành khung chữ L) + bóng đổ nhẹ lên phần nội dung cho cột menu nổi khối.
+ */
+.thanh-menu::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 2px;
+    pointer-events: none;
+    background: linear-gradient(180deg, #6A430B 0%, #F5C451 10%, #FFF1C1 22%, #C98A22 38%, #FFE8A8 55%, #B97818 72%, #F5C451 88%, #7A4D0C 100%);
+    box-shadow: 0 0 10px rgba(245, 196, 81, 0.5);
+}
+.cot-noi-dung {
+    box-shadow: inset 18px 0 22px -14px rgba(0, 0, 0, 0.8);
+}
+
+/*
+ * SỐ ĐIỆN THOẠI trên thanh menu (chủ dự án 31/10/2026: "đổi màu khác, hiệu ứng chạy ngang hoặc nhấp nháy — chọn hiệu ứng
+ * nổi bật nhất"): chữ ngọc lục bảo sáng, VỆT SÁNG TRẮNG CHẠY NGANG qua chữ (như ánh kim lướt) + quầng sáng phập phồng.
+ */
+.so-dien-thoai {
+    background: linear-gradient(100deg, #10b981 0%, #3ff0b8 32%, #ffffff 46%, #c9ffe9 52%, #3ff0b8 64%, #10b981 100%);
+    background-size: 260% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: so-dien-thoai-chay 3.2s linear infinite, so-dien-thoai-sang 2.4s ease-in-out infinite;
+}
+@keyframes so-dien-thoai-chay { 0% { background-position: 130% 0; } 100% { background-position: -130% 0; } }
+@keyframes so-dien-thoai-sang {
+    0%, 100% { filter: drop-shadow(0 0 3px rgba(63, 240, 184, 0.35)); }
+    50% { filter: drop-shadow(0 0 10px rgba(63, 240, 184, 0.85)); }
+}
+/* Viền bọc số điện thoại: viền mờ cố định + LUỒNG SÁNG chạy vòng quanh (conic-gradient xoay bằng góc --goc-vien). */
+@property --goc-vien {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+.vien-chay {
+    position: relative;
+    padding: 7px 11px;
+    border-radius: 12px;
+    background: rgba(5, 20, 16, 0.55);
+    box-shadow: inset 0 0 0 1px rgba(63, 240, 184, 0.22), 0 0 14px rgba(63, 240, 184, 0.18);
+}
+.vien-chay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    pointer-events: none;
+    background: conic-gradient(from var(--goc-vien), transparent 0deg 250deg, #3ff0b8 300deg, #ffffff 330deg, #F5C451 350deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: vien-chay-quay 2.8s linear infinite;
+}
+@keyframes vien-chay-quay { to { --goc-vien: 360deg; } }
+@media (prefers-reduced-motion: reduce) {
+    .so-dien-thoai { animation: none; background-position: 50% 0; }
+    .vien-chay::before { animation: none; }
+}
+
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;

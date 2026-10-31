@@ -5,12 +5,10 @@ import { api, ApiError, type User } from '../lib/api';
 import DoiMatKhau from './DoiMatKhau';
 import { useActivePage } from '../lib/ActivePage';
 
-export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
+export default function TopNavBar({ user, avatarUrl, gocPhai }: {
   user?: User | null;
   /** Ảnh đại diện của Fanpage đang hoạt động, lấy từ kênh đã kết nối. */
   avatarUrl?: string | null;
-  /** Mở ngăn kéo menu. Chỉ dùng dưới lg, nơi menu không đứng cố định. */
-  onMoMenu?: () => void;
   /** Thứ đặt ở góc phải trước chuông (vd. nút "đang xem thay" — luôn thấy, không đè nội dung). */
   gocPhai?: ReactNode;
 }) {
@@ -72,17 +70,10 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
   // 31/10/2026: thanh trên rộng đúng phần còn lại sau thanh menu w-76 (19rem) — trước 288px nên lấn 16px, vạch vàng đâm vào menu.
 
   return (
-    <nav className="thanh-tren fixed top-0 right-0 w-full lg:w-[calc(100%-19rem)] z-40 transition-all duration-200 flex justify-between items-center gap-2 px-4 sm:px-margin py-base h-16">
+    <nav className="thanh-tren fixed top-0 right-0 w-[calc(100%-var(--le-menu))] z-40 transition-all duration-300 flex justify-between items-center gap-2 px-3 lg:px-margin py-base h-16">
       <div className="flex items-center gap-2 sm:gap-md min-w-0">
-        <button
-          onClick={onMoMenu}
-          title="Mở menu"
-          aria-label="Mở menu"
-          className="lg:hidden text-on-surface hover:bg-surface-container-highest/80 rounded-lg p-2 -ml-1 transition-colors flex items-center justify-center shrink-0"
-        >
-          <span className="material-symbols-outlined">menu</span>
-        </button>
-        <h1 className="text-xl sm:text-2xl font-bold truncate" style={{ color: mauTieuDe }}>{getPageTitle()}</h1>
+        {/* 31/10/2026: bỏ nút ☰ — chuyển menu to / nhỏ bằng cách bấm logo trên thanh menu (chủ dự án). */}
+        <h1 className="text-lg lg:text-2xl font-bold truncate" style={{ color: mauTieuDe }}>{getPageTitle()}</h1>
         {/*
           Trang (bộ não) đang làm việc — chỉ hiển thị, đổi trang ở bảng "Trang bán hàng" của Kết nối kênh. Chỉ hiện ở 4 AI:
           chủ shop nhiều trang luôn biết mình đang chỉnh bộ não của trang nào. KHÔNG hiện ở Tổng quan — số ở đó gộp cả tài
@@ -118,7 +109,8 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, gocPhai }: {
         <button
           onClick={() => navigate('/ban-hang?the=huong-dan')}
           title="Cấu hình AI bán hàng"
-          className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/80 rounded-full p-2 transition-all duration-200 flex items-center justify-center"
+          // Điện thoại ẩn (chủ dự án duyệt 31/10/2026): lối tắt trùng mục ③ trên menu; trả chỗ cho tên trang hiện đủ.
+          className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/80 rounded-full p-2 transition-all duration-200 hidden lg:flex items-center justify-center"
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>bolt</span>
         </button>

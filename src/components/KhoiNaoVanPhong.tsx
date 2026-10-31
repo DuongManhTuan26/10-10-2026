@@ -537,12 +537,15 @@ export function KhoiNaoHaiTang({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang
   );
 }
 
-/** Màn hẹp (< xl): 4 thẻ — mỗi thẻ là CẢNH ĐÃ ĐÈ SỐ THẬT thu khung vào văn phòng của AI đó + số chính bên dưới. */
+/**
+ * Khối hẹp (< 860px chỗ trống): 4 thẻ — mỗi thẻ là CẢNH ĐÃ ĐÈ SỐ THẬT thu khung vào văn phòng của AI đó + số chính bên dưới.
+ * 31/10/2026: ④ trải hết bề ngang ở trên, ①②③ ba cột bên dưới (≥ 640px) — không còn lưới 2×2 lệch cao thấp.
+ */
 export function KhoiNaoThe({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: string }) {
   const t = tomSo(s);
   const v = (x: string) => (t.co ? x : '…');
-  const the = (a: (typeof BON_AI)[number], cat: [number, number, number, number], so4: [string, string][]) => (
-    <div key={a.ma} className="rounded-2xl overflow-hidden border" style={{ borderColor: `${VANG}99`, boxShadow: `0 0 18px ${VANG}26` }}>
+  const the = (a: (typeof BON_AI)[number], cat: [number, number, number, number], so4: [string, string][], lop = '') => (
+    <div key={a.ma} className={`rounded-2xl overflow-hidden border ${lop}`} style={{ borderColor: `${VANG}99`, boxShadow: `0 0 18px ${VANG}26` }}>
       <KhoiNaoAnh s={s} tenCuaHang={tenCuaHang} khung={cat} />
       <Link to={a.duong} className="block p-3 bg-[#030509] transition hover:brightness-125">
         <div className="flex items-center justify-between mb-2">
@@ -561,11 +564,11 @@ export function KhoiNaoThe({ s, tenCuaHang }: { s: SoLieuKhoiNao; tenCuaHang: st
     </div>
   );
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 @min-[640px]:grid-cols-3 gap-3">
       {the(DIEU_HANH, [490, 0, 990, 300], [
         ['Doanh thu tháng này', v(vnd(t.doanhThu))],
         ['Việc cần xử lý', t.viecCan === null ? '…' : so(t.viecCan)],
-      ])}
+      ], '@min-[640px]:col-span-3')}
       {the(NOI_DUNG, [60, 300, 600, 360], [
         ['Bài đã đăng', v(so(t.baiDang))],
         ['Tương tác', v(so(t.tuongTac))],

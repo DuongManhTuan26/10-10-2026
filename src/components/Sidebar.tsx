@@ -10,6 +10,9 @@ export default function Sidebar({
   onLogout,
   laQuanTri = false,
   moKhung = false,
+  hep = false,
+  rongHep = 100,
+  onDoiMenu,
   onDong,
 }: {
   onLogout?: () => void;
@@ -24,6 +27,15 @@ export default function Sidebar({
    * Từ lg trở lên nó vẫn đứng cố định như cũ, không đổi gì.
    */
   moKhung?: boolean;
+  /**
+   * DẢI HẸP (31/10/2026, chủ dự án: "thanh menu đóng vào mở được; khi đóng hoặc ở điện thoại giống hình"): chỉ biểu tượng
+   * (4 AI = vòng số ①②③④), khung vàng 3D thu hẹp, rê chuột hiện tên. Bấm logo để chuyển to ↔ nhỏ.
+   */
+  hep?: boolean;
+  /** Bề rộng menu nhỏ (px): máy tính 100, điện thoại 80 — khung, kính, lề tỉ lệ theo. */
+  rongHep?: number;
+  /** Bấm logo: chuyển menu to ↔ nhỏ (chủ dự án 31/10/2026 — thay nút ☰ trên thanh tiêu đề). */
+  onDoiMenu?: () => void;
   onDong?: () => void;
   /*
    * Chỉ quản trị mới thấy mục Quản Trị Hệ Thống.
@@ -89,9 +101,9 @@ export default function Sidebar({
    * viên viền vàng phát sáng, mũi tên ›, số 4 AI trong vòng tròn màu miền, vạch vàng phát sáng ở đáy). Chỉ đổi phần NHÌN:
    * đường dẫn, nhóm, quyền, ngăn kéo điện thoại, Trợ giúp "Sắp có" giữ nguyên.
    */
-  const nhan = (chu: string) => (
+  const nhan = (chu: string) => (hep ? null : (
     <div className="px-3 pb-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.2em] text-[#E8EDF2]/45">{chu}</div>
-  );
+  ));
   // Khoảng cách giữa các nhóm (ảnh mẫu 30/10 không kẻ vạch giữa nhóm — chỉ vạch vàng ở đáy).
   const vach = <div className="h-5 [@media(max-height:860px)]:h-3 shrink-0" />;
   const muiTen = (sang: boolean) => (
@@ -112,8 +124,11 @@ export default function Sidebar({
           key={item.path}
           to={item.path}
           end={item.path === '/'}
+          title={hep ? item.name : undefined}
+          aria-label={hep ? item.name : undefined}
           className={({ isActive }) => clsx(
-            "relative flex items-center gap-2 pl-2.5 pr-1.5 rounded-[13px] transition-all duration-300 group shrink-0 cursor-pointer h-[43px] [@media(max-height:860px)]:h-[38px]",
+            "relative flex items-center rounded-[13px] transition-all duration-300 group shrink-0 cursor-pointer h-[43px] [@media(max-height:860px)]:h-[38px]",
+            hep ? "justify-center w-[42px] mx-auto" : "gap-2 pl-2.5 pr-1.5",
             !isActive && "hover:bg-[#F5C451]/[0.06]"
           )}
           style={({ isActive }) => ({
@@ -143,8 +158,9 @@ export default function Sidebar({
                   {item.so}
                 </span>
               )}
-              {/* Icon: nét mảnh khi thường; đang chọn thì vàng, tô đầy, phát sáng. */}
-              <span
+              {/* Icon: nét mảnh khi thường; đang chọn thì vàng, tô đầy, phát sáng. 4 AI CHỈ hiện vòng số ①②③④ ở cả menu to lẫn
+                  menu nhỏ (chủ dự án 31/10/2026: "xoá 4 logo ở menu to — menu nhỏ hiển thị thế nào thì menu to y như thế"). */}
+              {!item.so && <span
                 className="material-symbols-outlined relative z-10 transition-all duration-300 flex items-center justify-center w-[26px] shrink-0"
                 style={{
                   color: isActive ? VANG.sang : 'inherit',
@@ -154,13 +170,15 @@ export default function Sidebar({
                 }}
               >
                 {item.icon}
-              </span>
+              </span>}
 
               {/* Text */}
-              <span className={clsx("relative z-10 min-w-0 truncate transition-colors duration-300", !isActive && "group-hover:text-white")}>
-                {item.name}
-              </span>
-              {muiTen(isActive)}
+              {!hep && (
+                <span className={clsx("relative z-10 min-w-0 truncate transition-colors duration-300", !isActive && "group-hover:text-white")}>
+                  {item.name}
+                </span>
+              )}
+              {!hep && muiTen(isActive)}
             </>
           )}
         </NavLink>
@@ -183,7 +201,8 @@ export default function Sidebar({
       />
     )}
     <aside
-      className={`w-76 h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] transition-transform duration-300 lg:translate-x-0 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`thanh-menu ${hep ? '' : 'w-76'} h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] transition-[width] duration-300`}
+      style={hep ? { width: `${rongHep}px` } : undefined}
     >
       {/*
         31/10/2026 (chủ dự án: "thanh menu chơi vơi, kéo dài sát mép màn hình"): khung kéo xuống sát mép dưới (cách 8px), bỏ
@@ -193,25 +212,30 @@ export default function Sidebar({
         trái, mép phải lùi xa), có ĐỘ DÀY (lớp bóng đắp lộ cạnh trái + cạnh đáy), viền nhiều lớp đồng tâm, bóng gương, điểm loé,
         phản chiếu dưới cạnh đáy. Chữ + nút nằm ở LỚP NỘI DUNG phẳng bên dưới — không xoay theo nên không méo.
       */}
-      <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ perspective: '1000px', perspectiveOrigin: '0% 46%' }}>
+      {/*
+        Dải hẹp (31/10/2026, chủ dự án: "phải hơi nghiêng giống y thanh to; viền dày hơn cả thanh to; phải có chút màu đen làm
+        điểm nhấn"): phối cảnh tăng theo tỷ lệ bề ngang (khung ~60px → 250px thay 1000px) để NGHIÊNG như khung to; các lớp viền
+        mảnh lại ~60%; chừa khoảng đen bóng bên phải như khung to.
+      */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ perspective: hep ? (rongHep < 90 ? '270px' : '320px') : '1000px', perspectiveOrigin: '0% 46%' }}>
         <div
           className="absolute"
-          style={{ left: '8px', top: '10px', right: '24px', bottom: '8px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}
+          style={{ left: hep && rongHep < 90 ? '6px' : '8px', top: '10px', right: hep ? (rongHep < 90 ? '12px' : '18px') : '24px', bottom: '8px', transform: 'rotateY(11deg)', transformOrigin: '0% 50%' }}
         >
           {/* Thân khối: vành gương ngoài + độ dày đắp lớp (lệch xuống – sang trái) + quầng neon. */}
           <div
-            className="absolute inset-0 rounded-[30px]"
-            style={{ background: VANG.khung, boxShadow: VANG.khoi }}
+            className={clsx('absolute inset-0', hep ? 'rounded-[22px]' : 'rounded-[30px]')}
+            style={{ background: VANG.khung, boxShadow: hep ? VANG.khoiNho : VANG.khoi }}
           />
           {/* Rãnh tối 1 */}
-          <div className="absolute inset-[4px] rounded-[26px]" style={{ background: 'linear-gradient(160deg, #1B1306, #080603 45%, #150F05)' }} />
+          <div className={clsx('absolute', hep ? 'inset-[2.5px] rounded-[20px]' : 'inset-[4px] rounded-[26px]')} style={{ background: 'linear-gradient(160deg, #1B1306, #080603 45%, #150F05)' }} />
           {/* Vành vàng giữa (lớp 2) */}
-          <div className="absolute inset-[6px] rounded-[24px]" style={{ background: VANG.vanhGiua, boxShadow: '0 0 6px rgba(255,190,70,0.55)' }} />
+          <div className={clsx('absolute', hep ? 'inset-[3.5px] rounded-[19px]' : 'inset-[6px] rounded-[24px]')} style={{ background: VANG.vanhGiua, boxShadow: '0 0 6px rgba(255,190,70,0.55)' }} />
           {/* Rãnh tối 2 */}
-          <div className="absolute inset-[8.5px] rounded-[22px]" style={{ background: '#0B0804' }} />
+          <div className={clsx('absolute', hep ? 'inset-[5px] rounded-[17px]' : 'inset-[8.5px] rounded-[22px]')} style={{ background: '#0B0804' }} />
           {/* Mặt kính đen + chỉ neon trong cùng (lớp 3) */}
           <div
-            className="absolute inset-[10px] rounded-[20px] overflow-hidden"
+            className={clsx('absolute overflow-hidden', hep ? 'inset-[6px] rounded-[16px]' : 'inset-[10px] rounded-[20px]')}
             style={{
               background: 'linear-gradient(180deg, #0F1116 0%, #0A0C10 45%, #07080B 100%)',
               boxShadow: 'inset 0 0 0 1.5px rgba(255,214,120,0.9), inset 0 0 14px rgba(255,170,50,0.62), inset 0 0 34px rgba(255,140,30,0.3), inset 0 0 70px rgba(255,120,20,0.08)',
@@ -221,7 +245,7 @@ export default function Sidebar({
             <div className="absolute inset-0" style={{ background: 'linear-gradient(158deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 26%, transparent 44%), linear-gradient(200deg, transparent 70%, rgba(255,200,110,0.05) 100%)' }} />
           </div>
           {/* Vệt loé gương dọc cạnh trái + cạnh trên (ánh sáng chiếu từ trái) */}
-          <div className="absolute inset-0 rounded-[30px]" style={{ background: 'linear-gradient(90deg, rgba(255,252,235,0.75) 0%, rgba(255,252,235,0) 1.6%), linear-gradient(180deg, rgba(255,252,235,0.6) 0%, rgba(255,252,235,0) 0.9%)', mixBlendMode: 'screen' }} />
+          <div className={clsx('absolute inset-0', hep ? 'rounded-[22px]' : 'rounded-[30px]')} style={{ background: 'linear-gradient(90deg, rgba(255,252,235,0.75) 0%, rgba(255,252,235,0) 1.6%), linear-gradient(180deg, rgba(255,252,235,0.6) 0%, rgba(255,252,235,0) 0.9%)', mixBlendMode: 'screen' }} />
           {/* Điểm loé sáng hình sao ở góc + giữa cạnh */}
           {[
             { left: '2px', top: '18px', s: 34 },
@@ -236,10 +260,16 @@ export default function Sidebar({
       </div>
 
       {/* LỚP NỘI DUNG — PHẲNG (không xoay): nằm gọn trong mặt kính của khung nghiêng. */}
-      <div className="relative z-10 h-full flex flex-col" style={{ padding: '38px 60px 40px 28px' }}>
-        {/* Brand Header: lục giác viền vàng + khối lập phương; tên + "AI 5.0 PLATFORM". */}
-        <div className="flex items-center gap-2.5 px-1 shrink-0">
-          <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center" style={{ filter: 'drop-shadow(0 0 8px rgba(63,240,184,0.45))' }}>
+      <div className="relative z-10 h-full flex flex-col" style={{ padding: hep ? (rongHep < 90 ? '30px 20px 26px 12px' : '30px 28px 26px 12px') : '38px 60px 40px 28px' }}>
+        {/* Brand Header: lục giác viền vàng + khối lập phương; số điện thoại chủ dự án (vàng kim). */}
+        <button
+          type="button"
+          onClick={onDoiMenu}
+          title={hep ? 'Mở menu to' : 'Thu về menu nhỏ'}
+          aria-label={hep ? 'Mở menu to' : 'Thu về menu nhỏ'}
+          className={clsx('flex items-center shrink-0 text-left rounded-xl cursor-pointer', hep ? 'justify-center' : 'gap-2.5 px-1 mt-2')}
+        >
+          <div className={clsx('relative shrink-0 flex items-center justify-center', hep ? 'w-[40px] h-[40px]' : 'w-[46px] h-[46px]')} style={{ filter: 'drop-shadow(0 0 8px rgba(63,240,184,0.45))' }}>
             <svg viewBox="0 0 52 52" className="absolute inset-0 w-full h-full" aria-hidden>
               <defs>
                 <linearGradient id="vienLogoNgoc" x1="0" y1="0" x2="1" y2="1">
@@ -258,12 +288,20 @@ export default function Sidebar({
               deployed_code
             </span>
           </div>
-          <div className="min-w-0">
-            {/* Tên tạm (chủ dự án 23/10/2026 đồng ý bỏ chữ "LOGO"); tên sản phẩm thật chờ chủ dự án chọn — sơ đồ 8.4. */}
-            <h2 className="text-[16.5px] font-extrabold tracking-wide text-white leading-tight whitespace-nowrap">Quản lý Fanpage</h2>
-            <div className="mt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#E8EDF2]/50 whitespace-nowrap">AI 5.0 Platform</div>
-          </div>
-        </div>
+          {!hep && <div className="min-w-0">
+            {/* 31/10/2026 (chủ dự án): bỏ tên tạm cũ (sai — app đa nền tảng) → số điện thoại liên hệ của chủ dự án. */}
+            {/*
+              31/10/2026 (chủ dự án): bỏ dòng "AI 5.0 Platform"; số điện thoại căn giữa theo logo; màu khác vàng khung + hiệu ứng
+              nổi bật → chữ NGỌC LỤC BẢO SÁNG có vệt sáng chạy ngang + quầng phập phồng (index.css .so-dien-thoai).
+            */}
+            {/* Bọc viền có LUỒNG SÁNG CHẠY VÒNG QUANH (chủ dự án 31/10/2026: "bọc viền, cho viền chạy xung quanh"). */}
+            <span className="vien-chay inline-flex">
+              <h2 className="so-dien-thoai text-[18px] font-extrabold tracking-[0.02em] tabular-nums leading-none whitespace-nowrap">
+                0763 012 345
+              </h2>
+            </span>
+          </div>}
+        </button>
         {vach}
 
         <nav className="flex flex-col min-h-0 overflow-y-auto no-scrollbar -mx-2.5 px-2.5 -my-2.5 py-2.5">
@@ -291,7 +329,7 @@ export default function Sidebar({
 
         {/* Đáy: vạch vàng phát sáng, rồi Trợ giúp / Đăng xuất. */}
         <div className="flex flex-col shrink-0 mt-3">
-          <div className="relative mx-3 h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, transparent, #F5C451 15%, #FFE7A0 50%, #F5C451 85%, transparent)', boxShadow: '0 0 8px rgba(245,196,81,0.9), 0 0 18px rgba(245,170,50,0.45)' }}>
+          <div className={clsx('relative h-[2px] rounded-full', hep ? 'mx-1' : 'mx-3')} style={{ background: 'linear-gradient(90deg, transparent, #F5C451 15%, #FFE7A0 50%, #F5C451 85%, transparent)', boxShadow: '0 0 8px rgba(245,196,81,0.9), 0 0 18px rgba(245,170,50,0.45)' }}>
             {['22%', '64%'].map((x) => (
               <span key={x} className="absolute top-1/2 h-[6px] w-12 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: x, background: 'radial-gradient(ellipse, #FFFFFF 0%, rgba(255,236,170,0.9) 30%, transparent 70%)' }} />
             ))}
@@ -300,7 +338,8 @@ export default function Sidebar({
           <div className="flex flex-col" style={{ gap: '2px' }}>
             {SUPPORT_URL ? (
             <a
-              className="flex items-center gap-2 pl-2.5 pr-1.5 rounded-[13px] hover:bg-white/5 hover:text-white transition-colors group shrink-0"
+              className={clsx('flex items-center rounded-[13px] hover:bg-white/5 hover:text-white transition-colors group shrink-0', hep ? 'justify-center' : 'gap-2 pl-2.5 pr-1.5')}
+              title={hep ? 'Trợ giúp' : undefined}
               href={SUPPORT_URL}
               {...(IS_EXTERNAL_SUPPORT ? { target: '_blank', rel: 'noreferrer' } : {})}
               style={kieuChan}
@@ -308,33 +347,36 @@ export default function Sidebar({
               <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
                 help
               </span>
-              <span className="whitespace-nowrap">Trợ giúp</span>
-              {muiTen(false)}
+              {!hep && <span className="whitespace-nowrap">Trợ giúp</span>}
+              {!hep && muiTen(false)}
             </a>
             ) : (
               // Chưa có đường hỗ trợ: mục mờ, không bấm, không nhận Tab/Enter (không phải nút, không phải liên kết).
               <div
                 aria-disabled="true"
-                className="flex items-center gap-2 pl-2.5 pr-1.5 rounded-[13px] shrink-0 cursor-default select-none"
+                title={hep ? 'Trợ giúp — sắp có' : undefined}
+                className={clsx('flex items-center rounded-[13px] shrink-0 cursor-default select-none', hep ? 'justify-center' : 'gap-2 pl-2.5 pr-1.5')}
                 style={{ ...kieuChan, color: 'rgba(232,237,242,0.3)' }}
               >
                 <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
                   help
                 </span>
-                <span className="whitespace-nowrap">Trợ giúp</span>
-                <span className="ml-auto text-[10px] font-bold uppercase tracking-wide border border-white/15 rounded px-1.5 py-0.5">Sắp có</span>
+                {!hep && <span className="whitespace-nowrap">Trợ giúp</span>}
+                {!hep && <span className="ml-auto text-[10px] font-bold uppercase tracking-wide border border-white/15 rounded px-1.5 py-0.5">Sắp có</span>}
               </div>
             )}
             <button
-              className="flex items-center gap-2 pl-2.5 pr-1.5 rounded-[13px] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors group shrink-0 w-full text-left"
+              className={clsx('flex items-center rounded-[13px] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors group shrink-0 w-full', hep ? 'justify-center' : 'gap-2 pl-2.5 pr-1.5 text-left')}
+              title={hep ? 'Đăng xuất' : undefined}
+              aria-label={hep ? 'Đăng xuất' : undefined}
               onClick={onLogout}
               style={kieuChan}
             >
               <span className="material-symbols-outlined flex items-center justify-center w-[26px]" style={bieuTuongChan}>
                 logout
               </span>
-              <span className="whitespace-nowrap">Đăng xuất</span>
-              {muiTen(false)}
+              {!hep && <span className="whitespace-nowrap">Đăng xuất</span>}
+              {!hep && muiTen(false)}
             </button>
           </div>
         </div>
@@ -358,6 +400,11 @@ const VANG = {
     '1px 1px 0 #FFE7A0', '2px 2px 0 #E3AC45', '3px 3px 0 #C98F2C', '4px 4px 0 #B07A20', '5px 4px 0 #976518', '6px 5px 0 #FFD27A',
     '7px 6px 0 #9C6A1A', '8px 7px 0 #67420D', '9px 8px 0 #523409', '10px 9px 1px #3E2706', '12px 11px 8px rgba(0,0,0,0.6)',
     '0 0 0 1px rgba(255,240,195,0.9)', '0 0 8px rgba(255,195,70,0.85)', '0 0 22px rgba(255,170,40,0.55)', '0 0 50px rgba(255,150,30,0.25)',
+  ].join(', '),
+  // Dải hẹp: độ dày khối mảnh ~một nửa (5px) để viền không dày hơn khung to.
+  khoiNho: [
+    '1px 1px 0 #FFE7A0', '2px 2px 0 #E3AC45', '3px 2px 0 #C98F2C', '4px 3px 0 #976518', '5px 4px 0 #523409', '7px 6px 6px rgba(0,0,0,0.6)',
+    '0 0 0 1px rgba(255,240,195,0.9)', '0 0 6px rgba(255,195,70,0.8)', '0 0 16px rgba(255,170,40,0.45)',
   ].join(', '),
 };
 

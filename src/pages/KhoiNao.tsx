@@ -145,11 +145,15 @@ function TongQuanBoNao() {
   if (loading || !trangDangChon || canChonTrang) return null;
 
   return (
-    <section className="min-w-0">
-      <div className="hidden xl:block">
+    <section className="min-w-0 @container">
+      {/*
+        31/10/2026 (chủ dự án: "về menu chính mà khối não lại xếp hàng như này"): chọn kiểu theo CHỖ TRỐNG THẬT của khối
+        (container query), không theo bề rộng màn — cửa sổ 1258px mà nội dung còn ~950–1150px vẫn hiện kiểu 2 tầng lớn.
+      */}
+      <div className="hidden @min-[860px]:block">
         <KhoiNaoHaiTang s={s} tenCuaHang={trangDangChon.ten} />
       </div>
-      <div className="xl:hidden the p-4">
+      <div className="@min-[860px]:hidden the p-4">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="flex items-center gap-3 text-base font-bold text-on-surface">
             <span className="o-bieu-tuong"><span className="material-symbols-outlined text-[20px]">psychology</span></span>

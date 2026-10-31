@@ -26,6 +26,33 @@ export default function App() {
    * vì thanh menu luôn đứng cố định.
    */
   const [menuMo, setMenuMo] = useState(false);
+  /*
+   * MENU TO / NHỎ (chủ dự án 31/10/2026): bỏ nút ☰ — BẤM LOGO trên thanh menu để chuyển: lần 1 menu to, lần 2 về menu nhỏ.
+   * "Menu nhỏ phù hợp điện thoại, menu to phù hợp máy tính": máy tính mặc định to (nhớ lựa chọn trong trình duyệt); điện
+   * thoại mặc định nhỏ, bấm logo thì menu to trượt đè lên, chọn mục / bấm ra ngoài là về nhỏ.
+   */
+  const [manRong, setManRong] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const doi = () => setManRong(mq.matches);
+    mq.addEventListener('change', doi);
+    return () => mq.removeEventListener('change', doi);
+  }, []);
+  const [thuGon, setThuGon] = useState(() => { try { return localStorage.getItem('menu-thu-gon') === '1'; } catch { return false; } });
+  const doiThuGon = () => setThuGon((cu) => {
+    const moi = !cu;
+    try { localStorage.setItem('menu-thu-gon', moi ? '1' : '0'); } catch { /* chặn lưu: vẫn đổi trong phiên */ }
+    return moi;
+  });
+  /** Menu nhỏ (dải biểu tượng): máy tính theo lựa chọn; điện thoại khi chưa mở menu to. */
+  const menuHep = manRong ? thuGon : !menuMo;
+  /**
+   * Bề rộng menu nhỏ: máy tính 100px; điện thoại 80px (chủ dự án duyệt 31/10/2026 — chuẩn thanh điều hướng dọc 80, vẫn đủ vùng
+   * bấm 44px; trả 20px cho nội dung để tên trang trên thanh tiêu đề hiện đủ).
+   */
+  const rongHep = manRong ? 100 : 80;
+  /** Bề rộng chừa cho menu bên trái nội dung: menu nhỏ; máy tính menu to 19rem. */
+  const leMenu = manRong && !thuGon ? '19rem' : `${rongHep}px`;
   const [user, setUser] = useState<User | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
@@ -131,14 +158,17 @@ export default function App() {
 
   return (
     <ActivePageProvider>
-    <div className="flex h-screen w-full bg-background nen-app">
+    <div className="flex h-screen w-full bg-background nen-app" style={{ ['--le-menu' as string]: leMenu }}>
       <Sidebar
         onLogout={handleLogout}
         laQuanTri={user?.role === 'admin'}
         moKhung={menuMo}
+        hep={menuHep}
+        rongHep={rongHep}
+        onDoiMenu={() => (manRong ? doiThuGon() : setMenuMo((m) => !m))}
         onDong={() => setMenuMo(false)}
       />
-      <div className="flex-1 lg:ml-76 min-w-0 flex flex-col h-screen relative">
+      <div className="cot-noi-dung flex-1 ml-[var(--le-menu)] transition-[margin] duration-300 min-w-0 flex flex-col h-screen relative">
         {/*
           Đang xem thay một trang thì mọi màn hình trông y hệt tài khoản của
           chính mình. Nút vàng cam ở góc phải thanh tiêu đề là thứ phân biệt —
@@ -147,7 +177,6 @@ export default function App() {
         <TopNavBar
           user={user}
           avatarUrl={avatarUrl}
-          onMoMenu={() => setMenuMo(true)}
           // Quay lại thì về màn hình quản lý (/quan-ly → /admin).
           gocPhai={<DangXemThay user={user} onQuayLai={() => { window.location.href = '/quan-ly'; }} />}
         />
