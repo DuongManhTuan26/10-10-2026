@@ -192,14 +192,7 @@ export default function Sidebar({
 
   return (
     <>
-    {/* Nền mờ sau ngăn kéo: bấm ra ngoài là đóng. Chỉ có trên điện thoại. */}
-    {moKhung && (
-      <div
-        onClick={onDong}
-        aria-hidden
-        className="fixed inset-0 z-40 bg-black/60 lg:hidden"
-      />
-    )}
+    {/* 31/10/2026 (chủ dự án): BỎ lớp nền tối chặn bấm — menu mở thì app vẫn dùng bình thường. */}
     <aside
       className={`thanh-menu ${hep ? '' : 'w-76'} h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] transition-[width,transform] duration-300 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
       style={hep ? { width: `${rongHep}px` } : undefined}

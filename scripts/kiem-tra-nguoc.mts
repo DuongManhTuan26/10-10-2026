@@ -7060,6 +7060,18 @@ const DUC: PhepDuc[] = [
     thay: "{false && <button",
   },
   {
+    ten: "menu: lại có lớp nền tối chặn bấm khi mở menu",
+    tep: "src/components/Sidebar.tsx",
+    tim: "    {/* 31/10/2026 (chủ dự án): BỎ lớp nền tối chặn bấm — menu mở thì app vẫn dùng bình thường. */}\n",
+    thay: "    {moKhung && <div onClick={onDong} aria-hidden className=\"fixed inset-0 z-40 bg-black/60 lg:hidden\" />}\n",
+  },
+  {
+    ten: "menu: máy tính bảng menu đè lên nội dung (không đẩy)",
+    tep: "src/App.tsx",
+    tim: "<div className=\"cot-noi-dung flex-1 sm:ml-[var(--le-menu)]",
+    thay: "<div className=\"cot-noi-dung flex-1 lg:ml-[var(--le-menu)]",
+  },
+  {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
     tep: "src/pages/Connections.tsx",
     tim: "    if (dsTrangToi.some((t) => t.id === huongDan.trangId)) setCuaHangNoi((cu) => cu ?? huongDan.trangId);",

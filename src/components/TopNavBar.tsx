@@ -74,7 +74,7 @@ export default function TopNavBar({ user, avatarUrl, onMoMenu, menuAn = false, g
   // 31/10/2026: thanh trên rộng đúng phần còn lại sau thanh menu w-76 (19rem) — trước 288px nên lấn 16px, vạch vàng đâm vào menu.
 
   return (
-    <nav className="thanh-tren fixed top-0 right-0 w-full lg:w-[calc(100%-var(--le-menu))] z-40 transition-all duration-300 flex justify-between items-center gap-2 px-3 lg:px-margin py-base h-16">
+    <nav className="thanh-tren fixed top-0 right-0 w-full sm:w-[calc(100%-var(--le-menu))] z-40 transition-all duration-300 flex justify-between items-center gap-2 px-3 lg:px-margin py-base h-16">
       <div className="flex items-center gap-2 sm:gap-md min-w-0">
         {/*
           31/10/2026: bỏ nút ☰ — bấm logo xoay vòng menu to → nhỏ → ẩn. Lúc menu ẩn hết, logo nhỏ ở đây để mở lại (máy tính lẫn

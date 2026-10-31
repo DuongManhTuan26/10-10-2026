@@ -28,13 +28,14 @@ export default function App() {
   /*
    * MENU 3 TRẠNG THÁI (chủ dự án 31/10/2026: "bấm 1 cái vào logo menu to hiện ra, bấm 2 cái menu nhỏ hiện ra, bấm 3 cái cả 2 menu
    * thu gọn vào để nhường giao diện cho màn hình chính"): to → nhỏ → ẩn → to… Lúc ẩn, logo nhỏ ở thanh tiêu đề để mở lại.
-   * Máy tính: mặc định to, nhớ lựa chọn trong trình duyệt; menu to / nhỏ đẩy nội dung sang. Điện thoại: mặc định ẩn; mở ra
-   * thì đè lên nội dung, bấm ra ngoài / chọn mục là ẩn lại (màn nhỏ — không để menu cố định chiếm chỗ).
+   * Từ 640px (máy tính, máy tính bảng): mặc định to, nhớ lựa chọn; menu to / nhỏ ĐẨY nội dung sang. Điện thoại (< 640px): mặc
+   * định ẩn; mở ra nằm bên trái, chọn mục là ẩn lại. KHÔNG có lớp nền tối chặn bấm — menu mở thì app vẫn dùng bình thường
+   * (chủ dự án 31/10/2026: "bắt buộc phải tắt menu đi mới cho hoạt động là không đúng").
    */
   type TrangThaiMenu = 'to' | 'nho' | 'an';
-  const [manRong, setManRong] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  const [manRong, setManRong] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches);
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
+    const mq = window.matchMedia('(min-width: 640px)');
     const doi = () => setManRong(mq.matches);
     mq.addEventListener('change', doi);
     return () => mq.removeEventListener('change', doi);
@@ -170,7 +171,7 @@ export default function App() {
         onDoiMenu={bamLogo}
         onDong={() => { if (!manRong) setMenuDienThoai('an'); }}
       />
-      <div className="cot-noi-dung flex-1 lg:ml-[var(--le-menu)] transition-[margin] duration-300 min-w-0 flex flex-col h-screen relative">
+      <div className="cot-noi-dung flex-1 sm:ml-[var(--le-menu)] transition-[margin] duration-300 min-w-0 flex flex-col h-screen relative">
         {/*
           Đang xem thay một trang thì mọi màn hình trông y hệt tài khoản của
           chính mình. Nút vàng cam ở góc phải thanh tiêu đề là thứ phân biệt —

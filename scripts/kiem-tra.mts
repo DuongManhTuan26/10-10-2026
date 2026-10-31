@@ -2065,13 +2065,15 @@ kiem("điện thoại", "bấm logo xoay vòng to → nhỏ → ẩn; điện th
     /const \[menuDienThoai, setMenuDienThoai\] = useState<TrangThaiMenu>\('an'\);/.test(nguonApp2), /const rongHep = manRong \? 100 : 80;/.test(nguonApp2),
     /style=\{hep \? \{ width: `\$\{rongHep\}px` \} : undefined\}/.test(nguonMenu), /\$\{moKhung \? 'translate-x-0' : '-translate-x-full'\}/.test(nguonMenu)],
   [true, true, true, true, true]);
-kiem("điện thoại", "có nền mờ bấm ra ngoài để đóng",
-  /onClick=\{onDong\}[\s\S]{0,160}?lg:hidden/.test(nguonMenu), true);
+// 31/10/2026 (chủ dự án: "bắt buộc phải tắt menu đi mới cho hoạt động là không đúng"): KHÔNG có lớp nền tối chặn bấm khi mở
+// menu; từ 640px menu đẩy nội dung sang (không che), điện thoại < 640px menu nằm bên trái, phần còn lại vẫn bấm được.
+kiem("điện thoại", "không có lớp nền tối chặn bấm khi mở menu; từ 640px menu đẩy nội dung (matchMedia 640px)",
+  [/fixed inset-0 z-40 bg-black/.test(nguonMenu), /window\.matchMedia\('\(min-width: 640px\)'\)/.test(nguonApp2)], [false, true]);
 kiem("điện thoại", "chọn một mục là đóng ngăn kéo",
   /useEffect\(\(\) => \{ onDong\?\.\(\); \}, \[viTri\.pathname\]\)/.test(nguonMenu), true);
-kiem("điện thoại", "máy tính: nội dung + thanh trên chừa đúng bề rộng menu (to 19rem / nhỏ 100px / ẩn 0); điện thoại nội dung rộng hết màn",
-  [/const leMenu = menu === 'an' \? '0px' : menu === 'nho' \? '100px' : '19rem';/.test(nguonApp2), /className="cot-noi-dung flex-1 lg:ml-\[var\(--le-menu\)\]/.test(nguonApp2),
-    /w-full lg:w-\[calc\(100%-var\(--le-menu\)\)\]/.test(nguonThanhTren)], [true, true, true]);
+kiem("điện thoại", "từ 640px: nội dung + thanh trên chừa đúng bề rộng menu (to 19rem / nhỏ 100px / ẩn 0); điện thoại nội dung rộng hết màn",
+  [/const leMenu = menu === 'an' \? '0px' : menu === 'nho' \? '100px' : '19rem';/.test(nguonApp2), /className="cot-noi-dung flex-1 sm:ml-\[var\(--le-menu\)\]/.test(nguonApp2),
+    /w-full sm:w-\[calc\(100%-var\(--le-menu\)\)\]/.test(nguonThanhTren)], [true, true, true]);
 kiem("điện thoại", "thanh trên không còn bị ẩn hẳn",
   /hidden md:flex justify-between/.test(nguonThanhTren), false);
 kiem("điện thoại", "không nút ☰ — logo trên menu xoay vòng; lúc ẩn hết, logo ở thanh tiêu đề mở lại; máy tính nhớ lựa chọn",
