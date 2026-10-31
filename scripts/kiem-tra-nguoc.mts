@@ -6878,8 +6878,9 @@ const DUC: PhepDuc[] = [
   {
     ten: "4 AI chung màu: thẻ gắn màu AI trên trang chung vẫn màu riêng",
     tep: "src/lib/bon-ai.ts",
-    tim: "  mau === MAU_THUONG_HIEU || BON_AI.some((a) => a.hex === mau)",
-    thay: "  mau === MAU_THUONG_HIEU",
+    // 31/10/2026: bienThe thêm màu lam — trỏ lại.
+    tim: "  mau === MAU_THUONG_HIEU || mau === MAU_THONG_TIN || BON_AI.some((a) => a.hex === mau)",
+    thay: "  mau === MAU_THUONG_HIEU || mau === MAU_THONG_TIN",
   },
   {
     ten: "nền: không phải tông 4 chủ dự án chọn",
