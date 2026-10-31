@@ -6943,8 +6943,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "nút chính: công tắc bật/tắt cũng bị tô ngọc lục bảo",
     tep: "src/index.css",
-    tim: ":is(button, a):is(.bg-primary, .nut-chinh):not([role=\"switch\"]):not(.vung-video *) {",
-    thay: ":is(button, a):is(.bg-primary, .nut-chinh):not(.vung-video *) {",
+    tim: ":is(button, a):is(.bg-primary, .nut-chinh):not([role=\"switch\"]) {",
+    thay: ":is(button, a):is(.bg-primary, .nut-chinh) {",
   },
   {
     ten: "nút chính: bước đang mở không phải nút chính",
@@ -7469,8 +7469,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "cột lựa chọn video bị ẩn",
     tep: "src/components/XuongAi.tsx",
-    tim: "<section className=\"vung-video rounded-xl",
-    thay: "<section hidden className=\"vung-video rounded-xl",
+    tim: "bỏ vùng hồng tím). */}\n      <section className=\"rounded-xl",
+    thay: "bỏ vùng hồng tím). */}\n      <section hidden className=\"rounded-xl",
   },
   {
     ten: "nhờ AI viết lại ra 3 bài",
@@ -7605,16 +7605,22 @@ const DUC: PhepDuc[] = [
     thay: "          dangChon={laAnh}",
   },
   {
-    ten: "nút Tạo không đổi màu theo bên video",
+    ten: "chữ công tắc video lại hồng tím",
     tep: "src/components/XuongAi.tsx",
-    tim: "                laAnh ? 'bg-primary text-on-primary' : 'bg-secondary text-on-secondary-fixed'",
-    thay: "                'bg-primary text-on-primary'",
+    tim: "bat ? 'text-primary' : 'text-on-surface'",
+    thay: "bat ? (laAnh ? 'text-primary' : 'text-secondary') : 'text-on-surface'",
   },
   {
-    ten: "tab Video chọn mà vẫn màu của ảnh",
+    ten: "nút Tạo bên video lại hồng tím",
     tep: "src/components/XuongAi.tsx",
-    tim: "            ? 'border-secondary bg-secondary text-on-secondary-fixed shadow-[0_0_18px_var(--color-secondary)]'",
-    thay: "            ? 'border-primary bg-primary text-on-primary shadow-[0_0_18px_var(--color-primary)]'",
+    tim: "                'bg-primary text-on-primary'",
+    thay: "                laAnh ? 'bg-primary text-on-primary' : 'bg-secondary text-on-secondary-fixed'",
+  },
+  {
+    ten: "tab Video chọn lại tô hồng tím",
+    tep: "src/components/XuongAi.tsx",
+    tim: "        : chon\n          ? 'border-primary bg-primary text-on-primary shadow-[0_0_18px_var(--color-primary)]'",
+    thay: "        : chon && c === 'video'\n          ? 'border-secondary bg-secondary text-on-secondary-fixed'\n          : chon\n          ? 'border-primary bg-primary text-on-primary shadow-[0_0_18px_var(--color-primary)]'",
   },
   {
     ten: "lần đầu để đi theo bài — đăng bài tự tốn tiền video khi chưa chủ động chọn",
@@ -7866,8 +7872,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "cả hai cùng sáng mà bên đang chọn không sáng hơn",
     tep: "src/components/XuongAi.tsx",
-    tim: "              ? 'border-primary bg-primary/15 shadow-[0_0_16px_var(--color-primary)]'",
-    thay: "              ? 'border-primary/50 bg-primary/5'",
+    tim: "            ? 'border-primary bg-primary/15 shadow-[0_0_16px_var(--color-primary)]'",
+    thay: "            ? 'border-primary/50 bg-primary/5'",
   },
   {
     ten: "video theo bài vẫn hiện các kỹ năng cần duyệt tay",
@@ -7882,28 +7888,22 @@ const DUC: PhepDuc[] = [
     thay: "",
   },
   {
-    ten: "cột video mất màu hồng tím",
-    tep: "src/index.css",
-    tim: "    --color-primary: var(--color-secondary);\n",
-    thay: "",
+    ten: "cột video lại đổi sang vùng hồng tím",
+    tep: "src/components/XuongAi.tsx",
+    tim: "bỏ vùng hồng tím). */}\n      <section className=\"rounded-xl",
+    thay: "bỏ vùng hồng tím). */}\n      <section className=\"vung-video rounded-xl",
   },
   {
-    ten: "chữ trên nút video quay lại chữ trắng (không đủ tương phản)",
-    tep: "src/components/XuongAi.tsx",
-    tim: "'bg-secondary text-on-secondary-fixed'",
-    thay: "'bg-secondary text-white'",
+    ten: "lựa chọn video lại tô hồng tím",
+    tep: "src/components/VideoAiPanel.tsx",
+    tim: "                    ? 'border-primary bg-primary/15 text-primary'",
+    thay: "                    ? 'border-secondary bg-secondary text-on-secondary-fixed'",
   },
   {
     ten: "một bên còn mở mà ô prompt đã đóng",
     tep: "src/components/XuongAi.tsx",
     tim: "  const dangMo = anhRieng || videoRieng;",
     thay: "  const dangMo = anhRieng && videoRieng;",
-  },
-  {
-    ten: "chữ trên nút hồng tím đổi sang màu không đạt tương phản",
-    tep: "src/index.css",
-    tim: "  --color-on-secondary-fixed: #2e003b;",
-    thay: "  --color-on-secondary-fixed: #ffffff;",
   },
   {
     ten: "cột video lại liệt kê mô hình thành danh sách dài",

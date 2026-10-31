@@ -345,8 +345,8 @@ export default function VideoAiPanel({
                 className={clsx(
                   'px-3 py-2 rounded-lg text-xs font-bold border transition-colors',
                   cheDo === c.id
-                    ? 'border-secondary bg-secondary text-on-secondary-fixed'
-                    : 'border-outline-variant bg-surface-container text-on-surface-variant hover:border-secondary/50'
+                    ? 'border-primary bg-primary/15 text-primary'
+                    : 'border-outline-variant bg-surface-container text-on-surface-variant hover:border-primary/50'
                 )}
               >
                 {c.ten}

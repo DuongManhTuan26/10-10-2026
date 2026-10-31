@@ -296,9 +296,9 @@ export function XuongAi({
       'px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors',
       chon ? 'border-primary bg-primary/15 text-primary' : 'border-outline-variant bg-surface text-on-surface-variant hover:border-primary/50'
     );
-  // Màu theo bên: ảnh = màu chính của miền (① Nội dung — tím), video hồng tím (secondary) — hai bên vẫn khác màu như
-  // chủ dự án chọn 04/10/2026; màu ảnh theo màu miền (chủ dự án 10/10/2026: mọi chỗ thuộc miền nào dùng màu miền đó).
-  // Bên đi theo bài: tối hẳn. Bên tạo riêng: viền màu; đang chọn thì tô đầy + phát sáng mạnh.
+  // 31/10/2026 (chủ dự án: "nút Video về màu xanh chung, chỉ nút gạt nhỏ bên trên giữ hồng tím"): Ảnh và Video CÙNG màu
+  // chung (nút chính ngọc lục bảo); chỉ công tắc "Video tạo riêng" giữ hồng tím. Bên đi theo bài: tối hẳn; bên tạo riêng:
+  // viền màu; đang chọn thì tô đầy (nút chính).
   const laAnh = cheDoMo === 'anh';
   const nutCheDo = (c: CheDoXuong) => {
     const mo = c === 'anh' ? anhRieng : videoRieng;
@@ -307,13 +307,9 @@ export function XuongAi({
       'flex-1 px-4 py-2 rounded-lg text-sm font-bold border transition-all flex items-center justify-center gap-2',
       !mo
         ? 'border-outline-variant bg-surface-container-low text-on-surface-variant cursor-not-allowed'
-        : c === 'anh'
-          ? chon
-            ? 'border-primary bg-primary text-on-primary shadow-[0_0_18px_var(--color-primary)]'
-            : 'border-primary/60 bg-surface-container text-primary hover:bg-primary/10'
-          : chon
-            ? 'border-secondary bg-secondary text-on-secondary-fixed shadow-[0_0_18px_var(--color-secondary)]'
-            : 'border-secondary/60 bg-surface-container text-secondary hover:bg-secondary/10'
+        : chon
+          ? 'border-primary bg-primary text-on-primary shadow-[0_0_18px_var(--color-primary)]'
+          : 'border-primary/60 bg-surface-container text-primary hover:bg-primary/10'
     );
   };
 
@@ -384,7 +380,7 @@ export function XuongAi({
         <div
           className={clsx(
             'bg-surface-container-high rounded-lg border border-outline-variant focus-within:ring-1 transition-all',
-            laAnh ? 'focus-within:border-primary focus-within:ring-primary' : 'focus-within:border-secondary focus-within:ring-secondary'
+            'focus-within:border-primary focus-within:ring-primary'
           )}
         >
           <textarea
@@ -408,7 +404,7 @@ export function XuongAi({
               title={nutTao.goiY}
               className={clsx(
                 'shrink-0 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed',
-                laAnh ? 'bg-primary text-on-primary' : 'bg-secondary text-on-secondary-fixed'
+                'bg-primary text-on-primary'
               )}
             >
               <span className={clsx('material-symbols-outlined text-[18px]', nutTao.dangChay && 'animate-spin')}>
@@ -540,8 +536,8 @@ export function XuongAi({
         </p>
       </section>
 
-      {/* vung-video: mọi "màu chính" bên trong thành hồng tím — cột video đồng nhất một màu. */}
-      <section className="vung-video rounded-xl border border-primary/30 p-3 space-y-3 min-w-0">
+      {/* Cột video cùng màu chung với cột ảnh (31/10/2026 — bỏ vùng hồng tím). */}
+      <section className="rounded-xl border border-primary/30 p-3 space-y-3 min-w-0">
         <CotDau ten="Lựa chọn video" mo={videoRieng} moTaMo="tạo riêng — bấm Tạo video ở ô prompt" moTaTat="nối với bài — tự tạo video ngắn khi bấm Đăng bài" />
         <XuongContext.Provider value={{ moTa, setMoTa, theoBai: !videoRieng, anhChon, deBai: deBaiVideo, datHanhDong, datVideoTheoBai }}>
           <VideoAiPanel nhung noiDung={deBaiVideo} anhCoSan={anhChon} videoCoSan={videoBai} onGanVaoBai={ganVaoBai} />
@@ -552,7 +548,7 @@ export function XuongAi({
   );
 }
 
-/** Đầu mỗi cột lựa chọn: tên + bên đó đang tạo riêng hay nối với bài. Màu theo cột (vung-video đổi primary). */
+/** Đầu mỗi cột lựa chọn: tên + bên đó đang tạo riêng hay nối với bài. */
 function CotDau({ ten, mo, moTaMo, moTaTat }: { ten: string; mo: boolean; moTaMo: string; moTaTat: string }) {
   return (
     <p className="text-xs leading-snug">
@@ -575,17 +571,13 @@ function CongTac({ ten, mau, dangChon, bat, onDoi }: { ten: string; mau: 'anh' |
         'flex items-center justify-between gap-2 rounded-lg border px-3 py-2 transition-colors',
         !bat
           ? 'border-outline-variant bg-surface-container'
-          : laAnh
-            ? dangChon
-              ? 'border-primary bg-primary/15 shadow-[0_0_16px_var(--color-primary)]'
-              : 'border-primary/50 bg-primary/5'
-            : dangChon
-              ? 'border-secondary bg-secondary/15 shadow-[0_0_16px_var(--color-secondary)]'
-              : 'border-secondary/50 bg-secondary/5'
+          : dangChon
+            ? 'border-primary bg-primary/15 shadow-[0_0_16px_var(--color-primary)]'
+            : 'border-primary/50 bg-primary/5'
       )}
     >
       <span className="min-w-0">
-        <span className={clsx('block text-xs font-bold', bat ? (laAnh ? 'text-primary' : 'text-secondary') : 'text-on-surface')}>{ten}</span>
+        <span className={clsx('block text-xs font-bold', bat ? 'text-primary' : 'text-on-surface')}>{ten}</span>
         <span className="block text-[11px] text-on-surface-variant leading-snug">
           {bat ? 'Đang mở: tạo theo prompt của bạn' : 'Tắt: nối với bài, tự tạo khi Đăng bài'}
         </span>

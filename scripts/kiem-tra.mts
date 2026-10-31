@@ -1291,7 +1291,7 @@ kiem("xưởng AI", "phần video đọc ô soạn chung, KHÔNG vẽ ô mô t�
 // phải — LUÔN MỞ (nối với bài vẫn phải chọn mô hình cho lúc tự tạo). Không còn ẩn / hiện theo chế độ.
 kiem("xưởng AI", "lựa chọn ảnh (trái) và video (phải) song song, luôn mở; đề bài = chỉ bài (theo bài) hoặc chỉ prompt (tạo riêng)",
   [/<div className="grid @3xl:grid-cols-2 gap-3 items-start">\s*<section className="rounded-xl border border-primary\/30 p-3 space-y-3 min-w-0">\s*<CotDau ten="Lựa chọn ảnh"/.test(nguonXuongAi) &&
-      /<section className="vung-video rounded-xl border border-primary\/30 p-3 space-y-3 min-w-0">\s*<CotDau ten="Lựa chọn video"/.test(nguonXuongAi),
+      /<section className="rounded-xl border border-primary\/30 p-3 space-y-3 min-w-0">\s*<CotDau ten="Lựa chọn video"/.test(nguonXuongAi),
     /hidden=\{cheDo/.test(nguonXuongAi),
     ghepDeBai(true, " Bài A ", ""), ghepDeBai(true, "Bài A", "nắng sớm"), ghepDeBai(false, "Bài A", " Túi cà phê ")],
   [true, false, "Bài A", "Bài A", "Túi cà phê"]);
@@ -1302,7 +1302,9 @@ kiem("xưởng AI", "ảnh: giá trên nút tạo; phong cách và giới hạn 
   [true, true, true]);
 // 03/10/2026 (chủ dự án): hai công tắc cân đối trái/phải; nút tạo nằm ngay trong ô soạn.
 // 04/10/2026: công tắc NẰM TRÊN thanh Ảnh | Video (chọn trước rồi mới tạo); mỗi bên một công tắc "tạo riêng":
-// đèn sáng = tạo riêng theo prompt, đèn tối = đi theo bài (đăng bài là tự tạo). Ảnh xanh ngọc, video hồng tím.
+// đèn sáng = tạo riêng theo prompt, đèn tối = đi theo bài (đăng bài là tự tạo).
+// 31/10/2026 (chủ dự án: "nút Video về màu xanh chung, chỉ nút gạt nhỏ bên trên giữ hồng tím"): mọi thứ cùng màu
+// chung; CHỈ nút gạt của công tắc "Video tạo riêng" giữ hồng tím.
 {
   const nguonTrendX = fs.readFileSync(path.join(GOC, "src/components/VideoTrendPanel.tsx"), "utf8");
   const viTriTab = nguonXuongAi.indexOf('role="tablist"');
@@ -1317,20 +1319,22 @@ kiem("xưởng AI", "ảnh: giá trên nút tạo; phong cách và giới hạn 
       // Trong Xưởng phần video không vẽ tiêu đề / công tắc riêng.
       /\{!nhung && \(\s*<div className="flex items-center justify-between gap-3 dau-muc">/.test(nguonAiPanelX)],
     [true, true, false, true]);
-  kiem("xưởng AI", "công tắc: bật = sáng màu của bên (ảnh primary, video secondary); tắt = tối; bên đang mở VÀ đang chọn sáng hẳn",
+  kiem("xưởng AI", "công tắc: nút gạt bật = ảnh màu chung, video hồng tím; khung + chữ cùng màu chung; tắt = tối; bên đang mở VÀ đang chọn sáng hẳn",
     [/bat\s*\?\s*laAnh\s*\?\s*'bg-primary border-primary shadow-\[0_0_14px_var\(--color-primary\)\]'\s*:\s*'bg-secondary border-secondary shadow-\[0_0_14px_var\(--color-secondary\)\]'\s*:\s*'bg-surface-container-high border-outline-variant'/.test(nguonXuongAi),
-      /!bat\s*\? 'border-outline-variant bg-surface-container'\s*: laAnh\s*\? dangChon\s*\? 'border-primary bg-primary\/15 shadow-\[0_0_16px_var\(--color-primary\)\]'\s*: 'border-primary\/50 bg-primary\/5'\s*: dangChon\s*\? 'border-secondary bg-secondary\/15 shadow-\[0_0_16px_var\(--color-secondary\)\]'/.test(nguonXuongAi),
+      /!bat\s*\? 'border-outline-variant bg-surface-container'\s*: dangChon\s*\? 'border-primary bg-primary\/15 shadow-\[0_0_16px_var\(--color-primary\)\]'\s*: 'border-primary\/50 bg-primary\/5'/.test(nguonXuongAi) &&
+        /bat \? 'text-primary' : 'text-on-surface'/.test(nguonXuongAi),
       /mau="anh"\s*dangChon=\{laAnh\}/.test(nguonXuongAi), /mau="video"\s*dangChon=\{!laAnh\}/.test(nguonXuongAi),
       /\{bat \? 'Đang mở: tạo theo prompt của bạn' : 'Tắt: nối với bài, tự tạo khi Đăng bài'\}/.test(nguonXuongAi)],
     [true, true, true, true, true]);
-  kiem("xưởng AI", "nút Ảnh | Video: bên nối với bài TỐI hẳn; bên mở viền màu; bên mở + đang chọn tô đầy, phát sáng; nút Tạo cùng màu",
+  kiem("xưởng AI", "nút Ảnh | Video: bên nối với bài TỐI hẳn; bên mở viền màu chung; đang chọn tô đầy; nút Tạo + ô soạn màu chung, không còn hồng tím",
     [/!mo\s*\? 'border-outline-variant bg-surface-container-low text-on-surface-variant cursor-not-allowed'/.test(nguonXuongAi) &&
       /disabled=\{!anhRieng\} onClick=\{\(\) => setCheDo\('anh'\)\}/.test(nguonXuongAi) && /disabled=\{!videoRieng\} onClick=\{\(\) => setCheDo\('video'\)\}/.test(nguonXuongAi) &&
-      /\? 'border-primary bg-primary text-on-primary shadow-\[0_0_18px_var\(--color-primary\)\]'\s*: 'border-primary\/60 bg-surface-container text-primary/.test(nguonXuongAi) &&
-      /\? 'border-secondary bg-secondary text-on-secondary-fixed shadow-\[0_0_18px_var\(--color-secondary\)\]'\s*: 'border-secondary\/60 bg-surface-container text-secondary/.test(nguonXuongAi),
-      /laAnh \? 'bg-primary text-on-primary' : 'bg-secondary text-on-secondary-fixed'/.test(nguonXuongAi),
-      /laAnh \? 'focus-within:border-primary focus-within:ring-primary' : 'focus-within:border-secondary focus-within:ring-secondary'/.test(nguonXuongAi)],
-    [true, true, true]);
+      /: chon\s*\? 'border-primary bg-primary text-on-primary shadow-\[0_0_18px_var\(--color-primary\)\]'\s*: 'border-primary\/60 bg-surface-container text-primary/.test(nguonXuongAi),
+      /^\s*'bg-primary text-on-primary'/m.test(nguonXuongAi) && /^\s*'focus-within:border-primary focus-within:ring-primary'/m.test(nguonXuongAi),
+      // Hồng tím (secondary) chỉ còn ĐÚNG MỘT chỗ: nút gạt của công tắc video.
+      (nguonXuongAi.match(/secondary/g) ?? []).length,
+      /'bg-secondary border-secondary shadow-\[0_0_14px_var\(--color-secondary\)\]'/.test(nguonXuongAi)],
+    [true, true, 3, true]);
   // 30/10/2026 (chủ dự án duyệt): lần đầu ẢNH đi theo bài (Meta từ chối bài chỉ chữ — TD-33); VIDEO vẫn tạo riêng.
   kiem("xưởng AI", "lần đầu: ảnh đi theo bài, video tạo riêng (video không tự tốn tiền khi đăng); nhớ lựa chọn cho lần sau",
     [/nhoLocal\('anhRieng', 'false', \['true', 'false'\] as const\) === 'true'/.test(nguonXuongAi), /luuLocal\('anhRieng', String\(v\)\)/.test(nguonXuongAi),
@@ -4878,7 +4882,7 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     if (!r) throw new Error(`không đọc được màu ${v}`);
     return { c: [+r[1], +r[2], +r[3]], a: r[4] === undefined ? 1 : +r[4] };
   };
-  // Chỉ bảng màu gốc (@theme) — các vùng đổi biến màu theo chỗ (vd. .vung-video) đo riêng ở dưới.
+  // Chỉ bảng màu gốc (@theme).
   const bangMau = nguonCss.slice(nguonCss.indexOf("@theme {"), nguonCss.indexOf("\n}", nguonCss.indexOf("@theme {")));
   const mau = Object.fromEntries([...bangMau.matchAll(/--color-([a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], docMau(m[2])]));
   const hexMau = (c: number[]) => "#" + c.map((x) => Math.round(x).toString(16).padStart(2, "0")).join("");
@@ -4908,17 +4912,15 @@ kiem("hiển thị chi phí", "không tiêu thì không tô đỏ", mauChi(0), "
     ["chữ gợi ý (70%) trên ô nhập", tp(tron(hexMau(mau["on-surface-variant"].c), O, 0.7), O), 4.5],
     ["chữ nhập vào trên ô nhập", tp(hexMau(mau["on-surface"].c), O), 7],
     ["viền ô nhập ↔ thẻ", tp(tren(mau["outline-variant"], THE), THE), 2],
-    // Xưởng AI: nút ảnh xanh ngọc, nút video hồng tím (chủ dự án 04/10/2026) — chữ trên nút phải đọc rõ.
-    ["chữ trên nút xanh ngọc (ảnh)", tp(hexMau(mau["on-primary"].c), hexMau(mau.primary.c)), 4.5],
-    ["chữ trên nút hồng tím (video)", tp(hexMau(mau["on-secondary-fixed"].c), hexMau(mau.secondary.c)), 4.5],
+    ["chữ trên nút màu chính", tp(hexMau(mau["on-primary"].c), hexMau(mau.primary.c)), 4.5],
   ] as const;
   kiem("giao diện", "mọi cặp màu đạt độ tương phản tối thiểu",
     datChuan.filter(([, v, min]) => !(v >= min)).map(([ten, v, min]) => `${ten}: ${v.toFixed(2)} < ${min}`), []);
-  kiem("giao diện", "cột video của Xưởng: màu chính thành hồng tím, chữ trên nút dùng màu đã đo đạt chuẩn",
-    [/\.vung-video \{\s*--color-primary: var\(--color-secondary\);\s*--color-on-primary: var\(--color-on-secondary-fixed\);/.test(nguonCss),
-      /<section className="vung-video /.test(fs.readFileSync(path.join(GOC, "src/components/XuongAi.tsx"), "utf8")),
-      ["XuongAi.tsx", "VideoAiPanel.tsx"].filter((t) => /bg-secondary text-white/.test(fs.readFileSync(path.join(GOC, "src/components", t), "utf8")))],
-    [true, true, []]);
+  // 31/10/2026 (chủ dự án): cột video của Xưởng bỏ vùng hồng tím — cùng màu chung với cột ảnh.
+  kiem("giao diện", "cột video của Xưởng cùng màu chung: không còn vùng đổi màu .vung-video, lựa chọn video không tô hồng tím",
+    [/vung-video/.test(nguonCss + fs.readFileSync(path.join(GOC, "src/components/XuongAi.tsx"), "utf8")),
+      ["XuongAi.tsx", "VideoAiPanel.tsx"].filter((t) => /bg-secondary text-/.test(fs.readFileSync(path.join(GOC, "src/components", t), "utf8")))],
+    [false, []]);
   kiem("giao diện", "chữ gợi ý trong ô nhập có quy tắc chung đủ sáng",
     /input::placeholder,\s*textarea::placeholder \{\s*color: color-mix\(in srgb, var\(--color-on-surface-variant\) 70%, transparent\);/.test(nguonCss), true);
 
@@ -8575,10 +8577,10 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
         /'vien-anh-kim relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant nen-app /.test(fs.readFileSync(path.join(GOC, "src/components/HopThoai.tsx"), "utf8"))],
       [true, true, true, true, 0, true]);
   }
-  // 31/10/2026 (chủ dự án chọn 4b): nút chính = ngọc lục bảo sáng ánh kim, viền vàng; trừ công tắc + cột video.
-  kiem("nút chính ngọc lục bảo", "mọi nút nền màu chính + .nut-chinh = ngọc lục bảo sáng ánh kim, viền vàng, chữ đậm; trừ công tắc / cột video; bước đang mở + 'Tạo cửa hàng mới' dùng .nut-chinh",
+  // 31/10/2026 (chủ dự án chọn 4b): nút chính = ngọc lục bảo sáng ánh kim, viền vàng; trừ công tắc (cột video nay cũng theo).
+  kiem("nút chính ngọc lục bảo", "mọi nút nền màu chính + .nut-chinh = ngọc lục bảo sáng ánh kim, viền vàng, chữ đậm; trừ công tắc; bước đang mở + 'Tạo cửa hàng mới' dùng .nut-chinh",
     [/--nut-chinh-nen: linear-gradient\(120deg, #0a9e6c 0%, #3ff0b8 18%, #c9ffe9 30%/.test(css),
-      /:is\(button, a\):is\(\.bg-primary, \.nut-chinh\):not\(\[role="switch"\]\):not\(\.vung-video \*\) \{\s*background: var\(--nut-chinh-nen\) !important;\s*border: 1\.5px solid #F5C451 !important;/.test(css),
+      /:is\(button, a\):is\(\.bg-primary, \.nut-chinh\):not\(\[role="switch"\]\) \{\s*background: var\(--nut-chinh-nen\) !important;\s*border: 1\.5px solid #F5C451 !important;/.test(css),
       /className="nut-chinh self-start/.test(fs.readFileSync(path.join(GOC, "src/pages/Connections.tsx"), "utf8"))],
     [true, true, true]);
   // 31/10/2026 (rà toàn bộ 21 trang / thẻ bằng đo màu thật): viền ô biểu tượng, bước chưa mở, ô số đầu trang AI, nút "Mở bộ não",
