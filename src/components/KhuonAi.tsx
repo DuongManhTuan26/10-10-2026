@@ -62,9 +62,9 @@ export default function KhuonAi({
               role="tab"
               aria-selected={mo}
               onClick={() => datTim((p) => { const m = new URLSearchParams(p); m.set('the', t.ma); return m; }, { replace: true })}
-              className={clsx('flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition', !mo && 'hover:brightness-125')}
+              className={clsx('flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition', mo ? 'nut-chinh' : 'hover:brightness-125')}
               style={mo
-                ? { background: mau, borderColor: mau, color: '#0b1417' }
+                ? undefined /* bước đang mở = nút chính ngọc lục bảo ánh kim (index.css .nut-chinh) */
                 : { background: `${mau}12`, borderColor: `${mau}59`, color: mau }}
             >
               <span

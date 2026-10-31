@@ -159,6 +159,25 @@
     box-shadow: 0 0 8px rgba(245, 196, 81, 0.55);
 }
 
+/*
+ * NÚT CHÍNH = NGỌC LỤC BẢO SÁNG ÁNH KIM (chủ dự án chọn kiểu 4b ngày 31/10/2026 từ bảng thử 10 kiểu; "màu xanh sáng mới nổi
+ * nút"): ngọc lục bảo sáng có dải sáng chéo như kim loại, viền vàng, chữ xanh rất đậm. Áp mọi nút / liên kết nền màu chính
+ * (.bg-primary) + nút đánh dấu .nut-chinh; TRỪ công tắc bật / tắt (role=switch) và cột video của Xưởng (hồng tím riêng).
+ */
+:root {
+    --nut-chinh-nen: linear-gradient(120deg, #0a9e6c 0%, #3ff0b8 18%, #c9ffe9 30%, #16c98d 46%, #0a9e6c 66%, #5ef2c4 86%, #0a9e6c 100%);
+    --nut-chinh-chu: #022b1f;
+}
+:is(button, a):is(.bg-primary, .nut-chinh):not([role="switch"]):not(.vung-video *) {
+    background: var(--nut-chinh-nen) !important;
+    border: 1.5px solid #F5C451 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 18px rgba(22, 201, 141, 0.6), 0 6px 14px -8px rgba(0, 0, 0, 0.8) !important;
+    color: var(--nut-chinh-chu) !important;
+}
+:is(button, a):is(.bg-primary, .nut-chinh):not([role="switch"]):not(.vung-video *) * {
+    color: var(--nut-chinh-chu) !important;
+}
+
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;

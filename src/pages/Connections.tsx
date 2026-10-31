@@ -1049,8 +1049,7 @@ export default function Connections() {
         {/* Chủ dự án 17/10/2026: "Kết nối kênh mới" → "Tạo cửa hàng mới" — tạo cửa hàng, đặt tên, rồi tới các cổng kết nối. */}
         <button
           onClick={moTaoCuaHang}
-          className="self-start md:self-auto shrink-0 inline-flex items-center gap-2 px-4 h-10 rounded-xl font-bold text-sm text-[#003640] transition hover:brightness-110"
-          style={{ background: MAU_THUONG_HIEU, boxShadow: `0 8px 22px -8px ${MAU_THUONG_HIEU}` }}
+          className="nut-chinh self-start md:self-auto shrink-0 inline-flex items-center gap-2 px-4 h-10 rounded-xl font-bold text-sm transition hover:brightness-110"
         >
           <span className="material-symbols-outlined text-[20px]">add_business</span>
           Tạo cửa hàng mới

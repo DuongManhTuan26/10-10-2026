@@ -5764,8 +5764,9 @@ const DUC: PhepDuc[] = [
     ten: "thanh 4 bước quay lại mỗi bước một màu",
     tep: "src/components/KhuonAi.tsx",
     // 31/10/2026: thanh 4 bước dùng màu chung (mau) — trỏ lại.
-    tim: "? { background: mau, borderColor: mau, color: '#0b1417' }",
-    thay: "? { background: ['#60a5fa', '#f472b6'][i % 2], borderColor: mau, color: '#0b1417' }",
+    // 31/10/2026: bước đang mở = .nut-chinh — trỏ lại: bước khác mỗi bước một màu.
+    tim: ": { background: `${mau}12`, borderColor: `${mau}59`, color: mau }}",
+    thay: ": { background: ['#60a5fa', '#f472b6'][i % 2], borderColor: `${mau}59`, color: mau }}",
   },
   {
     ten: "trang hệ thống lại nút trắng",
@@ -6925,6 +6926,30 @@ const DUC: PhepDuc[] = [
     tep: "src/components/HopThoai.tsx",
     tim: "'vien-anh-kim relative flex flex-col",
     thay: "'relative flex flex-col",
+  },
+  {
+    ten: "nút chính: quay lại xanh ngọc phẳng",
+    tep: "src/index.css",
+    tim: "    background: var(--nut-chinh-nen) !important;\n",
+    thay: "",
+  },
+  {
+    ten: "nút chính: công tắc bật/tắt cũng bị tô ngọc lục bảo",
+    tep: "src/index.css",
+    tim: ":is(button, a):is(.bg-primary, .nut-chinh):not([role=\"switch\"]):not(.vung-video *) {",
+    thay: ":is(button, a):is(.bg-primary, .nut-chinh):not(.vung-video *) {",
+  },
+  {
+    ten: "nút chính: bước đang mở không phải nút chính",
+    tep: "src/components/KhuonAi.tsx",
+    tim: "mo ? 'nut-chinh' : 'hover:brightness-125'",
+    thay: "!mo && 'hover:brightness-125'",
+  },
+  {
+    ten: "nút chính: 'Tạo cửa hàng mới' không phải nút chính",
+    tep: "src/pages/Connections.tsx",
+    tim: "className=\"nut-chinh self-start",
+    thay: "className=\"self-start",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

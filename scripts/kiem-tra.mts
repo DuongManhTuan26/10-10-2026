@@ -8476,7 +8476,8 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   // 31/10/2026 (chủ dự án: "đưa toàn bộ 4 AI về chung màu"): thanh 4 bước MỘT màu chung của hệ thống ở mọi AI.
   kiem("thanh 4 bước", "một màu CHUNG (màu thương hiệu) ở cả 4 AI: bước mở tô màu chung, bước khác viền màu chung; không dùng màu riêng AI",
     [/const mau = MAU_THUONG_HIEU;/.test(ka),
-      /\? \{ background: mau, borderColor: mau, color: '#0b1417' \}\s*: \{ background: `\$\{mau\}12`, borderColor: `\$\{mau\}59`, color: mau \}/.test(ka),
+      // 31/10/2026: bước đang mở = nút chính ngọc lục bảo ánh kim (.nut-chinh); bước khác viền màu chung.
+      /mo \? 'nut-chinh' : 'hover:brightness-125'/.test(ka) && /\? undefined [^\n]*\n\s*: \{ background: `\$\{mau\}12`, borderColor: `\$\{mau\}59`, color: mau \}/.test(ka),
       /motAi\.hex|t\.hex/.test(ka), /hex:/.test(bonThe)],
     [true, true, false, false]);
 }
@@ -8537,6 +8538,12 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
         /'vien-anh-kim relative flex flex-col overflow-hidden rounded-2xl border border-outline-variant nen-app /.test(fs.readFileSync(path.join(GOC, "src/components/HopThoai.tsx"), "utf8"))],
       [true, true, true, true, 0, true]);
   }
+  // 31/10/2026 (chủ dự án chọn 4b): nút chính = ngọc lục bảo sáng ánh kim, viền vàng; trừ công tắc + cột video.
+  kiem("nút chính ngọc lục bảo", "mọi nút nền màu chính + .nut-chinh = ngọc lục bảo sáng ánh kim, viền vàng, chữ đậm; trừ công tắc / cột video; bước đang mở + 'Tạo cửa hàng mới' dùng .nut-chinh",
+    [/--nut-chinh-nen: linear-gradient\(120deg, #0a9e6c 0%, #3ff0b8 18%, #c9ffe9 30%/.test(css),
+      /:is\(button, a\):is\(\.bg-primary, \.nut-chinh\):not\(\[role="switch"\]\):not\(\.vung-video \*\) \{\s*background: var\(--nut-chinh-nen\) !important;\s*border: 1\.5px solid #F5C451 !important;/.test(css),
+      /className="nut-chinh self-start/.test(fs.readFileSync(path.join(GOC, "src/pages/Connections.tsx"), "utf8"))],
+    [true, true, true]);
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");
   const ma = (x: { ma: string }[]) => x.map((d) => d.ma);
