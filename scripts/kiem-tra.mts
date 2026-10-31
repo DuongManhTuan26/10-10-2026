@@ -8488,8 +8488,9 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   const sb = boChuThich(fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8"));
   const tn = boChuThich(fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8"));
   // 30/10/2026 (chủ dự án, ảnh mẫu): mục menu đang chọn đổi sang VÀNG GOLD cho mọi mục; màu miền + tiêu đề thanh trên giữ.
-  kiem("H2 màu miền", "trang hệ thống dùng màu thương hiệu (#22d3ee) như Tổng quan: màu miền, tiêu đề thanh trên — không còn trắng; mục menu đang chọn vàng gold",
-    [/\.mien-he-thong\s*\{ --mien: #22d3ee; --tren-mien: #003640; \}/.test(css), /#e2e8f0/.test(css.match(/\.mien-he-thong[^}]*\}/)?.[0] ?? ""),
+  // 31/10/2026 (chủ dự án chọn (a)): màu thương hiệu = ngọc lục bảo sáng #3ff0b8 (cũ #22d3ee).
+  kiem("H2 màu miền", "trang hệ thống dùng màu thương hiệu (ngọc lục bảo sáng #3ff0b8) như Tổng quan: màu miền, tiêu đề thanh trên — không còn trắng; mục menu đang chọn vàng gold",
+    [/\.mien-he-thong\s*\{ --mien: #3ff0b8; --tren-mien: #022b1f; \}/.test(css), /#e2e8f0/.test(css.match(/\.mien-he-thong[^}]*\}/)?.[0] ?? ""),
       /const MAU_HE_THONG = VANG\.chinh;/.test(sb) && /chinh: '#F5C451',/.test(sb), /'#f1f5f9'/.test(tn)],
     [true, false, true, false]);
   // 31/10/2026 (chủ dự án: "chỉ đổi viền vàng thôi, còn các nút vẫn để nguyên"; "nền ô vuông là không đổi"): viền hệ thống
@@ -8501,12 +8502,12 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     kiem("viền vàng gold", "viền chung + thẻ + khung + thanh cuộn vàng gold ánh kim; trang 4 AI chung màu (không còn miền màu riêng); thẻ con không thừa hưởng viền thẻ cha",
       [/--color-outline-variant: rgb\(245 196 81 \/ 0\.45\);/.test(css), /:root \{ --vien-mac-dinh: #F5C451; \}/.test(css),
         !/--vien-mac-dinh: var\(--mien\)/.test(css) && ["noi-dung", "quang-cao", "ban-hang", "dieu-hanh"]
-          .every((m) => new RegExp(`\\.mien-${m}\\s*\\{ --mien: #22d3ee; --tren-mien: #003640; \\}`).test(css)),
+          .every((m) => new RegExp(`\\.mien-${m}\\s*\\{ --mien: #3ff0b8; --tren-mien: #022b1f; \\}`).test(css)),
         /--vien-cua-the: var\(--vien-the, var\(--nhan, var\(--vien-mac-dinh\)\)\);\s*--vien-anh-kim: var\(--vien-cua-the\);\s*position: relative;\s*border: 1px solid color-mix\(in srgb, var\(--vien-cua-the\) 55%, transparent\);/.test(css),
         (css.match(/--vien-the: initial;/g) ?? []).length, /\.khung-muc\.mau-xanh, \.khung-muc:not\(\[class\*="mau-"\]\) \{ --mau-vien: var\(--vien-mac-dinh\); \}/.test(css),
         /::-webkit-scrollbar-thumb \{\s*background: rgba\(245, 196, 81, 0\.1\);/.test(css),
         JSON.stringify(ba.bienThe(ba.MAU_THUONG_HIEU)), JSON.stringify(ba.bienThe("#4ade80"))],
-      [true, true, true, true, 2, true, true, JSON.stringify({ "--nhan": "#22d3ee", "--vien-the": "#F5C451" }), JSON.stringify({ "--nhan": "#22d3ee", "--vien-the": "#F5C451" })]);
+      [true, true, true, true, 2, true, true, JSON.stringify({ "--nhan": "#3ff0b8", "--vien-the": "#F5C451" }), JSON.stringify({ "--nhan": "#3ff0b8", "--vien-the": "#F5C451" })]);
     kiem("viền vàng gold", "viền ánh kim: thẻ + khung vẽ vòng kim loại nhiều dải (::before khoét giữa), viền phẳng ẩn; màu cảnh báo vẫn giữ nghĩa",
       [/\.the, \.khung-muc, \.vien-anh-kim \{ border-color: transparent !important; \}/.test(css), /\.the::before, \.khung-muc::before, \.vien-anh-kim::before \{[\s\S]{0,200}background: linear-gradient\(135deg,\s*color-mix\(in srgb, var\(--vien-anh-kim\)/.test(css),
         /mask-composite: exclude;/.test(css), /--vien-anh-kim: var\(--vien-cua-the\);/.test(css), JSON.stringify(ba.bienThe("var(--color-canh-bao)")),
@@ -8514,11 +8515,11 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
       [true, true, true, true, JSON.stringify({ "--nhan": "var(--color-canh-bao)" }), false]);
     kiem("viền vàng gold", "4 AI chung màu: tiêu đề mọi trang một màu thương hiệu; khung mang màu AI (lá / đỏ / tím / vàng) → dải đầu xanh ngọc + viền vàng",
       [/const mauTieuDe = MAU_THUONG_HIEU;/.test(boChuThich(fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8"))),
-        /\.khung-muc:is\(\.mau-la, \.mau-do, \.mau-tim, \.mau-vang\) \{ --mau: #22d3ee; --mau-vien: var\(--vien-mac-dinh\); \}/.test(css)],
+        /\.khung-muc:is\(\.mau-la, \.mau-do, \.mau-tim, \.mau-vang, \.mau-xanh\) \{ --mau: #3ff0b8; --mau-vien: var\(--vien-mac-dinh\); \}/.test(css)],
       [true, true]);
-    kiem("viền vàng gold", "nút / chữ giữ nguyên xanh ngọc (chỉ đổi viền); nền = tông 4 'Xanh đá dầu' chủ dự án chọn (lưới 4,3%)",
-      [/--color-primary: #00e5ff;/.test(css), ba.MAU_THUONG_HIEU, /--color-background: #0a1a20;/.test(css), nenApp.replace(/\s+/g, " ").trim()],
-      [true, "#22d3ee", true,
+    kiem("viền vàng gold", "màu nhấn = ngọc lục bảo sáng toàn app (chủ dự án chọn (a) 31/10); nền = tông 4 'Xanh đá dầu' chủ dự án chọn (lưới 4,3%)",
+      [/--color-primary: #3ff0b8;/.test(css), ba.MAU_THUONG_HIEU, /--color-background: #0a1a20;/.test(css), nenApp.replace(/\s+/g, " ").trim()],
+      [true, "#3ff0b8", true,
         ".nen-app { background-color: var(--color-background); background-image: radial-gradient(640px 420px at 90% -8%, rgb(0 229 255 / 0.10), transparent 70%), radial-gradient(560px 420px at 30% 108%, rgb(0 229 255 / 0.07), transparent 70%), linear-gradient(rgb(255 255 255 / 0.043) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.043) 1px, transparent 1px); background-size: auto, auto, 24px 24px, 24px 24px; }"]);
   }
   // 31/10/2026 (chủ dự án): thanh menu kéo sát mép dưới, nền màn rộng trong suốt (lưới chạy liền); thanh trên rộng đúng
@@ -8554,6 +8555,15 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
         /borderColor: `\$\{VIEN_HE_THONG\}99`, color: MAU_THUONG_HIEU/.test(fs.readFileSync(path.join(GOC, "src/components/BangTrangBanHang.tsx"), "utf8")),
         /#facc15|250,204,21/.test(fs.readFileSync(path.join(GOC, "src/components/KhoiNaoVanPhong.tsx"), "utf8"))],
       [true, 3, true, false]);
+  }
+  // 31/10/2026 (chủ dự án chọn (a) "đồng nhất toàn bộ từ a–z"): không còn xanh ngọc ở BẤT KỲ đâu (trừ quầng nền lưới đã chốt).
+  {
+    const bo = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\/\/[^\n'"`]*$/gm, "");
+    const nenApp2 = css.slice(css.indexOf("  .nen-app {"), css.indexOf("}", css.indexOf("  .nen-app {")) + 1);
+    const conXanh = [...moiTrang(path.join(GOC, "src")), path.join(GOC, "src/index.css")]
+      .filter((t) => /#(00e5ff|22d3ee|67e8f9|99f2ff|003640|00363d)\b|\b(0, ?229, ?255|34, ?211, ?238)\b/i.test(bo(fs.readFileSync(t, "utf8")).replace(nenApp2, "")))
+      .map((t) => path.relative(GOC, t));
+    kiem("màu nhấn ngọc lục bảo", "đồng nhất a–z: không tệp giao diện nào còn mã xanh ngọc (ngoài quầng nền lưới)", conXanh, []);
   }
   // H2 — sơ đồ luồng thông báo: vẽ ĐÚNG sự thật (phiên kiểm duyệt 23/10).
   const { luongThongBao } = await import("../src/lib/luong-thong-bao.ts");

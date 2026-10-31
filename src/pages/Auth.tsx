@@ -167,7 +167,7 @@ export default function Auth({ onLogin, onRegister }: {
             <button
               type="submit"
               disabled={busy || ma.length !== 6}
-              className="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg shadow-[0_0_15px_rgba(0,229,255,0.4)] hover:brightness-110 transition-all font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+              className="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg shadow-[0_0_15px_rgba(63,240,184,0.4)] hover:brightness-110 transition-all font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               {busy ? 'Đang kiểm tra…' : 'Xác nhận'}
             </button>
@@ -263,7 +263,7 @@ export default function Auth({ onLogin, onRegister }: {
           <button
             type="submit"
             disabled={busy}
-            className="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg shadow-[0_0_15px_rgba(0,229,255,0.4)] hover:shadow-[0_0_25px_rgba(0,229,255,0.6)] hover:brightness-110 transition-all font-bold mt-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+            className="w-full py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary font-label-sm rounded-lg shadow-[0_0_15px_rgba(63,240,184,0.4)] hover:shadow-[0_0_25px_rgba(63,240,184,0.6)] hover:brightness-110 transition-all font-bold mt-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
           >
             {busy
               ? (mode === 'login' ? 'Đang đăng nhập…' : 'Đang tạo tài khoản…')

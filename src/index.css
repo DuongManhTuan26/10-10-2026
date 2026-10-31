@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #00e5ff;
-  --color-on-primary: #00363d;
-  --color-primary-container: #004f59;
-  --color-on-primary-container: #99f2ff;
+  /* 31/10/2026 (chủ dự án chọn (a): "đồng nhất toàn bộ từ a–z"): màu nhấn = NGỌC LỤC BẢO SÁNG (cùng màu nút chính 4b),
+     thay xanh ngọc #00e5ff. Viền vẫn vàng gold; nền lưới giữ nguyên. */
+  --color-primary: #3ff0b8;
+  --color-on-primary: #022b1f;
+  --color-primary-container: #0a4f40;
+  --color-on-primary-container: #c9ffe9;
   
   --color-secondary: #d946ef;
   --color-on-secondary: #4a005c;
@@ -79,8 +81,8 @@
   --color-error-container: #7f1d1d;
   --color-on-error-container: #fca5a5;
 
-  --color-primary-fixed: #99f2ff;
-  --color-on-primary-fixed: #002024;
+  --color-primary-fixed: #c9ffe9;
+  --color-on-primary-fixed: #002018;
   --color-secondary-fixed: #fae8ff;
   --color-on-secondary-fixed: #2e003b;
   
@@ -215,12 +217,12 @@
 }
 
 @keyframes pulse-glow {
-    0% { border-color: rgba(0, 229, 255, 0.2); box-shadow: 0 0 0 rgba(0, 229, 255, 0); }
-    100% { border-color: rgba(0, 229, 255, 0.8); box-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
+    0% { border-color: rgba(63, 240, 184, 0.2); box-shadow: 0 0 0 rgba(63, 240, 184, 0); }
+    100% { border-color: rgba(63, 240, 184, 0.8); box-shadow: 0 0 15px rgba(63, 240, 184, 0.4); }
 }
 
 .table-row-hover:hover {
-    background-color: rgba(0, 229, 255, 0.05);
+    background-color: rgba(63, 240, 184, 0.05);
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
@@ -410,7 +412,7 @@
     .nv, .nv-hao, .nv-cham, .luong-ngang, .luong-len { animation: none !important; }
 }
 .ai-gradient {
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.1) 0%, rgba(11, 15, 25, 0) 100%);
+    background: linear-gradient(135deg, rgba(63, 240, 184, 0.1) 0%, rgba(11, 15, 25, 0) 100%);
 }
 .ai-border {
     border: 1px solid rgba(245, 196, 81, 0.5);
@@ -505,20 +507,20 @@ textarea::placeholder {
    * trang 4 AI dùng đúng bộ màu của Tổng quan — nút xanh ngọc, viền vàng gold ánh kim. Màu riêng 4 AI (bon-ai.ts hex) chỉ
    * còn ở dấu nhận diện nhỏ: số ①②③④ trên menu, ảnh khối não, đường biểu đồ.
    */
-  .mien-noi-dung  { --mien: #22d3ee; --tren-mien: #003640; }
-  .mien-quang-cao { --mien: #22d3ee; --tren-mien: #003640; }
-  .mien-ban-hang  { --mien: #22d3ee; --tren-mien: #003640; }
-  .mien-dieu-hanh { --mien: #22d3ee; --tren-mien: #003640; }
+  .mien-noi-dung  { --mien: #3ff0b8; --tren-mien: #022b1f; }
+  .mien-quang-cao { --mien: #3ff0b8; --tren-mien: #022b1f; }
+  .mien-ban-hang  { --mien: #3ff0b8; --tren-mien: #022b1f; }
+  .mien-dieu-hanh { --mien: #3ff0b8; --tren-mien: #022b1f; }
   /* Tổng quan: màu thương hiệu (không thuộc AI nào). */
-  .mien-tong-quan { --mien: #22d3ee; --tren-mien: #003640; }
+  .mien-tong-quan { --mien: #3ff0b8; --tren-mien: #022b1f; }
   /*
    * Trang hệ thống (Telegram, Gói dịch vụ, Quản lý tài khoản): màu thương hiệu GIỐNG Tổng quan. Chủ dự án 23/10/2026 chê
    * bản trung tính cũ (#e2e8f0): "tối đen xì không nổi bật, nút màu trắng khác phần Tổng quan — ít nhất phải học theo
    * Tổng quan". Không mượn màu 4 AI làm màu miền.
    */
-  .mien-he-thong  { --mien: #22d3ee; --tren-mien: #003640; }
+  .mien-he-thong  { --mien: #3ff0b8; --tren-mien: #022b1f; }
 
-  .mau-xanh { --mau: #22d3ee; }
+  .mau-xanh { --mau: #3ff0b8; } /* 31/10/2026: ngọc lục bảo sáng (cũ #22d3ee) */
   .mau-vang { --mau: #facc15; }
   .mau-tim { --mau: #b38bff; }
   .mau-la { --mau: #4ade80; }
@@ -532,7 +534,7 @@ textarea::placeholder {
   /* VIỀN khung (31/10/2026): khung xanh ngọc + khung mặc định → viền vàng gold; khung màu khác giữ viền cùng màu. */
   .khung-muc.mau-xanh, .khung-muc:not([class*="mau-"]) { --mau-vien: var(--vien-mac-dinh); }
   /* 4 AI CHUNG MÀU (31/10/2026): khung mang màu của một AI (lá / đỏ / tím / vàng) → dải đầu xanh ngọc, viền vàng ánh kim. */
-  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang) { --mau: #22d3ee; --mau-vien: var(--vien-mac-dinh); }
+  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang, .mau-xanh) { --mau: #3ff0b8; --mau-vien: var(--vien-mac-dinh); }
 
   /*
    * Nền chung của app — cùng một chất liệu với thanh menu (chủ dự án chọn):

@@ -239,21 +239,21 @@ export default function Sidebar({
       <div className="relative z-10 h-full flex flex-col" style={{ padding: '38px 60px 40px 28px' }}>
         {/* Brand Header: lục giác viền vàng + khối lập phương; tên + "AI 5.0 PLATFORM". */}
         <div className="flex items-center gap-2.5 px-1 shrink-0">
-          <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center" style={{ filter: 'drop-shadow(0 0 8px rgba(34,211,238,0.45))' }}>
+          <div className="relative w-[46px] h-[46px] shrink-0 flex items-center justify-center" style={{ filter: 'drop-shadow(0 0 8px rgba(63,240,184,0.45))' }}>
             <svg viewBox="0 0 52 52" className="absolute inset-0 w-full h-full" aria-hidden>
               <defs>
                 <linearGradient id="vienLogoNgoc" x1="0" y1="0" x2="1" y2="1">
                   <stop offset="0%" stopColor="#A5F3FC" />
-                  <stop offset="40%" stopColor="#22D3EE" />
+                  <stop offset="40%" stopColor="#3FF0B8" />
                   <stop offset="75%" stopColor="#0E7490" />
-                  <stop offset="100%" stopColor="#22D3EE" />
+                  <stop offset="100%" stopColor="#3FF0B8" />
                 </linearGradient>
               </defs>
-              <polygon points="26,3 46,14.5 46,37.5 26,49 6,37.5 6,14.5" fill="rgba(34,211,238,0.12)" stroke="url(#vienLogoNgoc)" strokeWidth="2.2" strokeLinejoin="round" />
+              <polygon points="26,3 46,14.5 46,37.5 26,49 6,37.5 6,14.5" fill="rgba(63,240,184,0.12)" stroke="url(#vienLogoNgoc)" strokeWidth="2.2" strokeLinejoin="round" />
             </svg>
             <span
               className="material-symbols-outlined relative z-10"
-              style={{ fontSize: '25px', color: '#67E8F9', fontVariationSettings: "'wght' 400", filter: 'drop-shadow(0 0 6px rgba(34,211,238,0.8))' }}
+              style={{ fontSize: '25px', color: '#8FF7D4', fontVariationSettings: "'wght' 400", filter: 'drop-shadow(0 0 6px rgba(63,240,184,0.8))' }}
             >
               deployed_code
             </span>

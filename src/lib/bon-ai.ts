@@ -43,7 +43,7 @@ export const BON_AI: readonly MotAi[] = [
 ] as const;
 
 /** Màu thương hiệu (logo, thanh menu, Tổng quan) — không thuộc AI nào. */
-export const MAU_THUONG_HIEU = '#22d3ee';
+export const MAU_THUONG_HIEU = '#3ff0b8'; // 31/10/2026: ngọc lục bảo sáng (cũ #22d3ee xanh ngọc)
 /** Màu VIỀN hệ thống = vàng gold của menu (chủ dự án 31/10/2026: chỉ viền đổi vàng; nút / chữ / biểu tượng giữ màu thương hiệu). */
 export const VIEN_HE_THONG = '#F5C451';
 /** Biến màu cho một thẻ .the / .o-trong: màu nhấn `mau`; thẻ màu thương hiệu thì VIỀN vàng gold (index.css --vien-the). */

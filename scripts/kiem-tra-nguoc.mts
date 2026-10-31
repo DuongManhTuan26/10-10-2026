@@ -5771,7 +5771,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "trang hệ thống lại nút trắng",
     tep: "src/index.css",
-    tim: "  .mien-he-thong  { --mien: #22d3ee; --tren-mien: #003640; }",
+    // 31/10/2026: màu thương hiệu ngọc lục bảo sáng — trỏ lại.
+    tim: "  .mien-he-thong  { --mien: #3ff0b8; --tren-mien: #022b1f; }",
     thay: "  .mien-he-thong  { --mien: #e2e8f0; --tren-mien: #0b1417; }",
   },
   {
@@ -6812,16 +6813,17 @@ const DUC: PhepDuc[] = [
     thay: "  --color-outline-variant: rgb(0 229 255 / 0.45);",
   },
   {
-    ten: "viền vàng: đổi luôn màu nút sang vàng (chủ dự án: nút để nguyên)",
+    ten: "màu nhấn: quay lại xanh ngọc (chủ dự án chọn (a) ngọc lục bảo sáng toàn app)",
     tep: "src/index.css",
-    tim: "  --color-primary: #00e5ff;",
-    thay: "  --color-primary: #F5C451;",
+    // 31/10/2026: màu nhấn ngọc lục bảo sáng — trỏ lại.
+    tim: "  --color-primary: #3ff0b8;",
+    thay: "  --color-primary: #00e5ff;",
   },
   {
     ten: "4 AI chung màu: trang AI Quảng cáo quay lại màu đỏ riêng",
     tep: "src/index.css",
     // 31/10/2026: chủ dự án đưa 4 AI về chung màu — trỏ lại.
-    tim: "  .mien-quang-cao { --mien: #22d3ee; --tren-mien: #003640; }",
+    tim: "  .mien-quang-cao { --mien: #3ff0b8; --tren-mien: #022b1f; }",
     thay: "  .mien-quang-cao { --mien: #ff4d6a; --tren-mien: #2b0309; }",
   },
   {
@@ -6870,7 +6872,7 @@ const DUC: PhepDuc[] = [
   {
     ten: "4 AI chung màu: khung phần mang màu AI vẫn xanh lá / đỏ / tím / vàng",
     tep: "src/index.css",
-    tim: "  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang) { --mau: #22d3ee; --mau-vien: var(--vien-mac-dinh); }\n",
+    tim: "  .khung-muc:is(.mau-la, .mau-do, .mau-tim, .mau-vang, .mau-xanh) { --mau: #3ff0b8; --mau-vien: var(--vien-mac-dinh); }\n",
     thay: "",
   },
   {
@@ -6968,6 +6970,18 @@ const DUC: PhepDuc[] = [
     tep: "src/components/KhoiNaoVanPhong.tsx",
     tim: "color: VANG, background: 'rgba(10,8,2,0.88)'",
     thay: "color: '#facc15', background: 'rgba(10,8,2,0.88)'",
+  },
+  {
+    ten: "màu nhấn: logo menu còn xanh ngọc",
+    tep: "src/components/Sidebar.tsx",
+    tim: "<stop offset=\"40%\" stopColor=\"#3FF0B8\" />",
+    thay: "<stop offset=\"40%\" stopColor=\"#22D3EE\" />",
+  },
+  {
+    ten: "màu nhấn: màu thương hiệu còn xanh ngọc (thẻ / tiêu đề / biểu tượng)",
+    tep: "src/lib/bon-ai.ts",
+    tim: "export const MAU_THUONG_HIEU = '#3ff0b8';",
+    thay: "export const MAU_THUONG_HIEU = '#22d3ee';",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",
