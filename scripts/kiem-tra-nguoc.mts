@@ -7033,8 +7033,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "điện thoại: tên trang lại to 20px (tên dài bị cắt)",
     tep: "src/components/TopNavBar.tsx",
-    tim: '<h1 className="text-lg lg:text-2xl font-bold truncate"',
-    thay: '<h1 className="text-xl sm:text-2xl font-bold truncate"',
+    tim: '<h1 className="chu-nhap-nhay text-lg lg:text-2xl font-bold truncate"',
+    thay: '<h1 className="chu-nhap-nhay text-xl sm:text-2xl font-bold truncate"',
   },
   {
     ten: "khối não: chọn kiểu theo bề rộng màn (cửa sổ 1258px ra lưới thẻ)",

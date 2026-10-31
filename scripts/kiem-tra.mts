@@ -8552,7 +8552,7 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
     // Menu điện thoại không còn cố định → ⚡ giữ lại; tên trang 18px + lề 12px để tên dài hiện đủ.
     kiem("menu to / nhỏ", "số điện thoại: vệt sáng chạy + quầng + viền chạy vòng; điện thoại giữ ⚡, tên trang 18px lề 12px; Tổng quan không lời chào",
       [/className="so-dien-thoai /.test(sb), /className="vien-chay inline-flex"/.test(sb), /@keyframes so-dien-thoai-chay/.test(css31), /@keyframes vien-chay-quay/.test(css31),
-        !/title="Cấu hình AI bán hàng"[\s\S]{0,260}hidden lg:flex/.test(tn), /<h1 className="text-lg lg:text-2xl font-bold truncate"/.test(tn), /px-3 lg:px-margin/.test(tn),
+        !/title="Cấu hình AI bán hàng"[\s\S]{0,260}hidden lg:flex/.test(tn), /<h1 className="chu-nhap-nhay text-lg lg:text-2xl font-bold truncate"/.test(tn), /px-3 lg:px-margin/.test(tn),
         /loiChao|Chào buổi/.test(db31)],
       [true, true, true, true, true, true, true, false]);
     kiem("menu to / nhỏ", "tên trang trên thanh tiêu đề NHẤP NHÁY (sáng – mờ, quầng ngọc lục bảo), tôn trọng giảm chuyển động; không bọc khung",
