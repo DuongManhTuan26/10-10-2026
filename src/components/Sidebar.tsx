@@ -201,7 +201,7 @@ export default function Sidebar({
       />
     )}
     <aside
-      className={`thanh-menu ${hep ? '' : 'w-76'} h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] transition-[width] duration-300`}
+      className={`thanh-menu ${hep ? '' : 'w-76'} h-screen fixed left-0 top-0 flex flex-col z-50 bg-[#030509] transition-[width,transform] duration-300 ${moKhung ? 'translate-x-0' : '-translate-x-full'}`}
       style={hep ? { width: `${rongHep}px` } : undefined}
     >
       {/*
@@ -265,8 +265,8 @@ export default function Sidebar({
         <button
           type="button"
           onClick={onDoiMenu}
-          title={hep ? 'Mở menu to' : 'Thu về menu nhỏ'}
-          aria-label={hep ? 'Mở menu to' : 'Thu về menu nhỏ'}
+          title={hep ? 'Thu gọn hết menu' : 'Chuyển menu nhỏ'}
+          aria-label={hep ? 'Thu gọn hết menu' : 'Chuyển menu nhỏ'}
           className={clsx('flex items-center shrink-0 text-left rounded-xl cursor-pointer', hep ? 'justify-center' : 'gap-2.5 px-1 mt-2')}
         >
           <div className={clsx('relative shrink-0 flex items-center justify-center', hep ? 'w-[40px] h-[40px]' : 'w-[46px] h-[46px]')} style={{ filter: 'drop-shadow(0 0 8px rgba(63,240,184,0.45))' }}>

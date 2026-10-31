@@ -2010,8 +2010,9 @@ const DUC: PhepDuc[] = [
     ten: "điện thoại mở sẵn menu to (che kín nội dung)",
     tep: "src/App.tsx",
     // 31/10/2026: điện thoại menu nhỏ, bấm logo mới mở to — trỏ lại.
-    tim: "  const menuHep = manRong ? thuGon : !menuMo;",
-    thay: "  const menuHep = manRong ? thuGon : false;",
+    // 31/10/2026: menu 3 trạng thái, điện thoại mặc định ẩn — trỏ lại.
+    tim: "  const [menuDienThoai, setMenuDienThoai] = useState<TrangThaiMenu>('an');",
+    thay: "  const [menuDienThoai, setMenuDienThoai] = useState<TrangThaiMenu>('to');",
   },
   {
     ten: "ẩn hẳn thanh trên trên điện thoại, mất chỗ mở menu",
@@ -6905,8 +6906,8 @@ const DUC: PhepDuc[] = [
   {
     ten: "thanh menu: nền đen bóng quanh khung bị đổi thành trong suốt (mất điểm nhấn)",
     tep: "src/components/Sidebar.tsx",
-    tim: "bg-[#030509] transition-[width]",
-    thay: "bg-[#030509] lg:bg-transparent transition-[width]",
+    tim: "bg-[#030509] transition-[width,transform]",
+    thay: "bg-[#030509] lg:bg-transparent transition-[width,transform]",
   },
   {
     ten: "thanh trên: mất vạch vàng ánh kim (về nền phẳng + viền mảnh)",
@@ -7029,10 +7030,10 @@ const DUC: PhepDuc[] = [
     thay: "<span className=\"inline-flex\">",
   },
   {
-    ten: "điện thoại: nút ⚡ lại chiếm chỗ tên trang",
+    ten: "điện thoại: tên trang lại to 20px (tên dài bị cắt)",
     tep: "src/components/TopNavBar.tsx",
-    tim: "transition-all duration-200 hidden lg:flex items-center justify-center",
-    thay: "transition-all duration-200 flex items-center justify-center",
+    tim: '<h1 className="text-lg lg:text-2xl font-bold truncate"',
+    thay: '<h1 className="text-xl sm:text-2xl font-bold truncate"',
   },
   {
     ten: "khối não: chọn kiểu theo bề rộng màn (cửa sổ 1258px ra lưới thẻ)",
@@ -7045,6 +7046,18 @@ const DUC: PhepDuc[] = [
     tep: "src/components/KhoiNaoVanPhong.tsx",
     tim: "], '@min-[640px]:col-span-3')}",
     thay: "])}",
+  },
+  {
+    ten: "menu: bấm logo không xoay vòng (bỏ trạng thái ẩn)",
+    tep: "src/App.tsx",
+    tim: "  const bamLogo = () => datMenu(menu === 'to' ? 'nho' : menu === 'nho' ? 'an' : 'to');",
+    thay: "  const bamLogo = () => datMenu(menu === 'to' ? 'nho' : 'to');",
+  },
+  {
+    ten: "menu: ẩn hết mà thanh tiêu đề không có logo mở lại",
+    tep: "src/components/TopNavBar.tsx",
+    tim: "{menuAn && <button",
+    thay: "{false && <button",
   },
   {
     ten: "tải lại trang không chọn lại cửa hàng đang hướng dẫn (mũi tên tắt mất)",

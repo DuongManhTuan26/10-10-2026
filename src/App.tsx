@@ -25,12 +25,13 @@ export default function App() {
    * Ngăn kéo menu trên điện thoại. Từ lg trở lên biến này không có tác dụng gì
    * vì thanh menu luôn đứng cố định.
    */
-  const [menuMo, setMenuMo] = useState(false);
   /*
-   * MENU TO / NHỎ (chủ dự án 31/10/2026): bỏ nút ☰ — BẤM LOGO trên thanh menu để chuyển: lần 1 menu to, lần 2 về menu nhỏ.
-   * "Menu nhỏ phù hợp điện thoại, menu to phù hợp máy tính": máy tính mặc định to (nhớ lựa chọn trong trình duyệt); điện
-   * thoại mặc định nhỏ, bấm logo thì menu to trượt đè lên, chọn mục / bấm ra ngoài là về nhỏ.
+   * MENU 3 TRẠNG THÁI (chủ dự án 31/10/2026: "bấm 1 cái vào logo menu to hiện ra, bấm 2 cái menu nhỏ hiện ra, bấm 3 cái cả 2 menu
+   * thu gọn vào để nhường giao diện cho màn hình chính"): to → nhỏ → ẩn → to… Lúc ẩn, logo nhỏ ở thanh tiêu đề để mở lại.
+   * Máy tính: mặc định to, nhớ lựa chọn trong trình duyệt; menu to / nhỏ đẩy nội dung sang. Điện thoại: mặc định ẩn; mở ra
+   * thì đè lên nội dung, bấm ra ngoài / chọn mục là ẩn lại (màn nhỏ — không để menu cố định chiếm chỗ).
    */
+  type TrangThaiMenu = 'to' | 'nho' | 'an';
   const [manRong, setManRong] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -38,21 +39,22 @@ export default function App() {
     mq.addEventListener('change', doi);
     return () => mq.removeEventListener('change', doi);
   }, []);
-  const [thuGon, setThuGon] = useState(() => { try { return localStorage.getItem('menu-thu-gon') === '1'; } catch { return false; } });
-  const doiThuGon = () => setThuGon((cu) => {
-    const moi = !cu;
-    try { localStorage.setItem('menu-thu-gon', moi ? '1' : '0'); } catch { /* chặn lưu: vẫn đổi trong phiên */ }
-    return moi;
+  const [menuMayTinh, setMenuMayTinh] = useState<TrangThaiMenu>(() => {
+    try { const v = localStorage.getItem('menu-trang-thai'); return v === 'nho' || v === 'an' ? v : 'to'; } catch { return 'to'; }
   });
-  /** Menu nhỏ (dải biểu tượng): máy tính theo lựa chọn; điện thoại khi chưa mở menu to. */
-  const menuHep = manRong ? thuGon : !menuMo;
-  /**
-   * Bề rộng menu nhỏ: máy tính 100px; điện thoại 80px (chủ dự án duyệt 31/10/2026 — chuẩn thanh điều hướng dọc 80, vẫn đủ vùng
-   * bấm 44px; trả 20px cho nội dung để tên trang trên thanh tiêu đề hiện đủ).
-   */
+  const [menuDienThoai, setMenuDienThoai] = useState<TrangThaiMenu>('an');
+  const menu = manRong ? menuMayTinh : menuDienThoai;
+  const datMenu = (m: TrangThaiMenu) => {
+    if (!manRong) return setMenuDienThoai(m);
+    setMenuMayTinh(m);
+    try { localStorage.setItem('menu-trang-thai', m); } catch { /* chặn lưu: vẫn đổi trong phiên */ }
+  };
+  /** Bấm logo: to → nhỏ → ẩn → to. */
+  const bamLogo = () => datMenu(menu === 'to' ? 'nho' : menu === 'nho' ? 'an' : 'to');
+  /** Bề rộng menu nhỏ: máy tính 100px; điện thoại 80px (chuẩn thanh điều hướng dọc, vẫn đủ vùng bấm 44px). */
   const rongHep = manRong ? 100 : 80;
-  /** Bề rộng chừa cho menu bên trái nội dung: menu nhỏ; máy tính menu to 19rem. */
-  const leMenu = manRong && !thuGon ? '19rem' : `${rongHep}px`;
+  /** Bề rộng chừa cho menu ở máy tính (điện thoại menu đè lên, nội dung rộng hết màn). */
+  const leMenu = menu === 'an' ? '0px' : menu === 'nho' ? '100px' : '19rem';
   const [user, setUser] = useState<User | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
@@ -162,13 +164,13 @@ export default function App() {
       <Sidebar
         onLogout={handleLogout}
         laQuanTri={user?.role === 'admin'}
-        moKhung={menuMo}
-        hep={menuHep}
+        moKhung={menu !== 'an'}
+        hep={menu === 'nho'}
         rongHep={rongHep}
-        onDoiMenu={() => (manRong ? doiThuGon() : setMenuMo((m) => !m))}
-        onDong={() => setMenuMo(false)}
+        onDoiMenu={bamLogo}
+        onDong={() => { if (!manRong) setMenuDienThoai('an'); }}
       />
-      <div className="cot-noi-dung flex-1 ml-[var(--le-menu)] transition-[margin] duration-300 min-w-0 flex flex-col h-screen relative">
+      <div className="cot-noi-dung flex-1 lg:ml-[var(--le-menu)] transition-[margin] duration-300 min-w-0 flex flex-col h-screen relative">
         {/*
           Đang xem thay một trang thì mọi màn hình trông y hệt tài khoản của
           chính mình. Nút vàng cam ở góc phải thanh tiêu đề là thứ phân biệt —
@@ -177,6 +179,8 @@ export default function App() {
         <TopNavBar
           user={user}
           avatarUrl={avatarUrl}
+          onMoMenu={bamLogo}
+          menuAn={menu === 'an'}
           // Quay lại thì về màn hình quản lý (/quan-ly → /admin).
           gocPhai={<DangXemThay user={user} onQuayLai={() => { window.location.href = '/quan-ly'; }} />}
         />

@@ -5,10 +5,14 @@ import { api, ApiError, type User } from '../lib/api';
 import DoiMatKhau from './DoiMatKhau';
 import { useActivePage } from '../lib/ActivePage';
 
-export default function TopNavBar({ user, avatarUrl, gocPhai }: {
+export default function TopNavBar({ user, avatarUrl, onMoMenu, menuAn = false, gocPhai }: {
   user?: User | null;
   /** Ảnh đại diện của Fanpage đang hoạt động, lấy từ kênh đã kết nối. */
   avatarUrl?: string | null;
+  /** Bấm logo ở thanh tiêu đề (chỉ hiện khi menu đang thu gọn hết) để mở lại menu to. */
+  onMoMenu?: () => void;
+  /** Menu đang thu gọn hết (ẩn) → hiện logo mở menu. */
+  menuAn?: boolean;
   /** Thứ đặt ở góc phải trước chuông (vd. nút "đang xem thay" — luôn thấy, không đè nội dung). */
   gocPhai?: ReactNode;
 }) {
@@ -70,9 +74,26 @@ export default function TopNavBar({ user, avatarUrl, gocPhai }: {
   // 31/10/2026: thanh trên rộng đúng phần còn lại sau thanh menu w-76 (19rem) — trước 288px nên lấn 16px, vạch vàng đâm vào menu.
 
   return (
-    <nav className="thanh-tren fixed top-0 right-0 w-[calc(100%-var(--le-menu))] z-40 transition-all duration-300 flex justify-between items-center gap-2 px-3 lg:px-margin py-base h-16">
+    <nav className="thanh-tren fixed top-0 right-0 w-full lg:w-[calc(100%-var(--le-menu))] z-40 transition-all duration-300 flex justify-between items-center gap-2 px-3 lg:px-margin py-base h-16">
       <div className="flex items-center gap-2 sm:gap-md min-w-0">
-        {/* 31/10/2026: bỏ nút ☰ — chuyển menu to / nhỏ bằng cách bấm logo trên thanh menu (chủ dự án). */}
+        {/*
+          31/10/2026: bỏ nút ☰ — bấm logo xoay vòng menu to → nhỏ → ẩn. Lúc menu ẩn hết, logo nhỏ ở đây để mở lại (máy tính lẫn
+          điện thoại).
+        */}
+        {menuAn && <button
+          type="button"
+          onClick={onMoMenu}
+          title="Mở menu"
+          aria-label="Mở menu"
+          className="relative w-10 h-10 -ml-1 shrink-0 flex items-center justify-center rounded-xl"
+          style={{ filter: 'drop-shadow(0 0 6px rgba(63,240,184,0.45))' }}
+        >
+          <svg viewBox="0 0 52 52" className="absolute inset-0 w-full h-full" aria-hidden>
+            <polygon points="26,3 46,14.5 46,37.5 26,49 6,37.5 6,14.5" fill="rgba(63,240,184,0.12)" stroke="#3FF0B8" strokeWidth="2.2" strokeLinejoin="round" />
+          </svg>
+          <span className="material-symbols-outlined relative z-10 text-[20px]" style={{ color: '#8FF7D4' }}>deployed_code</span>
+        </button>}
+        {/* Điện thoại 18px + lề 12px (chủ dự án "ok" 31/10/2026) để tên trang dài hiện đủ. */}
         <h1 className="text-lg lg:text-2xl font-bold truncate" style={{ color: mauTieuDe }}>{getPageTitle()}</h1>
         {/*
           Trang (bộ não) đang làm việc — chỉ hiển thị, đổi trang ở bảng "Trang bán hàng" của Kết nối kênh. Chỉ hiện ở 4 AI:
@@ -109,12 +130,11 @@ export default function TopNavBar({ user, avatarUrl, gocPhai }: {
         <button
           onClick={() => navigate('/ban-hang?the=huong-dan')}
           title="Cấu hình AI bán hàng"
-          // Điện thoại ẩn (chủ dự án duyệt 31/10/2026): lối tắt trùng mục ③ trên menu; trả chỗ cho tên trang hiện đủ.
-          className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/80 rounded-full p-2 transition-all duration-200 hidden lg:flex items-center justify-center"
+          className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/80 rounded-full p-2 transition-all duration-200 flex items-center justify-center"
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>bolt</span>
         </button>
-        <div className="relative ml-sm">
+        <div className="relative ml-1 lg:ml-sm">
         <div
           onClick={() => setMenuMo((v) => !v)}
           className="h-8 w-8 rounded-full border-2 border-white/30 overflow-hidden relative group cursor-pointer"

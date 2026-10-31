@@ -2058,23 +2058,26 @@ kiem("múi giờ", "chỉ có MỘT bản định nghĩa, các nơi khác đều
 const nguonMenu = fs.readFileSync(path.join(GOC, "src/components/Sidebar.tsx"), "utf8");
 const nguonApp2 = fs.readFileSync(path.join(GOC, "src/App.tsx"), "utf8");
 const nguonThanhTren = fs.readFileSync(path.join(GOC, "src/components/TopNavBar.tsx"), "utf8");
-// 31/10/2026 (chủ dự án): "menu nhỏ phù hợp điện thoại, menu to phù hợp máy tính" — điện thoại menu NHỎ 80px luôn hiện,
-// bấm logo thì menu to trượt đè lên (nền mờ bấm ra ngoài / chọn mục là về nhỏ).
-kiem("điện thoại", "menu nhỏ 80px luôn hiện; bấm logo mở menu to đè lên; máy tính menu nhỏ 100px",
-  [/const menuHep = manRong \? thuGon : !menuMo;/.test(nguonApp2), /const rongHep = manRong \? 100 : 80;/.test(nguonApp2),
-    /style=\{hep \? \{ width: `\$\{rongHep\}px` \} : undefined\}/.test(nguonMenu)], [true, true, true]);
+// 31/10/2026 (chủ dự án): "bấm 1 cái vào logo menu to hiện ra, bấm 2 cái menu nhỏ, bấm 3 cái cả 2 menu thu gọn vào để nhường
+// giao diện cho màn hình chính" — 3 trạng thái to → nhỏ → ẩn; điện thoại mặc định ẩn, mở ra thì đè lên (không cố định chiếm chỗ).
+kiem("điện thoại", "bấm logo xoay vòng to → nhỏ → ẩn; điện thoại mặc định ẩn; menu nhỏ máy tính 100px / điện thoại 80px",
+  [/const bamLogo = \(\) => datMenu\(menu === 'to' \? 'nho' : menu === 'nho' \? 'an' : 'to'\);/.test(nguonApp2),
+    /const \[menuDienThoai, setMenuDienThoai\] = useState<TrangThaiMenu>\('an'\);/.test(nguonApp2), /const rongHep = manRong \? 100 : 80;/.test(nguonApp2),
+    /style=\{hep \? \{ width: `\$\{rongHep\}px` \} : undefined\}/.test(nguonMenu), /\$\{moKhung \? 'translate-x-0' : '-translate-x-full'\}/.test(nguonMenu)],
+  [true, true, true, true, true]);
 kiem("điện thoại", "có nền mờ bấm ra ngoài để đóng",
   /onClick=\{onDong\}[\s\S]{0,160}?lg:hidden/.test(nguonMenu), true);
 kiem("điện thoại", "chọn một mục là đóng ngăn kéo",
   /useEffect\(\(\) => \{ onDong\?\.\(\); \}, \[viTri\.pathname\]\)/.test(nguonMenu), true);
-kiem("điện thoại", "nội dung + thanh trên chừa đúng bề rộng menu (--le-menu): máy tính to 19rem / nhỏ 100px, điện thoại 80px",
-  [/const leMenu = manRong && !thuGon \? '19rem' : `\$\{rongHep\}px`;/.test(nguonApp2), /className="cot-noi-dung flex-1 ml-\[var\(--le-menu\)\]/.test(nguonApp2),
-    /w-\[calc\(100%-var\(--le-menu\)\)\]/.test(nguonThanhTren)], [true, true, true]);
+kiem("điện thoại", "máy tính: nội dung + thanh trên chừa đúng bề rộng menu (to 19rem / nhỏ 100px / ẩn 0); điện thoại nội dung rộng hết màn",
+  [/const leMenu = menu === 'an' \? '0px' : menu === 'nho' \? '100px' : '19rem';/.test(nguonApp2), /className="cot-noi-dung flex-1 lg:ml-\[var\(--le-menu\)\]/.test(nguonApp2),
+    /w-full lg:w-\[calc\(100%-var\(--le-menu\)\)\]/.test(nguonThanhTren)], [true, true, true]);
 kiem("điện thoại", "thanh trên không còn bị ẩn hẳn",
   /hidden md:flex justify-between/.test(nguonThanhTren), false);
-kiem("điện thoại", "bỏ nút ☰ trên thanh tiêu đề — bấm LOGO chuyển menu to ↔ nhỏ (máy tính nhớ lựa chọn)",
-  [/onMoMenu/.test(nguonThanhTren), /onClick=\{onDoiMenu\}[\s\S]{0,120}aria-label=\{hep \? 'Mở menu to' : 'Thu về menu nhỏ'\}/.test(nguonMenu),
-    /localStorage\.setItem\('menu-thu-gon'/.test(nguonApp2)], [false, true, true]);
+kiem("điện thoại", "không nút ☰ — logo trên menu xoay vòng; lúc ẩn hết, logo ở thanh tiêu đề mở lại; máy tính nhớ lựa chọn",
+  [/>menu<\/span>/.test(nguonThanhTren), /onClick=\{onDoiMenu\}[\s\S]{0,120}aria-label=\{hep \? 'Thu gọn hết menu' : 'Chuyển menu nhỏ'\}/.test(nguonMenu),
+    /\{menuAn && <button[\s\S]{0,80}onClick=\{onMoMenu\}/.test(nguonThanhTren), /localStorage\.setItem\('menu-trang-thai', m\)/.test(nguonApp2)],
+  [false, true, true, true]);
 const nguonHopThu = fs.readFileSync(path.join(GOC, "src/pages/Inbox.tsx"), "utf8");
 kiem("điện thoại", "hộp thư: điện thoại chỉ hiện một trong hai cột",
   /xemChiTietDiDong \? 'hidden lg:flex' : 'flex'/.test(nguonHopThu) &&
@@ -8530,7 +8533,7 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
   // phần còn lại sau menu w-76 — trước 288px nên lấn 16px, vạch vàng đâm vào menu.
   kiem("thanh menu sát mép", "khung menu cách mép dưới 8px, bỏ dải phản chiếu; nền quanh khung GIỮ đen bóng #030509 (chủ dự án: điểm nhấn); thanh trên chừa đúng bề rộng menu",
     [/top: '10px', right: hep \? \(rongHep < 90 \? '12px' : '18px'\) : '24px', bottom: '8px', transform: 'rotateY\(11deg\)'/.test(sb), /PHẢN CHIẾU/.test(sb),
-      /h-screen fixed left-0 top-0 flex flex-col z-50 bg-\[#030509\] transition-\[width\]/.test(sb) && !/lg:bg-transparent/.test(sb), /w-\[calc\(100%-var\(--le-menu\)\)\]/.test(tn), /288px/.test(tn)],
+      /h-screen fixed left-0 top-0 flex flex-col z-50 bg-\[#030509\] transition-\[width,transform\]/.test(sb) && !/lg:bg-transparent/.test(sb), /w-\[calc\(100%-var\(--le-menu\)\)\]/.test(tn), /288px/.test(tn)],
     [true, false, true, true, false]);
   // 31/10/2026 (chủ dự án, từng ý đã duyệt): mép menu kiểu 4; menu nhỏ nghiêng như menu to (phối cảnh theo bề ngang, viền mảnh
   // ~60%, chừa đen bóng); 4 AI chỉ vòng số ở cả menu to / nhỏ; số điện thoại vệt sáng chạy + viền chạy vòng; bỏ ⚡ + tên trang
@@ -8544,9 +8547,10 @@ kiem("kiểm toàn chữ", "Quản lý: tài khoản chưa nối kênh ghi 'Chư
       [/\.thanh-menu::after \{[\s\S]{0,200}width: 2px;/.test(css31), /\.cot-noi-dung \{\s*box-shadow: inset 18px 0 22px -14px/.test(css31),
         /perspective: hep \? \(rongHep < 90 \? '270px' : '320px'\) : '1000px'/.test(sb), /khoiNho: \[/.test(sb), /\{!item\.so && <span/.test(sb)],
       [true, true, true, true, true]);
-    kiem("menu to / nhỏ", "số điện thoại: vệt sáng chạy + quầng + viền chạy vòng; điện thoại bỏ ⚡, tên trang 18px lề 12px; Tổng quan không lời chào",
+    // Menu điện thoại không còn cố định → ⚡ giữ lại; tên trang 18px + lề 12px để tên dài hiện đủ.
+    kiem("menu to / nhỏ", "số điện thoại: vệt sáng chạy + quầng + viền chạy vòng; điện thoại giữ ⚡, tên trang 18px lề 12px; Tổng quan không lời chào",
       [/className="so-dien-thoai /.test(sb), /className="vien-chay inline-flex"/.test(sb), /@keyframes so-dien-thoai-chay/.test(css31), /@keyframes vien-chay-quay/.test(css31),
-        /title="Cấu hình AI bán hàng"[\s\S]{0,260}hidden lg:flex/.test(tn), /<h1 className="text-lg lg:text-2xl font-bold truncate"/.test(tn), /px-3 lg:px-margin/.test(tn),
+        !/title="Cấu hình AI bán hàng"[\s\S]{0,260}hidden lg:flex/.test(tn), /<h1 className="text-lg lg:text-2xl font-bold truncate"/.test(tn), /px-3 lg:px-margin/.test(tn),
         /loiChao|Chào buổi/.test(db31)],
       [true, true, true, true, true, true, true, false]);
     kiem("menu to / nhỏ", "khối não Tổng quan chọn kiểu theo CHỖ TRỐNG THẬT (≥ 860px hai tầng); kiểu thẻ: ④ trải ngang, ①②③ ba cột",
